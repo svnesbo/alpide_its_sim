@@ -21,6 +21,24 @@ PixelRegion::setPixel(unsigned int col_num, unsigned int row_num) {
   }
 }
 
+
+bool PixelRegion::getPixel(unsigned int col, unsigned int row)
+{
+  if(row_num >= N_PIXEL_ROWS) {
+    std::cout << "Error. Pixel row address > number of rows. Hit ignored.\n";
+
+    //@todo Maybe implement some exceptions or something if we are out of bounds here?    
+    return false;
+  } else if(col_num >= N_PIXEL_COLS_PER_REGION) {
+    std::cout << "Error. Pixel row address > number of cols. Hit ignored.\n";
+
+    //@todo Maybe implement some exceptions or something if we are out of bounds here?
+    return false; 
+  } else {
+    return dcols[col_num/2].getPixel(col_num);
+  }
+}
+
 ///@brief Read out the next pixel from this region
 //@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
 //        (PixelData object with coords = (-1,-1)).  
