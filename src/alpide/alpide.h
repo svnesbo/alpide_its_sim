@@ -76,23 +76,6 @@ class TopRegionUnit
   // The TRU can be responsible for putting the Region Header word (with the correct region ID) onto the data stream.
 };
   
-class PixelMatrix
-{
-private:
-  PixelRegion regions[N_REGIONS];
-public:
-  setPixel(unsigned int col_num, unsigned int row_num) {
-    region_num = col_num / N_PIXEL_COLS_PER_REGION;
-    if(row_num >= N_PIXEL_ROWS) {
-      std::cout << "Error. Pixel row address > number of rows. Hit ignored.\n";
-    } else if(col_num >= N_PIXEL_COLS) {
-      std::cout << "Error. Pixel col address > number of cols. Hit ignored.\n";
-    } else {
-      regions[region_num].setPixel(col_num % (N_PIXEL_COLS_PER_REGION));
-    }
-  }  
-};
-
 
 class Alpide
 {

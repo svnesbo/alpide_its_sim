@@ -11,7 +11,7 @@
 #include "pixel_region.h"
 
 
-PixelRegion::setPixel(unsigned int col_num, unsigned int row_num) {
+void PixelRegion::setPixel(unsigned int col_num, unsigned int row_num) {
   if(row_num >= N_PIXEL_ROWS) {
     std::cout << "Error. Pixel row address > number of rows. Hit ignored.\n";
   } else if(col_num >= N_PIXEL_COLS_PER_REGION) {
@@ -46,7 +46,7 @@ PixelData PixelRegion::readPixel(void) {
   PixelData pixelHit = NoPixelHit; // Defaults to no hits
     
   // Search for a double column that has more pixels to read out, starting at double column 0
-  for(int i = 0; i < N_PIXEL_COLS_PER_REGION/2; i++) {
+  for(int i = 0; i < N_PIXEL_DOUBLE_COLS_PER_REGION; i++) {
     // Return next prioritized hit for this double column if it has more pixels to read out
     if(dcols[i].pixelHitsRemaining() > 0) {
       pixelHit = dcols[i].readPixel();
@@ -62,7 +62,7 @@ PixelData PixelRegion::readPixel(void) {
 ///@brief Returns how many pixel hits (in all double columns) that have not been read out from the MEBs yet
 unsigned int PixelRegion::pixelHitsRemaining(void) {
   int num_hits = 0;
-  for(int i = 0; i < N_PIXELS_PER_REGION/2; i++)
+  for(int i = 0; i < N_PIXEL_DOUBLE_COLS_PER_REGION; i++)
     num_hits += dcols[i].pixelHitsRemaining();
 
   return num_hits;

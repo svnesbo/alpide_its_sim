@@ -17,10 +17,19 @@ class RegionReadoutUnit
 {
 private:
   PixelRegion* region;
+  unsigned int current_region;
+  bool fifo_size_limit;
+  bool busy_signaled;
+  
   sc_core::sc_fifo<DataWordBase> RRU_FIFO;
+
+  //DataWordBase getNextFifoWord(unsigned int region_id);
+  DataWordBase getNextFifoWord(void);
+  void updateFifo(void);
 
 public:
   RegionReadoutUnit(PixelRegion* r);
+    
 
   // Implement framing and stuff here.
   // Implement the 128x24b FIFO here. We can use 128 x 3 words FIFO, where we have a special object for the words,

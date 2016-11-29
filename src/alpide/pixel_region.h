@@ -18,7 +18,7 @@ class PixelRegion
 private:
   PixelDoubleColumn dcols[N_PIXEL_COLS_PER_REGION/2];
 public:
-  setPixel(unsigned int col_num, unsigned int row_num);
+  void setPixel(unsigned int col_num, unsigned int row_num);
   bool getPixel(unsigned int col_num, unsigned int row_num);
   PixelData readPixel(void);
   unsigned int pixelHitsRemaining(void);

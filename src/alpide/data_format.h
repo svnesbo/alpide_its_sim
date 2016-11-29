@@ -8,11 +8,11 @@
  * Detailed description of file.
  */
 
-enum DataWordID {IDLE, CHIP_HEADER, CHIP_TRAILER, CHIP_EMPTY_FRAME, REGION_HEADER, DATA_SHORT, DATA_LONG, BUSY_ON, BUSY_OFF, INCOMPLETE};
+enum DataWordID {IDLE, CHIP_HEADER, CHIP_TRAILER, CHIP_EMPTY_FRAME, REGION_HEADER, DATA_SHORT, DATA_LONG, BUSY_ON, BUSY_OFF, INCOMPLETE, NO_DATA};
 
-class DataWordBase
+struct DataWordBase
 {
-private:
+public:
   int size;
   int size_received;
   int size_transmitted;
@@ -57,8 +57,10 @@ public:
   
 class DataWordDataShort : DataWordBase
 {
+private:
+  PixelData pixel;
 public:
-  DataWordDataShort() : size(2), size_received(0), size_transmitted(0), data_word(DATA_SHORT) {}
+  DataWordDataShort(PixelData p) : size(2), size_received(0), size_transmitted(0), data_word(DATA_SHORT), pixel(p) {}
 };
 
 
@@ -88,3 +90,9 @@ class DataWordIncomplete : DataWordBase
 public:
   DataWordIncomplete(int data_word_size) : size(data_word_size), size_received(0), size_transmitted(0), data_word(INCOMPLETE) {}
 };
+
+class DataWordNoData : DataWordBase
+{
+public:
+  DataWordNoData() : size(3), size_received(0), size_transmitted(0), data_word(NO_DATA) {}
+}
