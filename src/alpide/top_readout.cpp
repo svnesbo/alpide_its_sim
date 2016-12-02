@@ -10,4 +10,23 @@
 
 #include "top_readout.h"
 
+TopReadoutUnit::TopReadoutUnit()
+{
+  current_region = 0;
+}
 
+
+TopReadoutUnit::getNextFifoWord(void)
+{
+  // Find the next RRU FIFO that has data
+  for(int i = 0; i < N_REGIONS; i++) {
+    if(RRU[current_region].getFifoSize() > 0)
+      break;
+    
+    current_region++;
+    if(current_region >= N_REGIONS)
+      current_region=0;
+  }
+
+  
+}

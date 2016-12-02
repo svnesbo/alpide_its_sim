@@ -29,7 +29,7 @@ private:
 
 public:
   RegionReadoutUnit(PixelRegion* r);
-    
+  unsigned int getFifoSize(void) { return RRU_FIFO.size(); }
 
   // Implement framing and stuff here.
   // Implement the 128x24b FIFO here. We can use 128 x 3 words FIFO, where we have a special object for the words,

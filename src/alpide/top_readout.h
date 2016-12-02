@@ -16,10 +16,17 @@
 class TopReadoutUnit
 {
 private:
+  RegionReadoutUnit RRU[N_REGIONS];
+  sc_core::sc_fifo<DataWordBase> RRU_FIFO;
 
-public:
-
+  unsigned int current_region;
   
+  DataWordBase getNextFifoWord(void);
+  
+public:
+  TopReadoutUnit();
+
+
 }
 
 
