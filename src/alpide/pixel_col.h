@@ -12,6 +12,7 @@
 
 
 #include "alpide_constants.h"
+#include <set>
 
 
 /**
@@ -23,9 +24,13 @@
 */
 class PixelData
 {
+  friend class PixelPriorityEncoder;
+
+private:
   int col;
   int row;
-    
+
+public:  
   PixelData(int colIn = 0, int rowIn = 0) :col(colIn) ,row(rowIn) {}
 };
 
@@ -49,7 +54,7 @@ const PixelData NoPixelHit(-1,-1);
    the actual prioritization of the pixels in the set.
    @image html regions-columns-indexes.png
 */
-class PixelPriorityEncoder
+class PixelPriorityEncoder 
 {
   /**
      @brief Overloaded () function, allows the std::set to use this function to compare two
@@ -82,10 +87,10 @@ private:
   unsigned int strobe;
   unsigned int memsel;
 public:
-  setPixel(unsigned int col_num, unsigned int row_num);
+  void setPixel(unsigned int col_num, unsigned int row_num);
   PixelData readPixel(void);
   unsigned int pixelsHitsRemaining(void);
 };
 
 
-#endif PIXEL_COL_H
+#endif

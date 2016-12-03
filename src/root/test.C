@@ -1,3 +1,4 @@
+//#include "../alpide/pixel_col.h"
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -8,31 +9,46 @@
 #include "TH1.h"
 #include "TRandom3.h"
 
+
+// TODO: reinclude pixel_col.h when I get it to compile :)
+class PixelData
+{
+protected:
+  int col;
+  int row;
+
+public:  
+  PixelData(int colIn = 0, int rowIn = 0) :col(colIn) ,row(rowIn) {}
+};
+
+
 const int pixel_shaping_dead_time_ns = 200;
 const int pixel_shaping_active_time_ns = 6000;
 
-class Hit {
+class Hit : public PixelData
+{
 private:
-  double z;
-  double theta;
+  int chip_id;
   int dead_time_counter;
   int active_time_counter;
 public:
-  Hit() {z = 0; theta = 0; dead_time_counter = 0; active_time_counter = 0; }
-  Hit(double z_in, double theta_in, int dead_time_in = pixel_shaping_dead_time_ns, int active_time_in = pixel_shaping_active_time_ns) :
-    z(z_in),
-    theta(theta_in),
-    dead_time_counter(dead_time_in),
-    active_time_counter(active_time_in)
+  Hit() {chip_id = 0; PixelData::col = 0; PixelData::row = 0; dead_time_counter = 0; active_time_counter = 0; }
+  Hit(int chip_id_in, int col_in, int row_in,
+      int dead_time_in = pixel_shaping_dead_time_ns,
+      int active_time_in = pixel_shaping_active_time_ns)
+    : chip_id(chip_id_in)
+    , PixelData(col_in, row_in)
+    , dead_time_counter(dead_time_in)
+    , active_time_counter(active_time_in)
     {
     }
-  Hit(const Hit& h) :
-    z(h.z),
-    theta(h.theta),
-    dead_time_counter(h.dead_time_counter),
-    active_time_counter(h.active_time_counter)
+  Hit(const Hit& h)
+    : chip_id(h.chip_id)
+    , PixelData(h.col, h.row)
+    , dead_time_counter(h.dead_time_counter)
+    , active_time_counter(h.active_time_counter)
     {
-    }    
+    }
   bool isActive(void) { return (dead_time_counter == 0 && active_time_counter > 0); }
   void decreaseTimers(int time_ns) {
     if(dead_time_counter > 0) {
@@ -48,27 +64,70 @@ public:
     if(active_time_counter < 0)
       active_time_counter = 0;
   }
-  int timeLeft(void) { return dead_time_counter + active_time_counter; }
+  int timeLeft(void) const { return dead_time_counter + active_time_counter; }
   
-  inline bool operator==(const Hit& rhs) {
-    return (this->z == rhs.z) && (this->theta == rhs.theta);
+  bool operator==(const Hit& rhs) const {
+    return (chip_id == rhs.chip_id) &&
+      (col == rhs.col) &&
+      (row == rhs.row);
   }
+
+  bool operator>(const Hit& rhs) const {
+    bool retval = false;
+
+    if(chip_id < rhs.chip_id)
+      retval = false;
+    else if(chip_id > rhs.chip_id)
+      retval = true;
+    else {
+      if(col < rhs.col)
+        retval = false;
+      else if(col > rhs.col)
+        retval = true;
+      else {
+        if(row < rhs.row)
+          retval = false;
+        else if(row > rhs.row)
+          retval = true;
+        else
+          retval = false;
+      }
+    }
+
+    return retval;
+  }
+
+  bool operator<(const Hit& rhs) const {
+    return rhs > *this;
+  }
+
+  bool operator>=(const Hit& rhs) const {
+    return !(*this < rhs);
+  }
+
+  bool operator<=(const Hit& rhs) const {
+    return !(*this > rhs);
+  }    
+  
   Hit& operator=(const Hit& rhs) {
-    this->z = rhs.z;
-    this->theta = rhs.theta;
-    this->dead_time_counter = rhs.dead_time_counter;
-    this->active_time_counter = rhs.active_time_counter;
+    chip_id = rhs.chip_id;
+    col = rhs.col;
+    row = rhs.row;
+    dead_time_counter = rhs.dead_time_counter;
+    active_time_counter = rhs.active_time_counter;
     return *this;
   }
-  double getZ(void) {return z;}
-  double getTheta(void) {return theta;}
+  double getChipId(void) {return chip_id;}
+  double getCol(void) {return col;}
+  double getRow(void) {return row;}
 };
 
 // time_vector is placed on heap to avoid stack overflow.
 const int n_events = 1000;
 double time_vector[n_events];
 double x_vector[n_events];
-std::vector<Hit> hit_vectors[n_events];
+//std::vector<Hit> hit_vectors[n_events];
+std::set<Hit> hit_vectors[n_events];
 
 
 //std::vector<double> time_vector;
@@ -95,11 +154,11 @@ void test(){
   int carried_over_count;
   int not_carried_over_count;
 
-  Hit h1(10,-3, 0, 1000);
-  Hit h2(20,-3);
-  Hit h3(10,3);
-  Hit h4(10,-3);
-  Hit h5(1234,12);
+  Hit h1(10, 3, 100, 0, 1000);
+  Hit h2(20, 6, 13);
+  Hit h3(10, 9, 235);
+  Hit h4(10, 3, 100);
+  Hit h5(1234, 12, 23042);
   Hit h6 = h5;
   Hit h7(h4);
 
@@ -151,7 +210,8 @@ void test(){
     carried_over_count = 0;
     not_carried_over_count = 0;
     if(event > 0) {
-      for(std::vector<Hit>::iterator it = hit_vectors[event-1].begin(); it != hit_vectors[event-1].end(); it++) {
+      //for(std::vector<Hit>::iterator it = hit_vectors[event-1].begin(); it != hit_vectors[event-1].end(); it++) {
+      for(std::set<Hit>::iterator it = hit_vectors[event-1].begin(); it != hit_vectors[event-1].end(); it++) {
         //std::cout << "Hit with coords z = " << it->getZ() << " and theta = " << it->getTheta();
         if(it->timeLeft() > t_delta) {
           //std::cout << " will carry over." << std::endl;
@@ -159,7 +219,8 @@ void test(){
           //std::cout << "Decreasing timer.. " << std::endl;
           h.decreaseTimers(t_delta);
           //std::cout << "Storing new hit.. " << std::endl;          
-          hit_vectors[event].push_back(h);
+          //hit_vectors[event].push_back(h);
+          hit_vectors[event].insert(h);
           carried_over_count++;
         } else {
           //std::cout << "Hit with coords z = " << it->getZ() << " and theta = " << it->getTheta();          
@@ -179,9 +240,10 @@ void test(){
     //       and then insert the hits at the right indexes instead of using push_back()?
     for(int k = 0; k < n_hits; k++) {
       // Generate hits here..
-      int z_coord = hitgen.Integer(21);
-      int theta_angle = hitgen.Integer(361);
-      Hit h(z_coord, theta_angle);
+      int rand_chip_id = hitgen.Integer(25000);
+      int rand_x = hitgen.Integer(1024);
+      int rand_y = hitgen.Integer(512);
+      Hit h(rand_chip_id, rand_x, rand_y);
 
 
       //std::cout << "Generating hit number\t\t: " << k <<  std::endl;
@@ -196,7 +258,8 @@ void test(){
       //   hit_vectors[event].push_back(h);
       // }
       
-      hit_vectors[event].push_back(h);      
+      //hit_vectors[event].push_back(h);
+      hit_vectors[event].insert(h);
     }
 
     std::cout << "Event " << event << ":\t @ " << time_vector[event] << " ns\t (t_delta = " << t_delta << " ns). \t";
