@@ -5,6 +5,10 @@
 #include <string>
 #include <set>
 
+class Event;
+
+extern const Event NoEvent;
+
 class Event {
 private:
   int mEventTimeNs;
@@ -37,9 +41,11 @@ public:
   void eventCarryOver(const Event& prev_event);
   void eventCarryOver(const std::set<Hit>& hits, int t_delta_ns);
   void writeToFile(const std::string path = "");
-  int getEventSize(void) {return mHitSet.size();}
-  int getCarriedOverCount(void) {return mCarriedOverCount;}
-  int getNotCarriedOverCount(void) {return mNotCarriedOverCount;}
+  int getEventSize(void) const {return mHitSet.size();}
+  int getCarriedOverCount(void) const {return mCarriedOverCount;}
+  int getNotCarriedOverCount(void) const {return mNotCarriedOverCount;}
+  int getEventId(void) const {return mEventId;}
+  int getEventTime(void) const {return mEventTimeNs;}
 };
 
 #endif

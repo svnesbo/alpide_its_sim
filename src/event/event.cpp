@@ -1,7 +1,9 @@
 #include "event.h"
 #include <sstream>
 #include <fstream>
-//#include <iostream>
+
+
+const Event NoEvent(0, -1);
 
 
 void Event::addHit(const Hit& h)
