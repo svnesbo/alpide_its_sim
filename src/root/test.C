@@ -117,13 +117,13 @@ public:
     active_time_counter = rhs.active_time_counter;
     return *this;
   }
-  double getChipId(void) {return chip_id;}
-  double getCol(void) {return col;}
-  double getRow(void) {return row;}
+  int getChipId(void) {return chip_id;}
+  int getCol(void) {return col;}
+  int getRow(void) {return row;}
 };
 
 // time_vector is placed on heap to avoid stack overflow.
-const int n_events = 1000;
+const int n_events = 100000;
 double time_vector[n_events];
 double x_vector[n_events];
 //std::vector<Hit> hit_vectors[n_events];
@@ -138,7 +138,7 @@ void test(){
                            "Count Rate;N_{Counts};# occurencies",
                            100, // Number of Bins
                            0, // Lower X Boundary
-                           0.00001); // Upper X Boundary
+                           10000); // Upper X Boundary
 
   TH1F* hit_distribution = new TH1F("hit_distribution",
                                     "Hit distribution;N_{Counts};# occurencies",
@@ -186,7 +186,7 @@ void test(){
     t_delta = 100*rndgen.Exp(BC_period_ns);
 
     // Add interval to histogram
-    //cnt_r_h->Fill(t_delta);
+    cnt_r_h->Fill(t_delta);
 
     // Add hit to histogram
     //hit_distribution->Fill(hitgen.Integer(21));
