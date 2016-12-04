@@ -14,11 +14,10 @@
 
 
 // time_vector is placed on heap to avoid stack overflow.
-const int n_events = 5000;
+const int n_events = 20;
 
 
 void test2(){
-  const float mean_count=3.6;
   const double BC_period_ns = 25;
   const double gap_factor = 0.0;
   const double hit_mult_avg = 1000;
@@ -30,21 +29,8 @@ void test2(){
                                               hit_mult_avg,
                                               hit_mult_stddev,
                                               random_seed);
-  
-  Hit h1(10, 3, 100, 0, 1000);
-  Hit h2(20, 6, 13);
-  Hit h3(10, 9, 235);
-  Hit h4(10, 3, 100);
-  Hit h5(1234, 12, 23042);
-  Hit h6 = h5;
-  Hit h7(h4);
 
-  std::cout << "h1 == h2: " << ((h1 == h2) ? "true" : "false") << std::endl;
-  std::cout << "h1 == h3: " << ((h1 == h3) ? "true" : "false") << std::endl;
-  std::cout << "h1 == h4: " << ((h1 == h4) ? "true" : "false") << std::endl;
-  std::cout << "h1 == h5: " << ((h1 == h5) ? "true" : "false") << std::endl;
-  std::cout << "h1 == h6: " << ((h1 == h6) ? "true" : "false") << std::endl;
-  std::cout << "h1 == h7: " << ((h1 == h7) ? "true" : "false") << std::endl;  
+  events->enableWriteToDisk();
 
   // Generate an event
   events->generateNextEvent();

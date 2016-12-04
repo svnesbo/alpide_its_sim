@@ -7,6 +7,7 @@
 
 
 //@todo Destructor! We have to clean up after ourselves!
+//@todo It would be nice if these classes could create the data subdirectory themselves..
 class EventGenerator {
 private:
   std::queue<Event*> mEventQueue;  
