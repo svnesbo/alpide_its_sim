@@ -13,7 +13,7 @@
 
 
 // time_vector is placed on heap to avoid stack overflow.
-const int n_events = 10000;
+const int n_events = 10;
 double time_vector[n_events];
 double x_vector[n_events];
 //std::vector<Hit> hit_vectors[n_events];
@@ -104,7 +104,14 @@ void test2(){
       int rand_chip_id = hitgen.Integer(25000);
       int rand_x = hitgen.Integer(1024);
       int rand_y = hitgen.Integer(512);
-      Hit h(rand_chip_id, rand_x, rand_y);
+      Hit h1(rand_chip_id, rand_x, rand_y);
+
+      // Generate second hits.
+      // @todo Implement random number of pixel digits per hit. 2.2 hits on average,
+      //       gaussian distribution?
+      rand_x = hitgen.Integer(1024);
+      rand_y = hitgen.Integer(512);
+      Hit h2(rand_chip_id, rand_x, rand_y);      
 
 
       //std::cout << "Generating hit number\t\t: " << k <<  std::endl;
@@ -118,8 +125,11 @@ void test2(){
       // } else {
       //   hit_vectors[event].push_back(h);
       // }
-      next_event->addHit(h);
+      next_event->addHit(h1);
+      next_event->addHit(h2);      
     }
+
+    next_event->writeToFile("data/");
 
     int carried_over_count = next_event->getCarriedOverCount();
     int not_carried_over_count = next_event->getNotCarriedOverCount();    

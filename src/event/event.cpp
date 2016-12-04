@@ -82,12 +82,29 @@ void Event::writeToFile(const std::string path)
 
   // Write XML header
   of << "<?xml version=\"1.0\"?>" << std::endl;
-  of << "<event id=" << mEventId << ", time_ns=" << mEventTimeNs << ">" << std::endl;
+  of << "<event id=\"" << mEventId << "\" time_ns=\"" << mEventTimeNs << "\">" << std::endl;
 
+  int prev_chip_id = -1;
+  
+  // The set is ordered by chip id, so we can assume that hits in the same chip will be in consecutive order
   for(std::set<Hit>::iterator it = mHitSet.begin(); it != mHitSet.end(); it++) {
-    of << "\t<chip id=" << it->getChipId() << ">" << it->getCol() << ":" << it->getRow() << "</chip>" << std::endl;
+    if(it->getChipId() != prev_chip_id) {
+      prev_chip_id = it->getChipId();      
+
+      // If it's not the first chip, end the previous chip node
+      if(it != mHitSet.begin())
+        of << "\t</chip>" << std::endl;
+
+      // Start next chip node
+      of << "\t<chip id=\"" << it->getChipId() << "\">" << std::endl;
+    }
+    of << "\t\t<dig>" << it->getCol() << ":" << it->getRow() << "\t\t</dig>" << std::endl;
   }
 
+  // Don't write </chip> end tag for empty events
+  if(mHitSet.size() > 0)
+    of << "\t</chip>" << std::endl;
+  
   of << "</event>" << std::endl;
   
 //@todo Implement layers etc.
