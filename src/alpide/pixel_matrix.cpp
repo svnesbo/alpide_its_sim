@@ -27,7 +27,7 @@ PixelMatrix::setPixel(unsigned int col, unsigned int row)
     unsigned int region_num = col / N_PIXELS_PER_REGION;
     unsigned int region_col_num = col % N_PIXELS_PER_REGION;
     
-    regions[region_num].setPixel(region_col_num, row);
+    mRegions[region_num].setPixel(region_col_num, row);
   }  
 }
 
@@ -48,7 +48,7 @@ bool PixelMatrix::getPixel(unsigned int col, unsigned int row)
     unsigned int region_num = col / N_PIXELS_PER_REGION;
     unsigned int region_col_num = col % N_PIXELS_PER_REGION;
     
-    return regions[region_num].getPixel(region_col_num, row);
+    return mRegions[region_num].getPixel(region_col_num, row);
   }
 }
 
@@ -59,5 +59,5 @@ PixelRegion* PixelMatrix::getRegion(unsigned int region_num)
     return NULL;
   }
 
-  return &this->regions[region_num];
+  return &this->mRegions[region_num];
 }

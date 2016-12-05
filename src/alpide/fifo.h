@@ -37,5 +37,12 @@ public:
 };
 
 
+struct FifoSizes
+{
+public:
+  int mTopRegionReadoutFifoSize;
+  std::vector<int> mRegionReadoutFifoSize;
+};
+
 
 #endif

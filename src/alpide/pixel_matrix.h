@@ -17,7 +17,7 @@
 class PixelMatrix
 {
 private:
-  PixelRegion regions[N_REGIONS];
+  PixelRegion mRegions[N_REGIONS];
 public:
   PixelMatrix();
   void setPixel(unsigned int col, unsigned int row);

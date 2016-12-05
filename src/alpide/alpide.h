@@ -57,37 +57,39 @@
 // 
 
 
-class RegionReadoutUnit
-{
-  PixelRegion pixels;
-
-  // Implement framing and stuff here.
-  // Implement the 128x24b FIFO here. We can use 128 x 3 words FIFO, where we have a special object for the words,
-  // similar to what Adam did. The words can be the valid "control words" for the ALPIDE data transfer, or they
-  // can be hit data (which I guess is a control word, actually).
-
-  // I think the TRU can be responsible for placing the Region Header word with the correct region number into the data stream.
-  // Read out hits from the double columns, one by one, starting at column 0. Feed the data into the FIFO.
-};
-
-class TopRegionUnit
-{
-  // Essentially a 32:1 MUX, that picks data from the RRUs, starting at RRU 0.
-  // The TRU can be responsible for putting the Region Header word (with the correct region ID) onto the data stream.
-};
-  
-
 class Alpide
 {
+public: // SystemC signals  
+  sc_fifo <DataByte> s_serial_data_out;
+  sc_fifo <DataByte> s_parallel_data_out;
+  sc_in<bool> s_trigger_in;
+  sc_in_clk s_clk_in;
+    
 private:
-  std::queue<hit_data> region_fifo[N_REGIONS];
-  std::queue<hit_data> output_fifo;
-  PixelMatrix matrix;
+  TopReadoutUnit mRRU;
+
+  //@brief DMU will strip away unnecessary IDLE words from
+  //       data transmission on parallel bus, but not serial bus.
+  DataManagementUnit mDMU;
+  
+  std::queue<hit_data> mOutputFifo;
+  PixelMatrix mMatrix;
+  int mChipId;
+
+  //@brief Toggle between serial (1.2Gbps) and parallel (0.4Gbps) bus
+  bool mParallelBusEnable = false;
+
+  //@brief Toggle between master and slave chip. Should only be used when
+  //       parallel bus is enabled (middle/outer barrels).
+  bool mMasterChipEnable = true;
+  
 public:
-  Alpide();
+  Alpide(int chip_id) {mChipId = chip_id;}
   setPixel(unsigned int col_num, unsigned int row_num) {
-    matrix.setPixel(col_num, row_num);
+    mMatrix.setPixel(col_num, row_num);
   }
+  int getChipId(void) {return mChipId;}
+  FifoSizes* getFifoSizes(void);
 };
 
 
