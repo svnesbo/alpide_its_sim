@@ -13,6 +13,7 @@
 
 #include "alpide_constants.h"
 #include <set>
+#include <ostream>
 
 
 /**
@@ -26,13 +27,15 @@ class PixelData
 {
   friend class PixelPriorityEncoder;
 
-//private:
-public:
+private:
   int col;
   int row;
 
 public:  
   PixelData(int colIn = 0, int rowIn = 0) :col(colIn) ,row(rowIn) {}
+  bool operator==(const PixelData& rhs) const {
+    return (this->col == rhs.col) && (this->row == rhs.row);
+  }
 };
 
 const PixelData NoPixelHit(-1,-1);
@@ -98,8 +101,9 @@ private:
   unsigned int memsel = 0;
 public:
   void setPixel(unsigned int col_num, unsigned int row_num);
+  bool inspectPixel(unsigned int col_num, unsigned int row_num);
   PixelData readPixel(void);
-  unsigned int pixelsHitsRemaining(void);
+  unsigned int pixelHitsRemaining(void);
 };
 
 
