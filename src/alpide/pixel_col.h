@@ -26,7 +26,8 @@ class PixelData
 {
   friend class PixelPriorityEncoder;
 
-private:
+//private:
+public:
   int col;
   int row;
 
@@ -56,24 +57,33 @@ const PixelData NoPixelHit(-1,-1);
 */
 class PixelPriorityEncoder 
 {
+public:
   /**
      @brief Overloaded () function, allows the std::set to use this function to compare two
      PixelData classes in the set, and determine which of them should come first when sorting them.
-     @todo Fix prioritization here!
+     The prioritization works like this:
+     - Lower rows prioritized first
+     - For even rows, the column 0 pixel comes first
+     - For odd rows, the column 1 pixel comes first
+     @param leftIn Left side argument
+     @param rightIn Right side argument
+     @return True if leftIn has highest priority, false if rightIn has higest priority
   */
   bool operator()(const PixelData &leftIn, const PixelData &rightIn)
     {
-      if(leftIn.col/2 != rightIn.col/2)
-      {
-        return (leftIn.col < rightIn.col);
-      }
-      else if(leftIn.row == rightIn.row)
-      {
-        return (leftIn.col < rightIn.col);
-      }
-      else
-      {
-        return (leftIn.row < rightIn.row);
+      if(leftIn.row < rightIn.row)
+        return true;
+      else if(leftIn.row > rightIn.row)
+        return false;
+      
+      if(leftIn.row == rightIn.row) {
+        // Even row
+        if((leftIn.row % 2) == 0)
+          return (leftIn.col < rightIn.col);
+
+        // Odd row
+        else
+          return (leftIn.col > rightIn.col);
       }
     }
 };
@@ -84,8 +94,8 @@ class PixelDoubleColumn
 {
 private:
   std::set<PixelData, PixelPriorityEncoder> pixelMEBColumns[N_MULTI_EVENT_BUFFERS];
-  unsigned int strobe;
-  unsigned int memsel;
+  unsigned int strobe = 0;
+  unsigned int memsel = 0;
 public:
   void setPixel(unsigned int col_num, unsigned int row_num);
   PixelData readPixel(void);

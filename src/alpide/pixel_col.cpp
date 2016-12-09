@@ -8,11 +8,15 @@
  */
 
 #include "pixel_col.h"
+#include <iostream>
+#include <stdexcept>
 
-PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
+void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 {
-  if(row_num >= N_PIXEL_ROWS) {
-    std::cout << "Error. Pixel row address > number of rows. Hit ignored.\n";
+  if(row_num < 0 || row_num >= N_PIXEL_ROWS) {
+    throw std::out_of_range ("row_num");
+  } else if(col_num < 0 || col_num >= 2) {
+    throw std::out_of_range ("col_num");
   } else {
     // Extract last bit off column number
     unsigned int col_num_lsb = col_num & 1;
@@ -39,6 +43,7 @@ PixelData PixelDoubleColumn::readPixel(void) {
   return pixel;
 }
 
+/*
 PixelData PixelDoubleColumn::getPixel(unsigned int col, unsigned int row) {
   if(row_num >= N_PIXEL_ROWS) {
     std::cout << "Error. Pixel row address > number of rows. Hit ignored.\n";
@@ -52,6 +57,7 @@ PixelData PixelDoubleColumn::getPixel(unsigned int col, unsigned int row) {
     pixelMEBColumns[strobe].insert(PixelData(col_num_lsb, row_num));
   }  
 }
+*/
 
 ///@brief Returns how many pixel hits (in this double column) that have not been read out from the MEBs yet
 unsigned int PixelDoubleColumn::pixelsHitsRemaining(void) {
