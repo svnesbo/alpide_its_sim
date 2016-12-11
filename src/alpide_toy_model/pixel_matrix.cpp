@@ -1,0 +1,148 @@
+/**
+ * @file   pixel_matrix.cpp
+ * @Author Simon Voigt Nesbo
+ * @date   December 11, 2016
+ * @brief  Pixel matrix class comprising all the pixel regions, which allows to
+ *         interface in terms of absolute coordinates with the pixel matrix.
+ *         Special version for the Alpide toy model with no region readout.
+ *
+ * Detailed description of file.
+ */
+
+#include <iostream>
+#include "pixel_matrix.h"
+
+PixelMatrix::PixelMatrix()
+{
+
+}
+
+
+//@brief Indicate that we are starting a new event. The next calls to setPixel
+//       will add pixels to the new event.
+void PixelMatrix::newEvent(void)
+{
+  mColumnBuffs.push(std::vector<PixelDoubleColumn>(N_PIXEL_COLS/2));
+
+  std::cout << "Pushed new PixelDoubleColumn vector to mColumnBuffs." << std::endl;
+  std::cout << "mColumnBuffs.size(): " << mColumnBuffs.size() << std::endl;
+  std::cout << "mColumnBuffs.back().size(): " << mColumnBuffs.back().size() << std::endl;
+
+  // 0 hits so far for this event
+  mColumnBuffsPixelsLeft.push(int(0));
+}
+
+
+//@brief Set the pixel (ie. the pixel is hit) specified by col_num and row_num,
+//       in the most recent event buffer.
+//@param col_num Column (0 to N_PIXEL_COLS-1).
+//@param row_num Row (0 to N_PIXEL_ROWS-1).
+//@throw out_of_range If there are no events, or if col or row is outside the allowed range
+void PixelMatrix::setPixel(unsigned int col, unsigned int row)
+{
+  // Out of range exception check
+  if(getNumEvents() == 0) {
+    throw std::out_of_range("No events");
+  }else if(row < 0 || row >= N_PIXEL_ROWS) {
+    throw std::out_of_range("row");
+  } else if(col < 0 || col >= N_PIXEL_COLS) {
+    throw std::out_of_range("col");
+  }
+
+  // Set the pixel
+  else {
+    std::vector<PixelDoubleColumn>& current_event_buffer = mColumnBuffs.back();
+    int& current_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.back();
+
+    std::cout << "Setting pixel " << col << ":" << row << std::endl;
+    std::cout << "mColumnBuffsPixelsleft.back() before insertion: " << mColumnBuffsPixelsLeft.back() << std::endl;
+    
+    current_event_buffer[col/2].setPixel(col%2, row);
+    current_event_buffer_hits_remaining++;
+    std::cout << "mColumnBuffsPixelsleft.back() after insertion: " << mColumnBuffsPixelsLeft.back() << std::endl;    
+  }  
+}
+
+
+///@brief Read out the next pixel from the pixel matrix, and erase it from the MEB.
+//        This member function will read out pixels from the oldest event buffer.
+//        The pixels will be read out from the columns in consecutive order from
+//        0 to N_PIXEL_COLS-1. Regions are not read out in parallel with this function.
+//        But note that for a column the pixels will be read out with the order
+//        used by the priority encoder in the Alpide chip.
+//@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
+//        (PixelData object with coords = (-1,-1)).
+PixelData PixelMatrix::readPixel(void) {
+  PixelData pixel_retval = NoPixelHit;
+
+  // Do we have any stored events?
+  if(mColumnBuffs.size() > 0) {
+    std::vector<PixelDoubleColumn>& oldest_event_buffer = mColumnBuffs.front();
+    int& oldest_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.front();
+
+    std::cout << "PixelMatrix::readPixel: oldest_event_buffer_hits_remaining = " << oldest_event_buffer_hits_remaining << std::endl;
+    
+    // Search for the first column that has pixels to read out
+    //for(auto it = oldest_event_buffer.begin(); it != oldest_event_buffer.end(); it++) {
+    for(int i = 0; i < (N_PIXEL_COLS/2); i++) {
+      if(oldest_event_buffer[i].pixelHitsRemaining() > 0) {
+        pixel_retval = oldest_event_buffer[i].readPixel();
+
+        // pixel_retval.mCol is either 0 or 1 (values in double column), correct to take the
+        // double column number into account
+        pixel_retval.setCol(2*i + pixel_retval.getCol());
+
+        // If this was the last hit in this event buffer, remove the event buffer from the queue
+        oldest_event_buffer_hits_remaining--;
+        if(oldest_event_buffer_hits_remaining == 0) {
+          mColumnBuffs.pop();
+          mColumnBuffsPixelsLeft.pop();
+        }
+        break;
+      }
+    }
+  }
+
+  return pixel_retval;
+}
+
+
+//@brief Return the number of hits in the oldest of the events stored in multi event buffers
+//@return Number of hits in oldest event. If there are no events left, return zero.
+int PixelMatrix::getHitsRemainingInOldestEvent(void)
+{
+  if(getNumEvents() == 0) {
+    std::cout << "getHitsRemainingInOldestEvent(): No events, returning zero." << std::endl;
+    return 0;
+  }
+  else {
+    int& oldest_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.front();    
+    std::cout << "getHitsRemainingInOldestEvent(): " << getNumEvents() << " events, " << oldest_event_buffer_hits_remaining << " pixels at .front()" << std::endl;
+    return mColumnBuffsPixelsLeft.front();
+  }
+}
+
+
+//@todo Remove? Which event should this function get the pixels from? Doesn't really make sense..
+//
+//@brief Check if there is a hit or not for the pixel specified by col_num and row_num,
+//       without deleting the pixel from the MEB.
+//@param col_num Column (0 or N_PIXEL_COLS-1).
+//@param row_num Row (0 to N_PIXEL_ROWS-1).
+//@return True if there is a hit, false if not.
+/*
+bool PixelMatrix::inspectPixel(unsigned int col, unsigned int row)
+{
+  // Out of range exception check
+  if(row_num < 0 || row_num >= N_PIXEL_ROWS) {
+    throw std::out_of_range ("row_num");
+  } else if(col_num < 0 || col_num >= N_PIXEL_COLS) {
+    throw std::out_of_range ("col_num");
+  } else { // Get the pixel
+    unsigned int region_num = col / N_PIXELS_PER_REGION;
+    unsigned int region_col_num = col % N_PIXELS_PER_REGION;
+    
+    return mRegions[region_num].getPixel(region_col_num, row);
+  }
+}
+*/

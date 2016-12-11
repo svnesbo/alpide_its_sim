@@ -20,7 +20,7 @@ void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
     // Extract last bit off column number
     unsigned int col_num_lsb = col_num & 1;
 
-    pixelMEBColumns[strobe].insert(PixelData(col_num_lsb, row_num));
+    pixelColumn.insert(PixelData(col_num_lsb, row_num));
   }
 }
 
@@ -30,14 +30,14 @@ void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 //@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
 //        (PixelData object with coords = (-1,-1)).
 PixelData PixelDoubleColumn::readPixel(void) {
-  if(pixelMEBColumns[memsel].size() == 0)
+  if(pixelColumn.size() == 0)
     return NoPixelHit;
     
   // Read out the next (prioritized) pixel
-  PixelData pixel = *pixelMEBColumns[memsel].begin();
+  PixelData pixel = *pixelColumn.begin();
 
   // Remove the pixel when it has been read out
-  pixelMEBColumns[memsel].erase(pixelMEBColumns[memsel].begin());
+  pixelColumn.erase(pixelColumn.begin());
 
   return pixel;
 }
@@ -60,7 +60,7 @@ bool PixelDoubleColumn::inspectPixel(unsigned int col_num, unsigned int row_num)
   // Search for pixel
   else{
     PixelData pixel = PixelData(col_num, row_num);
-    if(pixelMEBColumns[strobe].find(pixel) != pixelMEBColumns[strobe].end()) {
+    if(pixelColumn.find(pixel) != pixelColumn.end()) {
       // Only actual hits are stored in a set, so if the coords are found in the
       // set it always means we have a hit.
       retval = true;
@@ -73,5 +73,5 @@ bool PixelDoubleColumn::inspectPixel(unsigned int col_num, unsigned int row_num)
 
 ///@brief Returns how many pixel hits (in this double column) that have not been read out from the MEBs yet
 unsigned int PixelDoubleColumn::pixelHitsRemaining(void) {
-  return pixelMEBColumns[memsel].size();
+  return pixelColumn.size();
 }

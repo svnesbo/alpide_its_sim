@@ -32,10 +32,11 @@ private:
   int mRow;
 
 public:
-  PixelData(int colIn = 0, int rowIn = 0) :mCol(colIn) ,mRow(rowIn) {}
+  PixelData(int col = 0, int row = 0) : mCol(col), mRow(row) {}
   int getCol(void) {return mCol;}
   int getRow(void) {return mRow;}
-  void setCol(int col) {
+  void setCol(int col) {mCol = col;}
+  void setRow(int row) {mRow = row;}
   bool operator==(const PixelData& rhs) const {
     return (this->mCol == rhs.mCol) && (this->mRow == rhs.mRow);
   }
@@ -99,9 +100,7 @@ public:
 class PixelDoubleColumn
 {
 private:
-  std::set<PixelData, PixelPriorityEncoder> pixelMEBColumns[N_MULTI_EVENT_BUFFERS];
-  unsigned int strobe = 0;
-  unsigned int memsel = 0;
+  std::set<PixelData, PixelPriorityEncoder> pixelColumn;
 public:
   void setPixel(unsigned int col_num, unsigned int row_num);
   bool inspectPixel(unsigned int col_num, unsigned int row_num);
