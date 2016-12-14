@@ -42,6 +42,7 @@ public:
   }
 
   void stimuliProcess(void);
+  void addTraces(sc_trace_file *wf);
 
 };
 

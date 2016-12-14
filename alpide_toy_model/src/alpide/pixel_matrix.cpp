@@ -54,12 +54,15 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
     std::vector<PixelDoubleColumn>& current_event_buffer = mColumnBuffs.back();
     int& current_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.back();
 
-    std::cout << "Setting pixel " << col << ":" << row << std::endl;
-    std::cout << "mColumnBuffsPixelsleft.back() before insertion: " << mColumnBuffsPixelsLeft.back() << std::endl;
+    //@todo Remove
+    //std::cout << "Setting pixel " << col << ":" << row << std::endl;
+    //std::cout << "mColumnBuffsPixelsleft.back() before insertion: " << mColumnBuffsPixelsLeft.back() << std::endl;
     
     current_event_buffer[col/2].setPixel(col%2, row);
     current_event_buffer_hits_remaining++;
-    std::cout << "mColumnBuffsPixelsleft.back() after insertion: " << mColumnBuffsPixelsLeft.back() << std::endl;    
+
+    //@todo Remove
+    //std::cout << "mColumnBuffsPixelsleft.back() after insertion: " << mColumnBuffsPixelsLeft.back() << std::endl;    
   }  
 }
 
@@ -96,7 +99,7 @@ PixelData PixelMatrix::readPixel(int start_double_col, int stop_double_col) {
     int& oldest_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.front();
 
     //@todo Remove
-    std::cout << "PixelMatrix::readPixel: oldest_event_buffer_hits_remaining = " << oldest_event_buffer_hits_remaining << std::endl;
+    //std::cout << "PixelMatrix::readPixel: oldest_event_buffer_hits_remaining = " << oldest_event_buffer_hits_remaining << std::endl;
     
     // Search for the first column that has pixels to read out
     //for(auto it = oldest_event_buffer.begin(); it != oldest_event_buffer.end(); it++) {
@@ -146,8 +149,8 @@ PixelData PixelMatrix::readPixelRegion(int region) {
   int stop_double_col = (N_PIXEL_DOUBLE_COLS_PER_REGION*(region+1));
 
   //@todo Remove
-  std::cout << "start_double_col: " << start_double_col << std::endl;
-  std::cout << "stop_double_col: " << stop_double_col << std::endl;  
+  //std::cout << "start_double_col: " << start_double_col << std::endl;
+  //std::cout << "stop_double_col: " << stop_double_col << std::endl;  
 
   return readPixel(start_double_col, stop_double_col);
 }
@@ -158,12 +161,12 @@ PixelData PixelMatrix::readPixelRegion(int region) {
 int PixelMatrix::getHitsRemainingInOldestEvent(void)
 {
   if(getNumEvents() == 0) {
-    std::cout << "getHitsRemainingInOldestEvent(): No events, returning zero." << std::endl;
+    //std::cout << "getHitsRemainingInOldestEvent(): No events, returning zero." << std::endl;
     return 0;
   }
   else {
     int& oldest_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.front();    
-    std::cout << "getHitsRemainingInOldestEvent(): " << getNumEvents() << " events, " << oldest_event_buffer_hits_remaining << " pixels at .front()" << std::endl;
+    //std::cout << "getHitsRemainingInOldestEvent(): " << getNumEvents() << " events, " << oldest_event_buffer_hits_remaining << " pixels at .front()" << std::endl;
     return mColumnBuffsPixelsLeft.front();
   }
 }

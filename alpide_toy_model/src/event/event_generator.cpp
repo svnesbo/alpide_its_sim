@@ -9,16 +9,19 @@ EventGenerator::EventGenerator()
   mGapFactor = 0.0; 
 
   calculateAverageCrossingRate();
+
+  //@todo Remove/fix this
+  mAverageCrossingRateNs = 10000;
   
-  mHitMultiplicityAverage = 1000;
-  mHitMultiplicityDeviation = 300;
+  mHitMultiplicityAverage = 385;
+  mHitMultiplicityDeviation = 15;
   mRandomSeed = 0;
 
   mRandHitChipID = new boost::random::uniform_int_distribution<int>(0, N_CHIPS-1);
   mRandHitChipX = new boost::random::uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
   mRandHitChipY = new boost::random::uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
   mRandHitMultiplicity = new boost::random::normal_distribution<double>(mHitMultiplicityAverage, mHitMultiplicityDeviation);
-  mRandEventTime = new boost::random::exponential_distribution<double>(mAverageCrossingRateNs);
+  mRandEventTime = new boost::random::exponential_distribution<double>(1.0/mAverageCrossingRateNs);
 
   initRandomNumGenerator();
 }
@@ -36,6 +39,9 @@ EventGenerator::EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_a
   mGapFactor = gap_factor;
 
   calculateAverageCrossingRate();
+
+  //@todo Remove/fix this
+  mAverageCrossingRateNs = 10000;  
   
   mHitMultiplicityAverage = hit_mult_avg;
   mHitMultiplicityDeviation = hit_mult_dev;
@@ -45,7 +51,7 @@ EventGenerator::EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_a
   mRandHitChipX = new boost::random::uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
   mRandHitChipY = new boost::random::uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
   mRandHitMultiplicity = new boost::random::normal_distribution<double>(mHitMultiplicityAverage, mHitMultiplicityDeviation);
-  mRandEventTime = new boost::random::exponential_distribution<double>(mAverageCrossingRateNs);
+  mRandEventTime = new boost::random::exponential_distribution<double>(1.0/mAverageCrossingRateNs);
 
   initRandomNumGenerator();
 }
@@ -86,7 +92,7 @@ void EventGenerator::generateNextEvent()
   double t_delta;
 
   // Generate random (exponential distributed) interval till next event/interaction
-  t_delta = 100*(*mRandEventTime)(mRandEventTimeGen);
+  t_delta = (*mRandEventTime)(mRandEventTimeGen);
 
   std::cout << "EventGenerator: event number: " << mEventCount << "  t_delta: " << t_delta << std::endl;
 
@@ -105,7 +111,8 @@ void EventGenerator::generateNextEvent()
 
   for(int i = 0; i < n_hits; i++) {
     // Generate hits here..
-    int rand_chip_id = (*mRandHitChipID)(mRandHitGen);
+    //int rand_chip_id = (*mRandHitChipID)(mRandHitGen);
+    int rand_chip_id = 0;
     int rand_x = (*mRandHitChipX)(mRandHitGen);
     int rand_y = (*mRandHitChipY)(mRandHitGen);
     Hit h1(rand_chip_id, rand_x, rand_y);

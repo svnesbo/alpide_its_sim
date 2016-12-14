@@ -32,7 +32,9 @@ int sc_main(int argc, char** argv)
   stimuli.clock(clock_40MHz);
 
   // Open VCD file
-  sc_trace_file *wf = sc_create_vcd_trace_file("counter");
+  sc_trace_file *wf = sc_create_vcd_trace_file("alpide_toy-model_results");
+
+  stimuli.addTraces(wf);
 
   // Dump the desired signals..
   sc_trace(wf, clock_40MHz, "clock");
