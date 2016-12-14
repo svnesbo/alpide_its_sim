@@ -33,13 +33,16 @@ private:
 
 public:
   PixelData(int col = 0, int row = 0) : mCol(col), mRow(row) {}
-  int getCol(void) {return mCol;}
-  int getRow(void) {return mRow;}
-  void setCol(int col) {mCol = col;}
-  void setRow(int row) {mRow = row;}
-  bool operator==(const PixelData& rhs) const {
-    return (this->mCol == rhs.mCol) && (this->mRow == rhs.mRow);
-  }
+  PixelData(const PixelData& p) : mCol(p.mCol), mRow(p.mRow) {}
+  int getCol(void) const {return mCol;}
+  int getRow(void) const {return mRow;}
+  void setCol(const int col) {mCol = col;}
+  void setRow(const int row) {mRow = row;}
+  bool operator==(const PixelData& rhs) const;
+  bool operator>(const PixelData& rhs) const;
+  bool operator<(const PixelData& rhs) const;
+  bool operator>=(const PixelData& rhs) const;
+  bool operator<=(const PixelData& rhs) const;
 };
 
 const PixelData NoPixelHit(-1,-1);

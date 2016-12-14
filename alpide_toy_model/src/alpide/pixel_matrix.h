@@ -15,6 +15,7 @@
 #include "pixel_col.h"
 #include <vector>
 #include <queue>
+#include <list>
 
 
 class PixelMatrix
@@ -31,19 +32,21 @@ private:
   //@brief Each entry here corresponds to one entry in mColumnBuffs. This variable
   //       keeps track of the number of pixel left in the columns in each entry in
   //       mColumnBuffs.
-  std::queue<int> mColumnBuffsPixelsLeft;
+  std::list<int> mColumnBuffsPixelsLeft;
   
 public:
   PixelMatrix();
   void newEvent(void);
   void setPixel(unsigned int col, unsigned int row);
-  PixelData readPixel(void);
+  PixelData readPixel(int start_double_col = 0, int stop_double_col = N_PIXEL_COLS/2);
+  PixelData readPixelRegion(int region);
 
   //@todo Remove? Which event should getPixel get pixels from? Doesn't really make sense..
   //bool inspectPixel(unsigned int col, unsigned int row);
   
   int getNumEvents(void) {return mColumnBuffs.size();}
   int getHitsRemainingInOldestEvent(void);
+  int getHitTotalAllEvents(void);
 };
 
 

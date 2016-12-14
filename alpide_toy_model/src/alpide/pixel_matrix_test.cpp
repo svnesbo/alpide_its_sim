@@ -22,6 +22,7 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
 
   BOOST_TEST_MESSAGE("Check matrix contains one hit now.");
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 1);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 1);
 
   BOOST_TEST_MESSAGE("Reading out pixel and checking value.");
   PixelData pixel = matrix.readPixel();
@@ -31,12 +32,42 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
 
   BOOST_TEST_MESSAGE("Check matrix has zero hits and events remaining.");
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 0);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 0);
   BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);  
 
   BOOST_TEST_MESSAGE("Attempting to read out another pixel, checking that there are no more hits.");
   pixel = matrix.readPixel();
   BOOST_CHECK(pixel == NoPixelHit);
 
+  BOOST_TEST_MESSAGE("Writing two pixels to region 11");
+  matrix.newEvent();
+  matrix.setPixel(N_PIXEL_COLS_PER_REGION*11, 234);
+  matrix.setPixel(1+N_PIXEL_COLS_PER_REGION*11, 432);
+  BOOST_TEST_MESSAGE("Check that matrix has 2 hits now.");
+  BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 2);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 2);
+
+  BOOST_TEST_MESSAGE("Checking that region overloaded readPixel() does not read out from region other than 11.");
+  for(int i = 0; i < N_REGIONS; i++) {
+    if(i == 11)
+      continue;
+    pixel = matrix.readPixelRegion(i);
+    BOOST_CHECK(pixel == NoPixelHit);
+  }
+  
+  BOOST_TEST_MESSAGE("Checking that region overloaded readPixel() reads out from region 11.");
+  pixel = matrix.readPixelRegion(11);
+  BOOST_CHECK_EQUAL(pixel.getCol(), N_PIXEL_COLS_PER_REGION*11);
+  BOOST_CHECK_EQUAL(pixel.getRow(), 234);
+  pixel = matrix.readPixelRegion(11);
+  BOOST_CHECK_EQUAL(pixel.getCol(), 1+N_PIXEL_COLS_PER_REGION*11);
+  BOOST_CHECK_EQUAL(pixel.getRow(), 432);
+
+  BOOST_TEST_MESSAGE("Check matrix has zero hits and events remaining.");
+  BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 0);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 0);
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);
+  
   
   BOOST_TEST_MESSAGE("Write some pixels to two different events, and check that they are read out correctly.");
   const int test_cols[4] = {100, 101, 100, 101};
@@ -55,30 +86,55 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
   matrix.setPixel(test_cols[3], test_rows[3]);
 
   BOOST_CHECK_EQUAL(matrix.getNumEvents(), 2);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 4);
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 2);
   pixel = matrix.readPixel();
   BOOST_CHECK(pixel == pixel0); // Note, not same order as they were inserted due to pri encoder
 
   BOOST_CHECK_EQUAL(matrix.getNumEvents(), 2);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 3);
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 1);
   pixel = matrix.readPixel();
   BOOST_CHECK(pixel == pixel1); // Note, not same order as they were inserted due to pri encoder
 
   BOOST_CHECK_EQUAL(matrix.getNumEvents(), 1);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 2);
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 2);
   pixel = matrix.readPixel();
   BOOST_CHECK(pixel == pixel3); // Note, not same order as they were inserted due to pri encoder
 
   BOOST_CHECK_EQUAL(matrix.getNumEvents(), 1);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 1);
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 1);
   pixel = matrix.readPixel();
   BOOST_CHECK(pixel == pixel2); // Note, not same order as they were inserted due to pri encoder
 
   BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 0);
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 0);
   pixel = matrix.readPixel();
   BOOST_CHECK(pixel == NoPixelHit);  
   
+
+  BOOST_TEST_MESSAGE("Testing writing and reading to/from all regions");
+  matrix.newEvent();
+  for(int i = 0; i < N_REGIONS; i++) {
+    matrix.setPixel(i*N_PIXEL_COLS_PER_REGION, i);
+  }
+
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 1);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), N_REGIONS);
+  BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), N_REGIONS);
+
+  for(int i = 0; i < N_REGIONS; i++) {
+    pixel = matrix.readPixelRegion(i);
+    BOOST_CHECK_EQUAL(pixel.getCol(), i*N_PIXEL_COLS_PER_REGION);
+    BOOST_CHECK_EQUAL(pixel.getRow(), i);
+    BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), N_REGIONS-(i+1));
+    BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), N_REGIONS-(i+1));    
+  }
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);
+
 
   BOOST_TEST_MESSAGE("Testing priority encoder readout order.");
 
@@ -115,6 +171,17 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
   BOOST_CHECK_THROW(matrix.setPixel(0, -1), std::out_of_range);
   BOOST_CHECK_THROW(matrix.setPixel(-1, 0), std::out_of_range);
   BOOST_CHECK_THROW(matrix.setPixel(N_PIXEL_COLS, 0), std::out_of_range);
+
+
+  BOOST_TEST_MESSAGE("Checking that trying to read out pixels outside allowed range throws exception.");
+  BOOST_CHECK_THROW(matrix.readPixel(-1, N_PIXEL_COLS/2), std::out_of_range);
+  BOOST_CHECK_THROW(matrix.readPixel(N_PIXEL_COLS/2, N_PIXEL_COLS/2), std::out_of_range);
+  BOOST_CHECK_THROW(matrix.readPixel(101, 100), std::out_of_range);
+  BOOST_CHECK_THROW(matrix.readPixel(0, 0), std::out_of_range);
+  BOOST_CHECK_THROW(matrix.readPixel(0, N_PIXEL_COLS/2 + 1), std::out_of_range);
+  BOOST_CHECK_THROW(matrix.readPixelRegion(-1), std::out_of_range);
+  BOOST_CHECK_THROW(matrix.readPixelRegion(N_REGIONS), std::out_of_range);
+                    
 
   BOOST_TEST_MESSAGE("Checking that pixels at the boundaries can be set, and read out correctly.");
   matrix.setPixel(0, 0);

@@ -11,7 +11,7 @@
 #include <set>
 
 // Example simulation modes
-enum SimulationModes{SIMULATION_MODE1, SIMULATION_MODE2, SIMULATION_MODE3};
+enum SimulationModes{ACCURATE_MODEL, TOY_MODEL};
 
 int main(int argc, char** argv)
 {
@@ -23,16 +23,16 @@ int main(int argc, char** argv)
   EventGenerator* events = new EventGenerator();
   ITSDetector* detector = new ITSDetector(layers);
 
-  SimulationMode sim_mode = SIMULATION_MODE1;
+  SimulationMode sim_mode = TOY_MODEL;
   int num_events = 1000;
 
 
   switch(sim_mode) {
-  case SIMULATION_MODE1:
+  case ACCURATE_MODEL:
     // Run simulation in one particular way, with one particular set of params
     sim(detector, events, num_events);
     break;
-  case SIMULATION_MODE2:
+  case TOY_MODEL:
     // Run simulation with different params
     break;
   case SIMULATION_MODE3:

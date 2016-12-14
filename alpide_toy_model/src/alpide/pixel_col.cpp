@@ -10,6 +10,49 @@
 #include "pixel_col.h"
 #include <stdexcept>
 
+
+bool PixelData::operator==(const PixelData& rhs) const
+{
+  return (this->mCol == rhs.mCol) && (this->mRow == rhs.mRow);
+}
+
+
+bool PixelData::operator>(const PixelData& rhs) const
+{
+  bool retval = false;
+  
+  if(mCol < rhs.mCol)
+    retval = false;
+  else if(mCol > rhs.mCol)
+    retval = true;
+  else {
+    if(mRow < rhs.mRow)
+      retval = false;
+    else if(mRow > rhs.mRow)
+      retval = true;
+    else
+      retval = false;
+  }
+
+  return retval;
+}
+
+bool PixelData::operator<(const PixelData& rhs) const
+{
+  return rhs > *this;
+}
+
+bool PixelData::operator>=(const PixelData& rhs) const
+{
+  return !(*this < rhs);
+}
+
+bool PixelData::operator<=(const PixelData& rhs) const
+{
+  return !(*this > rhs);
+}    
+  
+
 void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 {
   if(row_num < 0 || row_num >= N_PIXEL_ROWS) {
