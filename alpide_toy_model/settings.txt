@@ -3,7 +3,7 @@ region_fifo_size=256
 region_size=32
 
 [data_output]
-write_event_csv=true
+write_event_csv=false
 write_vcd=true
 write_vcd_clock=false
 
@@ -18,4 +18,5 @@ trigger_filter_time_ns=10000
 [simulation]
 continuous_mode=false
 n_chips=25000
-n_events=1000
+n_events=100
+random_seed=0

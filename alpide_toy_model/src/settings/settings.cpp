@@ -53,6 +53,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["simulation/n_chips"] = DEFAULT_SIMULATION_N_CHIPS;
   defaultSettings["simulation/n_events"] = DEFAULT_SIMULATION_N_EVENTS;
   defaultSettings["simulation/continuous_mode"] = DEFAULT_SIMULATION_CONTINUOUS_MODE;
+  defaultSettings["simulation/random_seed"] = DEFAULT_SIMULATION_RANDOM_SEED;
   
   defaultSettings["event/hit_multiplicity_avg"] = DEFAULT_EVENT_HIT_MULTIPLICITY_AVG;
   defaultSettings["event/hit_multiplicity_stddev"] = DEFAULT_EVENT_HIT_MULTIPLICITY_STDDEV;

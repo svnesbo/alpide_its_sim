@@ -55,6 +55,8 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   int average_crossing_rate_ns = settings->value("event/average_crossing_rate_ns").toInt();
   int trigger_filter_time_ns = settings->value("event/trigger_filter_time_ns").toInt();
   bool trigger_filter_enable = settings->value("event/trigger_filter_enable").toBool();
+  int random_seed = settings->value("simulation/random_seed").toInt();
+  bool create_csv_file = settings->value("data_output/write_event_csv").toBool();
 
   mNumEvents = settings->value("simulation/n_events").toInt();
 
@@ -69,7 +71,9 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   mEvents = new EventGenerator(bunch_crossing_rate_ns,
                                average_crossing_rate_ns,
                                hit_multiplicity_avg,
-                               hit_multiplicity_stddev);
+                               hit_multiplicity_stddev,
+                               random_seed,
+                               create_csv_file);
 
   if(trigger_filter_enable == true) {
     mEvents->enableTriggerFiltering();      
@@ -89,7 +93,7 @@ void Stimuli::stimuliProcess(void)
 
   int i = 0;
 
-  std::cout << "Staring simulation of " << mNumEvents << " events" << std::endl;
+  std::cout << "Staring simulation of " << mNumEvents << " events." << std::endl;
   
   while(simulation_done == false) {
     if(mEvents->getEventCount() < mNumEvents) {

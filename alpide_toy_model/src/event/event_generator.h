@@ -69,7 +69,9 @@ private:
 public:
   EventGenerator();
   //EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_avg, int hit_mult_dev, int random_seed = 0);
-  EventGenerator(int BC_rate_ns, int avg_trigger_rate_ns, int hit_mult_avg, int hit_mult_dev, int random_seed = 0);
+  EventGenerator(int BC_rate_ns, int avg_trigger_rate_ns,
+                 int hit_mult_avg, int hit_mult_dev,
+                 int random_seed = 0, bool create_csv_hit_file = false);
   ~EventGenerator();
   void generateNextEvent();
   void generateNextEvents(int n_events);

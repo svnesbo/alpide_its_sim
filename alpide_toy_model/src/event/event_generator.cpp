@@ -29,10 +29,7 @@ EventGenerator::EventGenerator()
 
   initRandomNumGenerator();
 
-  if(mWriteRandomDataToFile) {
-    mRandDataFile.open("random_data.csv");
-    mRandDataFile << "delta_t;hit_multiplicity" << std::endl;
-  }
+  mWriteRandomDataToFile = false;
 }
 
 //@brief Constructor. 
@@ -42,8 +39,11 @@ EventGenerator::EventGenerator()
 //                    with this value as the mean, and hit_mult_dev as the standard deviation.
 //@param hit_mult_dev Standard deviation for hit multiplicity.
 //@param random_seed Random seed to use in random number generators.
+//@param create_csv_file Create a CSV-file and store each event time and hit multiplicity value to this file
 //EventGenerator::EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_avg, int hit_mult_dev, int random_seed)
-EventGenerator::EventGenerator(int BC_rate_ns, int avg_trigger_rate_ns, int hit_mult_avg, int hit_mult_dev, int random_seed)
+EventGenerator::EventGenerator(int BC_rate_ns, int avg_trigger_rate_ns,
+                               int hit_mult_avg, int hit_mult_dev,
+                               int random_seed, bool create_csv_hit_file)
 {
   mBunchCrossingRateNs = BC_rate_ns;
   //mGapFactor = gap_factor;
@@ -66,6 +66,8 @@ EventGenerator::EventGenerator(int BC_rate_ns, int avg_trigger_rate_ns, int hit_
 
   initRandomNumGenerator();
 
+  mWriteRandomDataToFile = create_csv_hit_file;
+  
   if(mWriteRandomDataToFile) {
     mRandDataFile.open("random_data.csv");
     mRandDataFile << "delta_t;hit_multiplicity" << std::endl;
