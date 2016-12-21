@@ -8,13 +8,17 @@ EventGenerator::EventGenerator()
   mBunchCrossingRateNs = 25;  
   mGapFactor = 0.0; 
 
-  calculateAverageCrossingRate();
+  //calculateAverageCrossingRate();
 
   //@todo Remove/fix this
-  mAverageCrossingRateNs = 10000;
+  //mAverageCrossingRateNs = 10000;
+  mAverageCrossingRateNs = 2500;
   
-  mHitMultiplicityAverage = 385;
-  mHitMultiplicityDeviation = 15;
+  //mHitMultiplicityAverage = 385;
+  //mHitMultiplicityDeviation = 15;
+  mHitMultiplicityAverage = 2000;
+  mHitMultiplicityDeviation = 350;
+  
   mRandomSeed = 0;
 
   mRandHitChipID = new boost::random::uniform_int_distribution<int>(0, N_CHIPS-1);
@@ -24,6 +28,11 @@ EventGenerator::EventGenerator()
   mRandEventTime = new boost::random::exponential_distribution<double>(1.0/mAverageCrossingRateNs);
 
   initRandomNumGenerator();
+
+  if(mWriteRandomDataToFile) {
+    mRandDataFile.open("random_data.csv");
+    mRandDataFile << "delta_t;hit_multiplicity" << std::endl;
+  }
 }
 
 //@brief Constructor. 
@@ -33,15 +42,17 @@ EventGenerator::EventGenerator()
 //                    with this value as the mean, and hit_mult_dev as the standard deviation.
 //@param hit_mult_dev Standard deviation for hit multiplicity.
 //@param random_seed Random seed to use in random number generators.
-EventGenerator::EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_avg, int hit_mult_dev, int random_seed)
+//EventGenerator::EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_avg, int hit_mult_dev, int random_seed)
+EventGenerator::EventGenerator(int BC_rate_ns, int avg_trigger_rate_ns, int hit_mult_avg, int hit_mult_dev, int random_seed)
 {
   mBunchCrossingRateNs = BC_rate_ns;
-  mGapFactor = gap_factor;
+  //mGapFactor = gap_factor;
 
-  calculateAverageCrossingRate();
+  //calculateAverageCrossingRate();
 
   //@todo Remove/fix this
-  mAverageCrossingRateNs = 10000;  
+  //mAverageCrossingRateNs = 10000;
+  mAverageCrossingRateNs = avg_trigger_rate_ns;  
   
   mHitMultiplicityAverage = hit_mult_avg;
   mHitMultiplicityDeviation = hit_mult_dev;
@@ -54,6 +65,11 @@ EventGenerator::EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_a
   mRandEventTime = new boost::random::exponential_distribution<double>(1.0/mAverageCrossingRateNs);
 
   initRandomNumGenerator();
+
+  if(mWriteRandomDataToFile) {
+    mRandDataFile.open("random_data.csv");
+    mRandDataFile << "delta_t;hit_multiplicity" << std::endl;
+  }
 }
 
 
@@ -64,6 +80,9 @@ EventGenerator::~EventGenerator()
   delete mRandHitChipY;
   delete mRandHitMultiplicity;
   delete mRandEventTime;
+
+  if(mRandDataFile.is_open())
+    mRandDataFile.close();
 }
 
 //@brief Calculate the actual average bunch crossing rate, when empty bunches are taken into account
@@ -98,7 +117,10 @@ void EventGenerator::generateNextEvent()
 
   mLastEventTimeNs += t_delta;
 
-  Event *next_event = new Event(mLastEventTimeNs, t_delta, mEventCount);
+  // If event/trigger filtering is enabled, and this event/trigger came too close to the previous one we filter it out.
+  bool filter_event = mTriggerFilteringEnabled ? (t_delta < mTriggerFilterTimeNs) : false;
+
+  Event *next_event = new Event(mLastEventTimeNs, t_delta, mEventCount, filter_event);
 
   if(mEventCount > 0) {
     Event *previous_event = mEventQueue.back();
@@ -108,6 +130,10 @@ void EventGenerator::generateNextEvent()
 
   // Generate hits for this event
   int n_hits = (*mRandHitMultiplicity)(mRandHitMultiplicityGen);
+
+  if(mWriteRandomDataToFile) {
+    mRandDataFile << t_delta << ";" << n_hits << std::endl;
+  }
 
   for(int i = 0; i < n_hits; i++) {
     // Generate hits here..

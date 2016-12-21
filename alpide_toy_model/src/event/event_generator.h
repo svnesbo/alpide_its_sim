@@ -3,6 +3,7 @@
 
 #include "event.h"
 #include <queue>
+#include <fstream>
 // #include <boost/random/uniform_int_distribution.hpp>
 // #include <boost/random/normal_distribution.hpp>
 // #include <boost/random/exponential_distribution.hpp>
@@ -37,9 +38,17 @@ private:
   // Time of the last event that was generated.
   int mLastEventTimeNs = 0;
 
+  // Minimum time between two triggers/events. Triggers/events that come sooner than this will
+  // be filtered out (but their hits will still be stored).
+  int mTriggerFilterTimeNs;
+  bool mTriggerFilteringEnabled = false;
+
   std::string mDataPath = "data";
   bool mWriteEventsToDisk = false;
 
+  bool mWriteRandomDataToFile = true;
+  std::ofstream mRandDataFile;
+  
   int mRandomSeed;
 
   boost::random::mt19937 mRandHitGen;
@@ -59,7 +68,8 @@ private:
 
 public:
   EventGenerator();
-  EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_avg, int hit_mult_dev, int random_seed = 0);
+  //EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_avg, int hit_mult_dev, int random_seed = 0);
+  EventGenerator(int BC_rate_ns, int avg_trigger_rate_ns, int hit_mult_avg, int hit_mult_dev, int random_seed = 0);
   ~EventGenerator();
   void generateNextEvent();
   void generateNextEvents(int n_events);
@@ -72,6 +82,10 @@ public:
   void enableWriteToDisk(void) {mWriteEventsToDisk = true;}
   void disableWriteToDisk(void) {mWriteEventsToDisk = false;}
   void setNumEventsInMemAllowed(int n);
+  void setTriggerFilterTime(int filter_time) {mTriggerFilterTimeNs = filter_time;}
+  void enableTriggerFiltering(void) {mTriggerFilteringEnabled = true;}
+  void disableTriggerFiltering(void) {mTriggerFilteringEnabled = false;}
+  int getTriggerFilterTime(void) const {return mTriggerFilterTimeNs;}
   int getEventsInMem(void) const {return mEventQueue.size();}
   int getEventCount(void) const {return mEventCount;}
   void removeOldestEvent(void);

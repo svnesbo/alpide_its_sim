@@ -13,35 +13,7 @@
 
 
 //@todo RENAME TESTBENCH, AND INSTANTIATE MODULES, CONNECT SIGNALS AND EVERYTHING IN HERE!
-/*
-SC_CTOR(Stimuli)
-{
-  // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
-  //sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true);
-  clock_40MHz = new sc_clock("clock_40MHz", 25, 0.5, 2, true);
 
-
-
-  // Connect signals to Alpide
-  mAlpide.s_clk_in(clock_40MHz);
-  mAlpide.s_event_buffers_used(chip_event_buffers_used);
-  mAlpide.s_total_number_of_hits(chip_total_number_of_hits);
-
-  
-  // Open VCD file
-  mWaveformFile = sc_create_vcd_trace_file("counter");
-
-  // Initialize variables, event generator and detector based on configuration file
-  mEvents = new EventGenerator();
-  mAlpideChip = new AlpideToyModel("alpide", 0);  
-  
-  SC_CTHREAD(stimuliProcess, clock_40MHz.pos());
-
-  
-  //@todo Logging process?
-  //SC_CTHREAD(logging_process, clock_40MHz.pos());  
-}
-*/
 
 void print_trig_freq(const std::list<int>& t_delta_queue)
 {
@@ -65,12 +37,46 @@ void print_trig_freq(const std::list<int>& t_delta_queue)
     std::cout << "t_delta_avg: " << t_delta_avg << " s" << std::endl;
 
     trig_freq = 1/t_delta_avg;
-    
-    
-    //trig_freq = (long)(1.0/(((double)t_delta_sum/t_delta_queue.size())/1.0e9));
   }
 
   std::cout << "Average trigger frequency: " << trig_freq << "Hz" << std::endl;;
+}
+
+
+SC_HAS_PROCESS(Stimuli);
+Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
+  : sc_core::sc_module(name)
+{
+  int hit_multiplicity_avg = settings->value("event/hit_multiplicity_avg").toInt();
+  int hit_multiplicity_stddev = settings->value("event/hit_multiplicity_stddev").toInt();
+  int bunch_crossing_rate_ns = settings->value("event/bunch_crossing_rate_ns").toInt();
+
+  //@todo Rename to average_trigger_rate_ns?
+  int average_crossing_rate_ns = settings->value("event/average_crossing_rate_ns").toInt();
+  int trigger_filter_time_ns = settings->value("event/trigger_filter_time_ns").toInt();
+  bool trigger_filter_enable = settings->value("event/trigger_filter_enable").toBool();
+
+  mNumEvents = settings->value("simulation/n_events").toInt();
+
+  // Instantiate and connect signals to Alpide
+  mAlpide = new AlpideToyModel("alpide", 0);
+  mAlpide->s_clk_in(clock);
+  mAlpide->s_event_buffers_used(chip_event_buffers_used);
+  mAlpide->s_total_number_of_hits(chip_total_number_of_hits);
+
+
+  // Instantiate event generator object
+  mEvents = new EventGenerator(bunch_crossing_rate_ns,
+                               average_crossing_rate_ns,
+                               hit_multiplicity_avg,
+                               hit_multiplicity_stddev);
+
+  if(trigger_filter_enable == true) {
+    mEvents->enableTriggerFiltering();      
+    mEvents->setTriggerFilterTime(trigger_filter_time_ns);
+  }      
+  
+  SC_CTHREAD(stimuliProcess, clock.pos());
 }
 
 
@@ -79,18 +85,19 @@ void Stimuli::stimuliProcess(void)
   std::list<int> t_delta_history;
   const int t_delta_averaging_num = 50;
   
-  int num_events = 1000;
   int time_ns = 0;
 
   int i = 0;
+
+  std::cout << "Staring simulation of " << mNumEvents << " events" << std::endl;
   
   while(simulation_done == false) {
-    if(mEvents.getEventCount() < num_events) {
+    if(mEvents->getEventCount() < mNumEvents) {
       std::cout << "Simulating event number " << i << std::endl;      
-      mEvents.removeOldestEvent();
-      mEvents.generateNextEvent();
+      mEvents->removeOldestEvent();
+      mEvents->generateNextEvent();
 
-      const Event& e = mEvents.getNextEvent();
+      const Event& e = mEvents->getNextEvent();
 
       
 
@@ -110,16 +117,15 @@ void Stimuli::stimuliProcess(void)
       std::cout << "Waiting for " << t_delta << " ns." << std::endl;
       wait(t_delta);
 
-      mAlpide.newEvent();
-      e.feedHitsToChip(mAlpide, mAlpide.getChipId());
+      e.feedHitsToChip(*mAlpide, mAlpide->getChipId());
 
-      std::cout << "Number of events in chip: " << mAlpide.getNumEvents() << std::endl;
-      std::cout << "Hits remaining in oldest event in chip: " << mAlpide.getHitsRemainingInOldestEvent();
-      std::cout << "  Hits in total (all events): " << mAlpide.getHitTotalAllEvents() << std::endl;
+      std::cout << "Number of events in chip: " << mAlpide->getNumEvents() << std::endl;
+      std::cout << "Hits remaining in oldest event in chip: " << mAlpide->getHitsRemainingInOldestEvent();
+      std::cout << "  Hits in total (all events): " << mAlpide->getHitTotalAllEvents() << std::endl;
     }
 
     // Have all mEvents generated and fed to chip, and all events read out from chip?
-    else if(mAlpide.getNumEvents() == 0) {
+    else if(mAlpide->getNumEvents() == 0) {
       std::cout << "Finished generating all events, and Alpide chip is done emptying MEBs.\n";
       
       simulation_done = true;

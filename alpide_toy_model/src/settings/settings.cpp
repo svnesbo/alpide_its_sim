@@ -46,31 +46,24 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   QMap<QString, QString> defaultSettings;
 
   // Default settings map
-  defaultSettings["alpide/L0_latency_ns"] = ALPIDE_L0_LATENCY_DEFAULT;
-  defaultSettings["alpide/LM_latency_ns"] = ALPIDE_LM_LATENCY_DEFAULT;
-  defaultSettings["alpide/QED_handle"] = ALPIDE_QED_HANDLE_DEFAULT;
-  defaultSettings["alpide/continuous_acq_time_ns"] = ALPIDE_CONTINUOUS_ACQ_TIME_DEFAULT;
-  defaultSettings["alpide/formatting_type"] = ALPIDE_FORMATTING_TYPE_DEFAULT;
-  defaultSettings["alpide/front_end_active_time_ns"] = ALPIDE_FRONT_END_ACTIVE_TIME_DEFAULT;
-  defaultSettings["alpide/front_end_delay_time_ns"] = ALPIDE_FRONT_END_DELAY_TIME_DEFAULT;
-  defaultSettings["alpide/global_busy"] = ALPIDE_GLOBAL_BUSY_DEFAULT;
-  defaultSettings["alpide/inner_bandwidth_gbit"] = ALPIDE_INNER_BANDWIDTH_DEFAULT;
-  defaultSettings["alpide/input_type"] = ALPIDE_INPUT_TYPE_DEFAULT;
-  defaultSettings["alpide/latch_active_ns"] = ALPIDE_LATCH_ACTIVE_DEFAULT;
-  defaultSettings["alpide/latch_delay_ns"] = ALPIDE_LATCH_DELAY_DEFAULT;
-  defaultSettings["alpide/latency_dead_time_ns"] = ALPIDE_LATENCY_DEAD_TIME_DEFAULT;
-  defaultSettings["alpide/matrix_latch_number"] = ALPIDE_MATRIX_LATCH_NUMBER_DEFAULT;
-  defaultSettings["alpide/matrix_readout_period_ns"] = ALPIDE_MATRIX_READOUT_PERIOD_DEFAULT;
-  defaultSettings["alpide/noise_handle"] = ALPIDE_NOISE_HANDLE_DEFAULT;
-  defaultSettings["alpide/noise_rate"] = ALPIDE_NOISE_RATE_DEFAULT;
-  defaultSettings["alpide/outer_bandwidth_gbit"] = ALPIDE_OUTER_BANDWIDTH_DEFAULT;
-  defaultSettings["alpide/outer_daisy_fifo_size"] = ALPIDE_OUTER_DAISY_FIFO_SIZE_DEFAULT;
-  defaultSettings["alpide/pileup_handle"] = ALPIDE_PILEUP_HANDLE_DEFAULT;
-  defaultSettings["alpide/region_fifo_size"] = ALPIDE_REGION_FIFO_SIZE_DEFAULT;
-  defaultSettings["alpide/region_size"] = ALPIDE_REGION_SIZE_DEFAULT;
-  defaultSettings["alpide/sensor_type"] = ALPIDE_SENSOR_TYPE_DEFAULT;
-  defaultSettings["alpide/time_seed"] = ALPIDE_TIME_SEED_DEFAULT;
-  defaultSettings["alpide/trigger_freq_khz"] = ALPIDE_TRIGGER_FREQ_DEFAULT;
+  defaultSettings["data_output/write_vcd"] = DEFAULT_DATA_OUTPUT_WRITE_VCD;
+  defaultSettings["data_output/write_vcd_clock"] = DEFAULT_DATA_OUTPUT_WRITE_VCD_CLOCK;
+  defaultSettings["data_output/write_event_csv"] = DEFAULT_DATA_OUTPUT_WRITE_EVENT_CSV;
+  
+  defaultSettings["simulation/n_chips"] = DEFAULT_SIMULATION_N_CHIPS;
+  defaultSettings["simulation/n_events"] = DEFAULT_SIMULATION_N_EVENTS;
+  defaultSettings["simulation/continuous_mode"] = DEFAULT_SIMULATION_CONTINUOUS_MODE;
+  
+  defaultSettings["event/hit_multiplicity_avg"] = DEFAULT_EVENT_HIT_MULTIPLICITY_AVG;
+  defaultSettings["event/hit_multiplicity_stddev"] = DEFAULT_EVENT_HIT_MULTIPLICITY_STDDEV;
+  defaultSettings["event/bunch_crossing_rate_ns"] = DEFAULT_EVENT_BUNCH_CROSSING_RATE_NS;
+  defaultSettings["event/average_crossing_rate_ns"] = DEFAULT_EVENT_AVERAGE_CROSSING_RATE_NS;
+  defaultSettings["event/trigger_filter_time_ns"] = DEFAULT_EVENT_TRIGGER_FILTER_TIME_NS;
+  defaultSettings["event/trigger_filter_enable"] = DEFAULT_EVENT_TRIGGER_FILTER_ENABLE;
+
+  defaultSettings["alpide/region_fifo_size"] = DEFAULT_ALPIDE_REGION_FIFO_SIZE;
+  defaultSettings["alpide/region_size"] = DEFAULT_ALPIDE_REGION_SIZE;
+
   
   QStringList simSettingsKeys = readoutSimSettings->allKeys();
 

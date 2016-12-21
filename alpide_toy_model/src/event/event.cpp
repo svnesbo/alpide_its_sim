@@ -19,10 +19,30 @@
 const Event NoEvent(0, 0, -1);
 
 
+//@brief Standard constructor
+Event::Event(int event_time_ns, int event_delta_time_ns, int event_id, bool filter_event) {
+  mEventTimeNs = event_time_ns;
+  mEventDeltaTimeNs = event_delta_time_ns;
+  mEventId = event_id;
+  mEventFilteredFlag = filter_event;
+}
+
+
+//@brief Copy constructor
+Event::Event(const Event& e) {
+  mHitSet = e.mHitSet;
+  mEventTimeNs = e.mEventTimeNs;
+  mEventDeltaTimeNs = e.mEventDeltaTimeNs;
+  mEventId = e.mEventId;
+  mEventFilteredFlag = e.mEventFilteredFlag;
+}
+
+
 void Event::addHit(const Hit& h)
 {
   mHitSet.insert(h);
 }
+
 
 void Event::addHit(int chip_id, int col, int row)
 {
@@ -86,9 +106,14 @@ void Event::eventCarryOver(const Event& prev_event)
 //@param chip_id Chip ID to feed hits to.
 void Event::feedHitsToChip(PixelMatrix &matrix, int chip_id) const
 {
-  for(auto it = mHitSet.begin(); it != mHitSet.end(); it++) {
-    if(it->getChipId() == chip_id) {
-      matrix.setPixel(it->getCol(), it->getRow());
+  // Only feed this event to the chip if it has not been filtered out
+  if(mEventFilteredFlag == false) {
+    matrix.newEvent();
+    
+    for(auto it = mHitSet.begin(); it != mHitSet.end(); it++) {
+      if(it->getChipId() == chip_id) {
+        matrix.setPixel(it->getCol(), it->getRow());
+      }
     }
   }
 }

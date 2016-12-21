@@ -41,35 +41,28 @@ private:
   //@brief Number of hits in the previous event that did not carry over
   int mNotCarriedOverCount = 0;
 
-  
-public:
-  //@brief Standard constructor
-  Event(int event_time_ns, int event_delta_time_ns, int event_id) {
-    mEventTimeNs = event_time_ns;
-    mEventDeltaTimeNs = event_delta_time_ns;
-    mEventId = event_id;
-  }
-  
-  //@brief Copy constructor
-  Event(const Event& e) {
-    mHitSet = e.mHitSet;
-    mEventTimeNs = e.mEventTimeNs;
-    mEventDeltaTimeNs = e.mEventDeltaTimeNs;
-    mEventId = e.mEventId;
-  }
+  //@brief This flag indicates that this event/trigger came too soon, and that it has been filtered out.
+  //       The class object is still created to keep track of the pixels that are hit, but they will
+  //       not be fed to the Alpide chip. 
+  bool mEventFilteredFlag;
 
+public:
+  Event(int event_time_ns, int event_delta_time_ns, int event_id, bool filter_event = false);
+  Event(const Event& e);
   void addHit(const Hit& h);  
   void addHit(int chip_id, int col, int row);
   void eventCarryOver(const Event& prev_event);
   void eventCarryOver(const std::set<Hit>& hits, int t_delta_ns);
   void feedHitsToChip(PixelMatrix &matrix, int chip_id) const;
   void writeToFile(const std::string path = "");
+  void setEventFilteredFlag(bool value) {mEventFilteredFlag = value;}
   int getEventSize(void) const {return mHitSet.size();}
   int getCarriedOverCount(void) const {return mCarriedOverCount;}
   int getNotCarriedOverCount(void) const {return mNotCarriedOverCount;}
   int getEventId(void) const {return mEventId;}
   int getEventTime(void) const {return mEventTimeNs;}
   int getEventDeltaTime(void) const {return mEventDeltaTimeNs;}
+  bool getEventFilteredFlag(void) const {return mEventFilteredFlag;}
 };
 
 #endif

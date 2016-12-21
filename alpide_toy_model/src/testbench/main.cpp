@@ -20,11 +20,13 @@ enum SimulationMode {ONE_CHIP, FULL_DETECTOR, OTHER_MODES};
 
 int sc_main(int argc, char** argv)
 {
+  sc_trace_file *wf = NULL;
+  
   sc_core::sc_set_time_resolution(1, sc_core::SC_NS);  
   // Parse configuration file here
-  //QSettings* readoutSimSettings = getSimSettings();
+  QSettings* simulation_settings = getSimSettings();
 
-  Stimuli stimuli("stimuli");
+  Stimuli stimuli("stimuli", simulation_settings);
 
   // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
   sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true);
@@ -32,12 +34,14 @@ int sc_main(int argc, char** argv)
   stimuli.clock(clock_40MHz);
 
   // Open VCD file
-  sc_trace_file *wf = sc_create_vcd_trace_file("alpide_toy-model_results");
+  if(simulation_settings->value("data_output/write_vcd").toBool() == true) {
+    wf = sc_create_vcd_trace_file("alpide_toy-model_results2");
+    stimuli.addTraces(wf);
 
-  stimuli.addTraces(wf);
+    if(simulation_settings->value("data_output/write_vcd_clock").toBool() == true)
+       sc_trace(wf, clock_40MHz, "clock");    
+  }
 
-  // Dump the desired signals..
-  sc_trace(wf, clock_40MHz, "clock");
 
   std::cout << "Starting simulation.." << std::endl;
   
@@ -45,7 +49,9 @@ int sc_main(int argc, char** argv)
 
   std::cout << "Started simulation.." << std::endl;
 
-  sc_close_vcd_trace_file(wf);  
+  if(wf != NULL) {
+    sc_close_vcd_trace_file(wf);
+  }
 }
 
 
