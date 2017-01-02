@@ -15,14 +15,17 @@
 //@todo RENAME TESTBENCH, AND INSTANTIATE MODULES, CONNECT SIGNALS AND EVERYTHING IN HERE!
 
 
-void print_trig_freq(const std::list<int>& t_delta_queue)
+//@brief Takes a list of t_delta values (time between events) for the last events,
+//       calculates the average event rate over those events, and prints it to std::cout.
+//       The list must be maintained by the caller.
+void print_event_rate(const std::list<int>& t_delta_queue)
 {
   long t_delta_sum = 0;
   double t_delta_avg;
-  long trig_freq;
+  long event_rate;
 
   if(t_delta_queue.size() == 0) {
-    trig_freq = 0;
+    event_rate = 0;
   } else {
     for(auto it = t_delta_queue.begin(); it != t_delta_queue.end(); it++) {
       t_delta_sum += *it;
@@ -36,10 +39,10 @@ void print_trig_freq(const std::list<int>& t_delta_queue)
 
     std::cout << "t_delta_avg: " << t_delta_avg << " s" << std::endl;
 
-    trig_freq = 1/t_delta_avg;
+    event_rate = 1/t_delta_avg;
   }
 
-  std::cout << "Average trigger frequency: " << trig_freq << "Hz" << std::endl;;
+  std::cout << "Average event rate: " << event_rate << "Hz" << std::endl;;
 }
 
 
@@ -47,16 +50,50 @@ SC_HAS_PROCESS(Stimuli);
 Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   : sc_core::sc_module(name)
 {
-  int hit_multiplicity_avg = settings->value("event/hit_multiplicity_avg").toInt();
+  // Get some values from settings object used to initialize EventGenerator class
+  bool hit_multiplicity_distribution_type = settings->value("event/hit_multiplicity_distribution_type").toInt();
   int hit_multiplicity_stddev = settings->value("event/hit_multiplicity_stddev").toInt();
   int bunch_crossing_rate_ns = settings->value("event/bunch_crossing_rate_ns").toInt();
-
-  //@todo Rename to average_trigger_rate_ns?
   int average_crossing_rate_ns = settings->value("event/average_crossing_rate_ns").toInt();
   int trigger_filter_time_ns = settings->value("event/trigger_filter_time_ns").toInt();
   bool trigger_filter_enable = settings->value("event/trigger_filter_enable").toBool();
+  int strobe_length_ns = settings->value("event/strobe_length_ns").toInt();
   int random_seed = settings->value("simulation/random_seed").toInt();
   bool create_csv_file = settings->value("data_output/write_event_csv").toBool();
+  int pixel_dead_time_ns = settings->value("alpide/pixel_shaping_dead_time_ns").toInt();
+  int pixel_active_time_ns = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
+
+  // Instantiate event generator object with the desired hit multiplicity distribution
+  if(hit_multiplicity_distribution_type == "gauss") {
+    int hit_multiplicity_gauss_stddev = settings->value("event/hit_multiplicity_stddev").toInt();  
+    int hit_multiplicity_gauss_avg = settings->value("event/hit_multiplicity_avg").toInt();
+    
+    mEvents = new EventGenerator(bunch_crossing_rate_ns,
+                                 average_crossing_rate_ns,
+                                 strobe_length_ns,
+                                 hit_multiplicity_avg,
+                                 hit_multiplicity_stddev,
+                                 pixel_dead_time_ns,
+                                 pixel_active_time_ns,
+                                 random_seed,
+                                 create_csv_file);
+  } else if(hit_multiplicity_distribution_type == "discrete") {
+    std::string hit_multiplicity_distribution_file = settings->value("event/hit_multiplicity_distribution_file").toString();
+
+    mEvents = new EventGenerator(bunch_crossing_rate_ns,
+                                 average_crossing_rate_ns,
+                                 strobe_length_ns,
+                                 hit_multiplicity_distribution_file,
+                                 pixel_dead_time_ns,
+                                 pixel_active_time_ns,                                 
+                                 random_seed,
+                                 create_csv_file);
+  }
+
+  if(trigger_filter_enable == true) {
+    mEvents->enableTriggerFiltering();      
+    mEvents->setTriggerFilterTime(trigger_filter_time_ns);
+  }        
 
   mNumEvents = settings->value("simulation/n_events").toInt();
 
@@ -64,27 +101,18 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   mAlpide = new AlpideToyModel("alpide", 0);
   mAlpide->s_clk_in(clock);
   mAlpide->s_event_buffers_used(chip_event_buffers_used);
-  mAlpide->s_total_number_of_hits(chip_total_number_of_hits);
-
-
-  // Instantiate event generator object
-  mEvents = new EventGenerator(bunch_crossing_rate_ns,
-                               average_crossing_rate_ns,
-                               hit_multiplicity_avg,
-                               hit_multiplicity_stddev,
-                               random_seed,
-                               create_csv_file);
-
-  if(trigger_filter_enable == true) {
-    mEvents->enableTriggerFiltering();      
-    mEvents->setTriggerFilterTime(trigger_filter_time_ns);
-  }      
+  mAlpide->s_total_number_of_hits(chip_total_number_of_hits);  
   
-  SC_CTHREAD(stimuliProcess, clock.pos());
+  SC_CTHREAD(stimuliMainProcess, clock.pos());
+  
+  SC_METHOD(stimuliEventProcess);
+  sensitive << E_trigger_event_available;
 }
 
 
-void Stimuli::stimuliProcess(void)
+//@brief Main control of simulation stimuli, which mainly involves controlling the
+//       strobe signal and stop the simulation after the desired number of events.
+void Stimuli::stimuliMainProcess(void)
 {
   std::list<int> t_delta_history;
   const int t_delta_averaging_num = 50;
@@ -96,39 +124,21 @@ void Stimuli::stimuliProcess(void)
   std::cout << "Staring simulation of " << mNumEvents << " events." << std::endl;
   
   while(simulation_done == false) {
-    if(mEvents->getEventCount() < mNumEvents) {
-      std::cout << "Simulating event number " << i << std::endl;      
-      mEvents->removeOldestEvent();
-      mEvents->generateNextEvent();
+    // Generate strobe pulses for as long as we have more events to simulate
+    if(mEvents->getEventsGeneratedCount() < mNumEvents) {
+      std::cout << "Generating strobe/event number " << i << std::endl;
 
-      const Event& e = mEvents->getNextEvent();
+      s_strobe.write(true);
+      wait(mStrobeActiveClockCycles);
 
-      
+      s_strobe.write(false);
+      wait(mStrobeInactiveClockCycles);
 
-      //@todo Convert everything to picoseconds!!
-      int t_delta = e.getEventDeltaTime();
-      if(t_delta == 0)
-        t_delta = 1;
-
-
-      t_delta_history.push_back(t_delta);
-      if(t_delta_history.size() > t_delta_averaging_num)
-        t_delta_history.pop_front();
-      
-      print_trig_freq(t_delta_history);
-    
-      // Wait for next event to occur
-      std::cout << "Waiting for " << t_delta << " ns." << std::endl;
-      wait(t_delta);
-
-      e.feedHitsToChip(*mAlpide, mAlpide->getChipId());
-
-      std::cout << "Number of events in chip: " << mAlpide->getNumEvents() << std::endl;
-      std::cout << "Hits remaining in oldest event in chip: " << mAlpide->getHitsRemainingInOldestEvent();
-      std::cout << "  Hits in total (all events): " << mAlpide->getHitTotalAllEvents() << std::endl;
+      i++;
     }
 
-    // Have all mEvents generated and fed to chip, and all events read out from chip?
+    // After all strobes have been generated, allow simulation to run until all events
+    // have been read out from the Alpide MEBs.
     else if(mAlpide->getNumEvents() == 0) {
       std::cout << "Finished generating all events, and Alpide chip is done emptying MEBs.\n";
       
@@ -138,9 +148,32 @@ void Stimuli::stimuliProcess(void)
     else {
       wait();
     }
-
-    i++;
   }
+}
+
+
+//@brief SystemC controlled method. Waits for EventGenerator to notify the E_trigger_event_available
+//       notification queue that a new trigger event is available.
+//       When a trigger event is available it is fed to the Alpide chip(s).
+void Stimuli::stimuliEventProcess(void)
+{
+  // @todo Check if there are actually events?
+  // Throw an error if we get notification but there are not events?
+  
+  // In a separate block because reference e is invalidated by popNextEvent().
+  {
+    const TriggerEvent& e = mEvents.getNextEvent();
+
+    //@todo Implement the whole ITS here, feed events to all relevant chips..
+    e.feedHitsToChip(*mAlpide, mAlpide->getChipId());
+
+    std::cout << "Number of events in chip: " << mAlpide->getNumEvents() << std::endl;
+    std::cout << "Hits remaining in oldest event in chip: " << mAlpide->getHitsRemainingInOldestEvent();
+    std::cout << "  Hits in total (all events): " << mAlpide->getHitTotalAllEvents() << std::endl;
+  }
+
+  // Remove the oldest event once we are done processing it..
+  mEvents.removeOldestEvent();
 }
 
 

@@ -38,8 +38,11 @@ int sc_main(int argc, char** argv)
     wf = sc_create_vcd_trace_file("alpide_toy-model_results2");
     stimuli.addTraces(wf);
 
-    if(simulation_settings->value("data_output/write_vcd_clock").toBool() == true)
-       sc_trace(wf, clock_40MHz, "clock");    
+    if(simulation_settings->value("data_output/write_vcd_clock").toBool() == true) {
+      //@todo Add a warning here if user tries to simulate over 1000 events with this option enabled,
+      //      because it will consume 100s of megabytes
+      sc_trace(wf, clock_40MHz, "clock");
+    }
   }
 
 

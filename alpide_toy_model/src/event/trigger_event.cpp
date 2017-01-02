@@ -1,5 +1,5 @@
 /**
- * @file   event.cpp
+ * @file   trigger_event.cpp
  * @Author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Event class for Alpide SystemC simulation model.
@@ -8,95 +8,43 @@
  *         class and the EventGenerator class, and that the pixel hits here can be fed
  *         directly to the Alpide chip at the given time.
  *
- * Detailed description of file.
  */
 
-#include "event.h"
+#include "trigger_event.h"
 #include <sstream>
 #include <fstream>
 
 
-const Event NoEvent(0, 0, -1);
+const TriggerEvent NoTriggerEvent(0, 0, -1);
 
 
 //@brief Standard constructor
-Event::Event(int event_time_ns, int event_delta_time_ns, int event_id, bool filter_event) {
-  mEventTimeNs = event_time_ns;
-  mEventDeltaTimeNs = event_delta_time_ns;
+TriggerEvent::TriggerEvent(int event_time_ns, int event_id, bool filter_event) {
+  mEventStartTimeNs = event_time_ns;
   mEventId = event_id;
   mEventFilteredFlag = filter_event;
 }
 
 
 //@brief Copy constructor
-Event::Event(const Event& e) {
+TriggerEvent::TriggerEvent(const TriggerEvent& e) {
   mHitSet = e.mHitSet;
   mEventTimeNs = e.mEventTimeNs;
-  mEventDeltaTimeNs = e.mEventDeltaTimeNs;
   mEventId = e.mEventId;
   mEventFilteredFlag = e.mEventFilteredFlag;
 }
 
 
-void Event::addHit(const Hit& h)
+void TriggerEvent::addHit(const Hit& h)
 {
   mHitSet.insert(h);
 }
 
 
-void Event::addHit(int chip_id, int col, int row)
+void TriggerEvent::addHit(int chip_id, int col, int row)
 {
   Hit h(chip_id, col, row);
   addHit(h);
-}
-
-
-//@brief Due to the long analog shaping time following a hit, on the order of 5-10 microseconds,
-//       a pixel hit is likely to be active for several "event/trigger frames". This member function
-//       will copy hits that would "carry over" from the previous event, based on the time between the
-//       previous event and the current one.
-//@todo  These two overloaded functions are pretty bad in terms of DRY
-//@param hits_prev_event Set of hits in the previous event.
-//@param t_delta_ns Time between the current event and the previous event
-void Event::eventCarryOver(const std::set<Hit>& hits_prev_event, int t_delta_ns)
-{
-  for(std::set<Hit>::iterator it = hits_prev_event.begin(); it != hits_prev_event.end(); it++) {
-    if(it->timeLeft() > t_delta_ns) {
-      Hit h = *it;
-      h.decreaseTimers(t_delta_ns);
-      mHitSet.insert(h);
-      mCarriedOverCount++;
-    } else {
-      mNotCarriedOverCount++;
-    }
-  }  
-}
-
-
-//@brief Due to the long analog shaping time following a hit, on the order of 5-10 microseconds,
-//       a pixel hit is likely to be active for several "event/trigger frames". This member function
-//       will calculate the time difference between this event and the previous event, and use it to
-//       determine which hits from the previous event would also lead to active pixel hits in this event.
-//@param prev_event Reference to the the previous event.
-void Event::eventCarryOver(const Event& prev_event)
-{
-  int t_delta_ns = this->mEventTimeNs - prev_event.mEventTimeNs;
-
-  //std::cout << "Event id " << mEventId << ": t_delta_ns: " << t_delta_ns << "carrying over hits.." << std::endl;
-  
-  for(std::set<Hit>::iterator it = prev_event.mHitSet.begin(); it != prev_event.mHitSet.end(); it++) {
-    //std::cout << "Hit with x=" << it->getRow() << " y=" << it->getCol() << " time left = " << it->timeLeft() << " ns" << std::endl;
-    if(it->timeLeft() > t_delta_ns) {
-      Hit h = *it;
-      h.decreaseTimers(t_delta_ns);
-      mHitSet.insert(h);
-      mCarriedOverCount++;
-      //std::cout << "Added hit.. time left now: " << h.timeLeft() << std::endl;
-    } else {
-      mNotCarriedOverCount++;
-      //std::cout << "Skipped hit.." << std::endl;
-    }
-  }
 }
 
 
@@ -104,7 +52,7 @@ void Event::eventCarryOver(const Event& prev_event)
 //       this event corresponding to chip_id will be fed to the chip.
 //@param matrix Pixel matrix for the chip
 //@param chip_id Chip ID to feed hits to.
-void Event::feedHitsToChip(PixelMatrix &matrix, int chip_id) const
+void TriggerEvent::feedHitsToChip(PixelMatrix &matrix, int chip_id) const
 {
   // Only feed this event to the chip if it has not been filtered out
   if(mEventFilteredFlag == false) {
@@ -122,7 +70,7 @@ void Event::feedHitsToChip(PixelMatrix &matrix, int chip_id) const
 //@brief Write this event to file, in XML format.
 //       The filename will be: "path/event<mEventId>.xml"
 //@param path Path to store file in. 
-void Event::writeToFile(const std::string path)
+void TriggerEvent::writeToFile(const std::string path)
 {
   // Create XML file and header for this event, name eventX.xml, where X is event number
   std::stringstream ss;

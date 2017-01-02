@@ -1,43 +1,78 @@
+/**
+ * @file   event_generator.h
+ * @Author Simon Voigt Nesbo
+ * @date   December 22, 2016
+ * @brief  A simple event generator for Alpide SystemC simulation model.
+ */
+
 #ifndef EVENT_GENERATOR_H
 #define EVENT_GENERATOR_H
 
 #include "event.h"
 #include <queue>
+#include <deque>
 #include <fstream>
-// #include <boost/random/uniform_int_distribution.hpp>
-// #include <boost/random/normal_distribution.hpp>
-// #include <boost/random/exponential_distribution.hpp>
-//#include <boost/generator_iterator.hpp>
 #include <boost/random.hpp>
+#include <cstdint>
+
+using std::int64_t;
 
 //@todo Define this somewhere more appropriate
 #define N_CHIPS 25000
 
 //@todo Destructor! We have to clean up after ourselves!
 //@todo It would be nice if these classes could create the data subdirectory themselves..
-class EventGenerator {
+class EventGenerator : sc_core::sc_module
+{
+public: // SystemC signals  
+  sc_in<bool> s_strobe_in;
+  sc_in_clk s_clk_in;
+  sc_event_queue_port E_trigger_event_available;
+
 private:
-  std::queue<Event*> mEventQueue;  
+  std::queue<TriggerEvent*> mEventQueue;
+
+  // This is a pointer to the next trigger event which is "under construction".
+  // It is created on rising edge of strobe signal, and completed (and moved to mEventQueue) on
+  // the corresponding falling edge of the strobe signal.
+  TriggerEvent* mNextTriggerEvent = nullptr;
+  
+  // New hits will be push at the back, and old (expired) hits popped at the front.
+  // We need to be able to iterate over the queue, so a normal std::queue would not work.
+  // And deque seems faster than a list for our purpose:
+  // http://stackoverflow.com/questions/14574831/stddeque-or-stdlist
+  // But that should probably be tested :)
+  std::deque<Hit> mHitQueue;
 
   int mBunchCrossingRateNs;
 
-  //@todo For more accuracy, maybe this factor and average crossing rate should be replaced
-  //      with an actual filling pattern?
-  //@brief Calculated as: mBunchCrossingRateNs x mGapFactor  
-  int mAverageCrossingRateNs;
+  int mAverageEventRateNs;
 
-  // 1 - (Number of "gaps" among bunches / possible number of bunches)
-  double mGapFactor;
+  //@todo Remove. I don't need to know this after all. I am actually generating things real time,
+  //      keeping hits in memory for as long as necessary, and moving hits that were active during
+  //      an event to mNextTriggerEvent at falling edge of strobe.
+  int mStrobeLengthNs;
 
   // Number of events to keep in memory at a time. 0 = infinite.
   int mNumEventsInMemoryAllowed = 0;
 
-  // Total number of events generated.
-  int mEventCount = 0;
+  // Total number of physics and trigger events generated.
+  int mPhysicsEventCount = 0;
+  int mTriggerEventIdCount = 0;
 
-  // Time of the last event that was generated.
-  int mLastEventTimeNs = 0;
+  // Time of the last physics event that was generated.
+  int64_t mLastPhysicsEventTimeNs = 0;
 
+  // Time of the last trigger event that was generated (time of last strobe)
+  // Will not be updated if trigger was filtered out.
+  int64_t mLastTriggerEventTimeNs = 0;
+  
+  // Time of the oldest trigger event in the trigger event queue
+  int64_t mOldestTriggerEventTimeNs = 0;
+
+  int mPixelDeadTime;
+  int mPixelActiveTime;
+  
   // Minimum time between two triggers/events. Triggers/events that come sooner than this will
   // be filtered out (but their hits will still be stored).
   int mTriggerFilterTimeNs;
@@ -55,29 +90,40 @@ private:
   boost::random::mt19937 mRandHitMultiplicityGen;
   boost::random::mt19937 mRandEventTimeGen;
 
-  // Use pointers? Makes initialization easier?
+  // Uniform distribution used generating hit coordinates
   boost::random::uniform_int_distribution<int> *mRandHitChipID, *mRandHitChipX, *mRandHitChipY;
-  boost::random::normal_distribution<double> *mRandHitMultiplicity;
-  boost::random::exponential_distribution<double> *mRandEventTime;
 
-  int mHitMultiplicityAverage;
-  int mHitMultiplicityDeviation;
+  // Choice of discrete distribution (based on discrete list of N_hits vs Probability),
+  // or gaussian distribution.
+  boost::random::discrete_distribution<> *mRandHitMultiplicityDiscrete;
+  boost::random::normal_distribution<double> *mRandHitMultiplicityGauss;
+
+  // Exponential distribution used for time between events
+  boost::random::exponential_distribution<int> *mRandEventTime;
+
+  int mHitMultiplicityGaussAverage;
+  int mHitMultiplicityGaussDeviation;
 
   void calculateAverageCrossingRate(void);
   void eventMemoryCountLimiter(void);
 
 public:
   EventGenerator();
-  //EventGenerator(int BC_rate_ns, double gap_factor, int hit_mult_avg, int hit_mult_dev, int random_seed = 0);
-  EventGenerator(int BC_rate_ns, int avg_trigger_rate_ns,
+  EventGenerator(sc_core::sc_module_name name,
+                 int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
                  int hit_mult_avg, int hit_mult_dev,
+                 int pixel_dead_time_ns, int pixel_active_time_ns,
+                 int random_seed = 0, bool create_csv_hit_file = false);
+  EventGenerator(sc_core::sc_module_name name,
+                 int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
+                 const char* mult_dist_filename,
+                 int pixel_dead_time_ns, int pixel_active_time_ns,
                  int random_seed = 0, bool create_csv_hit_file = false);
   ~EventGenerator();
   void generateNextEvent();
   void generateNextEvents(int n_events);
-  const Event& getNextEvent(void) const;
+  const Event& getNextTriggerEvent(void) const;
   void setBunchCrossingRate(int rate_ns);
-  void setBunchGapFactor(double factor);
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
   void setPath(const std::string& path) {mDataPath = path;}
@@ -89,8 +135,17 @@ public:
   void disableTriggerFiltering(void) {mTriggerFilteringEnabled = false;}
   int getTriggerFilterTime(void) const {return mTriggerFilterTimeNs;}
   int getEventsInMem(void) const {return mEventQueue.size();}
-  int getEventCount(void) const {return mEventCount;}
+  int getEventsGeneratedCount(void) const {return mEventsGeneratedCount;}
   void removeOldestEvent(void);
+  void physicsEventProcess(void);
+  void triggerEventProcess(void);
+  
+private:
+  TriggerEvent* generateNextTriggerEvent(int64_t event_start) const;
+  void readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const;
+  unsigned int getRandomMultiplicity(void) const;
+  void addHitsToTriggerEvent(TriggerEvent *e);
+  void removeInactiveHits(void);
 };
 
 

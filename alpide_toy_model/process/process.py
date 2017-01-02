@@ -1,38 +1,10 @@
-import matplotlib
+# Uses Verilog VCD import found here:
+# https://pypi.python.org/pypi/Verilog_VCD/
+
 from Verilog_VCD.Verilog_VCD import parse_vcd
-from numpy.random import randn
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
 import numpy as np
 import pandas
-
-#from vcd import
-
-#
-# def to_percent(y, position):
-#     # Ignore the passed in position. This has the effect of scaling the default
-#     # tick locations.
-#     s = str(100 * y)
-#
-#     # The percent symbol needs escaping in latex
-#     if matplotlib.rcParams['text.usetex'] is True:
-#         return s + r'$\%$'
-#     else:
-#         return s + '%'
-#
-# x = randn(5000)
-#
-# # Make a normed histogram. It'll be multiplied by 100 later.
-# plt.hist(x, bins=50, normed=True)
-#
-# # Create the formatter using the function to_percent. This multiplies all the
-# # default labels by 100, making them all percentages
-# formatter = FuncFormatter(to_percent)
-#
-# # Set the formatter
-# plt.gca().yaxis.set_major_formatter(formatter)
-#
-# plt.show()
 
 
 ##################################################
@@ -105,9 +77,6 @@ for net_id in vcd:
 ##################################################
 data = pandas.read_csv("../random_data.csv", delimiter=';', header=0)
 
-
-print('asdf')
-
 plt.figure(1)
 # Make a normed histogram. It'll be multiplied by 100 later.
 #plt.hist(x=nets_value_distributions['chip_total_number_of_hits[31:0]'][0], data=nets_value_distributions['chip_total_number_of_hits[31:0]'][1], bins=50)#, normed=True)
@@ -136,5 +105,3 @@ plt.xlabel('Hits')
 plt.ylabel('Probability')
 
 plt.show()
-
-print('asdf')

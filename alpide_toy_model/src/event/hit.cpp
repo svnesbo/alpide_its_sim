@@ -2,12 +2,10 @@
  * @file   hit.h
  * @Author Simon Voigt Nesbo
  * @date   December 12, 2016
- * @brief  Source file for PixelData and Hit classes. These classes hold the
- *         coordinates for a discrete hit in the Alpide chip, along with 
- *         information about when the hit occured and so on (used to model
- *         the analog shaping time etc. in pixel front end).
- *
- * Detailed description of file.
+ * @brief  Source file for PixelData and Hit classes. These classes hold the coordinates for a discrete hit
+ *         in the Alpide chip, along with information about when the hit is active (equivalent to when the 
+ *         analog pulse out of the amplifier and shaping stage in the analog front end goes above the
+ *         threshold).
  */
 
 #include "hit.h"
@@ -15,53 +13,59 @@
 
 Hit::Hit()
   : PixelData(0, 0)
+  , mChipId(0)
+  , mActiveTimeStartNs(0)
+  , mActiveTimeEndNs(0)
 {
-  mChipId = 0;
-  mDeadTimeCounter = 0;
-  mActiveTimeCounter = 0;
 }
 
-Hit::Hit(int chip_id, int col, int row, int dead_time_ns, int active_time_ns)
+
+//@brief Constructor that calculates active start and end times based on current simulation time, and
+//       dead times and active times.
+//@param chip_id Chip ID.
+//@param col Column number.
+//@param row Row number.
+//@param time_now_ns Time (in nanoseconds) when this hit occured (ie. current simulation time).
+//@param dead_time_ns Dead time (in nanoseconds) before the hit "becomes active". This is equivalent to the
+//       time it takes for the analog signal to go above the threshold after a hit.
+//@param active_time_ns Specifies (in nanoseconds) how long the hit stays active (ie. pixel is triggered)
+//       after the dead time has passed. This is equivalent to the time the analog pulse into the
+//       discriminator/comparator is over threshold.
+Hit::Hit(int chip_id, int col, int row, int64_t time_now_ns, int dead_time_ns, int active_time_ns)
   : mChipId(chip_id)
   , PixelData(col, row)
-  , mDeadTimeCounter(dead_time_ns)
-  , mActiveTimeCounter(active_time_ns)
+{
+  mActiveTimeStartNs = time_now_ns + dead_time_ns;
+  mActiveTimeEndNs = time_now_ns + dead_time_ns + active_time_ns;
+}
+
+
+//@brief Constructor that takes active start and end times directly.
+//@param chip_id Chip ID.
+//@param col Column number.
+//@param row Row number.
+//@param time_active_start_ns Absolute simulation time (in nanoseconds) for when the hit becomes active, which
+//       is equivalent to the analog signal going above the threshold after a hit.
+//@param time_active_end_ns Absolute simulation time (in nanoseconds) for when the hit stops being active, which
+//       is equivalent to when the analog signal goes below the threshold again after having been active.
+Hit::Hit(int chip_id, int col, int row, int64_t time_active_start_ns, int64_t time_active_end_ns)
+  : mChipId(chip_id)
+  , PixelData(col, row)
+  , mActiveTimeStartNs(time_active_start_ns)
+  , mActiveTimeEndNs(time_active_end_ns)
+      
 {
 }
+
 
 Hit::Hit(const Hit& h)
   : mChipId(h.mChipId)
   , PixelData(h)
-  , mDeadTimeCounter(h.mDeadTimeCounter)
-  , mActiveTimeCounter(h.mActiveTimeCounter)
+  , mActiveTimeStartNs(h.mActiveTimeStartNs)
+  , mActiveTimeEndNs(h.mActiveTimeEndNs)
 {
 }
 
-bool Hit::isActive(void)
-{
-  return (mDeadTimeCounter == 0 && mActiveTimeCounter > 0);
-}
-
-void Hit::decreaseTimers(int time_ns)
-{
-  if(mDeadTimeCounter > 0) {
-    mDeadTimeCounter -= time_ns;
-    if(mDeadTimeCounter < 0) {
-      mActiveTimeCounter += mDeadTimeCounter;
-      mDeadTimeCounter = 0;
-    }
-  } else {
-    mActiveTimeCounter -= time_ns;
-  }
-
-  if(mActiveTimeCounter < 0)
-    mActiveTimeCounter = 0;
-}
-
-int Hit::timeLeft(void) const
-{
-  return mDeadTimeCounter + mActiveTimeCounter;
-}
   
 bool Hit::operator==(const Hit& rhs) const
 {
@@ -70,9 +74,6 @@ bool Hit::operator==(const Hit& rhs) const
 
   // Hits are equal if chip ids and hit coords match
   return (mChipId == rhs.mChipId) && (pixel_lhs == pixel_rhs);
-  // return (mChipId == rhs.mChipId) &&
-  //   (mCol == rhs.mCol) &&
-  //   (mRow == rhs.mRow);
 }
 
 bool Hit::operator>(const Hit& rhs) const
@@ -111,7 +112,7 @@ Hit& Hit::operator=(const Hit& rhs)
   mChipId = rhs.mChipId;
   setCol(rhs.getCol());
   setRow(rhs.getRow());
-  mDeadTimeCounter = rhs.mDeadTimeCounter;
-  mActiveTimeCounter = rhs.mActiveTimeCounter;
+  mActiveTimeStartNs = rhs.mActiveTimeStartNs;
+  mActiveTimeEndNs = rhs.mActiveTimeEndNs;
   return *this;
 }
