@@ -11,6 +11,7 @@
  */
 
 #include "trigger_event.h"
+#include <systemc.h>
 #include <sstream>
 #include <fstream>
 
@@ -19,8 +20,9 @@ const TriggerEvent NoTriggerEvent(0, 0, -1);
 
 
 //@brief Standard constructor
-TriggerEvent::TriggerEvent(int event_time_ns, int event_id, bool filter_event) {
+TriggerEvent::TriggerEvent(int64_t event_time_ns, int event_id, bool filter_event) {
   mEventStartTimeNs = event_time_ns;
+  mEventEndTimeNs = mEventStartTimeNs;
   mEventId = event_id;
   mEventFilteredFlag = filter_event;
 }
@@ -29,7 +31,8 @@ TriggerEvent::TriggerEvent(int event_time_ns, int event_id, bool filter_event) {
 //@brief Copy constructor
 TriggerEvent::TriggerEvent(const TriggerEvent& e) {
   mHitSet = e.mHitSet;
-  mEventTimeNs = e.mEventTimeNs;
+  mEventStartTimeNs = e.mEventStartTimeNs;
+  mEventEndTimeNs = e.mEventEndTimeNs;  
   mEventId = e.mEventId;
   mEventFilteredFlag = e.mEventFilteredFlag;
 }
@@ -41,11 +44,12 @@ void TriggerEvent::addHit(const Hit& h)
 }
 
 
-void TriggerEvent::addHit(int chip_id, int col, int row)
-{
-  Hit h(chip_id, col, row);
-  addHit(h);
-}
+//@todo Remove?
+// void TriggerEvent::addHit(int chip_id, int col, int row)
+// {
+//   Hit h(chip_id, col, row);
+//   addHit(h);
+// }
 
 
 //@brief Feed this event to the pixel matrix of the specified chip. Only the hits in
@@ -57,6 +61,9 @@ void TriggerEvent::feedHitsToChip(PixelMatrix &matrix, int chip_id) const
   // Only feed this event to the chip if it has not been filtered out
   if(mEventFilteredFlag == false) {
     matrix.newEvent();
+
+    std::cout << "@ " << sc_time_stamp() << ": TriggerEvent: feeding trigger event number: ";
+    std::cout << mEventId << " to chip." << std::endl;
     
     for(auto it = mHitSet.begin(); it != mHitSet.end(); it++) {
       if(it->getChipId() == chip_id) {
@@ -67,6 +74,7 @@ void TriggerEvent::feedHitsToChip(PixelMatrix &matrix, int chip_id) const
 }
 
 
+//@todo Revisit this function, since I have changed this class a lot...
 //@brief Write this event to file, in XML format.
 //       The filename will be: "path/event<mEventId>.xml"
 //@param path Path to store file in. 
@@ -85,7 +93,7 @@ void TriggerEvent::writeToFile(const std::string path)
 
   // Write XML header
   of << "<?xml version=\"1.0\"?>" << std::endl;
-  of << "<event id=\"" << mEventId << "\" time_ns=\"" << mEventTimeNs << "\">" << std::endl;
+  of << "<event id=\"" << mEventId << "\" time_ns=\"" << mEventStartTimeNs << "\">" << std::endl;
 
   int prev_chip_id = -1;
   

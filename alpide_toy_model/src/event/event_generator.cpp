@@ -23,11 +23,22 @@
 
 #include "event_generator.h"
 #include "../alpide/alpide_constants.h"
+#include <boost/current_function.hpp>
 #include <stdexcept>
+#include <cmath>
 
 using boost::random::uniform_int_distribution;
 using boost::random::normal_distribution;
 using boost::random::exponential_distribution;
+using boost::random::discrete_distribution;
+
+
+#define print_function_timestamp() \
+  std::cout << std::endl << "@ " << sc_time_stamp().value() << " ns\t";  \
+  std::cout << BOOST_CURRENT_FUNCTION << ":" << std::endl; \
+  std::cout << "-------------------------------------------"; \
+  std::cout << "-------------------------------------------" << std::endl;
+
 
 
 //@brief "Default" constructor for EventGenerator
@@ -55,11 +66,14 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name)
   mRandHitMultiplicityGauss = new normal_distribution<double>(mHitMultiplicityGaussAverage,
                                                               mHitMultiplicityGaussDeviation);
 
+  // Discrete distribution is not used in this case
+  mRandHitMultiplicityDiscrete = nullptr;  
+
   // Multiplied by BC rate so that the distribution is related to the clock cycles
   // Which is fine because physics events will be in sync with 40MHz BC clock, but
   // to get actual simulation time we must multiply the numbers obtained with BC rate.
-  double lambda = 1.0/(mAverageEventRateNs*mBunchCrossingRateNs)
-  mRandEventTime = new exponential_distribution<int>(lambda);
+  double lambda = 1.0/(mAverageEventRateNs/mBunchCrossingRateNs);
+  mRandEventTime = new exponential_distribution<double>(lambda);
 
   initRandomNumGenerator();
 
@@ -120,8 +134,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   // Multiplied by BC rate so that the distribution is related to the clock cycles
   // Which is fine because physics events will be in sync with 40MHz BC clock, but
   // to get actual simulation time we must multiply the numbers obtained with BC rate.
-  double lambda = 1.0/(mAverageEventRateNs*mBunchCrossingRateNs)
-  mRandEventTime = new exponential_distribution<int>(lambda);  
+  double lambda = 1.0/(mAverageEventRateNs/mBunchCrossingRateNs);
+  mRandEventTime = new exponential_distribution<double>(lambda);  
 
   initRandomNumGenerator();
 
@@ -189,8 +203,12 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   // Multiplied by BC rate so that the distribution is related to the clock cycles
   // Which is fine because physics events will be in sync with 40MHz BC clock, but
   // to get actual simulation time we must multiply the numbers obtained with BC rate.
-  double lambda = 1.0/(mAverageEventRateNs*mBunchCrossingRateNs)
-  mRandEventTime = new exponential_distribution<int>(lambda);  
+  double lambda = 1.0/(mAverageEventRateNs/mBunchCrossingRateNs);
+  mRandEventTime = new exponential_distribution<double>(lambda);
+
+  std::cout << "mBunchCrossingRateNs = " << mBunchCrossingRateNs << std::endl;  
+  std::cout << "mAverageEventRateNs = " << mAverageEventRateNs << std::endl;
+  std::cout << "lambda = " << lambda << std::endl;
 
   initRandomNumGenerator();
 
@@ -255,13 +273,13 @@ void EventGenerator::eventMemoryCountLimiter(void)
 //@brief Get a reference to the next event (if there is one)
 //@return Reference to next event. If there are no events,
 //        then a refernce to NoEvent (with event id = -1) is returned.
-const Event& EventGenerator::getNextEvent(void) const
+const TriggerEvent& EventGenerator::getNextTriggerEvent(void) const
 {
   if(getEventsInMem() > 0) {
-    Event* oldest_event = mEventQueue.front();
+    TriggerEvent* oldest_event = mEventQueue.front();
     return *oldest_event;
   } else {
-    return NoEvent;
+    return NoTriggerEvent;
   }
 }
 
@@ -329,7 +347,7 @@ void EventGenerator::removeOldestEvent(void)
 //
 //       Where X-values correspond to the possible range of values for the random distribution, and the Y-values
 //       correspond to probability for a given X-value. X and Y is separated by whitespace.
-//       All X-values must be integers, and Y-values are assumed to be floating point.
+//       All X-values must be unsigned integers, and Y-values are assumed to be (positive) floating point.
 //
 //       The boost::random::discrete_distribution expects a list of probability values, where the index in the list
 //       corresponds to the X-value. This function generates a vector to represent that list. Missing X-values
@@ -343,13 +361,14 @@ void EventGenerator::removeOldestEvent(void)
 //
 //@param filename Relative or absolute path and filename to open
 //@param dist_vector Reference to vector to store the distribution in
+//@throw domain_error If a negative x-value (hits) or y-value (probability) is encountered in the file
 void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const
 {
   std::ifstream in_file(filename);
 
   if(in_file.is_open() == false) {
-    std::cerr << "Error opening input file." << std::endl;
-    throw std::runtime_error("Error opening input file.");
+    std::cerr << "Error opening discrete distribution file." << std::endl;
+    throw std::runtime_error("Error opening discrete distribution file.");
   }
 
   int i = 0;
@@ -357,9 +376,12 @@ void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vec
   double y;
   
   while((in_file >> x >> y)) {
-    std::cout << "x: " << x << std::endl;
-    std::cout << "y: " << y << std::endl;
+    if(x < 0)
+      throw std::domain_error("Negative x-value in discrete distribution file");
 
+    if(y < 0.0)
+      throw std::domain_error("Negative probability-value in discrete distribution file");
+    
     // Some bins/x-values may be missing in the file.
     // Missing bins have zero probability, but need to be present in the
     // vector because discrete_distribution expects the full range
@@ -373,13 +395,6 @@ void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vec
   }
 
   in_file.close();
-
-
-  //@todo Remove this test code
-  std::cout << "\nPrinting vector: \n";
-  for(i = 0; i < dist_vector.size(); i++)
-    std::cout << i << ": " << dist_vector[i] << std::endl;
-
 }
 
 
@@ -388,9 +403,9 @@ void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vec
 //@return Number of hits
 //@throw  runtime_error if the EventGenerator for some reason does not have
 //                      a multiplicity distribution initialized.
-unsigned int EventGenerator::getRandomMultiplicity(void) const
+unsigned int EventGenerator::getRandomMultiplicity(void)
 {
-  if(mRandHitMultiplicityDiscrete != nullptr) 
+  if(mRandHitMultiplicityDiscrete != nullptr)
     return (*mRandHitMultiplicityDiscrete)(mRandHitMultiplicityGen);
   
   else if(mRandHitMultiplicityGauss != nullptr)
@@ -406,17 +421,25 @@ unsigned int EventGenerator::getRandomMultiplicity(void) const
 //       1) Generate time till the next physics event
 //       2) Generate hits for the next event, and put them on the hit queue
 //       3) Update counters etc.
-//@return The number of clock cycles untill this event will actually occur
-int64_t EventGenerator::generateNextPhysicsEvent()
+//@return The number of clock cycles until this event will actually occur
+int64_t EventGenerator::generateNextPhysicsEvent(void)
 {
-  double t_delta_cycles;
+  int64_t t_delta, t_delta_cycles;
 
   // Generate random (exponential distributed) interval till next event/interaction
-  t_delta_cycles = (*mRandEventTime)(mRandEventTimeGen);
+  // The exponential distribution only works with double float, that's why it is rounded
+  // to nearest clock cycle. Which is okay, because events in LHC should be synchronous
+  // with bunch crossing clock anyway?
+  // Add 1 because otherwise we risk getting events with 0 t_delta, which obviously is not
+  // physically possible, and also SystemC doesn't allow wait() for 0 clock cycles.
+  t_delta_cycles = std::round((*mRandEventTime)(mRandEventTimeGen)) + 1;
   t_delta = t_delta_cycles * mBunchCrossingRateNs;
 
-  std::cout << "EventGenerator: event number: " << mEventsGeneratedCount;
-  std::cout << "  t_delta: " << t_delta << std::endl;
+  print_function_timestamp();
+  std::cout << "\tPhysics event number: " << mPhysicsEventCount << std::endl;
+  std::cout << "\tt_delta: " << t_delta << std::endl;
+  std::cout << "\tt_delta_cycles: " << t_delta_cycles << std::endl;
+  std::cout << "\tmLastPhysicsEventTimeNs: " << mLastPhysicsEventTimeNs << std::endl;
 
   mLastPhysicsEventTimeNs += t_delta;
   mPhysicsEventCount++;
@@ -432,7 +455,7 @@ int64_t EventGenerator::generateNextPhysicsEvent()
 
   // Generate hits here
   for(int i = 0; i < n_hits; i++) {
-    int rand_chip_id = 0;
+    int rand_chip_id = (*mRandHitChipID)(mRandHitGen);
     int rand_x1 = (*mRandHitChipX)(mRandHitGen);
     int rand_y1 = (*mRandHitChipY)(mRandHitGen);
     int rand_x2, rand_y2;
@@ -477,18 +500,31 @@ int64_t EventGenerator::generateNextPhysicsEvent()
 //@param event_start Start time of trigger event (time when strobe signal went high).
 TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start)
 {
-  int64_t time_since_last_trigger = event_start - mLastTriggerTimeNs;
+  //@todo Should I check distance between start time of two triggers?
+  //      Or the distance in time between the end of the first trigger and the
+  //      start of the next trigger?
+  int64_t time_since_last_trigger = event_start - mLastTriggerEventStartTimeNs;
   
   // If event/trigger filtering is enabled, and this event/trigger came
   // too close to the previous one we filter it out.
   bool filter_event = mTriggerFilteringEnabled ? (time_since_last_trigger < mTriggerFilterTimeNs) : false;
 
+  // But don't filter the first trigger event
+  if(mTriggerEventIdCount == 0)
+    filter_event = false;
+
   TriggerEvent* e = new TriggerEvent(event_start, mTriggerEventIdCount, filter_event);
 
   mTriggerEventIdCount++;
 
-  if(filter_event == true)
-    mLastTriggerEventTimeNs = event_start;
+  print_function_timestamp();
+  std::cout << "\tTrigger event number: " << mTriggerEventIdCount << std::endl;
+  std::cout << "\ttime_since_last_trigger: " << time_since_last_trigger << std::endl;
+  std::cout << "\tevent_start: " << event_start << std::endl;
+  std::cout << "\tmLastTriggerEventStartTimeNs: " << mLastTriggerEventStartTimeNs << std::endl;
+  std::cout << "\tmTriggerFilterTimeNs: " << mTriggerFilterTimeNs << std::endl;
+  std::cout << "\tFiltered: " << (filter_event ? "true" : "false") << std::endl;
+  
 
   return e;
 }
@@ -501,16 +537,21 @@ TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start)
 //       still be used in a trigger event that hasn't been processed yet).
 void EventGenerator::removeInactiveHits(void)
 {
-  sc_time time_now = sc_time_stamp();
+  int64_t time_now = sc_time_stamp().value();
   bool done = false;
+
+  print_function_timestamp();
+  std::cout << "\tQueue size (before): " << mHitQueue.size() << std::endl;
+  int i = 0;
 
   do {
     if(mHitQueue.size() > 0) {
       // Check if oldest hit should be removed..
-      if(mHitQueue.front().isActive(time_now_ns) == false &&
-         mHitQueue.front().getActiveTimeEnd() < mOldestTriggerEventTimeNs)
+      if(mHitQueue.front().isActive(time_now) == false &&
+         mHitQueue.front().getActiveTimeEnd() < mLastTriggerEventEndTimeNs)
       {
         mHitQueue.pop_front();
+        i++;
         done = false;
       } else {
         done = true; // Done if oldest hit is still active
@@ -519,6 +560,8 @@ void EventGenerator::removeInactiveHits(void)
       done = true; // Done if queue size is zero
     }
   } while(done == false);
+
+  std::cout << "\tQueue size (now): " << mHitQueue.size() << "\t" << i << " hits removed" << std::endl;
 }
 
 
@@ -528,8 +571,7 @@ void EventGenerator::removeInactiveHits(void)
 //       2) Deleting old inactive hits
 void EventGenerator::physicsEventProcess(void)
 {
-  sc_time time_now = sc_time_stamp();
-  int64_t t_delta, t_delta_cycles;
+  int64_t t_delta_cycles;
 
   // Run until the simulation stops
   while(1) {
@@ -540,7 +582,8 @@ void EventGenerator::physicsEventProcess(void)
     // actually happen.
     // Note: this type of wait() call only works with CTHREAD (normally one would specify time unit).
     wait(t_delta_cycles);
-    
+
+    //@todo Maybe do this only on strobe falling edge? Saves some CPU cycles that way?
     removeInactiveHits();
   }
 }
@@ -552,22 +595,35 @@ void EventGenerator::physicsEventProcess(void)
 //       2) Complete trigger object on falling edge, and add to queue
 void EventGenerator::triggerEventProcess(void)
 {
+  int64_t time_now = sc_time_stamp().value();
+
+  print_function_timestamp();
+      
   // Rising edge
   if(s_strobe_in.read() == true) {
-    //@todo Add parameters to function!
-    //@todo How do I get the SystemC current simulation time???
-    sc_time time_now = sc_time_stamp();
     mNextTriggerEvent = generateNextTriggerEvent(time_now);
   }
 
   // Falling edge. Also check that we've actually allocated something..
   else if(mNextTriggerEvent != nullptr) {
-    // Only add hits to the event if it is not being filtered
-    if(mNextTriggerEvent->getEventFilteredFlag() == false)
-      addHitsToTriggerEvent(mNextTriggerEvent);
+    mNextTriggerEvent->setTriggerEventEndTime(time_now);
     
-    mEventQueue.push_back(mNextTriggerEvent);
+    // Only add hits to the event if it is not being filtered
+    if(mNextTriggerEvent->getEventFilteredFlag() == false) {
+      addHitsToTriggerEvent(*mNextTriggerEvent);
+      mLastTriggerEventStartTimeNs = mNextTriggerEvent->getEventStartTime();
+      mLastTriggerEventEndTimeNs = mNextTriggerEvent->getEventEndTime();
+      std::cout << "\tTrigger start time: " << mLastTriggerEventStartTimeNs << " ns. " << std::endl;
+      std::cout << "\tEnd time: " << mLastTriggerEventEndTimeNs << " ns." << std::endl;
+    }
+    
+    mEventQueue.push(mNextTriggerEvent);
     mNextTriggerEvent = nullptr;
+
+    // Post an event notification that a new trigger event/frame is ready
+    E_trigger_event_available->notify(SC_ZERO_TIME);
+    
+    std::cout << "\tTrigger event queue size: " << mEventQueue.size() << std::endl;
   }
 }
 

@@ -18,6 +18,10 @@
 #include "../alpide/pixel_matrix.h"
 #include <string>
 #include <set>
+#include <cstdint>
+
+//@todo Change all int64_t to sc_time?
+using std::int64_t;
 
 class TriggerEvent;
 
@@ -44,20 +48,21 @@ private:
   bool mEventFilteredFlag;
 
 public:
-  TriggerEvent(int event_time_ns, int event_id, bool filter_event = false);
+  TriggerEvent(int64_t event_time_ns, int event_id, bool filter_event = false);
   TriggerEvent(const TriggerEvent& e);
   void addHit(const Hit& h);  
-  void addHit(int chip_id, int col, int row);
+
+  //@todo Remove?
+  //void addHit(int chip_id, int col, int row);
+  
   void feedHitsToChip(PixelMatrix &matrix, int chip_id) const;
   void writeToFile(const std::string path = "");
   void setEventFilteredFlag(bool value) {mEventFilteredFlag = value;}
+  void setTriggerEventEndTime(int64_t end_time) {mEventEndTimeNs = end_time;}
   int getEventSize(void) const {return mHitSet.size();}
-  int getCarriedOverCount(void) const {return mCarriedOverCount;}
-  int getNotCarriedOverCount(void) const {return mNotCarriedOverCount;}
   int getEventId(void) const {return mEventId;}
-  int getEventStartTime(void) const {return mEventStartTimeNs;}
-  int getEventEndTime(void) const {return mEventEndTimeNs;}
-  int getEventDeltaTime(void) const {return mEventDeltaTimeNs;}
+  int64_t getEventStartTime(void) const {return mEventStartTimeNs;}
+  int64_t getEventEndTime(void) const {return mEventEndTimeNs;}
   bool getEventFilteredFlag(void) const {return mEventFilteredFlag;}
 };
 

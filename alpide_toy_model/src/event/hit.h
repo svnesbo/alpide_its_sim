@@ -43,7 +43,7 @@ public:
   //@brief Check if this hit is currently active (which is equivalent to when analog pulse shape is over threshold).
   //@param time_now_ns Current simulation time (in nanoseconds).
   //@return True if active, false if not.
-  static inline bool isActive(int64_t time_now_ns) const {
+  inline bool isActive(int64_t time_now_ns) const {
     return (time_now_ns >= mActiveTimeStartNs) && (time_now_ns < mActiveTimeEndNs);
   }
 
@@ -52,7 +52,7 @@ public:
   //@param strobe_start_time_ns Strobe start time
   //@param strobe_end_time_ns Strobe end time
   //@return True if active, false if not.
-  static inline bool isActive(int64_t strobe_start_time_ns, int64_t strobe_end_time_ns) const {
+  inline bool isActive(int64_t strobe_start_time_ns, int64_t strobe_end_time_ns) const {
     // Check for two overlapping integer ranges:
     // http://stackoverflow.com/a/12888920
     return

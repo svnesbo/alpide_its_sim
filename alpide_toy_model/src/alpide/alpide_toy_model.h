@@ -12,7 +12,8 @@
 #ifndef ALPIDE_TOY_MODEL_H
 #define ALPIDE_TOY_MODEL_H
 
-#include "../event/event.h"
+//@todo Remove?
+//#include "../event/trigger_event.h"
 #include "pixel_matrix.h"
 #include <systemc.h>
 

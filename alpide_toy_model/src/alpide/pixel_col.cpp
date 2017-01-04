@@ -55,9 +55,9 @@ bool PixelData::operator<=(const PixelData& rhs) const
 
 void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 {
-  if(row_num < 0 || row_num >= N_PIXEL_ROWS) {
+  if(row_num >= N_PIXEL_ROWS) {
     throw std::out_of_range ("row_num");
-  } else if(col_num < 0 || col_num >= 2) {
+  } else if(col_num >= 2) {
     throw std::out_of_range ("col_num");
   } else {
     // Extract last bit off column number
@@ -94,9 +94,9 @@ bool PixelDoubleColumn::inspectPixel(unsigned int col_num, unsigned int row_num)
   bool retval = false;
 
   // Out of range exception check
-  if(row_num < 0 || row_num >= N_PIXEL_ROWS) {
+  if(row_num >= N_PIXEL_ROWS) {
     throw std::out_of_range ("row_num");
-  } else if(col_num < 0 || col_num >= 2) {
+  } else if(col_num >= 2) {
     throw std::out_of_range ("col_num");
   }
 

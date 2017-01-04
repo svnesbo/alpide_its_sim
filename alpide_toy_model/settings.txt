@@ -1,22 +1,28 @@
 [alpide]
+pixel_shaping_active_time_ns=6000
+pixel_shaping_dead_time_ns=200
 region_fifo_size=256
 region_size=32
 
 [data_output]
-write_event_csv=false
+write_event_csv=true
 write_vcd=true
 write_vcd_clock=false
 
 [event]
-average_crossing_rate_ns=2500
+average_event_rate_ns=10000
 bunch_crossing_rate_ns=25
-hit_multiplicity_avg=2000
-hit_multiplicity_stddev=350
-trigger_filter_enable=false
-trigger_filter_time_ns=10000
+hit_multiplicity_distribution_file=multipl_dist_raw_bins.txt
+hit_multiplicity_distribution_type=discrete
+hit_multiplicity_gauss_avg=2000
+hit_multiplicity_gauss_stddev=350
+strobe_active_length_ns=4800
+strobe_inactive_length_ns=200
+trigger_filter_enable=true
+trigger_filter_time_ns=2000
 
 [simulation]
 continuous_mode=false
 n_chips=25000
-n_events=100
+n_events=1000000
 random_seed=0

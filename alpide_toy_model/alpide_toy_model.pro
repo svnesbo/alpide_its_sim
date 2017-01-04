@@ -18,7 +18,7 @@ HEADERS += src/alpide/alpide_constants.h \
            src/alpide/alpide_toy_model.h \
            src/alpide/pixel_col.h \
            src/alpide/pixel_matrix.h \
-           src/event/event.h \
+           src/event/trigger_event.h \
            src/event/event_generator.h \
            src/event/hit.h \
            src/settings/settings.h \
@@ -26,7 +26,7 @@ HEADERS += src/alpide/alpide_constants.h \
 SOURCES += src/alpide/alpide_toy_model.cpp \
            src/alpide/pixel_col.cpp \
            src/alpide/pixel_matrix.cpp \
-           src/event/event.cpp \
+           src/event/trigger_event.cpp \
            src/event/event_generator.cpp \
            src/event/hit.cpp \
            src/settings/settings.cpp \

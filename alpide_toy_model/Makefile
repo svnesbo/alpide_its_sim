@@ -51,7 +51,7 @@ OBJECTS_DIR   = ./
 SOURCES       = src/alpide/alpide_toy_model.cpp \
 		src/alpide/pixel_col.cpp \
 		src/alpide/pixel_matrix.cpp \
-		src/event/event.cpp \
+		src/event/trigger_event.cpp \
 		src/event/event_generator.cpp \
 		src/event/hit.cpp \
 		src/settings/settings.cpp \
@@ -60,7 +60,7 @@ SOURCES       = src/alpide/alpide_toy_model.cpp \
 OBJECTS       = alpide_toy_model.o \
 		pixel_col.o \
 		pixel_matrix.o \
-		event.o \
+		trigger_event.o \
 		event_generator.o \
 		hit.o \
 		settings.o \
@@ -136,14 +136,14 @@ DIST          = /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/spec_pre.prf \
 		src/alpide/alpide_toy_model.h \
 		src/alpide/pixel_col.h \
 		src/alpide/pixel_matrix.h \
-		src/event/event.h \
+		src/event/trigger_event.h \
 		src/event/event_generator.h \
 		src/event/hit.h \
 		src/settings/settings.h \
 		src/testbench/stimuli.h src/alpide/alpide_toy_model.cpp \
 		src/alpide/pixel_col.cpp \
 		src/alpide/pixel_matrix.cpp \
-		src/event/event.cpp \
+		src/event/trigger_event.cpp \
 		src/event/event_generator.cpp \
 		src/event/hit.cpp \
 		src/settings/settings.cpp \
@@ -334,8 +334,8 @@ dist: distdir FORCE
 distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
-	$(COPY_FILE) --parents src/alpide/alpide_constants.h src/alpide/alpide_toy_model.h src/alpide/pixel_col.h src/alpide/pixel_matrix.h src/event/event.h src/event/event_generator.h src/event/hit.h src/settings/settings.h src/testbench/stimuli.h $(DISTDIR)/
-	$(COPY_FILE) --parents src/alpide/alpide_toy_model.cpp src/alpide/pixel_col.cpp src/alpide/pixel_matrix.cpp src/event/event.cpp src/event/event_generator.cpp src/event/hit.cpp src/settings/settings.cpp src/testbench/main.cpp src/testbench/stimuli.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents src/alpide/alpide_constants.h src/alpide/alpide_toy_model.h src/alpide/pixel_col.h src/alpide/pixel_matrix.h src/event/trigger_event.h src/event/event_generator.h src/event/hit.h src/settings/settings.h src/testbench/stimuli.h $(DISTDIR)/
+	$(COPY_FILE) --parents src/alpide/alpide_toy_model.cpp src/alpide/pixel_col.cpp src/alpide/pixel_matrix.cpp src/event/trigger_event.cpp src/event/event_generator.cpp src/event/hit.cpp src/settings/settings.cpp src/testbench/main.cpp src/testbench/stimuli.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -373,11 +373,9 @@ compiler_clean:
 ####### Compile
 
 alpide_toy_model.o: src/alpide/alpide_toy_model.cpp src/alpide/alpide_toy_model.h \
-		src/event/event.h \
-		src/event/hit.h \
+		src/alpide/pixel_matrix.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h \
-		src/alpide/pixel_matrix.h \
 		$(SYSTEMC_HOME)/include/systemc.h \
 		/usr/local/systemc-2.3.1/include/systemc \
 		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_cmnhdr.h \
@@ -534,19 +532,15 @@ pixel_matrix.o: src/alpide/pixel_matrix.cpp src/alpide/pixel_matrix.h \
 		src/alpide/alpide_constants.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o pixel_matrix.o src/alpide/pixel_matrix.cpp
 
-event.o: src/event/event.cpp src/event/event.h \
+trigger_event.o: src/event/trigger_event.cpp src/event/trigger_event.h \
 		src/event/hit.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h \
 		src/alpide/pixel_matrix.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o event.o src/event/event.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o trigger_event.o src/event/trigger_event.cpp
 
 event_generator.o: src/event/event_generator.cpp src/event/event_generator.h \
-		src/event/event.h \
-		src/event/hit.h \
-		src/alpide/pixel_col.h \
-		src/alpide/alpide_constants.h \
-		src/alpide/pixel_matrix.h
+		src/alpide/alpide_constants.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o event_generator.o src/event/event_generator.cpp
 
 hit.o: src/event/hit.cpp src/event/hit.h \
@@ -559,12 +553,10 @@ settings.o: src/settings/settings.cpp src/settings/settings.h
 
 main.o: src/testbench/main.cpp src/settings/settings.h \
 		src/event/event_generator.h \
-		src/event/event.h \
-		src/event/hit.h \
+		src/alpide/alpide_toy_model.h \
+		src/alpide/pixel_matrix.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h \
-		src/alpide/pixel_matrix.h \
-		src/alpide/alpide_toy_model.h \
 		$(SYSTEMC_HOME)/include/systemc.h \
 		/usr/local/systemc-2.3.1/include/systemc \
 		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_cmnhdr.h \
@@ -715,11 +707,9 @@ main.o: src/testbench/main.cpp src/settings/settings.h \
 
 stimuli.o: src/testbench/stimuli.cpp src/testbench/stimuli.h \
 		src/alpide/alpide_toy_model.h \
-		src/event/event.h \
-		src/event/hit.h \
+		src/alpide/pixel_matrix.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h \
-		src/alpide/pixel_matrix.h \
 		$(SYSTEMC_HOME)/include/systemc.h \
 		/usr/local/systemc-2.3.1/include/systemc \
 		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_cmnhdr.h \

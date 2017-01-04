@@ -43,9 +43,9 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
   // Out of range exception check
   if(getNumEvents() == 0) {
     throw std::out_of_range("No events");
-  }else if(row < 0 || row >= N_PIXEL_ROWS) {
+  }else if(row >= N_PIXEL_ROWS) {
     throw std::out_of_range("row");
-  } else if(col < 0 || col >= N_PIXEL_COLS) {
+  } else if(col >= N_PIXEL_COLS) {
     throw std::out_of_range("col");
   }
 
@@ -165,7 +165,8 @@ int PixelMatrix::getHitsRemainingInOldestEvent(void)
     return 0;
   }
   else {
-    int& oldest_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.front();    
+    //@todo Remove
+    //int& oldest_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.front();    
     //std::cout << "getHitsRemainingInOldestEvent(): " << getNumEvents() << " events, " << oldest_event_buffer_hits_remaining << " pixels at .front()" << std::endl;
     return mColumnBuffsPixelsLeft.front();
   }

@@ -84,9 +84,8 @@ public:
       if(leftIn.mRow < rightIn.mRow)
         return true;
       else if(leftIn.mRow > rightIn.mRow)
-        return false;
-      
-      if(leftIn.mRow == rightIn.mRow) {
+        return false;      
+      else { /* leftIn.mRow == rightIn.mRow */
         // Even row
         if((leftIn.mRow % 2) == 0)
           return (leftIn.mCol < rightIn.mCol);

@@ -55,6 +55,8 @@ int sc_main(int argc, char** argv)
   if(wf != NULL) {
     sc_close_vcd_trace_file(wf);
   }
+
+  return 0;
 }
 
 

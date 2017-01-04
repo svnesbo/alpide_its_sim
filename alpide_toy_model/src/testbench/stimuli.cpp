@@ -10,7 +10,7 @@
 #include "stimuli.h"
 #include <systemc.h>
 #include <list>
-
+#include <QString>
 
 //@todo RENAME TESTBENCH, AND INSTANTIATE MODULES, CONNECT SIGNALS AND EVERYTHING IN HERE!
 
@@ -50,11 +50,15 @@ SC_HAS_PROCESS(Stimuli);
 Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   : sc_core::sc_module(name)
 {
-  // Get some values from settings object used to initialize EventGenerator class
-  bool hit_multiplicity_distribution_type = settings->value("event/hit_multiplicity_distribution_type").toInt();
-  int hit_multiplicity_stddev = settings->value("event/hit_multiplicity_stddev").toInt();
+  // Initialize variables for Stimuli object
+  mNumEvents = settings->value("simulation/n_events").toInt();
+  mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toInt();
+  mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();  
+
+    // Get some values from settings object used to initialize EventGenerator class
+  QString multipl_dist_type = settings->value("event/hit_multiplicity_distribution_type").toString();
   int bunch_crossing_rate_ns = settings->value("event/bunch_crossing_rate_ns").toInt();
-  int average_crossing_rate_ns = settings->value("event/average_crossing_rate_ns").toInt();
+  int average_event_rate_ns = settings->value("event/average_event_rate_ns").toInt();
   int trigger_filter_time_ns = settings->value("event/trigger_filter_time_ns").toInt();
   bool trigger_filter_enable = settings->value("event/trigger_filter_enable").toBool();
   int strobe_length_ns = settings->value("event/strobe_length_ns").toInt();
@@ -64,26 +68,28 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   int pixel_active_time_ns = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
 
   // Instantiate event generator object with the desired hit multiplicity distribution
-  if(hit_multiplicity_distribution_type == "gauss") {
-    int hit_multiplicity_gauss_stddev = settings->value("event/hit_multiplicity_stddev").toInt();  
-    int hit_multiplicity_gauss_avg = settings->value("event/hit_multiplicity_avg").toInt();
+  if(multipl_dist_type == "gauss") {
+    int multipl_gauss_stddev = settings->value("event/hit_multiplicity_gauss_stddev").toInt();  
+    int multipl_gauss_avg = settings->value("event/hit_multiplicity_gauss_avg").toInt();
     
-    mEvents = new EventGenerator(bunch_crossing_rate_ns,
-                                 average_crossing_rate_ns,
+    mEvents = new EventGenerator("event_gen",
+                                 bunch_crossing_rate_ns,
+                                 average_event_rate_ns,
                                  strobe_length_ns,
-                                 hit_multiplicity_avg,
-                                 hit_multiplicity_stddev,
+                                 multipl_gauss_avg,
+                                 multipl_gauss_stddev,
                                  pixel_dead_time_ns,
                                  pixel_active_time_ns,
                                  random_seed,
                                  create_csv_file);
-  } else if(hit_multiplicity_distribution_type == "discrete") {
-    std::string hit_multiplicity_distribution_file = settings->value("event/hit_multiplicity_distribution_file").toString();
+  } else if(multipl_dist_type == "discrete") {
+    QString multipl_dist_file = settings->value("event/hit_multiplicity_distribution_file").toString();
 
-    mEvents = new EventGenerator(bunch_crossing_rate_ns,
-                                 average_crossing_rate_ns,
+    mEvents = new EventGenerator("event_gen",
+                                 bunch_crossing_rate_ns,
+                                 average_event_rate_ns,
                                  strobe_length_ns,
-                                 hit_multiplicity_distribution_file,
+                                 multipl_dist_file.toStdString().c_str(),
                                  pixel_dead_time_ns,
                                  pixel_active_time_ns,                                 
                                  random_seed,
@@ -95,13 +101,16 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
     mEvents->setTriggerFilterTime(trigger_filter_time_ns);
   }        
 
-  mNumEvents = settings->value("simulation/n_events").toInt();
+  // Connect SystemC signals to EventGenerator
+  mEvents->s_clk_in(clock);  
+  mEvents->E_trigger_event_available(E_trigger_event_available);
+  mEvents->s_strobe_in(s_strobe);
 
   // Instantiate and connect signals to Alpide
   mAlpide = new AlpideToyModel("alpide", 0);
   mAlpide->s_clk_in(clock);
   mAlpide->s_event_buffers_used(chip_event_buffers_used);
-  mAlpide->s_total_number_of_hits(chip_total_number_of_hits);  
+  mAlpide->s_total_number_of_hits(chip_total_number_of_hits);
   
   SC_CTHREAD(stimuliMainProcess, clock.pos());
   
@@ -125,14 +134,14 @@ void Stimuli::stimuliMainProcess(void)
   
   while(simulation_done == false) {
     // Generate strobe pulses for as long as we have more events to simulate
-    if(mEvents->getEventsGeneratedCount() < mNumEvents) {
+    if(mEvents->getTriggerEventCount() < mNumEvents) {
       std::cout << "Generating strobe/event number " << i << std::endl;
 
       s_strobe.write(true);
-      wait(mStrobeActiveClockCycles);
+      wait(mStrobeActiveNs, SC_NS);
 
       s_strobe.write(false);
-      wait(mStrobeInactiveClockCycles);
+      wait(mStrobeInactiveNs, SC_NS);
 
       i++;
     }
@@ -162,7 +171,7 @@ void Stimuli::stimuliEventProcess(void)
   
   // In a separate block because reference e is invalidated by popNextEvent().
   {
-    const TriggerEvent& e = mEvents.getNextEvent();
+    const TriggerEvent& e = mEvents->getNextTriggerEvent();
 
     //@todo Implement the whole ITS here, feed events to all relevant chips..
     e.feedHitsToChip(*mAlpide, mAlpide->getChipId());
@@ -173,7 +182,7 @@ void Stimuli::stimuliEventProcess(void)
   }
 
   // Remove the oldest event once we are done processing it..
-  mEvents.removeOldestEvent();
+  mEvents->removeOldestEvent();
 }
 
 

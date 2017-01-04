@@ -32,8 +32,8 @@ Hit::Hit()
 //       after the dead time has passed. This is equivalent to the time the analog pulse into the
 //       discriminator/comparator is over threshold.
 Hit::Hit(int chip_id, int col, int row, int64_t time_now_ns, int dead_time_ns, int active_time_ns)
-  : mChipId(chip_id)
-  , PixelData(col, row)
+  : PixelData(col, row)
+  , mChipId(chip_id)
 {
   mActiveTimeStartNs = time_now_ns + dead_time_ns;
   mActiveTimeEndNs = time_now_ns + dead_time_ns + active_time_ns;
@@ -49,8 +49,8 @@ Hit::Hit(int chip_id, int col, int row, int64_t time_now_ns, int dead_time_ns, i
 //@param time_active_end_ns Absolute simulation time (in nanoseconds) for when the hit stops being active, which
 //       is equivalent to when the analog signal goes below the threshold again after having been active.
 Hit::Hit(int chip_id, int col, int row, int64_t time_active_start_ns, int64_t time_active_end_ns)
-  : mChipId(chip_id)
-  , PixelData(col, row)
+  : PixelData(col, row)
+  , mChipId(chip_id)
   , mActiveTimeStartNs(time_active_start_ns)
   , mActiveTimeEndNs(time_active_end_ns)
       
@@ -59,8 +59,8 @@ Hit::Hit(int chip_id, int col, int row, int64_t time_active_start_ns, int64_t ti
 
 
 Hit::Hit(const Hit& h)
-  : mChipId(h.mChipId)
-  , PixelData(h)
+  : PixelData(h)
+  , mChipId(h.mChipId)
   , mActiveTimeStartNs(h.mActiveTimeStartNs)
   , mActiveTimeEndNs(h.mActiveTimeEndNs)
 {

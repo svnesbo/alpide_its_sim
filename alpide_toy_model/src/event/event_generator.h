@@ -8,17 +8,25 @@
 #ifndef EVENT_GENERATOR_H
 #define EVENT_GENERATOR_H
 
-#include "event.h"
+#include "trigger_event.h"
+#include <systemc.h>
 #include <queue>
 #include <deque>
 #include <fstream>
-#include <boost/random.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
+#include <boost/random/exponential_distribution.hpp>
+#include <boost/random/discrete_distribution.hpp>
 #include <cstdint>
 
 using std::int64_t;
 
 //@todo Define this somewhere more appropriate
-#define N_CHIPS 25000
+//#define N_CHIPS 25000
+
+// 108 chips in innermost layer
+#define N_CHIPS 108
 
 //@todo Destructor! We have to clean up after ourselves!
 //@todo It would be nice if these classes could create the data subdirectory themselves..
@@ -65,10 +73,8 @@ private:
 
   // Time of the last trigger event that was generated (time of last strobe)
   // Will not be updated if trigger was filtered out.
-  int64_t mLastTriggerEventTimeNs = 0;
-  
-  // Time of the oldest trigger event in the trigger event queue
-  int64_t mOldestTriggerEventTimeNs = 0;
+  int64_t mLastTriggerEventStartTimeNs = 0;
+  int64_t mLastTriggerEventEndTimeNs = 0;  
 
   int mPixelDeadTime;
   int mPixelActiveTime;
@@ -99,7 +105,7 @@ private:
   boost::random::normal_distribution<double> *mRandHitMultiplicityGauss;
 
   // Exponential distribution used for time between events
-  boost::random::exponential_distribution<int> *mRandEventTime;
+  boost::random::exponential_distribution<double> *mRandEventTime;
 
   int mHitMultiplicityGaussAverage;
   int mHitMultiplicityGaussDeviation;
@@ -108,7 +114,7 @@ private:
   void eventMemoryCountLimiter(void);
 
 public:
-  EventGenerator();
+  EventGenerator(sc_core::sc_module_name name);
   EventGenerator(sc_core::sc_module_name name,
                  int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
                  int hit_mult_avg, int hit_mult_dev,
@@ -122,7 +128,7 @@ public:
   ~EventGenerator();
   void generateNextEvent();
   void generateNextEvents(int n_events);
-  const Event& getNextTriggerEvent(void) const;
+  const TriggerEvent& getNextTriggerEvent(void) const;
   void setBunchCrossingRate(int rate_ns);
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
@@ -135,16 +141,18 @@ public:
   void disableTriggerFiltering(void) {mTriggerFilteringEnabled = false;}
   int getTriggerFilterTime(void) const {return mTriggerFilterTimeNs;}
   int getEventsInMem(void) const {return mEventQueue.size();}
-  int getEventsGeneratedCount(void) const {return mEventsGeneratedCount;}
+  int getPhysicsEventCount(void) const {return mPhysicsEventCount;}
+  int getTriggerEventCount(void) const {return mTriggerEventIdCount;}
   void removeOldestEvent(void);
   void physicsEventProcess(void);
   void triggerEventProcess(void);
   
 private:
-  TriggerEvent* generateNextTriggerEvent(int64_t event_start) const;
+  TriggerEvent* generateNextTriggerEvent(int64_t event_start);
+  int64_t generateNextPhysicsEvent(void);
   void readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const;
-  unsigned int getRandomMultiplicity(void) const;
-  void addHitsToTriggerEvent(TriggerEvent *e);
+  unsigned int getRandomMultiplicity(void);
+  void addHitsToTriggerEvent(TriggerEvent& e);
   void removeInactiveHits(void);
 };
 
