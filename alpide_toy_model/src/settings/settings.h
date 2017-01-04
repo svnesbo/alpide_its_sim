@@ -1,11 +1,11 @@
 /**
  * @file   settings.h
- * @Author Simon Voigt Nesbo <svn@hib.no>
+ * @author Simon Voigt Nesbo <svn@hib.no>
  * @date   November 3, 2016
  * @brief  Header file for simulation settings file handling.
+ *
  *         This file has definitions for default simulation settings, which can
  *         be used as default values or for generating the settings file if it is missing.
- *
  */
 
 #ifndef _SETTINGS_H

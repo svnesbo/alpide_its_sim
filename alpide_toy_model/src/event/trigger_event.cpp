@@ -1,6 +1,6 @@
 /**
  * @file   trigger_event.cpp
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Event class for Alpide SystemC simulation model.
  *         This class holds all the pixel hits for an event for the whole detector.
@@ -19,7 +19,7 @@
 const TriggerEvent NoTriggerEvent(0, 0, -1);
 
 
-//@brief Standard constructor
+///@brief Standard constructor
 TriggerEvent::TriggerEvent(int64_t event_time_ns, int event_id, bool filter_event) {
   mEventStartTimeNs = event_time_ns;
   mEventEndTimeNs = mEventStartTimeNs;
@@ -28,7 +28,7 @@ TriggerEvent::TriggerEvent(int64_t event_time_ns, int event_id, bool filter_even
 }
 
 
-//@brief Copy constructor
+///@brief Copy constructor
 TriggerEvent::TriggerEvent(const TriggerEvent& e) {
   mHitSet = e.mHitSet;
   mEventStartTimeNs = e.mEventStartTimeNs;
@@ -44,18 +44,10 @@ void TriggerEvent::addHit(const Hit& h)
 }
 
 
-//@todo Remove?
-// void TriggerEvent::addHit(int chip_id, int col, int row)
-// {
-//   Hit h(chip_id, col, row);
-//   addHit(h);
-// }
-
-
-//@brief Feed this event to the pixel matrix of the specified chip. Only the hits in
-//       this event corresponding to chip_id will be fed to the chip.
-//@param matrix Pixel matrix for the chip
-//@param chip_id Chip ID to feed hits to.
+///@brief Feed this event to the pixel matrix of the specified chip. Only the hits in
+///       this event corresponding to chip_id will be fed to the chip.
+///@param matrix Pixel matrix for the chip
+///@param chip_id Chip ID to feed hits to.
 void TriggerEvent::feedHitsToChip(PixelMatrix &matrix, int chip_id) const
 {
   // Only feed this event to the chip if it has not been filtered out
@@ -74,10 +66,10 @@ void TriggerEvent::feedHitsToChip(PixelMatrix &matrix, int chip_id) const
 }
 
 
-//@todo Revisit this function, since I have changed this class a lot...
-//@brief Write this event to file, in XML format.
-//       The filename will be: "path/event<mEventId>.xml"
-//@param path Path to store file in. 
+///@todo Revisit this function, since I have changed this class a lot...
+///@brief Write this event to file, in XML format.
+///       The filename will be: "path/event<mEventId>.xml"
+///@param path Path to store file in. 
 void TriggerEvent::writeToFile(const std::string path)
 {
   // Create XML file and header for this event, name eventX.xml, where X is event number
@@ -118,7 +110,7 @@ void TriggerEvent::writeToFile(const std::string path)
   
   of << "</event>" << std::endl;
   
-//@todo Implement layers etc.
+///@todo Implement layers etc.
   
   // Write data to XML file
 /*  if(imod == 0) {

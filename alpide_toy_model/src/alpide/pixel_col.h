@@ -1,6 +1,6 @@
 /**
  * @file   pixel_col.h
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   November 27, 2016
  * @brief  Pixel column, double column, and priority encoder classes
  *

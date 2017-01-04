@@ -1,6 +1,6 @@
 /**
  * @file   hit.h
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Header file for PixelData and Hit classes. These classes hold the coordinates for a discrete hit
  *         in the Alpide chip, along with information about when the hit is active (equivalent to when the 
@@ -11,7 +11,7 @@
 #ifndef HIT_H
 #define HIT_H
 
-//@todo Move PixelData class to its own file? Currently in pixel_col.h
+///@todo Move PixelData class to its own file? Currently in pixel_col.h
 #include "../alpide/pixel_col.h"
 #include <cstdint>
 #include <algorithm>
@@ -40,18 +40,18 @@ public:
   int64_t getActiveTimeStart(void) const {return mActiveTimeStartNs;}
   int64_t getActiveTimeEnd(void) const {return mActiveTimeEndNs;}  
 
-  //@brief Check if this hit is currently active (which is equivalent to when analog pulse shape is over threshold).
-  //@param time_now_ns Current simulation time (in nanoseconds).
-  //@return True if active, false if not.
+  ///@brief Check if this hit is currently active (which is equivalent to when analog pulse shape is over threshold).
+  ///@param time_now_ns Current simulation time (in nanoseconds).
+  ///@return True if active, false if not.
   inline bool isActive(int64_t time_now_ns) const {
     return (time_now_ns >= mActiveTimeStartNs) && (time_now_ns < mActiveTimeEndNs);
   }
 
-  //@brief Check if this hit is active at any time during the specified
-  //       time duration (between strobe_start_time_ns and strobe_end_time_ns).
-  //@param strobe_start_time_ns Strobe start time
-  //@param strobe_end_time_ns Strobe end time
-  //@return True if active, false if not.
+  ///@brief Check if this hit is active at any time during the specified
+  ///       time duration (between strobe_start_time_ns and strobe_end_time_ns).
+  ///@param strobe_start_time_ns Strobe start time
+  ///@param strobe_end_time_ns Strobe end time
+  ///@return True if active, false if not.
   inline bool isActive(int64_t strobe_start_time_ns, int64_t strobe_end_time_ns) const {
     // Check for two overlapping integer ranges:
     // http://stackoverflow.com/a/12888920

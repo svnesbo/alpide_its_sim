@@ -1,10 +1,8 @@
 /**
  * @file   stimuli.cpp
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Source file for stimuli function for Alpide SystemC model
- *
- * Detailed description of file.
  */
 
 #include "stimuli.h"
@@ -12,12 +10,11 @@
 #include <list>
 #include <QString>
 
-//@todo RENAME TESTBENCH, AND INSTANTIATE MODULES, CONNECT SIGNALS AND EVERYTHING IN HERE!
 
-
-//@brief Takes a list of t_delta values (time between events) for the last events,
-//       calculates the average event rate over those events, and prints it to std::cout.
-//       The list must be maintained by the caller.
+///@brief Takes a list of t_delta values (time between events) for the last events,
+///       calculates the average event rate over those events, and prints it to std::cout.
+///       The list must be maintained by the caller.
+///@todo  Update/fix/remove this function.. currently not used..
 void print_event_rate(const std::list<int>& t_delta_queue)
 {
   long t_delta_sum = 0;
@@ -47,6 +44,11 @@ void print_event_rate(const std::list<int>& t_delta_queue)
 
 
 SC_HAS_PROCESS(Stimuli);
+///@brief Constructor for stimuli class.
+///       Instantiates and initializes the EventGenerator and AlpideToyModel objects,
+///       connects the SystemC ports
+///@param name SystemC module name
+///@param settings Settings object with simulation settings.
 Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   : sc_core::sc_module(name)
 {
@@ -119,8 +121,8 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
 }
 
 
-//@brief Main control of simulation stimuli, which mainly involves controlling the
-//       strobe signal and stop the simulation after the desired number of events.
+///@brief Main control of simulation stimuli, which mainly involves controlling the
+///       strobe signal and stop the simulation after the desired number of events.
 void Stimuli::stimuliMainProcess(void)
 {
   std::list<int> t_delta_history;
@@ -161,13 +163,13 @@ void Stimuli::stimuliMainProcess(void)
 }
 
 
-//@brief SystemC controlled method. Waits for EventGenerator to notify the E_trigger_event_available
-//       notification queue that a new trigger event is available.
-//       When a trigger event is available it is fed to the Alpide chip(s).
+///@brief SystemC controlled method. Waits for EventGenerator to notify the E_trigger_event_available
+///       notification queue that a new trigger event is available.
+///       When a trigger event is available it is fed to the Alpide chip(s).
 void Stimuli::stimuliEventProcess(void)
 {
-  // @todo Check if there are actually events?
-  // Throw an error if we get notification but there are not events?
+  ///@todo Check if there are actually events?
+  ///Throw an error if we get notification but there are not events?
   
   // In a separate block because reference e is invalidated by popNextEvent().
   {
@@ -186,6 +188,8 @@ void Stimuli::stimuliEventProcess(void)
 }
 
 
+///@brief Add SystemC signals to log in VCD trace file.
+///@todo Make it configurable which traces we want in the file?
 void Stimuli::addTraces(sc_trace_file *wf)
 {
   sc_trace(wf, chip_event_buffers_used, "chip_event_buffers_used");

@@ -1,10 +1,8 @@
 /**
  * @file   main.cpp
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   December 11, 2016
  * @brief  Main source file for Alpide "toy model" simulation testbench
- *
- * Detailed description of file.
  */
 
 #include "../settings/settings.h"
@@ -39,8 +37,8 @@ int sc_main(int argc, char** argv)
     stimuli.addTraces(wf);
 
     if(simulation_settings->value("data_output/write_vcd_clock").toBool() == true) {
-      //@todo Add a warning here if user tries to simulate over 1000 events with this option enabled,
-      //      because it will consume 100s of megabytes
+      ///@todo Add a warning here if user tries to simulate over 1000 events with this option enabled,
+      ///      because it will consume 100s of megabytes
       sc_trace(wf, clock_40MHz, "clock");
     }
   }
@@ -59,5 +57,3 @@ int sc_main(int argc, char** argv)
   return 0;
 }
 
-
-//@todo STIMULI FUNCTION!

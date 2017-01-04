@@ -1,6 +1,6 @@
 /**
  * @file   alpide_constants.h
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   November 27, 2016
  * @brief  Various constants for alpide chip, 
  *         such as pixel matrix width and heigh, fifo depths, etc.
@@ -13,7 +13,6 @@
 
 
 #define N_REGIONS 32
-#define N_MULTI_EVENT_BUFFERS 3
 #define N_PIXEL_ROWS 512
 #define N_PIXEL_COLS 1024
 #define N_PIXEL_COLS_PER_REGION (N_PIXEL_COLS/N_REGIONS)

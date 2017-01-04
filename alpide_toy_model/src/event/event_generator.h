@@ -1,6 +1,6 @@
 /**
  * @file   event_generator.h
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   December 22, 2016
  * @brief  A simple event generator for Alpide SystemC simulation model.
  */
@@ -22,14 +22,30 @@
 
 using std::int64_t;
 
-//@todo Define this somewhere more appropriate
-//#define N_CHIPS 25000
-
 // 108 chips in innermost layer
 #define N_CHIPS 108
 
-//@todo Destructor! We have to clean up after ourselves!
-//@todo It would be nice if these classes could create the data subdirectory themselves..
+///@brief   A simple event generator for Alpide SystemC simulation model.
+///@details Physics events are generated at a rate that has an exponential distribution,
+///         with Lambda = 1 / average rate.
+///         The number of hits generated (hit multiplicity) per event can be based on a gaussian distribution
+///         or a user-defined discrete distribution. The ROOT macro export_multiplicity_data.cxx found under
+///         process/Multiplicity_distribution can be used to generate a discrete distribution based on
+///         real multiplicity data from ALICE.
+///
+///         The hits will currently be disributed randomly (with a flat/uniform distribution) among the
+///         different chips and over a chip's x/y coordinates.
+///         For each hit a fixed 2x2 pixel cluster is generated on the chip (this might be replaced with a
+///         more advanced random distribution in the future).
+///
+///@todo    Get rid off all the constructors. Lets only have one, and configure certain things (like what
+///         distribution for multiplicity to use) with functions. There is so much copy-paste between the
+///         3 constructors right now, which is hard to keep up to date everywhere.
+///@todo    Destructor! We have to clean up after ourselves!
+///@todo    It would be nice if these classes could create the data subdirectory themselves..
+///@todo    Get rid off all the constructors. Lets only have one, and configure certain things (like what
+///         distribution for multiplicity to use) with functions. There is so much copy-paste between the
+///         3 constructors right now, which is hard to keep up to date everywhere.
 class EventGenerator : sc_core::sc_module
 {
 public: // SystemC signals  
@@ -40,47 +56,47 @@ public: // SystemC signals
 private:
   std::queue<TriggerEvent*> mEventQueue;
 
-  // This is a pointer to the next trigger event which is "under construction".
-  // It is created on rising edge of strobe signal, and completed (and moved to mEventQueue) on
-  // the corresponding falling edge of the strobe signal.
+  /// This is a pointer to the next trigger event which is "under construction".
+  ///  It is created on rising edge of strobe signal, and completed (and moved to mEventQueue) on
+  ///  the corresponding falling edge of the strobe signal.
   TriggerEvent* mNextTriggerEvent = nullptr;
   
-  // New hits will be push at the back, and old (expired) hits popped at the front.
-  // We need to be able to iterate over the queue, so a normal std::queue would not work.
-  // And deque seems faster than a list for our purpose:
-  // http://stackoverflow.com/questions/14574831/stddeque-or-stdlist
-  // But that should probably be tested :)
+  /// New hits will be push at the back, and old (expired) hits popped at the front.
+  ///  We need to be able to iterate over the queue, so a normal std::queue would not work.
+  ///  And deque seems faster than a list for our purpose:
+  ///  http://stackoverflow.com/questions/14574831/stddeque-or-stdlist
+  ///  But that should probably be tested :)
   std::deque<Hit> mHitQueue;
 
   int mBunchCrossingRateNs;
 
   int mAverageEventRateNs;
 
-  //@todo Remove. I don't need to know this after all. I am actually generating things real time,
-  //      keeping hits in memory for as long as necessary, and moving hits that were active during
-  //      an event to mNextTriggerEvent at falling edge of strobe.
+  ///@todo Remove. I don't need to know this after all. I am actually generating things real time,
+  ///      keeping hits in memory for as long as necessary, and moving hits that were active during
+  ///      an event to mNextTriggerEvent at falling edge of strobe.
   int mStrobeLengthNs;
 
-  // Number of events to keep in memory at a time. 0 = infinite.
+  /// Number of events to keep in memory at a time. 0 = infinite.
   int mNumEventsInMemoryAllowed = 0;
 
-  // Total number of physics and trigger events generated.
+  /// Total number of physics and trigger events generated.
   int mPhysicsEventCount = 0;
   int mTriggerEventIdCount = 0;
 
-  // Time of the last physics event that was generated.
+  /// Time of the last physics event that was generated.
   int64_t mLastPhysicsEventTimeNs = 0;
 
-  // Time of the last trigger event that was generated (time of last strobe)
-  // Will not be updated if trigger was filtered out.
+  /// Time of the last trigger event that was generated (time of last strobe)
+  /// Will not be updated if trigger was filtered out.
   int64_t mLastTriggerEventStartTimeNs = 0;
   int64_t mLastTriggerEventEndTimeNs = 0;  
 
   int mPixelDeadTime;
   int mPixelActiveTime;
   
-  // Minimum time between two triggers/events. Triggers/events that come sooner than this will
-  // be filtered out (but their hits will still be stored).
+  /// Minimum time between two triggers/events. Triggers/events that come sooner than this will
+  /// be filtered out (but their hits will still be stored).
   int mTriggerFilterTimeNs;
   bool mTriggerFilteringEnabled = false;
 
@@ -96,15 +112,15 @@ private:
   boost::random::mt19937 mRandHitMultiplicityGen;
   boost::random::mt19937 mRandEventTimeGen;
 
-  // Uniform distribution used generating hit coordinates
+  /// Uniform distribution used generating hit coordinates
   boost::random::uniform_int_distribution<int> *mRandHitChipID, *mRandHitChipX, *mRandHitChipY;
 
-  // Choice of discrete distribution (based on discrete list of N_hits vs Probability),
-  // or gaussian distribution.
+  /// Choice of discrete distribution (based on discrete list of N_hits vs Probability),
+  /// or gaussian distribution.
   boost::random::discrete_distribution<> *mRandHitMultiplicityDiscrete;
   boost::random::normal_distribution<double> *mRandHitMultiplicityGauss;
 
-  // Exponential distribution used for time between events
+  /// Exponential distribution used for time between events
   boost::random::exponential_distribution<double> *mRandEventTime;
 
   int mHitMultiplicityGaussAverage;

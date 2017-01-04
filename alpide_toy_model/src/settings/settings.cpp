@@ -1,10 +1,11 @@
 /**
  * @file   settings.cpp
- * @Author Simon Voigt Nesbo <svn@hib.no>
+ * @author Simon Voigt Nesbo <svn@hib.no>
  * @date   November 3, 2016
- * @brief  Some functions for reading the simulation settings file, and for initializing
- *         default settings if the settings file, or certain settings, are missing.
+ * @brief  Source file for simulation settings file.
  *
+ *         Some functions for reading the simulation settings file, and for initializing
+ *         default settings if the settings file, or certain settings, are missing.
  */
 
 #include "settings.h"
@@ -12,14 +13,14 @@
 
 
 
-//@brief Open a file with simulation settings.
-//       If the file does not exist, it will be created. If any settings are missing,
-//       they will be initialized with default values.
-//       If no filename is specified, the default settings.txt file is used in the
-//       current directory.
-//@param fileName File to open, relative to current directory. Defaults to settings.txt if not supplied.
-//@return Pointer to QSettings object initialized with all settings, either from settings file or 
-//        with default settings if any settings were missing.
+///@brief Open a file with simulation settings.
+///       If the file does not exist, it will be created. If any settings are missing,
+///       they will be initialized with default values.
+///       If no filename is specified, the default settings.txt file is used in the
+///       current directory.
+///@param fileName File to open, relative to current directory. Defaults to settings.txt if not supplied.
+///@return Pointer to QSettings object initialized with all settings, either from settings file or 
+///        with default settings if any settings were missing.
 QSettings *getSimSettings(const char *fileName) {
   QString fileNameFullPath = QDir::currentPath() + "/" + fileName;
   QSettings *readoutSimSettings = new QSettings(fileNameFullPath, QSettings::IniFormat);
@@ -37,8 +38,8 @@ QSettings *getSimSettings(const char *fileName) {
 }
 
 
-//@brief Set default settings for each setting that is missing in the QSettings object.
-//@param readoutSimSettings Pointer to QSettings object.
+///@brief Set default settings for each setting that is missing in the QSettings object.
+///@param readoutSimSettings Pointer to QSettings object.
 void setDefaultSimSettings(QSettings *readoutSimSettings) {
   QMap<QString, QString> defaultSettings;
 
@@ -75,9 +76,6 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   QMap<QString, QString>::iterator i = defaultSettings.begin();
     
   while(i != defaultSettings.end()) {
-    //qInfo() << "Key name: " << i.key() << endl;
-
-    
     // Initialize each key missing in readoutSimSettings with a default value
     if(simSettingsKeys.contains(i.key()) == false) {
       //qInfo() << "Key is missing. Updating value" << endl;

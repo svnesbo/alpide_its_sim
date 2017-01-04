@@ -1,10 +1,8 @@
 /**
  * @file   stimuli.h
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Header file for stimuli function for Alpide SystemC model
- *
- * Detailed description of file.
  */
 
 #ifndef STIMULI_H
@@ -29,7 +27,7 @@ private:
   const QSettings* mSettings;
   bool simulation_done = false;
 
-  //@todo Make it a 64-bit int?
+  ///@todo Make it a 64-bit int?
   int mNumEvents;
 
   int mStrobeActiveNs;
