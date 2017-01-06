@@ -24,7 +24,7 @@ using boost::random::discrete_distribution;
   std::cout << "-------------------------------------------" << std::endl;
 
 
-
+/*
 SC_HAS_PROCESS(EventGenerator);
 ///@brief "Default" constructor for EventGenerator
 ///@param name    SystemC module name
@@ -71,51 +71,59 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name)
   SC_METHOD(triggerEventProcess);
   sensitive << s_strobe_in;    
 }
-
+*/
 
 SC_HAS_PROCESS(EventGenerator);
 ///@brief Constructor for EventGenerator with gaussian multiplicity distribution.
-///@param name                 SystemC module name
-///@param BC_rate_ns           Bunch crossing rate in nanoseconds.
-///@param avg_event_rate_ns    Average event rate in nanoseconds.
-///@param strobe_length_ns     Strobe length in nanoseconds
-///@param hit_mult_avg         Average hit multiplicity. Then number of hits generated for an event
-///                            will be gaussian distributed, with this value as the mean, and
-///                            hit_mult_dev as the standard deviation.
-///@param hit_mult_dev         Standard deviation for hit multiplicity.
-///@param pixel_dead_time_ns   Pixel shaping dead time in nanoseconds (ie. time before analog
-///                            pulse goes above threshold).
-///@param pixel_active_time_ns Pixel shaping active time in nanoseconds (ie. the amount of time
-///                            the analog pulse is above the threshold).
-///@param random_seed          Random seed to use in random number generators.
-///@param create_csv_hit_file  Create a CSV-file and store each event time and hit multiplicity value to
-///                            this file
+///@param name SystemC module name
+///@param settings QSettings object with simulation settings.
 EventGenerator::EventGenerator(sc_core::sc_module_name name,
-                               int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
-                               int hit_mult_avg, int hit_mult_dev,
-                               int pixel_dead_time_ns, int pixel_active_time_ns,
-                               int random_seed, bool create_csv_hit_file)
+                               const QSettings* settings)
   : sc_core::sc_module(name)  
 {
-  mBunchCrossingRateNs = BC_rate_ns;
+  mBunchCrossingRateNs = settings->value("event/bunch_crossing_rate_ns").toInt();
+  mAverageEventRateNs = settings->value("event/average_event_rate_ns").toInt();  
+  mTriggerFilteringEnabled = settings->value("event/trigger_filter_enable").toBool();
+  mTriggerFilterTimeNs = settings->value("event/trigger_filter_time_ns").toInt();
+  mRandomSeed = settings->value("simulation/random_seed").toInt();
+  mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
+  mPixelDeadTime = settings->value("alpide/pixel_shaping_dead_time_ns").toInt();
+  mPixelActiveTime = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
+  mNumChips = settings->value("simulation/n_chips").toInt();
 
-  mAverageEventRateNs = avg_event_rate_ns;
-  mStrobeLengthNs = strobe_length_ns;
-  mPixelDeadTime = pixel_dead_time_ns;
-  mPixelActiveTime = pixel_active_time_ns;  
-  mHitMultiplicityGaussAverage = hit_mult_avg;
-  mHitMultiplicityGaussDeviation = hit_mult_dev;
-  mRandomSeed = random_seed;
+  mEventQueue.resize(mNumChips);
+  mHitQueue.resize(mNumChips);
+  
+  // Instantiate event generator object with the desired hit multiplicity distribution
+  QString multipl_dist_type = settings->value("event/hit_multiplicity_distribution_type").toString();  
+  if(multipl_dist_type == "gauss") {
+    mHitMultiplicityGaussAverage = settings->value("event/hit_multiplicity_gauss_avg").toInt();  
+    mHitMultiplicityGaussDeviation = settings->value("event/hit_multiplicity_gauss_stddev").toInt();
 
-  mRandHitChipID = new uniform_int_distribution<int>(0, N_CHIPS-1);
-  mRandHitChipX = new uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
-  mRandHitChipY = new uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
-  mRandHitMultiplicityGauss = new normal_distribution<double>(mHitMultiplicityGaussAverage,
+    mRandHitMultiplicityGauss = new normal_distribution<double>(mHitMultiplicityGaussAverage,
                                                                              mHitMultiplicityGaussDeviation);
 
-  // Discrete distribution is not used in this case
-  mRandHitMultiplicityDiscrete = nullptr;
+    // Discrete distribution is not used in this case
+    mRandHitMultiplicityDiscrete = nullptr;
+  }
+  else if(multipl_dist_type == "discrete") {
+    QString multipl_dist_file = settings->value("event/hit_multiplicity_distribution_file").toString();
 
+    // Read multiplicity distribution from file,
+    // and initialize boost::random discrete distribution with data
+    std::vector<double> mult_dist;
+    readDiscreteDistributionFile(multipl_dist_file.toStdString().c_str(), mult_dist);
+    mRandHitMultiplicityDiscrete = new discrete_distribution<>(mult_dist.begin(), mult_dist.end());
+
+    // Gaussian distribution is not used in this case
+    mRandHitMultiplicityGauss = nullptr;    
+  }
+
+  mRandHitChipID = new uniform_int_distribution<int>(0, mNumChips-1);
+  mRandHitChipX = new uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
+  mRandHitChipY = new uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
+
+  
   // Multiplied by BC rate so that the distribution is related to the clock cycles
   // Which is fine because physics events will be in sync with 40MHz BC clock, but
   // to get actual simulation time we must multiply the numbers obtained with BC rate.
@@ -124,9 +132,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
   initRandomNumGenerator();
 
-  mWriteRandomDataToFile = create_csv_hit_file;
-  
-  if(mWriteRandomDataToFile) {
+  if(mCreateCSVFile) {
     mRandDataFile.open("random_data.csv");
     mRandDataFile << "delta_t;hit_multiplicity" << std::endl;
   }
@@ -142,7 +148,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 }
 
 
-
+/*
 SC_HAS_PROCESS(EventGenerator);
 ///@brief Constructor for EventGenerator with discrete multiplicity distribution.
 ///@param name                 SystemC module name
@@ -214,7 +220,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   SC_METHOD(triggerEventProcess);
   sensitive << s_strobe_in;
 }
-
+*/
 
 EventGenerator::~EventGenerator()
 {
@@ -246,17 +252,26 @@ void EventGenerator::eventMemoryCountLimiter(void)
 }
 
 
-///@brief Get a reference to the next event (if there is one)
+///@brief Get a reference to the next event (if there is one). Note: this function
+///       will keep returning the same event until it has been removed by removeOldestEvent().
 ///@return Reference to next event. If there are no events,
-///        then a refernce to NoEvent (with event id = -1) is returned.
-const TriggerEvent& EventGenerator::getNextTriggerEvent(void) const
+///        then a reference to NoTriggerEvent (with event id = -1) is returned.
+const TriggerEvent& EventGenerator::getNextTriggerEvent(void)
 {
-  if(getEventsInMem() > 0) {
-    TriggerEvent* oldest_event = mEventQueue.front();
-    return *oldest_event;
-  } else {
-    return NoTriggerEvent;
+  // Start where we left off
+  int chip_id = mNextTriggerEventChipId;
+
+  // Find first available TriggerEvent and return it
+  while(chip_id < mNumChips) {
+    if(mEventQueue[chip_id].size() > 0) {
+      return *(mEventQueue[chip_id].front());
+    }
+
+    chip_id++;
+    mNextTriggerEventChipId = chip_id;
   }
+
+  return NoTriggerEvent;  
 }
 
 
@@ -291,15 +306,22 @@ void EventGenerator::initRandomNumGenerator(void)
 ///@brief Remove the oldest event from the event queue
 ///       (if there are any events in the queue, otherwise do nothing). 
 void EventGenerator::removeOldestEvent(void)
-{
-  if(getEventsInMem() > 0) {
-    TriggerEvent *oldest_event = mEventQueue.front();
-    mEventQueue.pop();      
+{ 
+  // Start where we left off
+  int chip_id = mNextTriggerEventChipId;
 
-    if(mWriteEventsToDisk)
-      oldest_event->writeToFile(mDataPath);
+  // chip_id in range?
+  if(chip_id < mNumChips) {
+    // Event left to remove for this chip?
+    if(mEventQueue[chip_id].size() > 0) {
+      TriggerEvent *oldest_event = mEventQueue[chip_id].front();
+      mEventQueue[chip_id].pop();      
+
+      if(mWriteEventsToDisk)
+        oldest_event->writeToFile(mDataPath);
       
-    delete oldest_event;
+      delete oldest_event;      
+    }
   }
 }
 
@@ -401,11 +423,15 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
   t_delta_cycles = std::round((*mRandEventTime)(mRandEventTimeGen)) + 1;
   t_delta = t_delta_cycles * mBunchCrossingRateNs;
 
-  print_function_timestamp();
-  std::cout << "\tPhysics event number: " << mPhysicsEventCount << std::endl;
-  std::cout << "\tt_delta: " << t_delta << std::endl;
-  std::cout << "\tt_delta_cycles: " << t_delta_cycles << std::endl;
-  std::cout << "\tmLastPhysicsEventTimeNs: " << mLastPhysicsEventTimeNs << std::endl;
+  if((mPhysicsEventCount % 100) == 0) {
+    //print_function_timestamp();
+    int64_t time_now = sc_time_stamp().value();
+    std::cout << "@ " << time_now << " ns: ";
+    std::cout << "\tPhysics event number: " << mPhysicsEventCount;
+    std::cout << "\tt_delta: " << t_delta;
+    std::cout << "\tt_delta_cycles: " << t_delta_cycles;
+    std::cout << "\tmLastPhysicsEventTimeNs: " << mLastPhysicsEventTimeNs << std::endl;
+  }
 
   mLastPhysicsEventTimeNs += t_delta;
   mPhysicsEventCount++;
@@ -414,7 +440,7 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
   int n_hits = getRandomMultiplicity();
 
   // Write data to CSV file (if we are generating CSV).
-  if(mWriteRandomDataToFile) {
+  if(mCreateCSVFile) {
     mRandDataFile << t_delta << ";" << n_hits << std::endl;
   }
 
@@ -444,14 +470,14 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
 
     // Create hit objects directly at the back of the deque,
     // without a copy or move taking place.
-    mHitQueue.emplace_back(rand_chip_id, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
-                           mPixelDeadTime, mPixelActiveTime);
-    mHitQueue.emplace_back(rand_chip_id, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
-                           mPixelDeadTime, mPixelActiveTime);
-    mHitQueue.emplace_back(rand_chip_id, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
-                           mPixelDeadTime, mPixelActiveTime);
-    mHitQueue.emplace_back(rand_chip_id, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
-                           mPixelDeadTime, mPixelActiveTime);
+    mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+                                         mPixelDeadTime, mPixelActiveTime);
+    mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+                                         mPixelDeadTime, mPixelActiveTime);
+    mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+                                         mPixelDeadTime, mPixelActiveTime);
+    mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+                                         mPixelDeadTime, mPixelActiveTime);
   }
 
   ///@todo Remove?
@@ -461,10 +487,53 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
 }
 
 
+///@brief Remove old hits.
+///       Start at the front of the hit queue, and pop (remove)
+///       hits from the front while the hits are no longer active at current simulation time,
+///       and older than the oldest trigger event (so we don't delete hits that may be
+///       still be used in a trigger event that hasn't been processed yet).
+void EventGenerator::removeInactiveHits(void)
+{
+  int64_t time_now = sc_time_stamp().value();
+  bool done = false;
+  int i = 0;
+  
+  #ifdef DEBUG_OUTPUT
+  print_function_timestamp();
+  std::cout << "\tQueue size (before): " << mHitQueue.size() << std::endl;
+  #endif
+
+  for(int chip_id = 0; chip_id < mNumChips; chip_id++) {
+    do {
+      if(mHitQueue[chip_id].size() > 0) {
+        // Check if oldest hit should be removed..
+        if(mHitQueue[chip_id].front().isActive(time_now) == false &&
+           mHitQueue[chip_id].front().getActiveTimeEnd() < mLastTriggerEventEndTimeNs)
+        {
+          mHitQueue[chip_id].pop_front();
+          i++;
+          done = false;
+        } else {
+          done = true; // Done if oldest hit is still active
+        }
+      } else {
+        done = true; // Done if queue size is zero
+      }
+    } while(done == false);
+  }
+
+
+  #ifdef DEBUG_OUTPUT
+  ///@todo Fix this..
+  std::cout << /*"\tQueue size (now): " << mHitQueue[chip_id].size() <<*/ "\t" << i << " hits removed" << std::endl;
+  #endif
+}
+
+
 ///@brief Create a new trigger event at the given start time. It checks if trigger event
 ///       should be filtered or not, and updates trigger ID count. 
 ///@param event_start Start time of trigger event (time when strobe signal went high).
-TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start)
+TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start, int64_t event_end, int chip_id)
 {
   ///@todo Should I check distance between start time of two triggers?
   ///      Or the distance in time between the end of the first trigger and the
@@ -479,10 +548,15 @@ TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start)
   if(mTriggerEventIdCount == 0)
     filter_event = false;
 
-  TriggerEvent* e = new TriggerEvent(event_start, mTriggerEventIdCount, filter_event);
+  int event_id = mTriggerEventIdCount;
+  TriggerEvent* e = new TriggerEvent(event_start, event_end, chip_id, event_id, filter_event);
 
-  mTriggerEventIdCount++;
+  // Only add hits to the event if it is not being filtered
+  if(e->getEventFilteredFlag() == false) {
+    addHitsToTriggerEvent(*e);
+  }  
 
+  #ifdef DEBUG_OUTPUT
   print_function_timestamp();
   std::cout << "\tTrigger event number: " << mTriggerEventIdCount << std::endl;
   std::cout << "\ttime_since_last_trigger: " << time_since_last_trigger << std::endl;
@@ -490,44 +564,35 @@ TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start)
   std::cout << "\tmLastTriggerEventStartTimeNs: " << mLastTriggerEventStartTimeNs << std::endl;
   std::cout << "\tmTriggerFilterTimeNs: " << mTriggerFilterTimeNs << std::endl;
   std::cout << "\tFiltered: " << (filter_event ? "true" : "false") << std::endl;
+  #endif
   
 
   return e;
 }
 
 
-///@brief Remove old hits.
-///       Start at the front of the hit queue, and pop (remove)
-///       hits from the front while the hits are no longer active at current simulation time,
-///       and older than the oldest trigger event (so we don't delete hits that may be
-///       still be used in a trigger event that hasn't been processed yet).
-void EventGenerator::removeInactiveHits(void)
+///@brief Iterate through the hit queue corresponding to the chip_id associated with
+///       the event referenced by e, and add the active hits to it.
+///@param e Event to add hits to.
+void EventGenerator::addHitsToTriggerEvent(TriggerEvent& e)
 {
-  int64_t time_now = sc_time_stamp().value();
-  bool done = false;
-
-  print_function_timestamp();
-  std::cout << "\tQueue size (before): " << mHitQueue.size() << std::endl;
-  int i = 0;
-
-  do {
-    if(mHitQueue.size() > 0) {
-      // Check if oldest hit should be removed..
-      if(mHitQueue.front().isActive(time_now) == false &&
-         mHitQueue.front().getActiveTimeEnd() < mLastTriggerEventEndTimeNs)
-      {
-        mHitQueue.pop_front();
-        i++;
-        done = false;
-      } else {
-        done = true; // Done if oldest hit is still active
-      }
-    } else {
-      done = true; // Done if queue size is zero
+  int chip_id = e.getChipId();
+  
+  for(auto it = mHitQueue[chip_id].begin(); it != mHitQueue[chip_id].end(); it++) {
+    // All the hits are ordered in time in the hit queue.
+    // If this hit is not active, it could be that:
+    // 1) We haven't reached the newer hits which would be active for this event yet
+    // 2) We have gone through the hits that are active for this event, and have now
+    //    reached hits that are "too new" (event queue size is larger than 0 then)
+    if(it->isActive(e.getEventStartTime(), e.getEventEndTime())) {
+      e.addHit(*it);
+    } else if (e.getEventSize() > 0) {
+      // Case 2. There won't be any more hits now, so we can break.
+      /// @todo Is this check worth it performance wise, or is it better to just iterate
+      ///       through the whole list?
+      break;
     }
-  } while(done == false);
-
-  std::cout << "\tQueue size (now): " << mHitQueue.size() << "\t" << i << " hits removed" << std::endl;
+  }
 }
 
 
@@ -556,62 +621,50 @@ void EventGenerator::physicsEventProcess(void)
 
 
 ///@brief SystemC controlled method. It should be sensitive to the strobe signal,
-///       (both rising and falling edge) and is responsible for the following:
-///       1) Create a new trigger class object on rising edge
-///       2) Complete trigger object on falling edge, and add to queue
+///       (both rising and falling edge) and is responsible for creating the
+///       triggerEvent objects after a STROBE pulse.
 void EventGenerator::triggerEventProcess(void)
 {
   int64_t time_now = sc_time_stamp().value();
 
+  #ifdef DEBUG_OUTPUT
   print_function_timestamp();
+  #endif
       
   // Rising edge
   if(s_strobe_in.read() == true) {
-    mNextTriggerEvent = generateNextTriggerEvent(time_now);
+    // Save the current simulation time when the strobe was asserted.
+    // We will create the triggerEvent object when it is deasserted, and need to
+    // remember the start time.
+    mNextTriggerEventStartTimeNs = time_now;
   }
 
-  // Falling edge. Also check that we've actually allocated something..
-  else if(mNextTriggerEvent != nullptr) {
-    mNextTriggerEvent->setTriggerEventEndTime(time_now);
-    
-    // Only add hits to the event if it is not being filtered
-    if(mNextTriggerEvent->getEventFilteredFlag() == false) {
-      addHitsToTriggerEvent(*mNextTriggerEvent);
-      mLastTriggerEventStartTimeNs = mNextTriggerEvent->getEventStartTime();
-      mLastTriggerEventEndTimeNs = mNextTriggerEvent->getEventEndTime();
-      std::cout << "\tTrigger start time: " << mLastTriggerEventStartTimeNs << " ns. " << std::endl;
-      std::cout << "\tEnd time: " << mLastTriggerEventEndTimeNs << " ns." << std::endl;
+  // Falling edge.
+  else {
+    for(int chip_id = 0; chip_id < mNumChips; chip_id++) {
+      TriggerEvent* mNextTriggerEvent = generateNextTriggerEvent(mNextTriggerEventStartTimeNs,
+                                                                 time_now,
+                                                                 chip_id);
+      
+      mEventQueue[chip_id].push(mNextTriggerEvent);
+
+      // Post an event notification that a new trigger event/frame is ready
+      E_trigger_event_available->notify(SC_ZERO_TIME);
+
+      #ifdef DEBUG_OUTPUT
+      std::cout << "\tTrigger event queue size: " << mEventQueue.size() << std::endl;
+      #endif
     }
     
-    mEventQueue.push(mNextTriggerEvent);
-    mNextTriggerEvent = nullptr;
+    mTriggerEventIdCount++;
+    mLastTriggerEventStartTimeNs = mNextTriggerEventStartTimeNs;
+    mLastTriggerEventEndTimeNs = time_now;
+    mNextTriggerEventChipId = 0;
 
-    // Post an event notification that a new trigger event/frame is ready
-    E_trigger_event_available->notify(SC_ZERO_TIME);
-    
-    std::cout << "\tTrigger event queue size: " << mEventQueue.size() << std::endl;
+    #ifdef DEBUG_OUTPUT
+    std::cout << "\tTrigger start time: " << mLastTriggerEventStartTimeNs << " ns. " << std::endl;
+    std::cout << "\tEnd time: " << mLastTriggerEventEndTimeNs << " ns." << std::endl;
+    #endif
   }
 }
 
-
-///@brief Iterate through the EventGenerator's hit queue, and add active hits to
-///       the event referenced by e.
-///@param e Event to add hits to.
-void EventGenerator::addHitsToTriggerEvent(TriggerEvent& e)
-{
-  for(auto it = mHitQueue.begin(); it != mHitQueue.end(); it++) {
-    // All the hits are ordered in time in the hit queue.
-    // If this hit is not active, it could be that:
-    // 1) We haven't reached the newer hits which would be active for this event yet
-    // 2) We have gone through the hits that are active for this event, and have now
-    //    reached hits that are "too new" (event queue size is larger than 0 then)
-    if(it->isActive(e.getEventStartTime(), e.getEventEndTime())) {
-      e.addHit(*it);
-    } else if (e.getEventSize() > 0) {
-      // Case 2. There won't be any more hits now, so we can break.
-      /// @todo Is this check worth it performance wise, or is it better to just iterate
-      ///       through the whole list?
-      break;
-    }
-  }
-}

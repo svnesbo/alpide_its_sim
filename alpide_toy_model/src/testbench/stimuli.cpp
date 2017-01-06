@@ -8,7 +8,7 @@
 #include "stimuli.h"
 #include <systemc.h>
 #include <list>
-#include <QString>
+#include <sstream>
 
 
 ///@brief Takes a list of t_delta values (time between events) for the last events,
@@ -48,60 +48,20 @@ SC_HAS_PROCESS(Stimuli);
 ///       Instantiates and initializes the EventGenerator and AlpideToyModel objects,
 ///       connects the SystemC ports
 ///@param name SystemC module name
-///@param settings Settings object with simulation settings.
+///@param settings QSettings object with simulation settings.
 Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   : sc_core::sc_module(name)
 {
   // Initialize variables for Stimuli object
   mNumEvents = settings->value("simulation/n_events").toInt();
+  mNumChips = settings->value("simulation/n_chips").toInt();
   mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toInt();
   mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();  
 
-    // Get some values from settings object used to initialize EventGenerator class
-  QString multipl_dist_type = settings->value("event/hit_multiplicity_distribution_type").toString();
-  int bunch_crossing_rate_ns = settings->value("event/bunch_crossing_rate_ns").toInt();
-  int average_event_rate_ns = settings->value("event/average_event_rate_ns").toInt();
-  int trigger_filter_time_ns = settings->value("event/trigger_filter_time_ns").toInt();
-  bool trigger_filter_enable = settings->value("event/trigger_filter_enable").toBool();
-  int strobe_length_ns = settings->value("event/strobe_length_ns").toInt();
-  int random_seed = settings->value("simulation/random_seed").toInt();
-  bool create_csv_file = settings->value("data_output/write_event_csv").toBool();
-  int pixel_dead_time_ns = settings->value("alpide/pixel_shaping_dead_time_ns").toInt();
-  int pixel_active_time_ns = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
 
-  // Instantiate event generator object with the desired hit multiplicity distribution
-  if(multipl_dist_type == "gauss") {
-    int multipl_gauss_stddev = settings->value("event/hit_multiplicity_gauss_stddev").toInt();  
-    int multipl_gauss_avg = settings->value("event/hit_multiplicity_gauss_avg").toInt();
-    
-    mEvents = new EventGenerator("event_gen",
-                                 bunch_crossing_rate_ns,
-                                 average_event_rate_ns,
-                                 strobe_length_ns,
-                                 multipl_gauss_avg,
-                                 multipl_gauss_stddev,
-                                 pixel_dead_time_ns,
-                                 pixel_active_time_ns,
-                                 random_seed,
-                                 create_csv_file);
-  } else if(multipl_dist_type == "discrete") {
-    QString multipl_dist_file = settings->value("event/hit_multiplicity_distribution_file").toString();
 
-    mEvents = new EventGenerator("event_gen",
-                                 bunch_crossing_rate_ns,
-                                 average_event_rate_ns,
-                                 strobe_length_ns,
-                                 multipl_dist_file.toStdString().c_str(),
-                                 pixel_dead_time_ns,
-                                 pixel_active_time_ns,                                 
-                                 random_seed,
-                                 create_csv_file);
-  }
-
-  if(trigger_filter_enable == true) {
-    mEvents->enableTriggerFiltering();      
-    mEvents->setTriggerFilterTime(trigger_filter_time_ns);
-  }        
+  // Instantiate event generator object
+  mEvents = new EventGenerator("event_gen", settings);
 
   // Connect SystemC signals to EventGenerator
   mEvents->s_clk_in(clock);  
@@ -109,10 +69,15 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   mEvents->s_strobe_in(s_strobe);
 
   // Instantiate and connect signals to Alpide
-  mAlpide = new AlpideToyModel("alpide", 0);
-  mAlpide->s_clk_in(clock);
-  mAlpide->s_event_buffers_used(chip_event_buffers_used);
-  mAlpide->s_total_number_of_hits(chip_total_number_of_hits);
+  mAlpideChips.resize(mNumChips);
+  for(int i = 0; i < mNumChips; i++) {
+    std::stringstream chip_name;
+    chip_name << "alpide_" << i;
+    mAlpideChips[i] = new AlpideToyModel(chip_name.str().c_str(), 0);
+    mAlpideChips[i]->s_clk_in(clock);
+    //mAlpide->s_event_buffers_used(chip_event_buffers_used);
+    //mAlpide->s_total_number_of_hits(chip_total_number_of_hits);
+  }
   
   SC_CTHREAD(stimuliMainProcess, clock.pos());
   
@@ -137,7 +102,10 @@ void Stimuli::stimuliMainProcess(void)
   while(simulation_done == false) {
     // Generate strobe pulses for as long as we have more events to simulate
     if(mEvents->getTriggerEventCount() < mNumEvents) {
-      std::cout << "Generating strobe/event number " << i << std::endl;
+      if((mEvents->getTriggerEventCount() % 100) == 0) {
+        int64_t time_now = sc_time_stamp().value();
+        std::cout << "@ " << time_now << " ns: \tGenerating strobe/event number " << i << std::endl;
+      }
 
       s_strobe.write(true);
       wait(mStrobeActiveNs, SC_NS);
@@ -150,14 +118,21 @@ void Stimuli::stimuliMainProcess(void)
 
     // After all strobes have been generated, allow simulation to run until all events
     // have been read out from the Alpide MEBs.
-    else if(mAlpide->getNumEvents() == 0) {
-      std::cout << "Finished generating all events, and Alpide chip is done emptying MEBs.\n";
-      
-      simulation_done = true;
-      sc_core::sc_stop();
-    }
     else {
-      wait();
+      int events_left = 0;
+      
+      // Check if the Alpide chips still have events to read out
+      for(int i = 0; i < mNumChips; i++)
+        events_left += mAlpideChips[i]->getNumEvents();
+          
+      if(events_left == 0) {
+        std::cout << "Finished generating all events, and Alpide chip is done emptying MEBs.\n";
+      
+        simulation_done = true;
+        sc_core::sc_stop();
+      } else {
+        wait();
+      }
     }
   }
 }
@@ -175,16 +150,21 @@ void Stimuli::stimuliEventProcess(void)
   {
     const TriggerEvent& e = mEvents->getNextTriggerEvent();
 
-    //@todo Implement the whole ITS here, feed events to all relevant chips..
-    e.feedHitsToChip(*mAlpide, mAlpide->getChipId());
+    // Don't process if we received NoTriggerEvent
+    if(e.getEventId() != -1) {
+      int chip_id = e.getChipId();
+      e.feedHitsToChip(*mAlpideChips[chip_id]);
 
-    std::cout << "Number of events in chip: " << mAlpide->getNumEvents() << std::endl;
-    std::cout << "Hits remaining in oldest event in chip: " << mAlpide->getHitsRemainingInOldestEvent();
-    std::cout << "  Hits in total (all events): " << mAlpide->getHitTotalAllEvents() << std::endl;
+      #ifdef DEBUG_OUTPUT
+      std::cout << "Number of events in chip: " << mAlpideChips[chip_id]->getNumEvents() << std::endl;
+      std::cout << "Hits remaining in oldest event in chip: " << mAlpideChips[chip_id]->getHitsRemainingInOldestEvent();
+      std::cout << "  Hits in total (all events): " << mAlpideChips[chip_id]->getHitTotalAllEvents() << std::endl;
+      #endif
+    
+      // Remove the oldest event once we are done processing it..
+      mEvents->removeOldestEvent();
+    }
   }
-
-  // Remove the oldest event once we are done processing it..
-  mEvents->removeOldestEvent();
 }
 
 
@@ -192,6 +172,6 @@ void Stimuli::stimuliEventProcess(void)
 ///@todo Make it configurable which traces we want in the file?
 void Stimuli::addTraces(sc_trace_file *wf)
 {
-  sc_trace(wf, chip_event_buffers_used, "chip_event_buffers_used");
-  sc_trace(wf, chip_total_number_of_hits, "chip_total_number_of_hits");
+  //sc_trace(wf, chip_event_buffers_used, "chip_event_buffers_used");
+  //sc_trace(wf, chip_total_number_of_hits, "chip_total_number_of_hits");
 }

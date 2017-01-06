@@ -27,6 +27,8 @@ private:
   ///       MEBs found in the Alpide, we allow it to grow and will plot it's size
   ///       over time in a histogram. The probabiity of of having the size > 3
   ///       will essentially be a measure of BUSY in the MEBs.
+  ///@todo  Implement event ID somewhere. Maybe make an MEB class, and use it as
+  ///       the datatype for this queue?
   std::queue< std::vector<PixelDoubleColumn> > mColumnBuffs;
 
   ///@brief Each entry here corresponds to one entry in mColumnBuffs. This variable

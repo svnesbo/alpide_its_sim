@@ -24,9 +24,11 @@ void PixelMatrix::newEvent(void)
 {
   mColumnBuffs.push(std::vector<PixelDoubleColumn>(N_PIXEL_COLS/2));
 
+  #ifdef DEBUG_OUTPUT
   std::cout << "Pushed new PixelDoubleColumn vector to mColumnBuffs." << std::endl;
   std::cout << "mColumnBuffs.size(): " << mColumnBuffs.size() << std::endl;
   std::cout << "mColumnBuffs.back().size(): " << mColumnBuffs.back().size() << std::endl;
+  #endif
 
   // 0 hits so far for this event
   mColumnBuffsPixelsLeft.push_back(int(0));
@@ -40,6 +42,7 @@ void PixelMatrix::newEvent(void)
 ///@throw out_of_range If there are no events, or if col or row is outside the allowed range
 void PixelMatrix::setPixel(unsigned int col, unsigned int row)
 {
+#ifdef EXCEPTION_CHECKS
   // Out of range exception check
   if(getNumEvents() == 0) {
     throw std::out_of_range("No events");
@@ -48,15 +51,14 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
   } else if(col >= N_PIXEL_COLS) {
     throw std::out_of_range("col");
   }
+#endif
 
   // Set the pixel
-  else {
-    std::vector<PixelDoubleColumn>& current_event_buffer = mColumnBuffs.back();
-    int& current_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.back();
+  std::vector<PixelDoubleColumn>& current_event_buffer = mColumnBuffs.back();
+  int& current_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.back();
 
-    current_event_buffer[col/2].setPixel(col%2, row);
-    current_event_buffer_hits_remaining++;
-  }  
+  current_event_buffer[col/2].setPixel(col%2, row);
+  current_event_buffer_hits_remaining++;
 }
 
 
@@ -77,6 +79,7 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
 PixelData PixelMatrix::readPixel(int start_double_col, int stop_double_col) {
   PixelData pixel_retval = NoPixelHit;
 
+#ifdef EXPECTION_CHECKS
   // Out of range exception check
   if(start_double_col < 0 || start_double_col > (N_PIXEL_COLS/2)-1) {
     throw std::out_of_range("start_double_col");
@@ -85,9 +88,11 @@ PixelData PixelMatrix::readPixel(int start_double_col, int stop_double_col) {
   } else if(start_double_col >= stop_double_col) {
     throw std::out_of_range("stop_double_col >= start_double_col");
   }
+#endif
   
   // Do we have any stored events?
-  if(mColumnBuffs.size() > 0) {
+//  if(mColumnBuffs.size() > 0) {
+  if(mColumnBuffs.empty() == false) {
     std::vector<PixelDoubleColumn>& oldest_event_buffer = mColumnBuffs.front();
     int& oldest_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.front();
 
@@ -108,7 +113,6 @@ PixelData PixelMatrix::readPixel(int start_double_col, int stop_double_col) {
 
     // If this was the last hit in this event buffer, remove the event buffer from the queue  
     if(oldest_event_buffer_hits_remaining == 0) {
-      std::cout << "Popping oldest MEB buffer\n";
       mColumnBuffs.pop();
       mColumnBuffsPixelsLeft.pop_front();
     }      
@@ -131,8 +135,10 @@ PixelData PixelMatrix::readPixel(int start_double_col, int stop_double_col) {
 ///        (PixelData object with coords = (-1,-1)).
 ///@throw  std::out_of_range if region is less than zero, or greater than N_REGIONS-1
 PixelData PixelMatrix::readPixelRegion(int region) {
+#ifdef EXCEPTION_CHECKS
   if(region < 0 || region >= N_REGIONS)
     throw std::out_of_range("region");
+#endif
 
   int start_double_col = N_PIXEL_DOUBLE_COLS_PER_REGION*region;
   int stop_double_col = (N_PIXEL_DOUBLE_COLS_PER_REGION*(region+1));

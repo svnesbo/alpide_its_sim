@@ -16,23 +16,34 @@
 #include <fstream>
 
 
-const TriggerEvent NoTriggerEvent(0, 0, -1);
+const TriggerEvent NoTriggerEvent(0, 0, -1, -1);
 
 
 ///@brief Standard constructor
-TriggerEvent::TriggerEvent(int64_t event_time_ns, int event_id, bool filter_event) {
-  mEventStartTimeNs = event_time_ns;
-  mEventEndTimeNs = mEventStartTimeNs;
+///@param event_start_time_ns Start time of trigger event (time when strobe was asserted)
+///@param event_end_time_ns End time of trigger event (time when strobe was deasserted)
+///@param chip_id Chip ID
+///@param event_id Event ID
+///@param filter_event Flag that indicates whether this trigger should be filtered or not
+///                    (when trigger filtering is enabled, and trigger came too close to last event)
+TriggerEvent::TriggerEvent(int64_t event_start_time_ns, int64_t event_end_time_ns,
+                           int chip_id, int event_id, bool filter_event)
+{
+  mEventStartTimeNs = event_start_time_ns;
+  mEventEndTimeNs = event_end_time_ns;
+  mChipId = chip_id;
   mEventId = event_id;
   mEventFilteredFlag = filter_event;
 }
 
 
 ///@brief Copy constructor
-TriggerEvent::TriggerEvent(const TriggerEvent& e) {
+TriggerEvent::TriggerEvent(const TriggerEvent& e)
+{
   mHitSet = e.mHitSet;
   mEventStartTimeNs = e.mEventStartTimeNs;
-  mEventEndTimeNs = e.mEventEndTimeNs;  
+  mEventEndTimeNs = e.mEventEndTimeNs;
+  mChipId = e.mChipId;
   mEventId = e.mEventId;
   mEventFilteredFlag = e.mEventFilteredFlag;
 }
@@ -44,24 +55,24 @@ void TriggerEvent::addHit(const Hit& h)
 }
 
 
-///@brief Feed this event to the pixel matrix of the specified chip. Only the hits in
-///       this event corresponding to chip_id will be fed to the chip.
+///@brief Feed this event to the pixel matrix of the specified chip.
+///       If the trigger filter flag is set, or if there are no hits in the event,
+///       nothing will be sent to the chip, and a new event/MEB will not be created
+///       in the Alpide chip / pixel matrix object.
 ///@param matrix Pixel matrix for the chip
-///@param chip_id Chip ID to feed hits to.
-void TriggerEvent::feedHitsToChip(PixelMatrix &matrix, int chip_id) const
+void TriggerEvent::feedHitsToChip(PixelMatrix &matrix) const
 {
-  // Only feed this event to the chip if it has not been filtered out
-  if(mEventFilteredFlag == false) {
+  // Only feed this event to the chip if it has not been filtered out and if it's not empty
+  if(mEventFilteredFlag == false && mHitSet.size() > 0) {
     matrix.newEvent();
 
+    #ifdef DEBUG_OUTPUT
     std::cout << "@ " << sc_time_stamp() << ": TriggerEvent: feeding trigger event number: ";
     std::cout << mEventId << " to chip." << std::endl;
+    #endif
     
-    for(auto it = mHitSet.begin(); it != mHitSet.end(); it++) {
-      if(it->getChipId() == chip_id) {
-        matrix.setPixel(it->getCol(), it->getRow());
-      }
-    }
+    for(auto it = mHitSet.begin(); it != mHitSet.end(); it++)
+      matrix.setPixel(it->getCol(), it->getRow());
   }
 }
 
@@ -91,6 +102,7 @@ void TriggerEvent::writeToFile(const std::string path)
   
   // The set is ordered by chip id, so we can assume that hits in the same chip will be in consecutive order
   for(std::set<Hit>::iterator it = mHitSet.begin(); it != mHitSet.end(); it++) {
+/*
     if(it->getChipId() != prev_chip_id) {
       prev_chip_id = it->getChipId();      
 
@@ -102,6 +114,7 @@ void TriggerEvent::writeToFile(const std::string path)
       of << "\t<chip id=\"" << it->getChipId() << "\">" << std::endl;
     }
     of << "\t\t<dig>" << it->getCol() << ":" << it->getRow() << "\t\t</dig>" << std::endl;
+*/
   }
 
   // Don't write </chip> end tag for empty events

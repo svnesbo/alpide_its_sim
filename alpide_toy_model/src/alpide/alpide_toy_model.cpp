@@ -27,10 +27,10 @@ AlpideToyModel::AlpideToyModel(sc_core::sc_module_name name, int chip_id)
 void AlpideToyModel::matrixReadout(void)
 {
   // Update signal with number of event buffers
-  s_event_buffers_used = getNumEvents();
+  //s_event_buffers_used = getNumEvents();
 
   // Update signal with total number of hits in all event buffers
-  s_total_number_of_hits = getHitTotalAllEvents();
+  //s_total_number_of_hits = getHitTotalAllEvents();
   
   // Read out a pixel from each region in the matrix
   for(int region_num = 0; region_num < N_REGIONS; region_num++) {

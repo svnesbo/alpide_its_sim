@@ -23,10 +23,10 @@ public: // SystemC signals
   sc_in_clk s_clk_in;
 
   ///@brief Number of events stored in the chip at any given time
-  sc_out<sc_uint<8> > s_event_buffers_used;
+  //sc_out<sc_uint<8> > s_event_buffers_used;
 
   ///@brief Sum of all hits in all multi event buffers
-  sc_out<sc_uint<32> > s_total_number_of_hits;
+  //sc_out<sc_uint<32> > s_total_number_of_hits;
     
 private:
   int mChipId;

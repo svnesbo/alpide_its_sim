@@ -10,6 +10,7 @@
 
 #include "trigger_event.h"
 #include <systemc.h>
+#include <QSettings>
 #include <queue>
 #include <deque>
 #include <fstream>
@@ -54,28 +55,30 @@ public: // SystemC signals
   sc_event_queue_port E_trigger_event_available;
 
 private:
-  std::queue<TriggerEvent*> mEventQueue;
-
+  /// This is the trigger event queue (ie. the hits that
+  /// occur between a strobe, which are fed to the Alpide chips).
+  /// Each Alpide chip has its own queue (corresponding to an index in the vector).
+  std::vector<std::queue<TriggerEvent*> > mEventQueue;
+  
   /// This is a pointer to the next trigger event which is "under construction".
   ///  It is created on rising edge of strobe signal, and completed (and moved to mEventQueue) on
   ///  the corresponding falling edge of the strobe signal.
-  TriggerEvent* mNextTriggerEvent = nullptr;
+  ///@todo Remove?!
+  //TriggerEvent* mNextTriggerEvent = nullptr;
   
   /// New hits will be push at the back, and old (expired) hits popped at the front.
-  ///  We need to be able to iterate over the queue, so a normal std::queue would not work.
-  ///  And deque seems faster than a list for our purpose:
-  ///  http://stackoverflow.com/questions/14574831/stddeque-or-stdlist
-  ///  But that should probably be tested :)
-  std::deque<Hit> mHitQueue;
+  /// We need to be able to iterate over the queue, so a normal std::queue would not work.
+  /// And deque seems faster than a list for our purpose:
+  /// http://stackoverflow.com/questions/14574831/stddeque-or-stdlist
+  /// But that should probably be tested :)
+  /// Each Alpide chip has its own queue (corresponding to an index in the vector).  
+  std::vector<std::deque<Hit> > mHitQueue;
+
+  int mNumChips;
 
   int mBunchCrossingRateNs;
 
   int mAverageEventRateNs;
-
-  ///@todo Remove. I don't need to know this after all. I am actually generating things real time,
-  ///      keeping hits in memory for as long as necessary, and moving hits that were active during
-  ///      an event to mNextTriggerEvent at falling edge of strobe.
-  int mStrobeLengthNs;
 
   /// Number of events to keep in memory at a time. 0 = infinite.
   int mNumEventsInMemoryAllowed = 0;
@@ -90,7 +93,16 @@ private:
   /// Time of the last trigger event that was generated (time of last strobe)
   /// Will not be updated if trigger was filtered out.
   int64_t mLastTriggerEventStartTimeNs = 0;
-  int64_t mLastTriggerEventEndTimeNs = 0;  
+  int64_t mLastTriggerEventEndTimeNs = 0;
+
+  /// Start time of next trigger event (start time recorded on STROBE rising edge).
+  /// Event actually created and hits assigned to it on STROBE falling edge.
+  int64_t mNextTriggerEventStartTimeNs = 0;
+
+  /// Used by getNextTriggerEvent() so it doesn't have to start iterating from the
+  /// beginning of the event queue vector each time it is called.
+  /// Also used by removeOldestEvent().
+  int mNextTriggerEventChipId = 0;
 
   int mPixelDeadTime;
   int mPixelActiveTime;
@@ -103,7 +115,7 @@ private:
   std::string mDataPath = "data";
   bool mWriteEventsToDisk = false;
 
-  bool mWriteRandomDataToFile = true;
+  bool mCreateCSVFile = true;
   std::ofstream mRandDataFile;
   
   int mRandomSeed;
@@ -130,9 +142,10 @@ private:
   void eventMemoryCountLimiter(void);
 
 public:
-  EventGenerator(sc_core::sc_module_name name);
+//  EventGenerator(sc_core::sc_module_name name);
   EventGenerator(sc_core::sc_module_name name,
-                 int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
+                 const QSettings* settings);
+/*                 int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
                  int hit_mult_avg, int hit_mult_dev,
                  int pixel_dead_time_ns, int pixel_active_time_ns,
                  int random_seed = 0, bool create_csv_hit_file = false);
@@ -140,11 +153,11 @@ public:
                  int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
                  const char* mult_dist_filename,
                  int pixel_dead_time_ns, int pixel_active_time_ns,
-                 int random_seed = 0, bool create_csv_hit_file = false);
+                 int random_seed = 0, bool create_csv_hit_file = false);*/
   ~EventGenerator();
   void generateNextEvent();
   void generateNextEvents(int n_events);
-  const TriggerEvent& getNextTriggerEvent(void) const;
+  const TriggerEvent& getNextTriggerEvent(void);
   void setBunchCrossingRate(int rate_ns);
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
@@ -164,7 +177,7 @@ public:
   void triggerEventProcess(void);
   
 private:
-  TriggerEvent* generateNextTriggerEvent(int64_t event_start);
+  TriggerEvent* generateNextTriggerEvent(int64_t event_start, int64_t event_end, int chip_id);
   int64_t generateNextPhysicsEvent(void);
   void readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const;
   unsigned int getRandomMultiplicity(void);

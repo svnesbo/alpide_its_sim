@@ -57,13 +57,14 @@ bool PixelData::operator<=(const PixelData& rhs) const
 ///@throws std::out_of_range if col_num or row_num is not in the specified range.
 void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 {
+#ifdef EXCEPTION_CHECKS
   if(row_num >= N_PIXEL_ROWS) {
     throw std::out_of_range ("row_num");
   } else if(col_num >= 2) {
     throw std::out_of_range ("col_num");
-  } else {
-    pixelColumn.insert(PixelData(col_num, row_num));
   }
+#endif    
+  pixelColumn.insert(PixelData(col_num, row_num));
 }
 
 
@@ -94,21 +95,21 @@ PixelData PixelDoubleColumn::readPixel(void) {
 bool PixelDoubleColumn::inspectPixel(unsigned int col_num, unsigned int row_num) {
   bool retval = false;
 
+#ifdef EXCEPTION_CHECK
   // Out of range exception check
   if(row_num >= N_PIXEL_ROWS) {
     throw std::out_of_range ("row_num");
   } else if(col_num >= 2) {
     throw std::out_of_range ("col_num");
   }
+#endif
 
   // Search for pixel
-  else{
-    PixelData pixel = PixelData(col_num, row_num);
-    if(pixelColumn.find(pixel) != pixelColumn.end()) {
-      // Only actual hits are stored in a set, so if the coords are found in the
-      // set it always means we have a hit.
-      retval = true;
-    }
+  PixelData pixel = PixelData(col_num, row_num);
+  if(pixelColumn.find(pixel) != pixelColumn.end()) {
+    // Only actual hits are stored in a set, so if the coords are found in the
+    // set it always means we have a hit.
+    retval = true;
   }
 
   return retval;

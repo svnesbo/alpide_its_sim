@@ -10,6 +10,7 @@
 #include "../alpide/alpide_toy_model.h"
 #include "stimuli.h"
 #include <systemc.h>
+#include "boost/date_time/posix_time/posix_time.hpp"
 #include <set>
 #include <iostream>
 
@@ -18,6 +19,8 @@ enum SimulationMode {ONE_CHIP, FULL_DETECTOR, OTHER_MODES};
 
 int sc_main(int argc, char** argv)
 {
+  boost::posix_time::ptime simulation_start_time = boost::posix_time::second_clock::local_time();
+  
   sc_trace_file *wf = NULL;
   
   sc_core::sc_set_time_resolution(1, sc_core::SC_NS);  
@@ -53,6 +56,15 @@ int sc_main(int argc, char** argv)
   if(wf != NULL) {
     sc_close_vcd_trace_file(wf);
   }
+
+
+  
+  boost::posix_time::ptime simulation_end_time  = boost::posix_time::second_clock::local_time();
+
+  boost::posix_time::time_duration diff = simulation_end_time - simulation_start_time;
+  diff.total_milliseconds();
+
+  std::cout << "Simulation complete. Elapsed time: " << diff << std::endl;
 
   return 0;
 }

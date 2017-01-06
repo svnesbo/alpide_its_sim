@@ -18,17 +18,19 @@ public:
   sc_in_clk clock;
   sc_signal<bool> s_strobe;
   sc_event_queue E_trigger_event_available;
-  sc_signal<sc_uint<8> > chip_event_buffers_used;
-  sc_signal<sc_uint<32> > chip_total_number_of_hits;
+  //sc_signal<sc_uint<8> > chip_event_buffers_used;
+  //sc_signal<sc_uint<32> > chip_total_number_of_hits;
 
 private:
   EventGenerator *mEvents;
-  AlpideToyModel *mAlpide;
+  std::vector<AlpideToyModel*> mAlpideChips;
   const QSettings* mSettings;
   bool simulation_done = false;
 
   ///@todo Make it a 64-bit int?
   int mNumEvents;
+
+  int mNumChips;
 
   int mStrobeActiveNs;
   int mStrobeInactiveNs;

@@ -38,6 +38,7 @@ private:
   int64_t mEventEndTimeNs;  
   
   int mEventId;
+  int mChipId;
   std::set<Hit> mHitSet;
 
   ///@brief This flag indicates that this event/trigger came too soon, and that it has been filtered out.
@@ -48,14 +49,15 @@ private:
   bool mEventFilteredFlag;
 
 public:
-  TriggerEvent(int64_t event_time_ns, int event_id, bool filter_event = false);
+  TriggerEvent(int64_t event_start_time_ns, int64_t event_end_time_ns,
+               int chip_id, int event_id, bool filter_event = false);
   TriggerEvent(const TriggerEvent& e);
   void addHit(const Hit& h);  
-  void feedHitsToChip(PixelMatrix &matrix, int chip_id) const;
+  void feedHitsToChip(PixelMatrix &matrix) const;
   void writeToFile(const std::string path = "");
   void setEventFilteredFlag(bool value) {mEventFilteredFlag = value;}
-  void setTriggerEventEndTime(int64_t end_time) {mEventEndTimeNs = end_time;}
   int getEventSize(void) const {return mHitSet.size();}
+  int getChipId(void) const {return mChipId;}
   int getEventId(void) const {return mEventId;}
   int64_t getEventStartTime(void) const {return mEventStartTimeNs;}
   int64_t getEventEndTime(void) const {return mEventEndTimeNs;}
