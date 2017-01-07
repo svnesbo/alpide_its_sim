@@ -11,7 +11,10 @@ INCLUDEPATH += $(SYSTEMC_HOME)/include
 DEFINES += SC_INCLUDE_DYNAMIC_PROCESSES
 
 LIBS += -L$(SYSTEMC_HOME)/lib-linux64
-LIBS += -lsystemc -lm
+LIBS += -lsystemc -lm -lboost_random
+
+QMAKE_CXXFLAGS += -O2
+QMAKE_CFLAGS += -O2
 
 # Input
 HEADERS += src/alpide/alpide_constants.h \

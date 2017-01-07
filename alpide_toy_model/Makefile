@@ -13,8 +13,8 @@ MAKEFILE      = Makefile
 CC            = gcc
 CXX           = g++
 DEFINES       = -DSC_INCLUDE_DYNAMIC_PROCESSES -DQT_GUI_LIB -DQT_XML_LIB -DQT_CORE_LIB
-CFLAGS        = -m64 -O2 -pipe -g -Wall -W -D_REENTRANT -fPIC $(DEFINES)
-CXXFLAGS      = -m64 -O2 -pipe -g -std=c++0x -Wall -W -D_REENTRANT -fPIC $(DEFINES)
+CFLAGS        = -m64 -pipe -O2 -g -Wall -W -D_REENTRANT -fPIC $(DEFINES)
+CXXFLAGS      = -m64 -pipe -O2 -g -std=c++0x -Wall -W -D_REENTRANT -fPIC $(DEFINES)
 INCPATH       = -I. -I. -I$(SYSTEMC_HOME)/include -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtXml -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -I. -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64
 QMAKE         = /usr/lib/x86_64-linux-gnu/qt5/bin/qmake
 DEL_FILE      = rm -f
@@ -36,7 +36,7 @@ DISTNAME      = alpide_toy_model1.0.0
 DISTDIR = /home/simon/Code/SystemC/alice-its-alpide-lightweight-systemc/alpide_toy_model/.tmp/alpide_toy_model1.0.0
 LINK          = g++
 LFLAGS        = -m64
-LIBS          = $(SUBLIBS) -L/usr/X11R6/lib64 -L$(SYSTEMC_HOME)/lib-linux64 -lsystemc -lm -lQt5Gui -lQt5Xml -lQt5Core -lGL -lpthread 
+LIBS          = $(SUBLIBS) -L/usr/X11R6/lib64 -L$(SYSTEMC_HOME)/lib-linux64 -lsystemc -lm -lboost_random -lQt5Gui -lQt5Xml -lQt5Core -lGL -lpthread 
 AR            = ar cqs
 RANLIB        = 
 SED           = sed
@@ -536,11 +536,305 @@ trigger_event.o: src/event/trigger_event.cpp src/event/trigger_event.h \
 		src/event/hit.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h \
-		src/alpide/pixel_matrix.h
+		src/alpide/pixel_matrix.h \
+		$(SYSTEMC_HOME)/include/systemc.h \
+		/usr/local/systemc-2.3.1/include/systemc \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_cmnhdr.h \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/select_compiler_config.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/select_stdlib_config.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/select_platform_config.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/posix_features.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/suffix.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/type.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/non_type.hpp \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_externs.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_except.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_module.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_kernel_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_report.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_report_handler.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_process.h \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_iostream.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_constants.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_object.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_attribute.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_export.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_communication_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_interface.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_module_name.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_sensitive.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_time.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_nbdefs.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_ieee.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxdefs.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_machine.h \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/detail/endian.hpp \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fx_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_nbutils.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_bit_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_int_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_wait.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_simcontext.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_status.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_hash.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_pq.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_wait_cthread.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/bit/sc_logic.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_macros.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_mempool.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/bit/sc_bit.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_signal_ifs.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_writer_policy.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_process_handle.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_list.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_ver.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_buffer.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_port.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_event.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_prim_channel.h \
+		/usr/local/systemc-2.3.1/include/sysc/tracing/sc_trace.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_clock.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_clock_ports.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_ports.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_event_finder.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_event_queue.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_fifo.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_fifo_ifs.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_fifo_ports.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_mutex.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_mutex_if.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_semaphore.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_semaphore_if.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_resolved.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_resolved_ports.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_rv.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/bit/sc_lv.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_lv_base.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_bv_base.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_bit_proxies.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_proxy.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_signed.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/misc/sc_value_base.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_temporary.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_length_param.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_context.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_nbexterns.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_unsigned.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_int_base.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_uint_base.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_rv_ports.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/bit/sc_bv.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/int/sc_bigint.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/int/sc_biguint.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/int/sc_int.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/int/sc_uint.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/misc/sc_concatref.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/fx/fx.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fixed.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fix.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxnum.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxval.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_rep.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_mant.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_utils.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_params.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxcast_switch.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxtype_params.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_string.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxval_observer.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxnum_observer.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_ufixed.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_ufix.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_other_defs.h \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_utils_ids.h \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_pvector.h \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_vector.h \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/utility/enable_if.hpp \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_dynamic_processes.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_spawn.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_spawn_options.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_join.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_boost.h \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/ref.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/utility/addressof.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/detail/workaround.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/bool.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/bool_fwd.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/adl_barrier.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/adl.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/msvc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/intel.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/gcc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/workaround.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/integral_c_tag.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/static_constant.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mem_fn.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/get_pointer.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/mem_fn_template.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/mem_fn_vw.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/mem_fn_cc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/arg.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_template.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_cc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_mf_cc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/placeholders.hpp \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_string.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o trigger_event.o src/event/trigger_event.cpp
 
 event_generator.o: src/event/event_generator.cpp src/event/event_generator.h \
-		src/alpide/alpide_constants.h
+		src/event/trigger_event.h \
+		src/event/hit.h \
+		src/alpide/pixel_col.h \
+		src/alpide/alpide_constants.h \
+		src/alpide/pixel_matrix.h \
+		$(SYSTEMC_HOME)/include/systemc.h \
+		/usr/local/systemc-2.3.1/include/systemc \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_cmnhdr.h \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/select_compiler_config.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/select_stdlib_config.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/select_platform_config.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/posix_features.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/config/suffix.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/type.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/non_type.hpp \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_externs.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_except.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_module.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_kernel_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_report.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_report_handler.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_process.h \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_iostream.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_constants.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_object.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_attribute.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_export.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_communication_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_interface.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_module_name.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_sensitive.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_time.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_nbdefs.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_ieee.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxdefs.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_machine.h \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/detail/endian.hpp \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fx_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_nbutils.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_bit_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_int_ids.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_wait.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_simcontext.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_status.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_hash.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_pq.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_wait_cthread.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/bit/sc_logic.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_macros.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_mempool.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/bit/sc_bit.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_signal_ifs.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_writer_policy.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_process_handle.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_list.h \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_ver.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_buffer.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_port.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_event.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_prim_channel.h \
+		/usr/local/systemc-2.3.1/include/sysc/tracing/sc_trace.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_clock.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_clock_ports.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_ports.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_event_finder.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_event_queue.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_fifo.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_fifo_ifs.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_fifo_ports.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_mutex.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_mutex_if.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_semaphore.h \
+		$(SYSTEMC_HOME)/include/sysc/communication/sc_semaphore_if.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_resolved.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_resolved_ports.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_rv.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/bit/sc_lv.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_lv_base.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_bv_base.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_bit_proxies.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/bit/sc_proxy.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_signed.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/misc/sc_value_base.h \
+		$(SYSTEMC_HOME)/include/sysc/utils/sc_temporary.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_length_param.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_context.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_nbexterns.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_unsigned.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_int_base.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/int/sc_uint_base.h \
+		/usr/local/systemc-2.3.1/include/sysc/communication/sc_signal_rv_ports.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/bit/sc_bv.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/int/sc_bigint.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/int/sc_biguint.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/int/sc_int.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/int/sc_uint.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/misc/sc_concatref.h \
+		/usr/local/systemc-2.3.1/include/sysc/datatypes/fx/fx.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fixed.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fix.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxnum.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxval.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_rep.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_mant.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_utils.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_params.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxcast_switch.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxtype_params.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_string.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxval_observer.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_fxnum_observer.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_ufixed.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/sc_ufix.h \
+		$(SYSTEMC_HOME)/include/sysc/datatypes/fx/scfx_other_defs.h \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_utils_ids.h \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_pvector.h \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_vector.h \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/utility/enable_if.hpp \
+		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_dynamic_processes.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_spawn.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_spawn_options.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_join.h \
+		$(SYSTEMC_HOME)/include/sysc/kernel/sc_boost.h \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/ref.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/utility/addressof.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/detail/workaround.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/bool.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/bool_fwd.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/adl_barrier.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/adl.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/msvc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/intel.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/gcc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/workaround.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/integral_c_tag.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mpl/aux_/config/static_constant.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/mem_fn.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/get_pointer.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/mem_fn_template.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/mem_fn_vw.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/mem_fn_cc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/arg.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_template.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_cc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_mf_cc.hpp \
+		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/placeholders.hpp \
+		/usr/local/systemc-2.3.1/include/sysc/utils/sc_string.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o event_generator.o src/event/event_generator.cpp
 
 hit.o: src/event/hit.cpp src/event/hit.h \
@@ -553,10 +847,11 @@ settings.o: src/settings/settings.cpp src/settings/settings.h
 
 main.o: src/testbench/main.cpp src/settings/settings.h \
 		src/event/event_generator.h \
-		src/alpide/alpide_toy_model.h \
-		src/alpide/pixel_matrix.h \
+		src/event/trigger_event.h \
+		src/event/hit.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h \
+		src/alpide/pixel_matrix.h \
 		$(SYSTEMC_HOME)/include/systemc.h \
 		/usr/local/systemc-2.3.1/include/systemc \
 		/usr/local/systemc-2.3.1/include/sysc/kernel/sc_cmnhdr.h \
@@ -702,6 +997,7 @@ main.o: src/testbench/main.cpp src/settings/settings.h \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_mf_cc.hpp \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/placeholders.hpp \
 		/usr/local/systemc-2.3.1/include/sysc/utils/sc_string.h \
+		src/alpide/alpide_toy_model.h \
 		src/testbench/stimuli.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o src/testbench/main.cpp
 
@@ -855,7 +1151,9 @@ stimuli.o: src/testbench/stimuli.cpp src/testbench/stimuli.h \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_mf_cc.hpp \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/placeholders.hpp \
 		/usr/local/systemc-2.3.1/include/sysc/utils/sc_string.h \
-		src/event/event_generator.h
+		src/event/event_generator.h \
+		src/event/trigger_event.h \
+		src/event/hit.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o stimuli.o src/testbench/stimuli.cpp
 
 ####### Install

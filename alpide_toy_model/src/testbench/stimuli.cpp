@@ -58,6 +58,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toInt();
   mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();  
 
+  bool write_vcd = settings->value("data_output/write_vcd").toBool();
 
 
   // Instantiate event generator object
@@ -67,16 +68,17 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   mEvents->s_clk_in(clock);  
   mEvents->E_trigger_event_available(E_trigger_event_available);
   mEvents->s_strobe_in(s_strobe);
+  mEvents->s_physics_event_out(s_physics_event);
 
   // Instantiate and connect signals to Alpide
   mAlpideChips.resize(mNumChips);
   for(int i = 0; i < mNumChips; i++) {
     std::stringstream chip_name;
     chip_name << "alpide_" << i;
-    mAlpideChips[i] = new AlpideToyModel(chip_name.str().c_str(), 0);
+    mAlpideChips[i] = new AlpideToyModel(chip_name.str().c_str(), i, write_vcd);
     mAlpideChips[i]->s_clk_in(clock);
-    //mAlpide->s_event_buffers_used(chip_event_buffers_used);
-    //mAlpide->s_total_number_of_hits(chip_total_number_of_hits);
+//    mAlpide->s_event_buffers_used(chip_event_buffers_used);
+//    mAlpide->s_total_number_of_hits(chip_total_number_of_hits);
   }
   
   SC_CTHREAD(stimuliMainProcess, clock.pos());
@@ -170,8 +172,12 @@ void Stimuli::stimuliEventProcess(void)
 
 ///@brief Add SystemC signals to log in VCD trace file.
 ///@todo Make it configurable which traces we want in the file?
-void Stimuli::addTraces(sc_trace_file *wf)
+void Stimuli::addTraces(sc_trace_file *wf) const
 {
-  //sc_trace(wf, chip_event_buffers_used, "chip_event_buffers_used");
-  //sc_trace(wf, chip_total_number_of_hits, "chip_total_number_of_hits");
+  sc_trace(wf, s_strobe, "STROBE");
+  sc_trace(wf, s_physics_event, "PHYSICS_EVENT");
+  
+  for(auto it = mAlpideChips.begin(); it != mAlpideChips.end(); it++) {
+    (*it)->addTraces(wf);
+  }
 }

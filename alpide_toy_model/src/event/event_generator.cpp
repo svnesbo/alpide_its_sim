@@ -8,8 +8,10 @@
 #include "event_generator.h"
 #include "../alpide/alpide_constants.h"
 #include <boost/current_function.hpp>
+#include <boost/random/random_device.hpp>
 #include <stdexcept>
 #include <cmath>
+
 
 using boost::random::uniform_int_distribution;
 using boost::random::normal_distribution;
@@ -23,55 +25,6 @@ using boost::random::discrete_distribution;
   std::cout << "-------------------------------------------"; \
   std::cout << "-------------------------------------------" << std::endl;
 
-
-/*
-SC_HAS_PROCESS(EventGenerator);
-///@brief "Default" constructor for EventGenerator
-///@param name    SystemC module name
-EventGenerator::EventGenerator(sc_core::sc_module_name name)
-  : sc_core::sc_module(name)  
-{
-  mBunchCrossingRateNs = 25;  
-
-  mAverageEventRateNs = 2500;
-
-  mStrobeLengthNs = 5000;
-  mPixelDeadTime = 500;
-  mPixelActiveTime = 5000;
-  
-  mHitMultiplicityGaussAverage = 2000;
-  mHitMultiplicityGaussDeviation = 350;
-  
-  mRandomSeed = 0;
-
-  mRandHitChipID = new uniform_int_distribution<int>(0, N_CHIPS-1);
-  mRandHitChipX = new uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
-  mRandHitChipY = new uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
-  mRandHitMultiplicityGauss = new normal_distribution<double>(mHitMultiplicityGaussAverage,
-                                                              mHitMultiplicityGaussDeviation);
-
-  // Discrete distribution is not used in this case
-  mRandHitMultiplicityDiscrete = nullptr;  
-
-  // Multiplied by BC rate so that the distribution is related to the clock cycles
-  // Which is fine because physics events will be in sync with 40MHz BC clock, but
-  // to get actual simulation time we must multiply the numbers obtained with BC rate.
-  double lambda = 1.0/(mAverageEventRateNs/mBunchCrossingRateNs);
-  mRandEventTime = new exponential_distribution<double>(lambda);
-
-  initRandomNumGenerator();
-
-  mWriteRandomDataToFile = false;
-
-  //////////////////////////////////////////////////////////////////////////////
-  // SystemC declarations / connections / etc.
-  //////////////////////////////////////////////////////////////////////////////
-  SC_CTHREAD(physicsEventProcess, s_clk_in.pos());
-  
-  SC_METHOD(triggerEventProcess);
-  sensitive << s_strobe_in;    
-}
-*/
 
 SC_HAS_PROCESS(EventGenerator);
 ///@brief Constructor for EventGenerator with gaussian multiplicity distribution.
@@ -148,80 +101,6 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 }
 
 
-/*
-SC_HAS_PROCESS(EventGenerator);
-///@brief Constructor for EventGenerator with discrete multiplicity distribution.
-///@param name                 SystemC module name
-///@param BC_rate_ns           Bunch crossing rate in nanoseconds.
-///@param avg_event_rate_ns    Average event rate in nanoseconds.
-///@param strobe_length_ns     Strobe length in nanoseconds
-///@param mult_dist_filename   Absolute or relative filename/path to discrete distribution file.
-///                            The file format is rows with two values, X value (hit) and Y value (Probability),
-///                            separated with whitespace.
-///@param pixel_dead_time_ns   Pixel shaping dead time in nanoseconds (ie. time before analog
-///                            pulse goes above threshold).
-///@param pixel_active_time_ns Pixel shaping active time in nanoseconds (ie. the amount of time
-///                            the analog pulse is above the threshold).
-///@param random_seed          Random seed to use in random number generators.
-///@param create_csv_hit_file  Create a CSV-file and store each event time and hit multiplicity value to this file
-EventGenerator::EventGenerator(sc_core::sc_module_name name,
-                               int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
-                               const char* mult_dist_filename, int random_seed,
-                               int pixel_dead_time_ns, int pixel_active_time_ns,                               
-                               bool create_csv_hit_file)
-  : sc_core::sc_module(name)    
-{
-  mBunchCrossingRateNs = BC_rate_ns;
-
-  mAverageEventRateNs = avg_event_rate_ns;
-  mStrobeLengthNs = strobe_length_ns;
-  mPixelDeadTime = pixel_dead_time_ns;
-  mPixelActiveTime = pixel_active_time_ns;
-  mRandomSeed = random_seed;
-
-  mRandHitChipID = new uniform_int_distribution<int>(0, N_CHIPS-1);
-  mRandHitChipX = new uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
-  mRandHitChipY = new uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
-
-  // Read multiplicity distribution from file,
-  // and initialize boost::random discrete distribution with data
-  std::vector<double> mult_dist;
-  readDiscreteDistributionFile(mult_dist_filename, mult_dist);
-  mRandHitMultiplicityDiscrete = new discrete_distribution<>(mult_dist.begin(), mult_dist.end());
-
-  // Gaussian distribution is not used in this case
-  mRandHitMultiplicityGauss = nullptr;
-  
-  // Multiplied by BC rate so that the distribution is related to the clock cycles
-  // Which is fine because physics events will be in sync with 40MHz BC clock, but
-  // to get actual simulation time we must multiply the numbers obtained with BC rate.
-  double lambda = 1.0/(mAverageEventRateNs/mBunchCrossingRateNs);
-  mRandEventTime = new exponential_distribution<double>(lambda);
-
-  std::cout << "mBunchCrossingRateNs = " << mBunchCrossingRateNs << std::endl;  
-  std::cout << "mAverageEventRateNs = " << mAverageEventRateNs << std::endl;
-  std::cout << "lambda = " << lambda << std::endl;
-
-  initRandomNumGenerator();
-
-  mWriteRandomDataToFile = create_csv_hit_file;
-  
-  if(mWriteRandomDataToFile) {
-    mRandDataFile.open("random_data.csv");
-    mRandDataFile << "delta_t;hit_multiplicity" << std::endl;
-  }
-
-
-  //////////////////////////////////////////////////////////////////////////////
-  // SystemC declarations / connections / etc.
-  //////////////////////////////////////////////////////////////////////////////
-  SC_CTHREAD(physicsEventProcess, s_clk_in.pos());
-  
-  SC_METHOD(triggerEventProcess);
-  sensitive << s_strobe_in;
-}
-*/
-
 EventGenerator::~EventGenerator()
 {
   delete mRandHitChipID;
@@ -294,12 +173,31 @@ void EventGenerator::setRandomSeed(int seed)
 
 ///@brief Initialize random number generators
 void EventGenerator::initRandomNumGenerator(void)
-{
-  ///@todo Do I need to have separate random number generators for each random distribution?
-  ///@todo Use different random seed for each generator?
-  mRandHitGen.seed(mRandomSeed);
-  mRandHitMultiplicityGen.seed(mRandomSeed);
-  mRandEventTimeGen.seed(mRandomSeed);
+{  
+  // If seed was set to 0 in settings file, initialize with a non-deterministic
+  // higher entropy random number using boost::random::random_device
+  // Based on this: http://stackoverflow.com/a/13004555
+  if(mRandomSeed == 0) {
+    boost::random::random_device r;
+    
+    std::cout << "Boost random_device entropy: " << r.entropy() << std::endl;
+    
+    unsigned int random_seed = r();
+    mRandHitGen.seed(random_seed);
+    std::cout << "Hit coordinates generator random seed: " << random_seed << std::endl;
+
+    random_seed = r();
+    mRandHitMultiplicityGen.seed(random_seed);
+    std::cout << "Hit multiplicity generator random seed: " << random_seed << std::endl;
+    
+    random_seed = r();
+    mRandEventTimeGen.seed(random_seed);
+    std::cout << "Event rate generator random seed: " << random_seed << std::endl;
+  } else {
+    mRandHitGen.seed(mRandomSeed);
+    mRandHitMultiplicityGen.seed(mRandomSeed);
+    mRandEventTimeGen.seed(mRandomSeed);    
+  }
 }
 
 
@@ -609,10 +507,17 @@ void EventGenerator::physicsEventProcess(void)
     // Generate next physics event. This event will be t_delta_cycles in the future.
     t_delta_cycles = generateNextPhysicsEvent();
 
-    // Wait for t_delta_cycles number of clock cycles, which is when the next physics event will
-    // actually happen.
-    // Note: this type of wait() call only works with CTHREAD (normally one would specify time unit).
-    wait(t_delta_cycles);
+    // Indicate the event with a 1 clock cycle pulse on this signal
+    s_physics_event_out.write(1);
+    wait(1);
+    s_physics_event_out.write(0);
+
+    if(t_delta_cycles > 1) {
+      // Wait for t_delta_cycles number of clock cycles, which is when the next physics event
+      // will actually happen, taking into account the clock cycle we already waited.
+      // Note: this type of wait() call only works with CTHREAD (normally one would specify time unit).
+      wait(t_delta_cycles-1);
+    }
 
     ///@todo Maybe do this only on strobe falling edge? Saves some CPU cycles that way?
     removeInactiveHits();

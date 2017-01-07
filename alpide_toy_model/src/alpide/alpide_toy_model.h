@@ -23,18 +23,20 @@ public: // SystemC signals
   sc_in_clk s_clk_in;
 
   ///@brief Number of events stored in the chip at any given time
-  //sc_out<sc_uint<8> > s_event_buffers_used;
+  sc_signal<sc_uint<8> > s_event_buffers_used;
 
   ///@brief Sum of all hits in all multi event buffers
-  //sc_out<sc_uint<32> > s_total_number_of_hits;
+  sc_signal<sc_uint<32> > s_total_number_of_hits;
     
 private:
   int mChipId;
+  bool mEnableReadoutStats;
   void matrixReadout(void);
 
 public:
-  AlpideToyModel(sc_core::sc_module_name name, int chip_id);
+  AlpideToyModel(sc_core::sc_module_name name, int chip_id, bool enable_readout_stats);
   int getChipId(void) {return mChipId;}
+  void addTraces(sc_trace_file *wf) const;
 };
 
 

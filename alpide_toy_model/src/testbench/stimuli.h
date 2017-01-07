@@ -17,6 +17,7 @@ class Stimuli : public sc_core::sc_module {
 public:
   sc_in_clk clock;
   sc_signal<bool> s_strobe;
+  sc_signal<bool> s_physics_event;
   sc_event_queue E_trigger_event_available;
   //sc_signal<sc_uint<8> > chip_event_buffers_used;
   //sc_signal<sc_uint<32> > chip_total_number_of_hits;
@@ -39,12 +40,8 @@ public:
   Stimuli(sc_core::sc_module_name name, QSettings* settings);
   void stimuliMainProcess(void);
   void stimuliEventProcess(void);  
-  void addTraces(sc_trace_file *wf);
-
+  void addTraces(sc_trace_file *wf) const;
 };
-
-
-
 
 
 #endif

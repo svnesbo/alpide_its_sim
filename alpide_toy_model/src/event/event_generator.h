@@ -54,6 +54,10 @@ public: // SystemC signals
   sc_in_clk s_clk_in;
   sc_event_queue_port E_trigger_event_available;
 
+  /// Active for one clock pulse every time we have a "physics event".
+  /// Not really used for anything, just to indicate physics events in waveforms
+  sc_out<bool> s_physics_event_out;
+
 private:
   /// This is the trigger event queue (ie. the hits that
   /// occur between a strobe, which are fed to the Alpide chips).
