@@ -86,8 +86,19 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   initRandomNumGenerator();
 
   if(mCreateCSVFile) {
-    mRandDataFile.open("random_data.csv");
-    mRandDataFile << "delta_t;hit_multiplicity" << std::endl;
+    mPhysicsEventsCSVFile.open("physics_events_data.csv");
+    mPhysicsEventsCSVFile << "delta_t;hit_multiplicity";
+    for(int i = 0; i < mNumChips; i++)
+      mPhysicsEventsCSVFile << ";chip_" << i << "_trace_hits";
+    for(int i = 0; i < mNumChips; i++)
+      mPhysicsEventsCSVFile << ";chip_" << i << "_pixel_hits";
+    mPhysicsEventsCSVFile << std::endl;
+
+    mTriggerEventsCSVFile.open("trigger_events_data.csv");
+    mTriggerEventsCSVFile << "time";
+    for(int i = 0; i < mNumChips; i++)
+      mTriggerEventsCSVFile << ";chip_" << i << "_pixel_hits";
+    mTriggerEventsCSVFile << std::endl;
   }
 
   
@@ -112,8 +123,10 @@ EventGenerator::~EventGenerator()
   delete mRandHitMultiplicityGauss;
   delete mRandHitMultiplicityDiscrete;    
 
-  if(mRandDataFile.is_open())
-    mRandDataFile.close();
+  if(mPhysicsEventsCSVFile.is_open())
+    mPhysicsEventsCSVFile.close();
+  if(mTriggerEventsCSVFile.is_open())
+    mTriggerEventsCSVFile.close();  
 }
 
 
@@ -312,6 +325,10 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
 {
   int64_t t_delta, t_delta_cycles;
 
+  // Initialize array to 0. http://stackoverflow.com/a/1065800/6444574
+  int chip_trace_hit_counts[mNumChips] = {0};
+  int chip_pixel_hit_counts[mNumChips] = {0};
+
   // Generate random (exponential distributed) interval till next event/interaction
   // The exponential distribution only works with double float, that's why it is rounded
   // to nearest clock cycle. Which is okay, because events in LHC should be synchronous
@@ -337,12 +354,7 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
   // Generate a random number of hits for this event
   int n_hits = getRandomMultiplicity();
 
-  // Write data to CSV file (if we are generating CSV).
-  if(mCreateCSVFile) {
-    mRandDataFile << t_delta << ";" << n_hits << std::endl;
-  }
-
-
+  
   // Generate hits here
   for(int i = 0; i < n_hits; i++) {
     int rand_chip_id = (*mRandHitChipID)(mRandHitGen);
@@ -350,6 +362,10 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
     int rand_y1 = (*mRandHitChipY)(mRandHitGen);
     int rand_x2, rand_y2;
 
+    chip_trace_hit_counts[rand_chip_id]++;
+
+    ///@todo Account larger/bigger clusters here (when implemented)
+    chip_pixel_hit_counts[rand_chip_id] += 4;
 
     // Very simple and silly method for making 2x2 pixel cluster
     // Makes sure that we don't get pixels below row/col 0, and not above
@@ -378,6 +394,18 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
                                          mPixelDeadTime, mPixelActiveTime);
   }
 
+  // Write event rate and multiplicity numbers to CSV file
+  if(mCreateCSVFile) {
+    mPhysicsEventsCSVFile << t_delta << ";" << n_hits;
+
+    for(int i = 0; i < mNumChips; i++)
+      mPhysicsEventsCSVFile << ";" << chip_trace_hit_counts[i];    
+    for(int i = 0; i < mNumChips; i++)
+      mPhysicsEventsCSVFile << ";" << chip_pixel_hit_counts[i];
+    
+    mPhysicsEventsCSVFile << std::endl;
+  }
+  
   ///@todo Remove?
   //eventMemoryCountLimiter();
 
@@ -555,6 +583,17 @@ void EventGenerator::triggerEventProcess(void)
 
       // Post an event notification that a new trigger event/frame is ready
       E_trigger_event_available->notify(SC_ZERO_TIME);
+
+      // Write number of pixel hits in event to CSV file
+      if(mCreateCSVFile) {
+        if(chip_id == 0)
+          mTriggerEventsCSVFile << time_now;
+        
+        mTriggerEventsCSVFile << ";" << mNextTriggerEvent->getEventSize();
+
+        if(chip_id == mNumChips-1)
+          mTriggerEventsCSVFile << std::endl;
+      }
 
       #ifdef DEBUG_OUTPUT
       std::cout << "\tTrigger event queue size: " << mEventQueue.size() << std::endl;

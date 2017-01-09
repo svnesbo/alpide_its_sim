@@ -120,7 +120,8 @@ private:
   bool mWriteEventsToDisk = false;
 
   bool mCreateCSVFile = true;
-  std::ofstream mRandDataFile;
+  std::ofstream mPhysicsEventsCSVFile;
+  std::ofstream mTriggerEventsCSVFile;
   
   int mRandomSeed;
 
