@@ -61,6 +61,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["event/bunch_crossing_rate_ns"] = DEFAULT_EVENT_BUNCH_CROSSING_RATE_NS;
   //@todo Rename to average_trigger_rate_ns?
   defaultSettings["event/average_event_rate_ns"] = DEFAULT_EVENT_AVERAGE_EVENT_RATE_NS;
+  defaultSettings["event/trigger_delay_ns"] = DEFAULT_EVENT_TRIGGER_DELAY_NS;
   defaultSettings["event/trigger_filter_time_ns"] = DEFAULT_EVENT_TRIGGER_FILTER_TIME_NS;
   defaultSettings["event/trigger_filter_enable"] = DEFAULT_EVENT_TRIGGER_FILTER_ENABLE;
   defaultSettings["event/strobe_active_length_ns"] = DEFAULT_EVENT_STROBE_ACTIVE_LENGTH_NS;

@@ -28,13 +28,14 @@ private:
   const QSettings* mSettings;
   bool simulation_done = false;
 
+  bool mContinuousMode;
+  
   ///@todo Make it a 64-bit int?
   int mNumEvents;
-
   int mNumChips;
-
   int mStrobeActiveNs;
   int mStrobeInactiveNs;
+  int mTriggerDelayNs;
   
 public:
   Stimuli(sc_core::sc_module_name name, QSettings* settings);

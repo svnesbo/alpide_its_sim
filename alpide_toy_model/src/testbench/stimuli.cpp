@@ -55,8 +55,10 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings)
   // Initialize variables for Stimuli object
   mNumEvents = settings->value("simulation/n_events").toInt();
   mNumChips = settings->value("simulation/n_chips").toInt();
+  mContinuousMode = settings->value("simulation/continuous_mode").toBool();
   mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toInt();
-  mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();  
+  mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();
+  mTriggerDelayNs = settings->value("event/trigger_delay_ns").toInt();  
 
   bool write_vcd = settings->value("data_output/write_vcd").toBool();
 
@@ -109,11 +111,22 @@ void Stimuli::stimuliMainProcess(void)
         std::cout << "@ " << time_now << " ns: \tGenerating strobe/event number " << i << std::endl;
       }
 
-      s_strobe.write(true);
-      wait(mStrobeActiveNs, SC_NS);
+      if(mContinuousMode == true) {
+        s_strobe.write(true);
+        wait(mStrobeActiveNs, SC_NS);
 
-      s_strobe.write(false);
-      wait(mStrobeInactiveNs, SC_NS);
+        s_strobe.write(false);
+        wait(mStrobeInactiveNs, SC_NS);
+      } else {
+        wait(s_physics_event.value_changed_event());
+        if(s_physics_event.read() == true) {
+          wait(mTriggerDelayNs, SC_NS);
+          s_strobe.write(true);
+        
+          wait(mStrobeActiveNs, SC_NS);
+          s_strobe.write(false);
+        }
+      }
 
       i++;
     }
