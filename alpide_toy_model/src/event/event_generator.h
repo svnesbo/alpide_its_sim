@@ -185,6 +185,7 @@ private:
   TriggerEvent* generateNextTriggerEvent(int64_t event_start, int64_t event_end, int chip_id);
   int64_t generateNextPhysicsEvent(void);
   void readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const;
+  void scaleDiscreteDistribution(std::vector<double> &dist_vector, double new_mean_value);
   unsigned int getRandomMultiplicity(void);
   void addHitsToTriggerEvent(TriggerEvent& e);
   void removeInactiveHits(void);

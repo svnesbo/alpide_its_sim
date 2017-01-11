@@ -11,6 +11,7 @@
 #include <boost/random/random_device.hpp>
 #include <stdexcept>
 #include <cmath>
+#include <map>
 
 
 using boost::random::uniform_int_distribution;
@@ -66,6 +67,22 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     // and initialize boost::random discrete distribution with data
     std::vector<double> mult_dist;
     readDiscreteDistributionFile(multipl_dist_file.toStdString().c_str(), mult_dist);
+
+    // Calculate the average number of hits in an event,
+    // assuming that all chips here are on the same layer.
+    double hits_per_cm2 = settings->value("event/hit_density_min_bias_per_cm2").toDouble();
+    double alpide_chip_area = CHIP_WIDTH_CM*CHIP_HEIGHT_CM;
+    double its_layer_area = mNumChips * alpide_chip_area;
+    double avg_hits_per_event =  hits_per_cm2 * its_layer_area;
+
+    std::cout << "hits_per_cm2: " << hits_per_cm2;
+    std::cout << "\talpide_chip_area: " << alpide_chip_area;
+    std::cout << "\tits_layer_area: " << its_layer_area;
+    std::cout << "\tavg_hits_per_event: " << avg_hits_per_event << std::endl;
+    std::cout << "Number of bins in distribution before scaling: " << mult_dist.size() << std::endl;
+    scaleDiscreteDistribution(mult_dist, avg_hits_per_event);
+    std::cout << "Number of bins in distribution after scaling: " << mult_dist.size() << std::endl;
+    
     mRandHitMultiplicityDiscrete = new discrete_distribution<>(mult_dist.begin(), mult_dist.end());
 
     // Gaussian distribution is not used in this case
@@ -294,6 +311,103 @@ void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vec
   }
 
   in_file.close();
+}
+
+
+///@brief Scale the x axis of a discrete distribution,
+///       so that the distribution gets a new mean value.
+///@param dist_vector Distribution to scale. The original distribution in
+///                   this vector will be overwritten and replaced with
+///                   the new, scaled, distribution.
+///@param new_mean_value The desired mean value of the new distribution.
+void EventGenerator::scaleDiscreteDistribution(std::vector<double> &dist_vector, double new_mean_value)
+{
+  double old_probability_sum = 0.0;
+  double old_probability_sum_fixed = 0.0;
+  double old_mean_value = 0.0;
+  double old_mean_value_fixed = 0.0;  
+  double resulting_mean_value = 0.0;
+  std::vector<double> new_dist_vector;
+  std::map<double, double> scaled_dist_map;
+  
+  // First calculate mean value in current distribution
+  for(unsigned int i = 0; i < dist_vector.size(); i++) {
+    old_mean_value += i*dist_vector[i];
+    old_probability_sum += dist_vector[i];
+  }
+  std::cout << "Mean value in original distribution: " << old_mean_value << std::endl << std::endl;
+
+  std::cout << "Probability sum/integral in original distribution: " << old_probability_sum << std::endl;
+
+  // Normalize the area of the probability curve to 1.0
+  for(unsigned int i = 0; i < dist_vector.size(); i++) {
+    dist_vector[i] /= old_probability_sum;
+    old_mean_value_fixed += i*dist_vector[i];    
+    old_probability_sum_fixed += dist_vector[i];
+  }
+
+  std::cout << "Mean value in original distribution (fixed): " << old_mean_value_fixed << std::endl << std::endl;
+
+  std::cout << "Probability sum/integral in original distribution (fixed): " << old_probability_sum_fixed << std::endl;  
+
+  std::cout << "scaled_dist_map: " << std::endl;
+
+  double scale_factor = new_mean_value / old_mean_value_fixed;
+
+  // Size the new vector correctly
+  // Calculate a position in the old distribution, as a floating point value. Since we only have discrete
+  // values, use the decimal part to pick a certain amount from the previous index and the next index.
+  new_dist_vector.resize(dist_vector.size()*scale_factor);
+  double sum = 0.0;
+  for(unsigned int i = 0; i < new_dist_vector.size(); i++) {
+    double old_dist_position = i/scale_factor;
+    unsigned int old_dist_index1 = (unsigned int)(old_dist_position);
+    unsigned int old_dist_index2 = old_dist_index1+1;
+
+    // Get two "scale" values, ranging from 0.0 to 1.0, and whose sums are 1.0, which are used
+    // to scale the value in the two indexes in the old distribution that lies before and after the
+    // calculated (floating point) position, and use the sum of those two scaled values as the
+    // value in our new distribution.
+    double old_dist_index1_scale = 1 - (old_dist_position - old_dist_index1);
+    double old_dist_index2_scale = old_dist_position - old_dist_index1;
+
+    new_dist_vector[i] = dist_vector[old_dist_index1] * old_dist_index1_scale;
+    
+    if(old_dist_index2 < dist_vector.size())
+      new_dist_vector[i] += dist_vector[old_dist_index2] * old_dist_index2_scale;
+
+    // Don't scale bin 0, because the probability of 0 hits should not change
+    // just because the distribution is scaled to a higher mean value.
+    if(i > 0)
+      new_dist_vector[i] /= scale_factor;
+
+    // Integrate over distribution vector as we go.
+    // All bins have width 1, and ideally the probability should sum up to be 1.0.
+    sum += new_dist_vector[i];
+  }
+
+  std::cout << "New distribution integral/sum: " << sum << std::endl;
+
+  /// @todo This changes the mean value slightly.. and the sum isn't that far
+  ///       off 1.0 before this anyway...
+  /*
+  double new_sum = 0.0;
+  // Normalize the area of the probability curve to 1.0, because after scaling
+  // the sum might have changed slightly. 
+  for(unsigned int i = 0; i < new_dist_vector.size(); i++) {
+    new_dist_vector[i] /= sum;
+    new_sum += new_dist_vector[i];
+  }
+  std::cout << "New distribution normalized sum: " << new_sum << std::endl;
+  */
+
+  // Calculate mean value in new distribution
+  for(unsigned int i = 0; i < new_dist_vector.size(); i++) {
+    resulting_mean_value += i*new_dist_vector[i];
+  }
+  std::cout << "Mean value in new distribution: " << resulting_mean_value << std::endl << std::endl;  
+  
+  dist_vector = new_dist_vector;
 }
 
 
