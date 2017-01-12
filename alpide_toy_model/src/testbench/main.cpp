@@ -36,7 +36,7 @@ int sc_main(int argc, char** argv)
 
   // Open VCD file
   if(simulation_settings->value("data_output/write_vcd").toBool() == true) {
-    wf = sc_create_vcd_trace_file("alpide_toy-model_results2");
+    wf = sc_create_vcd_trace_file("alpide_toy-model_results");
     stimuli.addTraces(wf);
 
     if(simulation_settings->value("data_output/write_vcd_clock").toBool() == true) {

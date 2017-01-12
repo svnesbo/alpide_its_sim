@@ -277,6 +277,7 @@ void EventGenerator::removeOldestEvent(void)
 ///
 ///@param filename Relative or absolute path and filename to open
 ///@param dist_vector Reference to vector to store the distribution in
+///@throw runtime_error If the file can not be opened
 ///@throw domain_error If a negative x-value (hits) or y-value (probability) is encountered in the file
 void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const
 {
@@ -320,6 +321,7 @@ void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vec
 ///                   this vector will be overwritten and replaced with
 ///                   the new, scaled, distribution.
 ///@param new_mean_value The desired mean value of the new distribution.
+///@throw runtime_error If dist_vector is empty, a runtime_error is thrown.
 void EventGenerator::scaleDiscreteDistribution(std::vector<double> &dist_vector, double new_mean_value)
 {
   double old_probability_sum = 0.0;
@@ -329,6 +331,9 @@ void EventGenerator::scaleDiscreteDistribution(std::vector<double> &dist_vector,
   double resulting_mean_value = 0.0;
   std::vector<double> new_dist_vector;
   std::map<double, double> scaled_dist_map;
+
+  if(dist_vector.empty())
+    throw std::runtime_error("Discrete distribution to scale is empty.");
   
   // First calculate mean value in current distribution
   for(unsigned int i = 0; i < dist_vector.size(); i++) {
@@ -359,31 +364,35 @@ void EventGenerator::scaleDiscreteDistribution(std::vector<double> &dist_vector,
   // values, use the decimal part to pick a certain amount from the previous index and the next index.
   new_dist_vector.resize(dist_vector.size()*scale_factor);
   double sum = 0.0;
-  for(unsigned int i = 0; i < new_dist_vector.size(); i++) {
-    double old_dist_position = i/scale_factor;
-    unsigned int old_dist_index1 = (unsigned int)(old_dist_position);
-    unsigned int old_dist_index2 = old_dist_index1+1;
+  for(unsigned int x_new = 0; x_new < new_dist_vector.size(); x_new++) {
+    // x_new: X value in new distribution (scaled)
+    // x_old: X value in old distribution (before scaling)    
+    double x_old_decimal = x_new/scale_factor;
+    unsigned int x_old_int = (unsigned int)(x_old_decimal);
+    double x_old_remainder = x_old_decimal-x_old_int;
+    double y_new;
 
-    // Get two "scale" values, ranging from 0.0 to 1.0, and whose sums are 1.0, which are used
-    // to scale the value in the two indexes in the old distribution that lies before and after the
-    // calculated (floating point) position, and use the sum of those two scaled values as the
-    // value in our new distribution.
-    double old_dist_index1_scale = 1 - (old_dist_position - old_dist_index1);
-    double old_dist_index2_scale = old_dist_position - old_dist_index1;
+    // Use the first and last entry directly
+    if(x_new == 0)
+      y_new = dist_vector.front();
+    else if(x_new == new_dist_vector.size()-1)
+      y_new = dist_vector.back();
+    else
+      // If the new value essentially lies between two values in the old distribution
+      // (after dividing by scaling factor), we calculate the this position would have if we
+      // drew a straight line between the value before and after.
+      y_new = dist_vector[x_old_int] + x_old_remainder*(dist_vector[x_old_int+1] - dist_vector[x_old_int]);
 
-    new_dist_vector[i] = dist_vector[old_dist_index1] * old_dist_index1_scale;
+    new_dist_vector[x_new] = y_new;
     
-    if(old_dist_index2 < dist_vector.size())
-      new_dist_vector[i] += dist_vector[old_dist_index2] * old_dist_index2_scale;
-
     // Don't scale bin 0, because the probability of 0 hits should not change
     // just because the distribution is scaled to a higher mean value.
-    if(i > 0)
-      new_dist_vector[i] /= scale_factor;
+    if(x_new > 0)
+      new_dist_vector[x_new] /= scale_factor;
 
     // Integrate over distribution vector as we go.
     // All bins have width 1, and ideally the probability should sum up to be 1.0.
-    sum += new_dist_vector[i];
+    sum += new_dist_vector[x_new];
   }
 
   std::cout << "New distribution integral/sum: " << sum << std::endl;
