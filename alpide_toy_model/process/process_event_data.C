@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <TFile.h>
 #include <TCanvas.h>
 #include <TH1F.h>
@@ -9,8 +10,26 @@
 
 const std::string delim(";");
 
-void process_event_data(const char* csv_filename)
+const float chip_width_cm = 3.0;
+const float chip_height_cm = 1.5;
+
+int process_event_data(const char* csv_filename)
 {
+  std::string csv_filename_str = std::string(csv_filename);
+  size_t csv_extension_start = csv_filename_str.find(".csv");
+  std::string root_filename;
+
+  // If we didn't find any /, then the CSV file must reside in the current directory
+  if(csv_extension_start == std::string::npos) {
+    std::cerr << "Error. Expected .csv file." << std::endl;
+    exit(-1);
+  } else {
+    root_filename = csv_filename_str.substr(0, csv_extension_start) + std::string(".root");
+    std::cout << "Root filename: " << root_filename << std::endl;
+  }
+
+  TFile *f = new TFile(root_filename.c_str(), "recreate");
+    
   std::ifstream csv_file(csv_filename);
 
   if(!csv_file.is_open()) {
@@ -47,7 +66,7 @@ void process_event_data(const char* csv_filename)
     }
   }
 
-  TH1I* h0 = new TH1I("h0", "delta_t", 100, 0, 0);
+  TH1I* h0 = new TH1I("h0", "#Deltat", 100, 0, 0);
   std::vector<TH1I*> h_vector;
   for(unsigned int i = 1; i < csv_fields.size(); i++) {
     std::string h_name = std::string("h") + std::to_string(i+1);
@@ -59,21 +78,9 @@ void process_event_data(const char* csv_filename)
   
   csv_file.setf(std::ios::skipws);  
   while(csv_file.good()) {
-    // for(unsigned int i = 0; i < csv_fields.size(); i++) {
-    //   if(i == 0) {
-    //     csv_file >> value;
-    //     h0->Fill(value);
-    //   } else {
-    //     char c;
-    //     csv_file >> c;  // Get delimiter
-    //     csv_file >> value;
-    //     h_vector[i-1]->Fill(value);
-    //   }
-    //   std::cout << "Column " << i << ", read value: " << value << std::endl;
-    // }
     std::string csv_line;
     std::getline(csv_file, csv_line);
-    std::cout << "csv_line: " << csv_line << std::endl;
+    //std::cout << "csv_line: " << csv_line << std::endl;
     
     size_t current_position = 0;
     size_t next_position;
@@ -90,10 +97,9 @@ void process_event_data(const char* csv_filename)
       }      
 
       std::string value_str = csv_line.substr(current_position, len);
-//      value_str = value_str.find_first_not_of(" \t\n"); // Strip whitespace
-      std::cout << "value_str: " << value_str << std::endl;
+      //std::cout << "value_str: " << value_str << std::endl;
       int value = std::stoi(value_str);
-      std::cout << "value: " << value << std::endl;
+      //std::cout << "value: " << value << std::endl;
 
       if(i == 0) {
         h0->Fill(value);
@@ -103,19 +109,42 @@ void process_event_data(const char* csv_filename)
       i++;
 
       current_position = next_position;      
-    }
-
-    
+    }    
   }
 
 
   TCanvas* c1 = new TCanvas();
   h0->Draw();
+  h0->Write();
+  std::cout << "Mean delta t: " << h0->GetMean() << " ns" << std::endl;
+  std::cout << "Average event rate: " << (int(1.0E9) / h0->GetMean()) / 1000 << " kHz" << std::endl;
 
   TCanvas* c2 = new TCanvas();
-  for(auto it = h_vector.begin(); it != h_vector.end(); it++)
+  for(auto it = h_vector.begin(); it != h_vector.end(); it++) {
     (*it)->Draw();
+    (*it)->Write();
+    std::string plot_title = (*it)->GetTitle();
 
+    std::cout << plot_title << ": " << std::endl;
+        
+    if(plot_title.find("multiplicity") != std::string::npos) {
+      int num_chips = (h_vector.size()-1)/2;
+      float total_area = chip_width_cm*chip_height_cm*num_chips;
+      std::cout << "\tAverage number of hits: " << (*it)->GetMean() << std::endl;
+      std::cout << "\tHit density: " << (*it)->GetMean()/total_area << " hits/cm^2" << std::endl;      
+    }
+    else if(plot_title.find("pixel") != std::string::npos) {
+      std::cout << "\tAverage number of pixel hits: " << (*it)->GetMean() << std::endl;
+      std::cout << "\tHit density: " << (*it)->GetMean()/(chip_width_cm*chip_height_cm) << " pixel hits/cm^2" << std::endl;      
+    }
+    else if(plot_title.find("trace") != std::string::npos) {
+      std::cout << "\tAverage number of trace hits: " << (*it)->GetMean() << std::endl;
+      std::cout << "\tHit density: " << (*it)->GetMean()/(chip_width_cm*chip_height_cm) << " trace hits/cm^2" << std::endl;      
+    }    
+  }
+
+
+  return 0;
   // Cleanup
   // delete h0;
   // for(auto it = h_vector.begin(); it != h_vector.end(); it++)
