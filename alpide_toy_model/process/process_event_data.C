@@ -29,11 +29,27 @@ int process_event_data(const char* csv_filename)
   }
 
   TFile *f = new TFile(root_filename.c_str(), "recreate");
+
+  size_t csv_file_base_path_start = csv_filename_str.rfind("/");
+  std::string summary_filename;
+  
+  if(csv_file_base_path_start == std::string::npos) {
+    // No / found? Current directory must be the data output directory then
+    summary_filename = "summary.txt";
+  } else {
+    summary_filename = csv_filename_str.substr(0, csv_file_base_path_start) + "/summary.txt";
+  }
+
+  std::ofstream summary_file(summary_filename);
+  if(!summary_file.is_open()) {
+    std::cerr << "Error opening file " << summary_filename << std::endl;
+    exit(-1);
+  }
     
   std::ifstream csv_file(csv_filename);
 
   if(!csv_file.is_open()) {
-    std::cout << "Error opening file " << csv_filename << std::endl;
+    std::cerr << "Error opening file " << csv_filename << std::endl;
     exit(-1);
   }
 
@@ -116,8 +132,8 @@ int process_event_data(const char* csv_filename)
   TCanvas* c1 = new TCanvas();
   h0->Draw();
   h0->Write();
-  std::cout << "Mean delta t: " << h0->GetMean() << " ns" << std::endl;
-  std::cout << "Average event rate: " << (int(1.0E9) / h0->GetMean()) / 1000 << " kHz" << std::endl;
+  summary_file << "Mean delta t: " << h0->GetMean() << " ns" << std::endl;
+  summary_file << "Average event rate: " << (int(1.0E9) / h0->GetMean()) / 1000 << " kHz" << std::endl;
 
   TCanvas* c2 = new TCanvas();
   for(auto it = h_vector.begin(); it != h_vector.end(); it++) {
@@ -125,35 +141,32 @@ int process_event_data(const char* csv_filename)
     (*it)->Write();
     std::string plot_title = (*it)->GetTitle();
 
-    std::cout << plot_title << ": " << std::endl;
+    summary_file << std::endl;          
+    summary_file << plot_title << ": " << std::endl;
         
     if(plot_title.find("multiplicity") != std::string::npos) {
       int num_chips = (h_vector.size()-1)/2;
-      float total_area = chip_width_cm*chip_height_cm*num_chips;
-      std::cout << "\tAverage number of hits: " << (*it)->GetMean() << std::endl;
-      std::cout << "\tHit density: " << (*it)->GetMean()/total_area << " hits/cm^2" << std::endl;      
+      double total_area = chip_width_cm*chip_height_cm*num_chips;
+      summary_file << "\tAverage number of hits: " << (*it)->GetMean() << std::endl;
+      summary_file << "\tHit density: " << (*it)->GetMean()/total_area << " hits/cm^2" << std::endl;      
     }
     else if(plot_title.find("pixel") != std::string::npos) {
-      std::cout << "\tAverage number of pixel hits: " << (*it)->GetMean() << std::endl;
-      std::cout << "\tHit density: " << (*it)->GetMean()/(chip_width_cm*chip_height_cm) << " pixel hits/cm^2" << std::endl;      
+      summary_file << "\tAverage number of pixel hits: " << (*it)->GetMean() << std::endl;
+      summary_file << "\tHit density: " << (*it)->GetMean()/(chip_width_cm*chip_height_cm) << " pixel hits/cm^2" << std::endl;      
     }
     else if(plot_title.find("trace") != std::string::npos) {
-      std::cout << "\tAverage number of trace hits: " << (*it)->GetMean() << std::endl;
-      std::cout << "\tHit density: " << (*it)->GetMean()/(chip_width_cm*chip_height_cm) << " trace hits/cm^2" << std::endl;      
+      summary_file << "\tAverage number of trace hits: " << (*it)->GetMean() << std::endl;
+      summary_file << "\tHit density: " << (*it)->GetMean()/(chip_width_cm*chip_height_cm) << " trace hits/cm^2" << std::endl;      
     }    
   }
 
 
   return 0;
   // Cleanup
-  // delete h0;
-  // for(auto it = h_vector.begin(); it != h_vector.end(); it++)
-  //   delete *it;
+  delete h0;
+  for(auto it = h_vector.begin(); it != h_vector.end(); it++)
+    delete *it;
 
-  // delete c1;
-  // delete c2;
-
-//  for(auto it = csv_fields.begin(); it != csv_fields.end(); it++)
-//    std::cout << *it << std::endl;
-
+  delete c1;
+  delete c2;
 }
