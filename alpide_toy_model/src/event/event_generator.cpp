@@ -32,9 +32,11 @@ SC_HAS_PROCESS(EventGenerator);
 ///@param name SystemC module name
 ///@param settings QSettings object with simulation settings.
 EventGenerator::EventGenerator(sc_core::sc_module_name name,
-                               const QSettings* settings)
+                               const QSettings* settings,
+                               std::string output_path)
   : sc_core::sc_module(name)  
 {
+  mOutputPath = output_path;
   mBunchCrossingRateNs = settings->value("event/bunch_crossing_rate_ns").toInt();
   mAverageEventRateNs = settings->value("event/average_event_rate_ns").toInt();  
   mTriggerFilteringEnabled = settings->value("event/trigger_filter_enable").toBool();
@@ -103,7 +105,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   initRandomNumGenerator();
 
   if(mCreateCSVFile) {
-    mPhysicsEventsCSVFile.open("physics_events_data.csv");
+    std::string physics_events_csv_filename = mOutputPath + std::string("/physics_events_data.csv");
+    mPhysicsEventsCSVFile.open(physics_events_csv_filename);
     mPhysicsEventsCSVFile << "delta_t;hit_multiplicity";
     for(int i = 0; i < mNumChips; i++)
       mPhysicsEventsCSVFile << ";chip_" << i << "_trace_hits";
@@ -111,7 +114,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       mPhysicsEventsCSVFile << ";chip_" << i << "_pixel_hits";
     mPhysicsEventsCSVFile << std::endl;
 
-    mTriggerEventsCSVFile.open("trigger_events_data.csv");
+    std::string trigger_events_csv_filename = mOutputPath + std::string("/trigger_events_data.csv");    
+    mTriggerEventsCSVFile.open(trigger_events_csv_filename);
     mTriggerEventsCSVFile << "time";
     for(int i = 0; i < mNumChips; i++)
       mTriggerEventsCSVFile << ";chip_" << i << "_pixel_hits";

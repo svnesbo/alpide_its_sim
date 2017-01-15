@@ -13,11 +13,11 @@ SC_HAS_PROCESS(AlpideToyModel);
 ///@brief Constructor for AlpideToyModel.
 ///@param name    SystemC module name
 ///@param chip_id Desired chip id
-AlpideToyModel::AlpideToyModel(sc_core::sc_module_name name, int chip_id, bool enable_readout_stats)
+AlpideToyModel::AlpideToyModel(sc_core::sc_module_name name, int chip_id, bool enable_readout_traces)
   : sc_core::sc_module(name)
 {
   mChipId = chip_id;
-  mEnableReadoutStats = enable_readout_stats;
+  mEnableReadoutTraces = enable_readout_traces;
 
   s_event_buffers_used = 0;
   s_total_number_of_hits = 0;
@@ -31,7 +31,9 @@ AlpideToyModel::AlpideToyModel(sc_core::sc_module_name name, int chip_id, bool e
 ///       and will read out one pixel from each region (if there are pixels available in that region).
 void AlpideToyModel::matrixReadout(void)
 {
-  if(mEnableReadoutStats) {
+  uint64_t time_now = sc_time_stamp().value();
+  
+  if(mEnableReadoutTraces) {
     // Update signal with number of event buffers
     s_event_buffers_used = getNumEvents();
 
@@ -41,7 +43,7 @@ void AlpideToyModel::matrixReadout(void)
   
   // Read out a pixel from each region in the matrix
   for(int region_num = 0; region_num < N_REGIONS; region_num++) {
-    readPixelRegion(region_num);
+    readPixelRegion(region_num, time_now);
   }
 }
 

@@ -20,8 +20,16 @@ PixelMatrix::PixelMatrix()
 
 ///@brief Indicate that we are starting a new event. The next calls to setPixel
 ///       will add pixels to the new event.
-void PixelMatrix::newEvent(void)
+///@param event_time Simulation time when the event is pushed/latched into MEB
+///                  (use current simulation time).
+void PixelMatrix::newEvent(uint64_t event_time)
 {
+  // Update the histogram value for the previous MEB size, with the duration
+  // that has passed since the last update, before pushing this event to the MEBs
+  unsigned int MEB_size = mColumnBuffs.size();
+  mMEBHistogram[MEB_size] += event_time - mMEBHistoLastUpdateTime;
+  mMEBHistoLastUpdateTime = event_time;
+      
   mColumnBuffs.push(std::vector<PixelDoubleColumn>(N_PIXEL_COLS/2));
 
   #ifdef DEBUG_OUTPUT
@@ -44,7 +52,7 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
 {
 #ifdef EXCEPTION_CHECKS
   // Out of range exception check
-  if(getNumEvents() == 0) {
+  if(mColumnBuffs.empty() == true) {
     throw std::out_of_range("No events");
   }else if(row >= N_PIXEL_ROWS) {
     throw std::out_of_range("row");
@@ -69,6 +77,9 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
 ///        by start_double_col and stop_double_col.
 ///        Regions are not read out in parallel with this function. But note that within a double column
 ///        the pixels will be read out with the order used by the priority encoder in the Alpide chip.
+///@param  event_time Simulation time when this readout is occuring
+///@param  start_double_col Start double column to start searching for pixels to readout from
+///@param  stop_double_col Stop searching for pixels to read out when reaching this column
 ///@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
 ///        (PixelData object with coords = (-1,-1)).
 ///@throw  std::out_of_range if start_double_col is less than zero, or larger
@@ -76,7 +87,7 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
 ///@throw  std::out_of_range if stop_double_col is less than one, or larger
 ///        than N_PIXEL_COLS/2.
 ///@throw  std::out_of_range if stop_double_col is greater than or equal to start_double_col
-PixelData PixelMatrix::readPixel(int start_double_col, int stop_double_col) {
+PixelData PixelMatrix::readPixel(uint64_t event_time, int start_double_col, int stop_double_col) {
   PixelData pixel_retval = NoPixelHit;
 
 #ifdef EXPECTION_CHECKS
@@ -91,7 +102,6 @@ PixelData PixelMatrix::readPixel(int start_double_col, int stop_double_col) {
 #endif
   
   // Do we have any stored events?
-//  if(mColumnBuffs.size() > 0) {
   if(mColumnBuffs.empty() == false) {
     std::vector<PixelDoubleColumn>& oldest_event_buffer = mColumnBuffs.front();
     int& oldest_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.front();
@@ -113,6 +123,12 @@ PixelData PixelMatrix::readPixel(int start_double_col, int stop_double_col) {
 
     // If this was the last hit in this event buffer, remove the event buffer from the queue  
     if(oldest_event_buffer_hits_remaining == 0) {
+      // Update the histogram value for the previous MEB size, with the duration
+      // that has passed since the last update, before popping this MEB.
+      unsigned int MEB_size = mColumnBuffs.size();
+      mMEBHistogram[MEB_size] += event_time - mMEBHistoLastUpdateTime;
+      mMEBHistoLastUpdateTime = event_time;
+  
       mColumnBuffs.pop();
       mColumnBuffsPixelsLeft.pop_front();
     }      
@@ -131,10 +147,12 @@ PixelData PixelMatrix::readPixel(int start_double_col, int stop_double_col) {
 ///        Note that within a double column the pixels will be read out with the order
 ///        used by the priority encoder in the Alpide chip.
 ///@param  region The region number to read out a pixel from
+///@param  event_time Simulation time when this readout is occuring. Required for updating
+///                   histogram data in case an MEB is done reading out.
 ///@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
 ///        (PixelData object with coords = (-1,-1)).
 ///@throw  std::out_of_range if region is less than zero, or greater than N_REGIONS-1
-PixelData PixelMatrix::readPixelRegion(int region) {
+PixelData PixelMatrix::readPixelRegion(int region, uint64_t event_time) {
 #ifdef EXCEPTION_CHECKS
   if(region < 0 || region >= N_REGIONS)
     throw std::out_of_range("region");
@@ -143,7 +161,7 @@ PixelData PixelMatrix::readPixelRegion(int region) {
   int start_double_col = N_PIXEL_DOUBLE_COLS_PER_REGION*region;
   int stop_double_col = (N_PIXEL_DOUBLE_COLS_PER_REGION*(region+1));
 
-  return readPixel(start_double_col, stop_double_col);
+  return readPixel(event_time, start_double_col, stop_double_col);
 }
 
 
@@ -151,7 +169,7 @@ PixelData PixelMatrix::readPixelRegion(int region) {
 ///@return Number of hits in oldest event. If there are no events left, return zero.
 int PixelMatrix::getHitsRemainingInOldestEvent(void)
 {
-  if(getNumEvents() == 0) {
+  if(mColumnBuffs.empty() == true) {
     return 0;
   }
   else {
@@ -166,7 +184,7 @@ int PixelMatrix::getHitTotalAllEvents(void)
 {
   int hit_sum = 0;
   
-  if(getNumEvents() > 0) {
+  if(mColumnBuffs.empty() == false) {
     for(std::list<int>::iterator it = mColumnBuffsPixelsLeft.begin(); it != mColumnBuffsPixelsLeft.end(); it++) {
       hit_sum += *it;
     }

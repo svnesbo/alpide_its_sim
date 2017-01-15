@@ -116,7 +116,10 @@ private:
   int mTriggerFilterTimeNs;
   bool mTriggerFilteringEnabled = false;
 
+  ///@todo This is currently used.. remove or update code that uses it..
   std::string mDataPath = "data";
+  
+  std::string mOutputPath;
   bool mWriteEventsToDisk = false;
 
   bool mCreateCSVFile = true;
@@ -147,18 +150,9 @@ private:
   void eventMemoryCountLimiter(void);
 
 public:
-//  EventGenerator(sc_core::sc_module_name name);
   EventGenerator(sc_core::sc_module_name name,
-                 const QSettings* settings);
-/*                 int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
-                 int hit_mult_avg, int hit_mult_dev,
-                 int pixel_dead_time_ns, int pixel_active_time_ns,
-                 int random_seed = 0, bool create_csv_hit_file = false);
-  EventGenerator(sc_core::sc_module_name name,
-                 int BC_rate_ns, int avg_event_rate_ns, int strobe_length_ns,
-                 const char* mult_dist_filename,
-                 int pixel_dead_time_ns, int pixel_active_time_ns,
-                 int random_seed = 0, bool create_csv_hit_file = false);*/
+                 const QSettings* settings,
+                 std::string output_path);
   ~EventGenerator();
   void generateNextEvent();
   void generateNextEvents(int n_events);

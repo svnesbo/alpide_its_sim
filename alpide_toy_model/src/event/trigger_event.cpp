@@ -64,7 +64,8 @@ void TriggerEvent::feedHitsToChip(PixelMatrix &matrix) const
 {
   // Only feed this event to the chip if it has not been filtered out and if it's not empty
   if(mEventFilteredFlag == false && mHitSet.size() > 0) {
-    matrix.newEvent();
+    int64_t time_now = sc_time_stamp().value();    
+    matrix.newEvent(time_now);
 
     #ifdef DEBUG_OUTPUT
     std::cout << "@ " << sc_time_stamp() << ": TriggerEvent: feeding trigger event number: ";

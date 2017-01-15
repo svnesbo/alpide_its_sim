@@ -30,11 +30,11 @@ public: // SystemC signals
     
 private:
   int mChipId;
-  bool mEnableReadoutStats;
+  bool mEnableReadoutTraces;
   void matrixReadout(void);
 
 public:
-  AlpideToyModel(sc_core::sc_module_name name, int chip_id, bool enable_readout_stats);
+  AlpideToyModel(sc_core::sc_module_name name, int chip_id, bool enable_readout_traces);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf) const;
 };

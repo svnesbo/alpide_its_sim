@@ -16,6 +16,8 @@
 #include <vector>
 #include <queue>
 #include <list>
+#include <map>
+#include <cstdint>
 
 
 class PixelMatrix
@@ -35,16 +37,28 @@ private:
   ///       keeps track of the number of pixel left in the columns in each entry in
   ///       mColumnBuffs.
   std::list<int> mColumnBuffsPixelsLeft;
+
+  ///@brief This map contains histogram values over MEB usage. The key is the number
+  ///       of MEBs in use, and the value is the total time duration for that key.
+  std::map<unsigned int, std::uint64_t> mMEBHistogram;
+
+  ///@brief Last time the MEB histogram was updated
+  uint64_t mMEBHistoLastUpdateTime = 0;
   
 public:
   PixelMatrix();
-  void newEvent(void);
+  void newEvent(uint64_t event_time);
   void setPixel(unsigned int col, unsigned int row);
-  PixelData readPixel(int start_double_col = 0, int stop_double_col = N_PIXEL_COLS/2);
-  PixelData readPixelRegion(int region);
+  PixelData readPixel(uint64_t event_time,
+                      int start_double_col = 0,
+                      int stop_double_col = N_PIXEL_COLS/2);
+  PixelData readPixelRegion(int region, uint64_t event_time);
   int getNumEvents(void) {return mColumnBuffs.size();}
   int getHitsRemainingInOldestEvent(void);
   int getHitTotalAllEvents(void);
+  std::map<unsigned int, std::uint64_t> getMEBHisto(void) const {
+    return mMEBHistogram;
+  }
 };
 
 
