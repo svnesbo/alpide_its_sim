@@ -17,6 +17,7 @@
 class Stimuli : public sc_core::sc_module {
 public:
   sc_in_clk clock;
+  sc_in_clk matrix_readout_clock;
   sc_signal<bool> s_strobe;
   sc_signal<bool> s_physics_event;
   sc_event_queue E_trigger_event_available;

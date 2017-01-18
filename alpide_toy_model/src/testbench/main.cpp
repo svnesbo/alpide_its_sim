@@ -68,7 +68,13 @@ int sc_main(int argc, char** argv)
   // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
   sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true);
 
+  int matrix_readout_period = simulation_settings->value("alpide/matrix_readout_period_ns").toInt();
+  sc_clock clock_matrix_readout("clock_matrix_readout",
+                                matrix_readout_period,
+                                0.5, 2, true);
+
   stimuli.clock(clock_40MHz);
+  stimuli.matrix_readout_clock(clock_matrix_readout);
 
   // Open VCD file
   if(simulation_settings->value("data_output/write_vcd").toBool() == true) {
@@ -81,6 +87,7 @@ int sc_main(int argc, char** argv)
       ///@todo Add a warning here if user tries to simulate over 1000 events with this option enabled,
       ///      because it will consume 100s of megabytes
       sc_trace(wf, clock_40MHz, "clock");
+      sc_trace(wf, clock_matrix_readout, "clock_matrix_readout");
     }
   }
 

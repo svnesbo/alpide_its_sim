@@ -23,7 +23,7 @@ AlpideToyModel::AlpideToyModel(sc_core::sc_module_name name, int chip_id, bool e
   s_total_number_of_hits = 0;
   
   SC_METHOD(matrixReadout);
-  sensitive_pos << s_clk_in;
+  sensitive_pos << s_matrix_readout_clk_in;
 }
 
 
