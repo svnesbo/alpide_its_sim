@@ -461,9 +461,9 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
 {
   int64_t t_delta, t_delta_cycles;
 
-  // Initialize array to 0. http://stackoverflow.com/a/1065800/6444574
-  int chip_trace_hit_counts[mNumChips] = {0};
-  int chip_pixel_hit_counts[mNumChips] = {0};
+  // Initialize array to 0. http://stackoverflow.com/a/2204380/6444574
+  int *chip_trace_hit_counts = new int[mNumChips]();
+  int *chip_pixel_hit_counts = new int[mNumChips]();
 
   // Generate random (exponential distributed) interval till next event/interaction
   // The exponential distribution only works with double float, that's why it is rounded
@@ -542,6 +542,9 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
     mPhysicsEventsCSVFile << std::endl;
   }
   
+  delete chip_trace_hit_counts;
+  delete chip_pixel_hit_counts;
+
   ///@todo Remove?
   //eventMemoryCountLimiter();
 
