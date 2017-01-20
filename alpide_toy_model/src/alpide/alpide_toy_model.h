@@ -16,9 +16,11 @@
 /// Alpide "toy model" class. It only implements the MEBs, 
 /// no RRU FIFOs, and no TRU FIFO. It will be used to run some initial
 /// estimations for probability of MEB overflow (busy).
-class AlpideToyModel : public PixelMatrix, sc_core::sc_module
+class AlpideToyModel : sc_core::sc_module, public PixelMatrix
 {
-public: // SystemC signals  
+public:
+  // SystemC signals
+  
   ///@brief Matrix readout clock. Not the same as 40MHz, typically
   ///       50 ns period is used for reading out from the priority encoders,
   ///       too allow the asynchronous encoder logic time to settle..
@@ -36,7 +38,8 @@ private:
   void matrixReadout(void);
 
 public:
-  AlpideToyModel(sc_core::sc_module_name name, int chip_id, bool enable_readout_traces);
+  AlpideToyModel(sc_core::sc_module_name name, int chip_id,
+                 bool enable_readout_traces, bool continuous_mode);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf) const;
 };

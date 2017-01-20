@@ -39,13 +39,21 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   mOutputPath = output_path;
   mBunchCrossingRateNs = settings->value("event/bunch_crossing_rate_ns").toInt();
   mAverageEventRateNs = settings->value("event/average_event_rate_ns").toInt();  
-  mTriggerFilteringEnabled = settings->value("event/trigger_filter_enable").toBool();
-  mTriggerFilterTimeNs = settings->value("event/trigger_filter_time_ns").toInt();
   mRandomSeed = settings->value("simulation/random_seed").toInt();
   mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
   mPixelDeadTime = settings->value("alpide/pixel_shaping_dead_time_ns").toInt();
   mPixelActiveTime = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
   mNumChips = settings->value("simulation/n_chips").toInt();
+
+  mContinuousMode = settings->value("simulation/continuous_mode").toBool();
+  mTriggerFilterTimeNs = settings->value("event/trigger_filter_time_ns").toInt();  
+
+  // Trigger filtering only allowed in triggered mode
+  if(mContinuousMode == false) {
+    mTriggerFilteringEnabled = settings->value("event/trigger_filter_enable").toBool();
+  } else {
+    mTriggerFilteringEnabled = false;
+  }
 
   mEventQueue.resize(mNumChips);
   mHitQueue.resize(mNumChips);
@@ -117,6 +125,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     std::string trigger_events_csv_filename = mOutputPath + std::string("/trigger_events_data.csv");    
     mTriggerEventsCSVFile.open(trigger_events_csv_filename);
     mTriggerEventsCSVFile << "time";
+    mTriggerEventsCSVFile << ";filtered";
     for(int i = 0; i < mNumChips; i++)
       mTriggerEventsCSVFile << ";chip_" << i << "_pixel_hits";
     mTriggerEventsCSVFile << std::endl;
@@ -686,6 +695,7 @@ void EventGenerator::physicsEventProcess(void)
 void EventGenerator::triggerEventProcess(void)
 {
   int64_t time_now = sc_time_stamp().value();
+  bool triggers_filtered = false;
 
   #ifdef DEBUG_OUTPUT
   print_function_timestamp();
@@ -697,39 +707,46 @@ void EventGenerator::triggerEventProcess(void)
     // We will create the triggerEvent object when it is deasserted, and need to
     // remember the start time.
     mNextTriggerEventStartTimeNs = time_now;
-  }
-
-  // Falling edge.
-  else {
+  } else { // Falling edge.
     for(int chip_id = 0; chip_id < mNumChips; chip_id++) {
-      TriggerEvent* mNextTriggerEvent = generateNextTriggerEvent(mNextTriggerEventStartTimeNs,
+      TriggerEvent* next_trigger_event = generateNextTriggerEvent(mNextTriggerEventStartTimeNs,
                                                                  time_now,
                                                                  chip_id);
       
-      mEventQueue[chip_id].push(mNextTriggerEvent);
+      mEventQueue[chip_id].push(next_trigger_event);
 
       // Post an event notification that a new trigger event/frame is ready
       E_trigger_event_available->notify(SC_ZERO_TIME);
 
       // Write number of pixel hits in event to CSV file
       if(mCreateCSVFile) {
-        if(chip_id == 0)
-          mTriggerEventsCSVFile << time_now;
+        // Write time column and filtered column only one time
+        if(chip_id == 0) {
+          mTriggerEventsCSVFile << time_now << ";";
+          mTriggerEventsCSVFile << (next_trigger_event->getEventFilteredFlag() ? "true" : "false");
+        }
         
-        mTriggerEventsCSVFile << ";" << mNextTriggerEvent->getEventSize();
+        mTriggerEventsCSVFile << ";" << next_trigger_event->getEventSize();
 
         if(chip_id == mNumChips-1)
           mTriggerEventsCSVFile << std::endl;
       }
+
+      // Doesn't matter if this is set every time during the loop, all trigger events
+      // with the same ID will have the trigger filtered flag set to the same value
+      triggers_filtered = next_trigger_event->getEventFilteredFlag();
 
       #ifdef DEBUG_OUTPUT
       std::cout << "\tTrigger event queue size: " << mEventQueue.size() << std::endl;
       #endif
     }
     
-    mTriggerEventIdCount++;
-    mLastTriggerEventStartTimeNs = mNextTriggerEventStartTimeNs;
-    mLastTriggerEventEndTimeNs = time_now;
+    // Don't update last event time if the trigger event(s) were filtered out
+    if(triggers_filtered == false) {
+      mLastTriggerEventStartTimeNs = mNextTriggerEventStartTimeNs;
+      mLastTriggerEventEndTimeNs = time_now;
+    }
+    mTriggerEventIdCount++;    
     mNextTriggerEventChipId = 0;
 
     #ifdef DEBUG_OUTPUT

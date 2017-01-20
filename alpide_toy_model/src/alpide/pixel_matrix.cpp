@@ -12,34 +12,52 @@
 #include <iostream>
 #include "pixel_matrix.h"
 
-PixelMatrix::PixelMatrix()
+///@brief PixelMatrix Constructor
+///@param continuous_mode True: continuous mode, false: triggered mode
+PixelMatrix::PixelMatrix(bool continuous_mode)
+  : mContinuousMode(continuous_mode)
 {
-
 }
 
 
-///@brief Indicate that we are starting a new event. The next calls to setPixel
-///       will add pixels to the new event.
+///@brief Indicate to the Alpide that we are starting on a new event. If the call is
+///       successful a new MEB slice is created, and the next calls to setPixel will add pixels
+///       to the new event.
 ///@param event_time Simulation time when the event is pushed/latched into MEB
 ///                  (use current simulation time).
-void PixelMatrix::newEvent(uint64_t event_time)
+///@return True if successful and a new MEB slice was created. Returns false if a new MEB slice
+///        could not be created (happens only in triggered mode).
+bool PixelMatrix::newEvent(uint64_t event_time)
 {
   // Update the histogram value for the previous MEB size, with the duration
   // that has passed since the last update, before pushing this event to the MEBs
   unsigned int MEB_size = mColumnBuffs.size();
   mMEBHistogram[MEB_size] += event_time - mMEBHistoLastUpdateTime;
   mMEBHistoLastUpdateTime = event_time;
-      
+
+  // In continuous mode the Alpide chip always reserves 1 MEB slice for future events
+  // So if the 3rd MEB slice is being filled, then the chip will erase the oldest MEB
+  // slice (even if readout hasn't completed yet).
+  if(mContinuousMode == true && MEB_size == 2) {
+    // The event we are deleting has previously been marked as accepted,
+    // now change that to rejected
+    mTriggerEventsAccepted--;
+    mTriggerEventsRejected++;
+    
+    mColumnBuffsPixelsLeft.pop_front();
+    mColumnBuffs.pop();
+  }
+  // If 3 MEBs are already used in triggered mode, don't accept any new events
+  else if(mContinuousMode == false && MEB_size == 3) {
+    mTriggerEventsRejected++;
+    return false;
+  }
+
+  mTriggerEventsAccepted++;
   mColumnBuffs.push(std::vector<PixelDoubleColumn>(N_PIXEL_COLS/2));
-
-  #ifdef DEBUG_OUTPUT
-  std::cout << "Pushed new PixelDoubleColumn vector to mColumnBuffs." << std::endl;
-  std::cout << "mColumnBuffs.size(): " << mColumnBuffs.size() << std::endl;
-  std::cout << "mColumnBuffs.back().size(): " << mColumnBuffs.back().size() << std::endl;
-  #endif
-
-  // 0 hits so far for this event
-  mColumnBuffsPixelsLeft.push_back(int(0));
+  mColumnBuffsPixelsLeft.push_back(int(0)); // 0 hits so far for this event
+  
+  return true;
 }
 
 
@@ -133,8 +151,6 @@ PixelData PixelMatrix::readPixel(uint64_t event_time, int start_double_col, int 
       mColumnBuffsPixelsLeft.pop_front();
     }      
   }
-
-
 
   return pixel_retval;
 }

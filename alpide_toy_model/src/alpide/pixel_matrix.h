@@ -44,10 +44,25 @@ private:
 
   ///@brief Last time the MEB histogram was updated
   uint64_t mMEBHistoLastUpdateTime = 0;
+
+  ///@brief Number of (trigger) events that are accepted into an MEB by the chip
+  uint64_t mTriggerEventsAccepted = 0;
+
+  ///@brief Triggered mode: If 3 MEBs are already full, the chip will not accept more events
+  ///                       until one of those 3 MEBs have been read out. This variable is counted
+  ///                       up for each event that is not accepted.
+  ///       Continuous mode: The Alpide chip will always guarantee that there is a free MEB slice
+  ///                        in continuous mode. It does this by deleting the oldest MEB slice (even
+  ///                        if it has not been read out) when the 3rd one is filled. This variable
+  ///                        also counts up in that case.
+  uint64_t mTriggerEventsRejected = 0;
+
+  ///@brief True: Continuous, False: Triggered
+  bool mContinuousMode;
   
 public:
-  PixelMatrix();
-  void newEvent(uint64_t event_time);
+  PixelMatrix(bool continuous_mode);
+  bool newEvent(uint64_t event_time);
   void setPixel(unsigned int col, unsigned int row);
   PixelData readPixel(uint64_t event_time,
                       int start_double_col = 0,
@@ -56,6 +71,8 @@ public:
   int getNumEvents(void) {return mColumnBuffs.size();}
   int getHitsRemainingInOldestEvent(void);
   int getHitTotalAllEvents(void);
+  uint64_t getTriggerEventsAcceptedCount(void) const {return mTriggerEventsAccepted;}
+  uint64_t getTriggerEventsRejectedCount(void) const {return mTriggerEventsRejected;}
   std::map<unsigned int, std::uint64_t> getMEBHisto(void) const {
     return mMEBHistogram;
   }

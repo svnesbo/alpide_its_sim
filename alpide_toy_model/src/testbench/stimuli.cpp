@@ -81,7 +81,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   for(int i = 0; i < mNumChips; i++) {
     std::stringstream chip_name;
     chip_name << "alpide_" << i;
-    mAlpideChips[i] = new AlpideToyModel(chip_name.str().c_str(), i, write_vcd);
+    mAlpideChips[i] = new AlpideToyModel(chip_name.str().c_str(), i, write_vcd, mContinuousMode);
     mAlpideChips[i]->s_matrix_readout_clk_in(matrix_readout_clock);
   }
   
@@ -101,7 +101,7 @@ void Stimuli::stimuliMainProcess(void)
   
   int time_ns = 0;
 
-  int i = 0;
+  int event_num = 0;
 
   std::cout << "Staring simulation of " << mNumEvents << " events." << std::endl;
   
@@ -110,7 +110,8 @@ void Stimuli::stimuliMainProcess(void)
     if(mEvents->getTriggerEventCount() < mNumEvents) {
       if((mEvents->getTriggerEventCount() % 100) == 0) {
         int64_t time_now = sc_time_stamp().value();
-        std::cout << "@ " << time_now << " ns: \tGenerating strobe/event number " << i << std::endl;
+        std::cout << "@ " << time_now << " ns: \tGenerating strobe/event number ";
+        std::cout << event_num << std::endl;
       }
 
       if(mContinuousMode == true) {
@@ -130,7 +131,7 @@ void Stimuli::stimuliMainProcess(void)
         }
       }
 
-      i++;
+      event_num++;
     }
 
     // After all strobes have been generated, allow simulation to run until all events
@@ -200,8 +201,8 @@ void Stimuli::addTraces(sc_trace_file *wf) const
 }
 
 
-///@brief Write simulation data to file. Currently only histograms
-///       for MEB usage from the Alpide chips are recorded here
+///@brief Write simulation data to file. Histograms for MEB usage from the Alpide chips,
+///       and trigger event statistics (number of accepted/rejected) in the chips are recorded here
 void Stimuli::writeDataToFile(void) const
 {
   std::vector<std::map<unsigned int, std::uint64_t> > alpide_histos;
@@ -249,5 +250,16 @@ void Stimuli::writeDataToFile(void) const
       else
         csv_file << 0;
     }
+  }
+
+  
+  std::string trigger_stats_filename = mOutputPath + std::string("/trigger_events_stats.csv");
+  ofstream trigger_stats_file(trigger_stats_filename);
+
+  trigger_stats_file << "Chip ID; Accepted trigger events; Rejected trigger events" << std::endl;
+  for(auto it = mAlpideChips.begin(); it != mAlpideChips.end(); it++) {
+    trigger_stats_file << (*it)->getChipId() << ";";
+    trigger_stats_file << (*it)->getTriggerEventsAcceptedCount() << ";";
+    trigger_stats_file << (*it)->getTriggerEventsRejectedCount() << std::endl;
   }
 }

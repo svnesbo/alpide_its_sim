@@ -38,15 +38,6 @@ using std::int64_t;
 ///         different chips and over a chip's x/y coordinates.
 ///         For each hit a fixed 2x2 pixel cluster is generated on the chip (this might be replaced with a
 ///         more advanced random distribution in the future).
-///
-///@todo    Get rid off all the constructors. Lets only have one, and configure certain things (like what
-///         distribution for multiplicity to use) with functions. There is so much copy-paste between the
-///         3 constructors right now, which is hard to keep up to date everywhere.
-///@todo    Destructor! We have to clean up after ourselves!
-///@todo    It would be nice if these classes could create the data subdirectory themselves..
-///@todo    Get rid off all the constructors. Lets only have one, and configure certain things (like what
-///         distribution for multiplicity to use) with functions. There is so much copy-paste between the
-///         3 constructors right now, which is hard to keep up to date everywhere.
 class EventGenerator : sc_core::sc_module
 {
 public: // SystemC signals  
@@ -63,12 +54,6 @@ private:
   /// occur between a strobe, which are fed to the Alpide chips).
   /// Each Alpide chip has its own queue (corresponding to an index in the vector).
   std::vector<std::queue<TriggerEvent*> > mEventQueue;
-  
-  /// This is a pointer to the next trigger event which is "under construction".
-  ///  It is created on rising edge of strobe signal, and completed (and moved to mEventQueue) on
-  ///  the corresponding falling edge of the strobe signal.
-  ///@todo Remove?!
-  //TriggerEvent* mNextTriggerEvent = nullptr;
   
   /// New hits will be push at the back, and old (expired) hits popped at the front.
   /// We need to be able to iterate over the queue, so a normal std::queue would not work.
@@ -115,6 +100,8 @@ private:
   /// be filtered out (but their hits will still be stored).
   int mTriggerFilterTimeNs;
   bool mTriggerFilteringEnabled = false;
+  
+  bool mContinuousMode = false;
 
   ///@todo This is currently used.. remove or update code that uses it..
   std::string mDataPath = "data";
@@ -164,9 +151,6 @@ public:
   void enableWriteToDisk(void) {mWriteEventsToDisk = true;}
   void disableWriteToDisk(void) {mWriteEventsToDisk = false;}
   void setNumEventsInMemAllowed(int n);
-  void setTriggerFilterTime(int filter_time) {mTriggerFilterTimeNs = filter_time;}
-  void enableTriggerFiltering(void) {mTriggerFilteringEnabled = true;}
-  void disableTriggerFiltering(void) {mTriggerFilteringEnabled = false;}
   int getTriggerFilterTime(void) const {return mTriggerFilterTimeNs;}
   int getEventsInMem(void) const {return mEventQueue.size();}
   int getPhysicsEventCount(void) const {return mPhysicsEventCount;}

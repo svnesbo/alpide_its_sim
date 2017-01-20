@@ -13,8 +13,10 @@ SC_HAS_PROCESS(AlpideToyModel);
 ///@brief Constructor for AlpideToyModel.
 ///@param name    SystemC module name
 ///@param chip_id Desired chip id
-AlpideToyModel::AlpideToyModel(sc_core::sc_module_name name, int chip_id, bool enable_readout_traces)
+AlpideToyModel::AlpideToyModel(sc_core::sc_module_name name, int chip_id,
+                               bool enable_readout_traces, bool continuous_mode)
   : sc_core::sc_module(name)
+  , PixelMatrix(continuous_mode)
 {
   mChipId = chip_id;
   mEnableReadoutTraces = enable_readout_traces;
