@@ -8,6 +8,7 @@
 #include <TH1F.h>
 #include <TH1I.h>
 
+
 const std::string delim(";");
 
 const float chip_width_cm = 3.0;
@@ -18,6 +19,9 @@ int process_event_data(const char* csv_filename)
   std::string csv_filename_str = std::string(csv_filename);
   size_t csv_extension_start = csv_filename_str.find(".csv");
   std::string root_filename;
+
+  system("mkdir png");
+  system("mkdir pdf");
 
   // If we didn't find any /, then the CSV file must reside in the current directory
   if(csv_extension_start == std::string::npos) {
@@ -132,14 +136,31 @@ int process_event_data(const char* csv_filename)
   TCanvas* c1 = new TCanvas();
   h0->Draw();
   h0->Write();
+  
+  c1->Print("png/event_rate.png", "png");
+  c1->Print("pdf/event_rate.pdf", "pdf");
+  
   summary_file << "Mean delta t: " << h0->GetMean() << " ns" << std::endl;
   summary_file << "Average event rate: " << (int(1.0E9) / h0->GetMean()) / 1000 << " kHz" << std::endl;
+
+  
 
   TCanvas* c2 = new TCanvas();
   for(auto it = h_vector.begin(); it != h_vector.end(); it++) {
     (*it)->Draw();
     (*it)->Write();
     std::string plot_title = (*it)->GetTitle();
+    std::string plot_file_linear_png = std::string("png/") + plot_title + std::string("-linear.png");
+    std::string plot_file_linear_pdf = std::string("pdf/") + plot_title + std::string("-linear.pdf");
+    std::string plot_file_log_png = std::string("png/") + plot_title + std::string("-log.png");
+    std::string plot_file_log_pdf = std::string("pdf/") + plot_title + std::string("-log.pdf");    
+
+    c2->SetLogy(0);
+    c2->Print(plot_file_linear_png.c_str(), "png");
+    c2->Print(plot_file_linear_pdf.c_str(), "pdf");
+    c2->SetLogy(1);
+    c2->Print(plot_file_log_png.c_str(), "png");
+    c2->Print(plot_file_log_pdf.c_str(), "pdf");              
 
     summary_file << std::endl;          
     summary_file << plot_title << ": " << std::endl;
@@ -159,10 +180,12 @@ int process_event_data(const char* csv_filename)
       summary_file << "\tHit density: " << (*it)->GetMean()/(chip_width_cm*chip_height_cm) << " trace hits/cm^2" << std::endl;      
     }    
   }
-
+  
 
   return 0;
-  // Cleanup
+
+  
+  // Cleanup - makes the macro crash (lol?)
   delete h0;
   for(auto it = h_vector.begin(); it != h_vector.end(); it++)
     delete *it;
