@@ -1,20 +1,20 @@
 /**
- * @file   alpide_toy_model.h
+ * @file   alpide.h
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
- * @brief  Source file for AlpideToyModel class.
+ * @brief  Source file for Alpide class.
  */
 
-#include "alpide_toy_model.h"
+#include "alpide.h"
 #include <string>
 #include <sstream>
 
-SC_HAS_PROCESS(AlpideToyModel);
-///@brief Constructor for AlpideToyModel.
+SC_HAS_PROCESS(Alpide);
+///@brief Constructor for Alpide.
 ///@param name    SystemC module name
 ///@param chip_id Desired chip id
-AlpideToyModel::AlpideToyModel(sc_core::sc_module_name name, int chip_id,
-                               bool enable_readout_traces, bool continuous_mode)
+Alpide::Alpide(sc_core::sc_module_name name, int chip_id,
+               bool enable_readout_traces, bool continuous_mode)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
 {
@@ -31,7 +31,7 @@ AlpideToyModel::AlpideToyModel(sc_core::sc_module_name name, int chip_id,
 
 ///@brief Matrix readout SystemC method. This function is run one time per 40MHz clock cycle,
 ///       and will read out one pixel from each region (if there are pixels available in that region).
-void AlpideToyModel::matrixReadout(void)
+void Alpide::matrixReadout(void)
 {
   uint64_t time_now = sc_time_stamp().value();
   
@@ -50,7 +50,7 @@ void AlpideToyModel::matrixReadout(void)
 }
 
 
-void AlpideToyModel::addTraces(sc_trace_file *wf) const
+void Alpide::addTraces(sc_trace_file *wf) const
 {
   std::stringstream ss;
   ss << "alpide_" << mChipId << "/event_buffers_used";

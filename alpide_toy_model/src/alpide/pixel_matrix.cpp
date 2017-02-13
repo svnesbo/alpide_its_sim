@@ -6,7 +6,7 @@
  *
  *         Pixel matrix class comprises all the pixel regions, which allows to
  *         interface in terms of absolute coordinates with the pixel matrix.
- *         Special version for the Alpide toy model with no region readout.
+ *         Special version for the Alpide Dataflow SystemC model.
  */
 
 #include <iostream>

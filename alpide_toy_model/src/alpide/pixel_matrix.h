@@ -6,7 +6,7 @@
  *
  *         Pixel matrix class comprises all the pixel regions, which allows to
  *         interface in terms of absolute coordinates with the pixel matrix.
- *         Special version for the Alpide toy model with no region readout.
+ *         Special version for the Alpide Dataflow SystemC model.
  */
 
 #ifndef PIXEL_MATRIX_H
@@ -25,10 +25,6 @@ class PixelMatrix
 private:
   ///@brief mColumnBuffs holds multi event buffers of pixel columns
   ///       The queue represent the MEBs, and the vector the pixel columns.
-  ///       For the "toy model" the size of the queue is not limited to the 3
-  ///       MEBs found in the Alpide, we allow it to grow and will plot it's size
-  ///       over time in a histogram. The probabiity of of having the size > 3
-  ///       will essentially be a measure of BUSY in the MEBs.
   ///@todo  Implement event ID somewhere. Maybe make an MEB class, and use it as
   ///       the datatype for this queue?
   std::queue< std::vector<PixelDoubleColumn> > mColumnBuffs;

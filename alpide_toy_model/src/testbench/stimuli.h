@@ -2,13 +2,13 @@
  * @file   stimuli.h
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
- * @brief  Header file for stimuli function for Alpide SystemC model
+ * @brief  Header file for stimuli function for Alpide Dataflow SystemC model
  */
 
 #ifndef STIMULI_H
 #define STIMULI_H
 
-#include "../alpide/alpide_toy_model.h"
+#include "../alpide/alpide.h"
 #include "../event/event_generator.h"
 #include <QSettings>
 #include <string>
@@ -24,7 +24,7 @@ public:
 
 private:
   EventGenerator *mEvents;
-  std::vector<AlpideToyModel*> mAlpideChips;
+  std::vector<Alpide*> mAlpideChips;
   const QSettings* mSettings;
   std::string mOutputPath;
   bool simulation_done = false;

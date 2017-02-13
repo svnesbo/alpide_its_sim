@@ -2,12 +2,12 @@
  * @file   main.cpp
  * @author Simon Voigt Nesbo
  * @date   December 11, 2016
- * @brief  Main source file for Alpide "toy model" simulation testbench
+ * @brief  Main source file for Alpide Dataflow SystemC simulation testbench
  */
 
 #include "../settings/settings.h"
 #include "../event/event_generator.h"
-#include "../alpide/alpide_toy_model.h"
+#include "../alpide/alpide.h"
 #include "stimuli.h"
 #include <systemc.h>
 #include "boost/date_time/posix_time/posix_time.hpp"

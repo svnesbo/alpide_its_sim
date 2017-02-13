@@ -2,7 +2,7 @@
  * @file   stimuli.cpp
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
- * @brief  Source file for stimuli function for Alpide SystemC model
+ * @brief  Source file for stimuli function for Alpide Dataflow SystemC model
  */
 
 #include "stimuli.h"
@@ -46,7 +46,7 @@ void print_event_rate(const std::list<int>& t_delta_queue)
 
 SC_HAS_PROCESS(Stimuli);
 ///@brief Constructor for stimuli class.
-///       Instantiates and initializes the EventGenerator and AlpideToyModel objects,
+///       Instantiates and initializes the EventGenerator and Alpide objects,
 ///       connects the SystemC ports
 ///@param name SystemC module name
 ///@param settings QSettings object with simulation settings.
@@ -81,7 +81,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   for(int i = 0; i < mNumChips; i++) {
     std::stringstream chip_name;
     chip_name << "alpide_" << i;
-    mAlpideChips[i] = new AlpideToyModel(chip_name.str().c_str(), i, write_vcd, mContinuousMode);
+    mAlpideChips[i] = new Alpide(chip_name.str().c_str(), i, write_vcd, mContinuousMode);
     mAlpideChips[i]->s_matrix_readout_clk_in(matrix_readout_clock);
   }
   
