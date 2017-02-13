@@ -5,10 +5,11 @@
 CONFIG += debug c++11
 QT += xml
 TEMPLATE = app
-TARGET = alpide_toy_model
+TARGET = alpide_dataflow_model
 INCLUDEPATH += .
 INCLUDEPATH += $(SYSTEMC_HOME)/include
 DEFINES += SC_INCLUDE_DYNAMIC_PROCESSES
+
 
 LIBS += -L$(SYSTEMC_HOME)/lib-linux64
 LIBS += -lsystemc -lm -lboost_random
@@ -18,7 +19,7 @@ QMAKE_CFLAGS += -O2
 
 # Input
 HEADERS += src/alpide/alpide_constants.h \
-           src/alpide/alpide_toy_model.h \
+           src/alpide/alpide.h \
            src/alpide/pixel_col.h \
            src/alpide/pixel_matrix.h \
            src/event/trigger_event.h \
@@ -26,7 +27,7 @@ HEADERS += src/alpide/alpide_constants.h \
            src/event/hit.h \
            src/settings/settings.h \
            src/testbench/stimuli.h
-SOURCES += src/alpide/alpide_toy_model.cpp \
+SOURCES += src/alpide/alpide.cpp \
            src/alpide/pixel_col.cpp \
            src/alpide/pixel_matrix.cpp \
            src/event/trigger_event.cpp \
