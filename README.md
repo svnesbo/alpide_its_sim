@@ -1,7 +1,7 @@
 A simple Dataflow SystemC Model of ITS and the Alpide chip
 
 
-Building:
+### Building:
 
 - Requires qmake and boost libraries. On ubuntu, they can be installed with:
 
@@ -15,13 +15,13 @@ sudo apt-get install qt5-default
 sudo apt-get install libboost-all-dev
 ```
 
-To build:
+#### To build:
 ```
 cd alpide_dataflow_model
 make
 ```
 
-To run:
+### To run:
 ```
 ./alpide_dataflow_model
 ```
@@ -34,7 +34,7 @@ Simulation results will be saved in sim_output/Run <timestamp>/
 
 Simulation output is stored in alpide_dataflow_model/sim_output/<timestamp>/
 
-- To process simulation data:
+### To process simulation data:
 ```
 cd alpide_dataflow_model/sim_output/<timestamp>/
 root -b -q -l '../../process/process_event_data.C+("physics_events_data.csv")'
