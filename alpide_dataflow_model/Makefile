@@ -33,7 +33,7 @@ MOVE          = mv -f
 TAR           = tar -cf
 COMPRESS      = gzip -9f
 DISTNAME      = alpide_dataflow_model1.0.0
-DISTDIR = /home/simon/Code/SystemC/test/alice-its-alpide-lightweight-systemc/alpide_toy_model/.tmp/alpide_dataflow_model1.0.0
+DISTDIR = /home/simon/Code/SystemC/test2/alice-its-alpide-lightweight-systemc/alpide_dataflow_model/build/alpide_dataflow_model1.0.0
 LINK          = g++
 LFLAGS        = -m64
 LIBS          = $(SUBLIBS) -L/usr/X11R6/lib64 -L$(SYSTEMC_HOME)/lib-linux64 -lsystemc -lm -lboost_random -lQt5Gui -lQt5Xml -lQt5Core -lGL -lpthread 
@@ -44,7 +44,7 @@ STRIP         = strip
 
 ####### Output directory
 
-OBJECTS_DIR   = ./
+OBJECTS_DIR   = build/
 
 ####### Files
 
@@ -57,15 +57,15 @@ SOURCES       = src/alpide/alpide.cpp \
 		src/settings/settings.cpp \
 		src/testbench/main.cpp \
 		src/testbench/stimuli.cpp 
-OBJECTS       = alpide.o \
-		pixel_col.o \
-		pixel_matrix.o \
-		trigger_event.o \
-		event_generator.o \
-		hit.o \
-		settings.o \
-		main.o \
-		stimuli.o
+OBJECTS       = build/alpide.o \
+		build/pixel_col.o \
+		build/pixel_matrix.o \
+		build/trigger_event.o \
+		build/event_generator.o \
+		build/hit.o \
+		build/settings.o \
+		build/main.o \
+		build/stimuli.o
 DIST          = /usr/lib/x86_64-linux-gnu/qt5/mkspecs/features/spec_pre.prf \
 		/usr/lib/x86_64-linux-gnu/qt5/mkspecs/common/unix.conf \
 		/usr/lib/x86_64-linux-gnu/qt5/mkspecs/common/linux.conf \
@@ -372,7 +372,7 @@ compiler_clean:
 
 ####### Compile
 
-alpide.o: src/alpide/alpide.cpp src/alpide/alpide.h \
+build/alpide.o: src/alpide/alpide.cpp src/alpide/alpide.h \
 		src/alpide/pixel_matrix.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h \
@@ -521,18 +521,18 @@ alpide.o: src/alpide/alpide.cpp src/alpide/alpide.h \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_mf_cc.hpp \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/placeholders.hpp \
 		/usr/local/systemc-2.3.1/include/sysc/utils/sc_string.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o alpide.o src/alpide/alpide.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/alpide.o src/alpide/alpide.cpp
 
-pixel_col.o: src/alpide/pixel_col.cpp src/alpide/pixel_col.h \
+build/pixel_col.o: src/alpide/pixel_col.cpp src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o pixel_col.o src/alpide/pixel_col.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/pixel_col.o src/alpide/pixel_col.cpp
 
-pixel_matrix.o: src/alpide/pixel_matrix.cpp src/alpide/pixel_matrix.h \
+build/pixel_matrix.o: src/alpide/pixel_matrix.cpp src/alpide/pixel_matrix.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o pixel_matrix.o src/alpide/pixel_matrix.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/pixel_matrix.o src/alpide/pixel_matrix.cpp
 
-trigger_event.o: src/event/trigger_event.cpp src/event/trigger_event.h \
+build/trigger_event.o: src/event/trigger_event.cpp src/event/trigger_event.h \
 		src/event/hit.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h \
@@ -682,9 +682,9 @@ trigger_event.o: src/event/trigger_event.cpp src/event/trigger_event.h \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_mf_cc.hpp \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/placeholders.hpp \
 		/usr/local/systemc-2.3.1/include/sysc/utils/sc_string.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o trigger_event.o src/event/trigger_event.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/trigger_event.o src/event/trigger_event.cpp
 
-event_generator.o: src/event/event_generator.cpp src/event/event_generator.h \
+build/event_generator.o: src/event/event_generator.cpp src/event/event_generator.h \
 		src/event/trigger_event.h \
 		src/event/hit.h \
 		src/alpide/pixel_col.h \
@@ -835,17 +835,17 @@ event_generator.o: src/event/event_generator.cpp src/event/event_generator.h \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/bind_mf_cc.hpp \
 		$(SYSTEMC_HOME)/include/sysc/packages/boost/bind/placeholders.hpp \
 		/usr/local/systemc-2.3.1/include/sysc/utils/sc_string.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o event_generator.o src/event/event_generator.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/event_generator.o src/event/event_generator.cpp
 
-hit.o: src/event/hit.cpp src/event/hit.h \
+build/hit.o: src/event/hit.cpp src/event/hit.h \
 		src/alpide/pixel_col.h \
 		src/alpide/alpide_constants.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o hit.o src/event/hit.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/hit.o src/event/hit.cpp
 
-settings.o: src/settings/settings.cpp src/settings/settings.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o settings.o src/settings/settings.cpp
+build/settings.o: src/settings/settings.cpp src/settings/settings.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/settings.o src/settings/settings.cpp
 
-main.o: src/testbench/main.cpp src/settings/settings.h \
+build/main.o: src/testbench/main.cpp src/settings/settings.h \
 		src/event/event_generator.h \
 		src/event/trigger_event.h \
 		src/event/hit.h \
@@ -999,9 +999,9 @@ main.o: src/testbench/main.cpp src/settings/settings.h \
 		/usr/local/systemc-2.3.1/include/sysc/utils/sc_string.h \
 		src/alpide/alpide.h \
 		src/testbench/stimuli.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o src/testbench/main.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/main.o src/testbench/main.cpp
 
-stimuli.o: src/testbench/stimuli.cpp src/testbench/stimuli.h \
+build/stimuli.o: src/testbench/stimuli.cpp src/testbench/stimuli.h \
 		src/alpide/alpide.h \
 		src/alpide/pixel_matrix.h \
 		src/alpide/pixel_col.h \
@@ -1154,7 +1154,7 @@ stimuli.o: src/testbench/stimuli.cpp src/testbench/stimuli.h \
 		src/event/event_generator.h \
 		src/event/trigger_event.h \
 		src/event/hit.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o stimuli.o src/testbench/stimuli.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build/stimuli.o src/testbench/stimuli.cpp
 
 ####### Install
 

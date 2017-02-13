@@ -1,5 +1,4 @@
-A lightweight SystemC model of ITS and the Alpide chip
-
+A simple Dataflow SystemC Model of ITS and the Alpide chip
 
 
 Building:
@@ -14,13 +13,18 @@ Building:
 
 - To build:
 
-  cd alpide_toy_model
+  cd alpide_dataflow_model
   make
 
 - To run:
-  ./alpide_toy_model
+  ./alpide_dataflow_model
 
   The program requires a settings.txt file with simulation settings. If it does not exist, running the program generates a settings.txt file with default settings. This file can be edited and the simulation rerun to use those settings. The settings.txt file will not be overwritten.
   Simulation results will be saved in sim_output/Run <timestamp>/
 
+  Simulation output is stored in alpide_dataflow_model/sim_output/<timestamp>/
+
+- To process simulation data:
+  cd alpide_dataflow_model/sim_output/<timestamp>/
+  root -b -q -l '../../process/process_event_data.C+("physics_events_data.csv")'
 

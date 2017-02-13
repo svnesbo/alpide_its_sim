@@ -8,6 +8,7 @@ TEMPLATE = app
 TARGET = alpide_dataflow_model
 INCLUDEPATH += .
 INCLUDEPATH += $(SYSTEMC_HOME)/include
+OBJECTS_DIR = build
 DEFINES += SC_INCLUDE_DYNAMIC_PROCESSES
 
 
