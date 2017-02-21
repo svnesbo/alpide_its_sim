@@ -33,7 +33,7 @@ public:
 class AlpideIdle : AlpideDataWord
 {
 public:
-  AlpideIdleWord() {
+  AlpideIdle() {
     data[0] = DW_IDLE;
     data[1] = DW_IDLE;
     data[2] = DW_IDLE;    

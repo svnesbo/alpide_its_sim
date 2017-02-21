@@ -15,10 +15,11 @@ class TopReadoutUnit
 {
 public:
   // SystemC signals
-  sc_core::sc_fifo<AlpideDataWord> RRU_FIFOs[N_REGIONS];   // Is this a SystemC input?? Fix!!
+  sc_core::sc_fifo_in_if<AlpideDataWord> s_region_fifo_in[N_REGIONS];
+  sc_core::sc_in<bool> s_region_empty[N_REGIONS];
 
   ///@brief Output from TRU
-  sc_core::sc_fifo<AlpideDataWord> TRU_FIFO;   // Is this a SystemC output?? Fix!!
+  sc_core::sc_fifo_out_if<AlpideDataWord> s_tru_fifo_out;
 
   ///@brief Alpide chip clock (typically 40MHz)
   sc_in_clk s_clk_in;

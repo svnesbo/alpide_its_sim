@@ -11,6 +11,7 @@
 
 #include "pixel_matrix.h"
 #include <systemc.h>
+#include <vector>
 
 
 /// Alpide main class. Currently it only implements the MEBs, 
@@ -31,14 +32,21 @@ public:
 
   ///@brief Sum of all hits in all multi event buffers
   sc_signal<sc_uint<32> > s_total_number_of_hits;
+
+  ///@brief Region FIFOs
+  std::vector<sc_core::sc_fifo<AlpideDataWord>> s_region_fifos;
     
 private:
   int mChipId;
   bool mEnableReadoutTraces;
+
+  RegionReadoutUnit mRRU[N_REGIONS];
+  TopReadoutUnit mTRU;
+  
   void matrixReadout(void);
 
 public:
-  Alpide(sc_core::sc_module_name name, int chip_id,
+  Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
          bool enable_readout_traces, bool continuous_mode);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf) const;

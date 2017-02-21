@@ -20,10 +20,9 @@ class RegionReadoutUnit
 {
 public:
   // SystemC signals  
-  sc_core::sc_fifo<AlpideDataWord> RRU_FIFO;  ///@todo Is this a SystemC input?? Fix!
-  sc_out<bool> s_region_empty;
-  sc_out<std::uint16_t> s_fifo_size;
-  sc_out<bool> s_fifo_empty;
+  sc_core::sc_fifo_out_if<AlpideDataWord> s_region_fifo_out;
+  sc_out<bool> s_region_empty_out;
+  sc_out<std::uint16_t> s_fifo_size_out;
   sc_out<bool> s_busy_out;
   
 private:
@@ -32,6 +31,10 @@ private:
 
   /// Corresponds to pixel address in DATA SHORT/LONG words, in priority encoder order
   std::uint8_t mPixelHitBaseAddr;
+
+  /// Corresponds to priority encoder id in DATA SHORT/LONG words, which is the
+  /// priority encoder id (within the current region) that the current pixel belongs to.
+  std::uint8_t mPixelHitEncoderId;
 
   /// Corresponds to hitmap in DATA LONG word
   std::uint8_t mPixelHitmap;
@@ -50,7 +53,7 @@ private:
 
 public:
   RegionReadoutUnit(unsigned int region_num, unsigned int fifo_size);
-  void readoutNextPixel(PixelMatrix& matrix);
+  void readoutNextPixel(PixelMatrix& matrix, uint64_t time_now);
 };
 
 

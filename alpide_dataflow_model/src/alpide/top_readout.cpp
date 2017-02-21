@@ -12,48 +12,72 @@
 
 
 void TopReadoutUnit::topRegionReadoutProcess(void)
-{
-  // Find next region to read out, if we are done with current region
-  while(s_region_empty[mCurrentRegion]) {
-    mCurrentRegion++;
-    if(mCurrentRegion == N_REGIONS) {
-      ; // READOUT DONE!
-      // Set some signal indicating that readout is done..
-    }
-  }
-
-  AlpideDataWord data;
-  if(RRU_FIFO[mCurrentRegion].read_nb(data)) {
-    // Data successfully read out, process here
-    // Put into TRU's output FIFO
-    // Then add a DMU interface class, which depending on
-    // parallel or serial output will strip of IDLE's etc.
-    // ONLY IMPLEMENT SERIAL FOR NOW
-  }
-}
-
-
-
-
-///@todo Old stuff, remove?
-
-TopReadoutUnit::TopReadoutUnit()
-{
-  current_region = 0;
-}
-
-
-TopReadoutUnit::getNextFifoWord(void)
-{
-  // Find the next RRU FIFO that has data
-  for(int i = 0; i < N_REGIONS; i++) {
-    if(RRU[current_region].getFifoSize() > 0)
+{ 
+  if(s_tru_fifo_out.num_free() > 0) {
+    switch(mTRUState) {
+    case CHIP_HEADER:
+      s_tru_fifo_out.write(AlpideChipHeader(mChipId, mBunchCounter));
+      if(getHitsRemainingInOldestEvent() == 0)
+        mTRUState = CHIP_EMPTY_FRAME;
+      else {
+        mCurrentRegion = 0;
+        mTRUState = REGION_HEADER;
+      }
       break;
-    
-    current_region++;
-    if(current_region >= N_REGIONS)
-      current_region=0;
-  }
+      
+    case CHIP_EMPTY_FRAME:
+      s_tru_fifo_out.write(AlpideChipEmptyFrame(mChipId, mBunchCounter));
+      mTRUState = CHIP_TRAILER;
+      break;
+      
+    case REGION_HEADER:
+      // Find the next region that has data
+      while(s_region_empty[mCurrentRegion].read() == false &&
+            s_region_fifo_in[mCurrentRegion].num_available() == 0 &&
+            mCurrentRegion < N_REGIONS) {
+        mCurrentRegion++;
+      }
 
-  
+      if(mCurrentRegion < N_REGIONS) {
+        mTRUState = REGION_DATA;
+        break;
+      }
+      // Allow program to continue into CHIP_TRAILER
+      // state if we have read out all regions
+      mTRUState = CHIP_TRAILER;
+      
+    case CHIP_TRAILER:
+      ///@todo Implement some readout flags here?
+      int readout_flags = 0;
+      s_tru_fifo_out.write(AlpideChipTrailer(readout_flags));
+
+      if(getNumEvents() > 0)
+        mTRUState = CHIP_HEADER;
+      else
+        mTRUState = IDLE;
+      break;
+      
+    case REGION_DATA:
+      if(s_region_fifo_in[mCurrentRegion].num_available() > 0)
+        s_tru_fifo_out.write(s_region_fifo_in[mCurrentRegion].read_nb());
+      else {
+        if(mCurrentRegion = (N_REGIONS-1))
+          mTRUState = CHIP_TRAILER;
+        else
+          mTRUState = REGION_HEADER;
+      }
+      break;
+      
+    case IDLE:
+      s_tru_fifo_out.write(AlpideIdle());
+
+      if(getNumEvents() > 0)
+        mTRUState = CHIP_HEADER;
+      
+      break;
+    }
+    
+  } else { // TRU FIFO Full
+    // Do something smart here.. do we need to signal busy?
+  }
 }

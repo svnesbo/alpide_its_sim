@@ -34,16 +34,25 @@ private:
 public:
   PixelData(int col = 0, int row = 0) : mCol(col), mRow(row) {}
   PixelData(const PixelData& p) : mCol(p.mCol), mRow(p.mRow) {}
-  int getCol(void) const {return mCol;}
-  int getRow(void) const {return mRow;}
-  int getPriEncPixelAddress(void) const {return 2*mCol + ((mCol&1)^(mRow&1));}
-  void setCol(const int col) {mCol = col;}
-  void setRow(const int row) {mRow = row;}
   bool operator==(const PixelData& rhs) const;
   bool operator>(const PixelData& rhs) const;
   bool operator<(const PixelData& rhs) const;
   bool operator>=(const PixelData& rhs) const;
   bool operator<=(const PixelData& rhs) const;
+  int getCol(void) const {return mCol;}
+  int getRow(void) const {return mRow;}
+  void setCol(const int col) {mCol = col;}
+  void setRow(const int row) {mRow = row;}
+
+  ///@brief Get the "address" of this pixel within it's double column, that is
+  /// the priority that this pixel has in the priority encoder would.
+  ///@return Pixel's priority encoder address/priority
+  unsigned int getPriEncPixelAddress(void) const {return 2*mCol + ((mCol&1)^(mRow&1));}
+
+  ///@brief Get the priority encoder that this pixel (column) belongs to,
+  ///       within the column's region. Hardcoded for 16 double columns per region
+  ///@return Priority encoder number. 
+  unsigned int getPriEncNumInRegion(void) const {return (mCol>>1) & 0x0F;}
 };
 
 const PixelData NoPixelHit(-1,-1);
