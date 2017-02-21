@@ -42,6 +42,13 @@ void Alpide::matrixReadout(void)
     // Update signal with total number of hits in all event buffers
     s_total_number_of_hits = getHitTotalAllEvents();
   }
+
+
+  
+  ///@todo Rewrite this... Iterate over RRU class objects, call the RRUs' readoutNextPixel(),
+  ///      and let the RRUs read out the pixels from the pixel matrix.
+  ///      This allows the readout of pixels to be controlled by the priority encoder clock,
+  ///      but the readout from the FIFOs can be done from a process running at a higher clock rate
   
   // Read out a pixel from each region in the matrix
   for(int region_num = 0; region_num < N_REGIONS; region_num++) {

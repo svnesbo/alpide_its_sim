@@ -36,6 +36,7 @@ public:
   PixelData(const PixelData& p) : mCol(p.mCol), mRow(p.mRow) {}
   int getCol(void) const {return mCol;}
   int getRow(void) const {return mRow;}
+  int getPriEncPixelAddress(void) const {return 2*mCol + ((mCol&1)^(mRow&1));}
   void setCol(const int col) {mCol = col;}
   void setRow(const int row) {mRow = row;}
   bool operator==(const PixelData& rhs) const;
