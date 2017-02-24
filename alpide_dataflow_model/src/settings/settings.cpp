@@ -67,6 +67,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["event/strobe_active_length_ns"] = DEFAULT_EVENT_STROBE_ACTIVE_LENGTH_NS;
   defaultSettings["event/strobe_inactive_length_ns"] = DEFAULT_EVENT_STROBE_INACTIVE_LENGTH_NS;  
 
+  defaultSettings["alpide/clustering_enable"] = DEFAULT_ALPIDE_CLUSTERING_ENABLE;
   defaultSettings["alpide/region_fifo_size"] = DEFAULT_ALPIDE_REGION_FIFO_SIZE;
   defaultSettings["alpide/region_size"] = DEFAULT_ALPIDE_REGION_SIZE;
   defaultSettings["alpide/pixel_shaping_dead_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_DEAD_TIME_NS;

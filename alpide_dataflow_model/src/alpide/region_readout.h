@@ -10,6 +10,7 @@
 #define REGION_READOUT_H
 
 #include "alpide_data_format.h"
+#include "pixel_matrix.h"
 #include <systemc.h>
 #include <cstdint>
 
@@ -23,15 +24,14 @@ public:
   // SystemC signals  
   sc_port<sc_fifo_out_if<AlpideDataWord> > s_region_fifo_out;
   sc_out<bool> s_region_empty_out;
-  sc_out<std::uint16_t> s_fifo_size_out;
   sc_out<bool> s_busy_out;
   
 private:
   /// The region handled by this RRU
-  unsigned int mRegion;
+  unsigned int mRegionId;
 
   /// Corresponds to pixel address in DATA SHORT/LONG words, in priority encoder order
-  std::uint8_t mPixelHitBaseAddr;
+  std::uint16_t mPixelHitBaseAddr;
 
   /// Corresponds to priority encoder id in DATA SHORT/LONG words, which is the
   /// priority encoder id (within the current region) that the current pixel belongs to.

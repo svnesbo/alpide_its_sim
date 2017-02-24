@@ -15,7 +15,7 @@
 
 enum TRU_state_t {CHIP_HEADER, CHIP_EMPTY_FRAME, REGION_HEADER, CHIP_TRAILER, REGION_DATA, IDLE};
 
-class TopReadoutUnit
+class TopReadoutUnit : sc_core::sc_module
 {
 public:
   // SystemC signals
@@ -30,10 +30,12 @@ public:
   
 private:
   unsigned int mCurrentRegion;
+  unsigned int mChipId;
+  unsigned int mBunchCounter;
   TRU_state_t mTRUState;
   
 public:
-  TopReadoutUnit();
+  TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);
   void topRegionReadoutProcess(void);
 };
 

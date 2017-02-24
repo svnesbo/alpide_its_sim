@@ -9,6 +9,7 @@
 #define ALPIDE_DATA_FORMAT_H
 
 #include <cstdint>
+#include <ostream>
 
 using std::uint8_t;
 
@@ -28,10 +29,20 @@ const uint8_t DW_BUSY_OFF = 0b11110000;
 class AlpideDataWord
 {
 public:
-  uint8_t data[3];
+  uint8_t data[3];  
 };
 
-class AlpideIdle : AlpideDataWord
+///@todo Overload this for all AlpideDataWord classes, so SystemC can print them to trace files properly?
+std::ostream& operator<< (std::ostream& stream, const AlpideDataWord& alpide_dw) {
+  stream << "0x";
+  stream << std::hex << alpide_dw.data[0];
+  stream << std::hex << alpide_dw.data[1];
+  stream << std::hex << alpide_dw.data[2];
+  return stream;
+}  
+
+
+class AlpideIdle : public AlpideDataWord
 {
 public:
   AlpideIdle() {
@@ -42,7 +53,7 @@ public:
 };
 
 
-class AlpideChipHeader : AlpideDataWord
+class AlpideChipHeader : public AlpideDataWord
 {
 public:
   AlpideChipHeader(uint8_t chip_id, uint16_t bunch_counter) {
@@ -56,7 +67,7 @@ public:
 };
 
 
-class AlpideChipTrailer : AlpideDataWord
+class AlpideChipTrailer : public AlpideDataWord
 {
 public:
   AlpideChipTrailer(uint8_t readout_flags) {
@@ -67,7 +78,7 @@ public:
 };
 
 
-class AlpideChipEmptyFrame : AlpideDataWord
+class AlpideChipEmptyFrame : public AlpideDataWord
 {
 public:
   AlpideChipEmptyFrame(uint8_t chip_id, uint16_t bunch_counter) {
@@ -81,7 +92,7 @@ public:
 };
 
 
-class AlpideRegionHeader : AlpideDataWord
+class AlpideRegionHeader : public AlpideDataWord
 {
 public:
   AlpideRegionHeader(uint8_t region_id) {
@@ -92,29 +103,29 @@ public:
 };
 
 
-class AlpideDataShort : AlpideDataWord
+class AlpideDataShort : public AlpideDataWord
 {
 public:
   AlpideDataShort(uint8_t encoder_id, uint16_t addr) {
-    data[0] = DW_DATA_SHORT | ((encoder_id & 0x0F) << 4) | (addr >> 8);
+    data[0] = DW_DATA_SHORT | ((encoder_id & 0x0F) << 4) | ((addr >> 8) & 0x03);
     data[1] = addr & 0xFF;
     data[2] = DW_IDLE;
   }
 };
 
 
-class AlpideDataLong : AlpideDataWord
+class AlpideDataLong : public AlpideDataWord
 {
 public:
   AlpideDataLong(uint8_t encoder_id, uint16_t addr, uint8_t hitmap) {
-    data[0] = DW_DATA_LONG | ((encoder_id & 0x0F) << 4) | (addr >> 8);
+    data[0] = DW_DATA_LONG | ((encoder_id & 0x0F) << 4) | ((addr >> 8) & 0x03);
     data[1] = addr & 0xFF;
     data[2] = hitmap & 0x7F;
   }
 };
 
 
-class AlpideBusyOn : AlpideDataWord
+class AlpideBusyOn : public AlpideDataWord
 {
 public:
   AlpideBusyOn() {
@@ -125,7 +136,7 @@ public:
 };
 
 
-class AlpideBusyOff : AlpideDataWord
+class AlpideBusyOff : public AlpideDataWord
 {
 public:
   AlpideBusyOff() {

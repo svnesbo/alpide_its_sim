@@ -9,10 +9,13 @@
 #include "top_readout.h"
 
 
-TopReadoutUnit::TopReadoutUnit()
-  : mCurrentRegion(0)
+TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id)
+  : sc_core::sc_module(name)
+  , mChipId(chip_id)
   , mTRUState(IDLE)
 {
+  mCurrentRegion = 0;
+  
   SC_METHOD(topRegionReadoutProcess);
   sensitive_pos << s_clk_in;  
 }
@@ -22,11 +25,16 @@ TopReadoutUnit::TopReadoutUnit()
 ///       The regions are read out in ascending order, and each event is encapsulated with
 ///       a CHIP_HEADER and CHIP_TRAILER word. 
 void TopReadoutUnit::topRegionReadoutProcess(void)
-{ 
-  if(s_tru_fifo_out.num_free() > 0) {
+{
+  // Bunch counter wraps around each orbit
+  mBunchCounter++;
+  if(mBunchCounter == LHC_ORBIT_BUNCH_COUNT)
+    mBunchCounter = 0;
+    
+  if(s_tru_fifo_out->num_free() > 0) {
     switch(mTRUState) {
     case CHIP_HEADER:
-      s_tru_fifo_out.write(AlpideChipHeader(mChipId, mBunchCounter));
+      s_tru_fifo_out->nb_write(AlpideChipHeader(mChipId, mBunchCounter));
       if(getHitsRemainingInOldestEvent() == 0)
         mTRUState = CHIP_EMPTY_FRAME;
       else {
@@ -36,7 +44,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       break;
       
     case CHIP_EMPTY_FRAME:
-      s_tru_fifo_out.write(AlpideChipEmptyFrame(mChipId, mBunchCounter));
+      s_tru_fifo_out->nb_write(AlpideChipEmptyFrame(mChipId, mBunchCounter));
       mTRUState = CHIP_TRAILER;
       break;
       
@@ -52,7 +60,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       
       if(mCurrentRegion < N_REGIONS) {
         mTRUState = REGION_DATA;        
-        s_tru_fifo_out.write(AlpideRegionHeader(mCurrentRegion));
+        s_tru_fifo_out->nb_write(AlpideRegionHeader(mCurrentRegion));
         break;
       } else {
         // No break here - Allow program to continue into
@@ -63,7 +71,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     case CHIP_TRAILER:
       ///@todo Implement some readout flags here?
       int readout_flags = 0;
-      s_tru_fifo_out.write(AlpideChipTrailer(readout_flags));
+      s_tru_fifo_out->nb_write(AlpideChipTrailer(readout_flags));
 
       if(getNumEvents() > 0)
         mTRUState = CHIP_HEADER;
@@ -73,10 +81,10 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 
     case REGION_DATA:
       if(s_region_fifo_in[mCurrentRegion].num_available() > 0) {
-        s_tru_fifo_out.write(s_region_fifo_in[mCurrentRegion].read_nb());
+        s_tru_fifo_out->nb_write(s_region_fifo_in[mCurrentRegion].read_nb());
       } else {
         // Insert IDLE if the region FIFO is currently empty
-        s_tru_fifo_out.write(AlpideIdle());
+        s_tru_fifo_out->nb_write(AlpideIdle());
       }
 
       // Is the region empty, and was this the last word in the region FIFO?
@@ -91,7 +99,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       break;
       
     case IDLE:
-      s_tru_fifo_out.write(AlpideIdle());
+      s_tru_fifo_out->nb_write(AlpideIdle());
 
       if(getNumEvents() > 0)
         mTRUState = CHIP_HEADER;

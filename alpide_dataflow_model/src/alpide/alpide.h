@@ -15,6 +15,7 @@
 #include "top_readout.h"
 #include <systemc.h>
 #include <vector>
+#include <list>
 
 
 /// Alpide main class. Currently it only implements the MEBs, 
@@ -40,20 +41,20 @@ public:
   sc_signal<sc_uint<32> > s_total_number_of_hits;
 
   ///@brief Region FIFOs
-  std::vector<sc_core::sc_fifo<AlpideDataWord>> s_region_fifos;
+  std::vector<sc_fifo<AlpideDataWord>*> s_region_fifos;
     
 private:
   int mChipId;
   bool mEnableReadoutTraces;
 
-  RegionReadoutUnit mRRU[N_REGIONS];
-  TopReadoutUnit mTRU;
+  std::vector<RegionReadoutUnit*> mRRUs;
+  TopReadoutUnit* mTRU;
   
   void matrixReadout(void);
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-         bool enable_readout_traces, bool continuous_mode);
+         bool enable_readout_traces, bool enable_clustering, bool continuous_mode);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf) const;
 };

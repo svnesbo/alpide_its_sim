@@ -15,7 +15,8 @@ SC_HAS_PROCESS(Alpide);
 ///@param name    SystemC module name
 ///@param chip_id Desired chip id
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               bool enable_readout_traces, bool continuous_mode)
+               bool enable_readout_traces, bool enable_clustering,
+               bool continuous_mode)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
 {
@@ -25,19 +26,27 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   s_event_buffers_used = 0;
   s_total_number_of_hits = 0;
 
+  mTRU = new TopReadoutUnit("TRU", chip_id);
 
   // Allocate/create/name SystemC FIFOs for the regions and connect the
   // Region Readout Units (RRU) FIFO outputs to Top Readout Unit (TRU) FIFO inputs
   s_region_fifos.reserve(N_REGIONS);
+  mRRUs.reserve(N_REGIONS);
   for(int i = 0; i < N_REGIONS; i++) {
-    std::stringstream ss << "region_" << i << "_fifo";    
-    s_region_fifos.emplace_back(ss.str(), region_fifo_size);
+    std::stringstream ss;
+    ss << "RRU_" << i;
+    mRRUs[i] = new RegionReadoutUnit(ss.str().c_str(), i, region_fifo_size, enable_clustering);
+//    mRRUs.emplace_back(ss.str().c_str(), i, region_fifo_size, enable_clustering);
+
+    ss << "_FIFO";
+    s_region_fifos[i] = new sc_fifo<AlpideDataWord>;
+//    s_region_fifos.emplace_back(ss.str().c_str(), region_fifo_size);
                                 
-    mRRU[i].s_region_fifo_out(s_region_fifo.back());
-    mTRU.s_region_fifo_in[i](s_region_fifo.back());
+    mRRUs[i]->s_region_fifo_out(*s_region_fifos[i]);
+    mTRU->s_region_fifo_in[i](*s_region_fifos[i]);
   }
 
-  mTRU.s_clk_in(s_system_clk_in);
+  mTRU->s_clk_in(s_system_clk_in);
   
   SC_METHOD(matrixReadout);
   sensitive_pos << s_matrix_readout_clk_in;
@@ -67,7 +76,7 @@ void Alpide::matrixReadout(void)
   
   // Read out a pixel from each region in the matrix
   for(int region_num = 0; region_num < N_REGIONS; region_num++) {
-    mRRU[region_num].readoutNextPixel(*this, time_now);
+    mRRUs[region_num]->readoutNextPixel(*this, time_now);
   }
 }
 
