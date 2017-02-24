@@ -86,6 +86,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     mAlpideChips[i] = new Alpide(chip_name.str().c_str(), i,
                                  region_fifo_size,write_vcd, mContinuousMode);
     mAlpideChips[i]->s_matrix_readout_clk_in(matrix_readout_clock);
+    mAlpideChips[i]->s_system_clk_in(clock);
   }
   
   SC_CTHREAD(stimuliMainProcess, clock.pos());

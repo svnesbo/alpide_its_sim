@@ -13,7 +13,8 @@
 ///@param region_num The region number that this RRU is assigned to
 ///@param fifo_size  Size limit on the RRU's FIFO
 ///@param cluster_enable Enable/disable clustering and use of DATA LONG data words
-RegionReadoutUnit::RegionReadoutUnit(unsigned int region_num,
+RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
+                                     unsigned int region_num,
                                      unsigned int fifo_size,
                                      bool cluster_enable)
   : mRegion(region_num)

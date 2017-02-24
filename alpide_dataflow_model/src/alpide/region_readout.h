@@ -9,6 +9,7 @@
 #ifndef REGION_READOUT_H
 #define REGION_READOUT_H
 
+#include "alpide_data_format.h"
 #include <systemc.h>
 #include <cstdint>
 
@@ -16,11 +17,11 @@
 /// It has a member function that accepts pixel hits inputs, the RRU class will hold on to
 /// these pixels to determine if there are several pixels in the same cluster, and then put
 /// DATA_LONG or DATA_SHORT words into a SystemC FIFO.
-class RegionReadoutUnit
+class RegionReadoutUnit : sc_core::sc_module
 {
 public:
   // SystemC signals  
-  sc_core::sc_fifo_out_if<AlpideDataWord> s_region_fifo_out;
+  sc_port<sc_fifo_out_if<AlpideDataWord> > s_region_fifo_out;
   sc_out<bool> s_region_empty_out;
   sc_out<std::uint16_t> s_fifo_size_out;
   sc_out<bool> s_busy_out;
@@ -52,7 +53,8 @@ private:
   bool mClusterStarted;
 
 public:
-  RegionReadoutUnit(unsigned int region_num, unsigned int fifo_size);
+  RegionReadoutUnit(sc_core::sc_module_name name, unsigned int region_num,
+                    unsigned int fifo_size, bool cluster_enable);
   void readoutNextPixel(PixelMatrix& matrix, uint64_t time_now);
 };
 

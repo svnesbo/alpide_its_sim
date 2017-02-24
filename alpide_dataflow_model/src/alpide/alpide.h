@@ -9,7 +9,10 @@
 #define ALPIDE_H
 
 
+#include "alpide_data_format.h"
 #include "pixel_matrix.h"
+#include "region_readout.h"
+#include "top_readout.h"
 #include <systemc.h>
 #include <vector>
 
@@ -26,6 +29,9 @@ public:
   ///       50 ns period is used for reading out from the priority encoders,
   ///       too allow the asynchronous encoder logic time to settle..
   sc_in_clk s_matrix_readout_clk_in;
+
+  ///@brief 40MHz LHC clock
+  sc_in_clk s_system_clk_in;
 
   ///@brief Number of events stored in the chip at any given time
   sc_signal<sc_uint<8> > s_event_buffers_used;

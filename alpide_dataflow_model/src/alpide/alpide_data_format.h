@@ -12,7 +12,8 @@
 
 using std::uint8_t;
 
-
+/// Alpide data words. The MSBs identify datawords, the LSBs are parameters.
+/// Note: there is not a fixed width for the MSB identifier part.
 const uint8_t DW_IDLE = 0b11111111;
 const uint8_t DW_CHIP_HEADER = 0b10100000;
 const uint8_t DW_CHIP_TRAILER = 0b10110000;
@@ -49,7 +50,7 @@ public:
     uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
     
     data[0] = DW_CHIP_HEADER | (chip_id & 0x0F);
-    data[1] = bunch_counter;
+    data[1] = bc_masked;
     data[2] = DW_IDLE;
   }
 };
@@ -59,7 +60,7 @@ class AlpideChipTrailer : AlpideDataWord
 {
 public:
   AlpideChipTrailer(uint8_t readout_flags) {
-    data[0] = DW_CHIP_TRAILER | (readout_flags x 0x0F);
+    data[0] = DW_CHIP_TRAILER | (readout_flags & 0x0F);
     data[1] = DW_IDLE;
     data[2] = DW_IDLE;
   }
@@ -74,7 +75,7 @@ public:
     uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
     
     data[0] = DW_CHIP_EMPTY_FRAME | (chip_id & 0x0F);
-    data[1] = bunch_counter;
+    data[1] = bc_masked;
     data[2] = DW_IDLE;
   }
 };
@@ -102,7 +103,7 @@ public:
 };
 
 
-class AlpideDataShort : AlpideDataWord
+class AlpideDataLong : AlpideDataWord
 {
 public:
   AlpideDataLong(uint8_t encoder_id, uint16_t addr, uint8_t hitmap) {

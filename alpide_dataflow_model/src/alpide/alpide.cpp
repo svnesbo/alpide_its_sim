@@ -36,12 +36,11 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     mRRU[i].s_region_fifo_out(s_region_fifo.back());
     mTRU.s_region_fifo_in[i](s_region_fifo.back());
   }
+
+  mTRU.s_clk_in(s_system_clk_in);
   
   SC_METHOD(matrixReadout);
   sensitive_pos << s_matrix_readout_clk_in;
-
-  SC_METHOD(mTRU.topRegionReadoutProcess);
-  sensitive_pos << s_clk_in;
 }
 
 
