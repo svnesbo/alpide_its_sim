@@ -98,3 +98,24 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
     s_busy_out.write(true);
   }
 }
+
+
+///@brief Add SystemC signals to log in VCD trace file.
+///@param wf Pointer to VCD trace file object
+///@param name_prefix Name prefix to be added to all the trace names
+void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
+{
+  std::stringstream ss;
+  ss << name_prefix << "RRU_" << mRegionId << "/";
+  std::string region_name_prefix = ss.str();
+
+  ss.str("");
+  ss << region_name_prefix << "region_empty_out";
+  std::string str_region_empty_out(ss.str());
+  sc_trace(wf, s_region_empty_out, str_region_empty_out);
+  
+  ss.str("");
+  ss << region_name_prefix << "busy_out";
+  std::string str_busy_out(ss.str());
+  sc_trace(wf, s_busy_out, str_busy_out);
+}

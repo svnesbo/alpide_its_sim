@@ -24,7 +24,7 @@ public:
   // SystemC signals  
   sc_port<sc_fifo_out_if<AlpideDataWord> > s_region_fifo_out;
   sc_out<bool> s_region_empty_out;
-  sc_out<bool> s_busy_out;
+  sc_signal<bool> s_busy_out;
   
 private:
   /// The region handled by this RRU
@@ -56,6 +56,7 @@ public:
   RegionReadoutUnit(sc_core::sc_module_name name, unsigned int region_num,
                     unsigned int fifo_size, bool cluster_enable);
   void readoutNextPixel(PixelMatrix& matrix, uint64_t time_now);
+  void addTraces(sc_trace_file *wf, std::string name_prefix) const;  
 };
 
 

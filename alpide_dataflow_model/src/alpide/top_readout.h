@@ -11,6 +11,7 @@
 #include "region_readout.h"
 #include "alpide_constants.h"
 #include <systemc.h>
+#include <string>
 
 
 enum TRU_state_t {CHIP_HEADER, CHIP_EMPTY_FRAME, REGION_HEADER, CHIP_TRAILER, REGION_DATA, IDLE};
@@ -20,7 +21,7 @@ class TopReadoutUnit : sc_core::sc_module
 public:
   // SystemC signals
   sc_port<sc_fifo_in_if<AlpideDataWord> > s_region_fifo_in[N_REGIONS];
-  sc_in<bool> s_region_empty[N_REGIONS];
+  sc_in<bool> s_region_empty_in[N_REGIONS];
   sc_in<sc_uint<32> > s_current_event_hits_left_in;
   sc_in<sc_uint<8> > s_event_buffers_used_in;
 
@@ -39,6 +40,7 @@ private:
 public:
   TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);
   void topRegionReadoutProcess(void);
+  void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 
 

@@ -16,6 +16,7 @@
 #include <systemc.h>
 #include <vector>
 #include <list>
+#include <string>
 
 
 /// Alpide main class. Currently it only implements the MEBs, 
@@ -35,16 +36,19 @@ public:
   sc_in_clk s_system_clk_in;
 
   ///@brief Number of events stored in the chip at any given time
-  sc_out<sc_uint<8> > s_event_buffers_used_out;
+  sc_signal<sc_uint<8> > s_event_buffers_used;
 
   ///@brief Sum of all hits in all multi event buffers
   sc_signal<sc_uint<32> > s_total_number_of_hits;
 
   ///@brief Number of hits in oldest multi event buffer
-  sc_out<sc_uint<32> > s_oldest_event_number_of_hits_out;
+  sc_signal<sc_uint<32> > s_oldest_event_number_of_hits;
+
+  sc_signal<bool> s_region_empty[N_REGIONS];
 
   ///@brief Region FIFOs
-  std::vector<sc_fifo<AlpideDataWord>*> s_region_fifos;
+  sc_fifo<AlpideDataWord> s_region_fifos[N_REGIONS];
+  sc_fifo<AlpideDataWord> s_top_readout_fifo;
     
 private:
   int mChipId;
@@ -59,7 +63,7 @@ public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
          bool enable_readout_traces, bool enable_clustering, bool continuous_mode);
   int getChipId(void) {return mChipId;}
-  void addTraces(sc_trace_file *wf) const;
+  void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 
 

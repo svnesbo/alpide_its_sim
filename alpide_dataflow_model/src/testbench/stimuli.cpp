@@ -206,7 +206,7 @@ void Stimuli::addTraces(sc_trace_file *wf) const
   sc_trace(wf, s_physics_event, "PHYSICS_EVENT");
   
   for(auto it = mAlpideChips.begin(); it != mAlpideChips.end(); it++) {
-    (*it)->addTraces(wf);
+    (*it)->addTraces(wf, "");
   }
 }
 

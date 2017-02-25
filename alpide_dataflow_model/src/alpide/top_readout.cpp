@@ -53,7 +53,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       
     case REGION_HEADER:
       // Find the next region that has data
-      while(s_region_empty[mCurrentRegion].read() == false &&
+      while(s_region_empty_in[mCurrentRegion].read() == false &&
             s_region_fifo_in[mCurrentRegion]->num_available() == 0 &&
             mCurrentRegion < N_REGIONS)
       {
@@ -92,7 +92,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       }
 
       // Is the region empty, and was this the last word in the region FIFO?
-      if(s_region_empty[mCurrentRegion].read() == false &&
+      if(s_region_empty_in[mCurrentRegion].read() == false &&
             s_region_fifo_in[mCurrentRegion]->num_available() == 0)
       {
         if(mCurrentRegion == (N_REGIONS-1))
@@ -117,5 +117,33 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     
   } else { // TRU FIFO Full
     // Do something smart here.. do we need to signal busy?
+  }
+}
+
+
+///@brief Add SystemC signals to log in VCD trace file.
+///@param wf Pointer to VCD trace file object
+///@param name_prefix Name prefix to be added to all the trace names
+void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
+{
+  std::stringstream ss;
+  ss << name_prefix << "TRU/";
+  std::string tru_name_prefix = ss.str();
+
+  ss.str("");
+  ss << tru_name_prefix << "current_event_hits_left_in";
+  std::string str_current_event_hits_left_in(ss.str());
+  sc_trace(wf, s_current_event_hits_left_in, str_current_event_hits_left_in);  
+
+  ss.str("");
+  ss << tru_name_prefix << "event_buffers_used_in";  
+  std::string str_event_buffers_used_in(ss.str());
+  sc_trace(wf, s_event_buffers_used_in, str_event_buffers_used_in);    
+  
+  for(int i = 0; i < N_REGIONS; i++) {
+    ss.str("");
+    ss << tru_name_prefix << "region_empty_in_" << i;
+    std::string str_region_empty_in(ss.str());
+    sc_trace(wf, s_region_empty_in[i], str_region_empty_in);
   }
 }
