@@ -35,10 +35,13 @@ public:
   sc_in_clk s_system_clk_in;
 
   ///@brief Number of events stored in the chip at any given time
-  sc_signal<sc_uint<8> > s_event_buffers_used;
+  sc_out<sc_uint<8> > s_event_buffers_used_out;
 
   ///@brief Sum of all hits in all multi event buffers
   sc_signal<sc_uint<32> > s_total_number_of_hits;
+
+  ///@brief Number of hits in oldest multi event buffer
+  sc_out<sc_uint<32> > s_oldest_event_number_of_hits_out;
 
   ///@brief Region FIFOs
   std::vector<sc_fifo<AlpideDataWord>*> s_region_fifos;

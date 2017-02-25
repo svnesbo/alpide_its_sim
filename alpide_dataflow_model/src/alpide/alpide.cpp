@@ -23,8 +23,9 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   mChipId = chip_id;
   mEnableReadoutTraces = enable_readout_traces;
 
-  s_event_buffers_used = 0;
+  s_event_buffers_used_out = 0;
   s_total_number_of_hits = 0;
+  s_oldest_event_number_of_hits_out = 0;
 
   mTRU = new TopReadoutUnit("TRU", chip_id);
 
@@ -47,6 +48,8 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   }
 
   mTRU->s_clk_in(s_system_clk_in);
+  mTRU->s_event_buffers_used_in(s_event_buffers_used_out);
+  mTRU->s_current_event_hits_left_in(s_oldest_event_number_of_hits_out);
   
   SC_METHOD(matrixReadout);
   sensitive_pos << s_matrix_readout_clk_in;
@@ -59,15 +62,13 @@ void Alpide::matrixReadout(void)
 {
   uint64_t time_now = sc_time_stamp().value();
   
-  if(mEnableReadoutTraces) {
-    // Update signal with number of event buffers
-    s_event_buffers_used = getNumEvents();
+  // Update signal with number of event buffers
+  s_event_buffers_used_out = getNumEvents();
 
-    // Update signal with total number of hits in all event buffers
-    s_total_number_of_hits = getHitTotalAllEvents();
-  }
+  // Update signal with total number of hits in all event buffers
+  s_total_number_of_hits = getHitTotalAllEvents();
 
-
+  s_oldest_event_number_of_hits_out = getHitsRemainingInOldestEvent();
   
   ///@todo Rewrite this... Iterate over RRU class objects, call the RRUs' readoutNextPixel(),
   ///      and let the RRUs read out the pixels from the pixel matrix.
@@ -91,6 +92,6 @@ void Alpide::addTraces(sc_trace_file *wf) const
   ss << "alpide_" << mChipId << "/hits_in_matrix";
   std::string str_hits_in_matrix(ss.str());
   
-  sc_trace(wf, s_event_buffers_used, str_event_buffers_used);
+  sc_trace(wf, s_event_buffers_used_out, str_event_buffers_used);
   sc_trace(wf, s_total_number_of_hits, str_hits_in_matrix);
 }

@@ -33,7 +33,7 @@ public:
 };
 
 ///@todo Overload this for all AlpideDataWord classes, so SystemC can print them to trace files properly?
-std::ostream& operator<< (std::ostream& stream, const AlpideDataWord& alpide_dw) {
+static std::ostream& operator<< (std::ostream& stream, const AlpideDataWord& alpide_dw) {
   stream << "0x";
   stream << std::hex << alpide_dw.data[0];
   stream << std::hex << alpide_dw.data[1];
