@@ -25,6 +25,7 @@ public:
   sc_fifo<AlpideDataWord> s_region_fifo;
   sc_out<bool> s_region_empty_out;
   sc_signal<bool> s_busy_out;
+  sc_signal<sc_uint<8> > s_region_fifo_size;
 private:
   // I would have preferred that s_region_fifo_out was the interface to the outside world, and
   // have an array of sc_fifo objects in the Alpide class for each region, which connects to this.

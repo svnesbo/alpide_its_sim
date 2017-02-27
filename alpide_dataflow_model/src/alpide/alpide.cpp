@@ -99,6 +99,8 @@ void Alpide::matrixReadout(void)
 void Alpide::dataTransmission(void)
 {
   AlpideDataWord dw;
+
+  s_tru_fifo_size = s_top_readout_fifo.num_available();
   
   if(s_top_readout_fifo.nb_read(dw)) {
     sc_uint<24> data = dw.data[2] << 16 | dw.data[1] << 8 | dw.data[0];
@@ -125,11 +127,16 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 
   ss.str("");
   ss << alpide_name_prefix << "serial_data_output";
-  std::string str_serial_data_output(ss.str());  
+  std::string str_serial_data_output(ss.str());
+
+  ss.str("");
+  ss << alpide_name_prefix << "tru_fifo_size";  
+  std::string str_tru_fifo_size(ss.str());
   
   sc_trace(wf, s_event_buffers_used, str_event_buffers_used);
   sc_trace(wf, s_total_number_of_hits, str_hits_in_matrix);
-  sc_trace(wf, s_serial_data_output, str_serial_data_output);  
+  sc_trace(wf, s_serial_data_output, str_serial_data_output);
+  sc_trace(wf, s_tru_fifo_size, str_tru_fifo_size);  
 
   mTRU->addTraces(wf, alpide_name_prefix);
 

@@ -51,6 +51,8 @@ public:
   ///@brief Region FIFOs
 //  sc_fifo<AlpideDataWord> s_region_fifos[N_REGIONS];
   sc_fifo<AlpideDataWord> s_top_readout_fifo;
+
+  sc_signal<sc_uint<8> > s_tru_fifo_size;  
     
 private:
   int mChipId;

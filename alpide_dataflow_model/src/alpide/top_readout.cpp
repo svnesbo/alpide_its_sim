@@ -13,7 +13,7 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
   : sc_core::sc_module(name)
   , mChipId(chip_id)
 {
-  mCurrentRegion = 0;
+  s_current_region = 0;
 
   s_tru_state = IDLE;
   
@@ -28,6 +28,7 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
 void TopReadoutUnit::topRegionReadoutProcess(void)
 {
   int readout_flags;
+  unsigned int region;
   AlpideDataWord data;
   
   // Bunch counter wraps around each orbit
@@ -42,7 +43,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       if(s_current_event_hits_left_in.read() == 0)
         s_tru_state = CHIP_EMPTY_FRAME;
       else {
-        mCurrentRegion = 0;
+        s_current_region = 0;
         s_tru_state = REGION_HEADER;
       }
       break;
@@ -53,20 +54,21 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       break;
       
     case REGION_HEADER:
-      // Find the next region that has data
-      while(s_region_empty_in[mCurrentRegion].read() == false &&
-            s_region_fifo_in[mCurrentRegion]->num_available() == 0 &&
-            mCurrentRegion < N_REGIONS)
-      {
-        mCurrentRegion++;
-      }
-
+      region = s_current_region.read();
       
-      if(mCurrentRegion < N_REGIONS) {
+      // Does current region have data? Then progress to region data state
+      if(s_region_empty_in[region].read() == false ||
+         s_region_fifo_in[region]->num_available() > 0)
+      {
         s_tru_state = REGION_DATA;        
-        s_tru_fifo_out->nb_write(AlpideRegionHeader(mCurrentRegion));
+        s_tru_fifo_out->nb_write(AlpideRegionHeader(region));
+        break;        
+      } else if(region < (N_REGIONS-1)) { // Search for region with data
+        region++;
+        s_current_region = region;
+        s_tru_fifo_out->nb_write(AlpideIdle());
         break;
-      } else {
+      } else { // No more data
         // No break here - Allow program to continue into
         // CHIP_TRAILER state if we have read out all regions
         s_tru_state = CHIP_TRAILER;
@@ -84,8 +86,10 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       break;      
 
     case REGION_DATA:
-      if(s_region_fifo_in[mCurrentRegion]->num_available() > 0) {
-        s_region_fifo_in[mCurrentRegion]->nb_read(data);
+      region = s_current_region.read();
+      
+      if(s_region_fifo_in[region]->num_available() > 0) {
+        s_region_fifo_in[region]->nb_read(data);
         s_tru_fifo_out->nb_write(data);
       } else {
         // Insert IDLE if the region FIFO is currently empty
@@ -93,10 +97,13 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       }
 
       // Is the region empty, and was this the last word in the region FIFO?
-      if(s_region_empty_in[mCurrentRegion].read() == false &&
-            s_region_fifo_in[mCurrentRegion]->num_available() == 0)
+      if(s_region_empty_in[region].read() == true &&
+            s_region_fifo_in[region]->num_available() == 0)
       {
-        if(mCurrentRegion == (N_REGIONS-1))
+        region++;
+        s_current_region = region;
+        
+        if(region == N_REGIONS)
           s_tru_state = CHIP_TRAILER;
         else
           s_tru_state = REGION_HEADER;
@@ -135,6 +142,11 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss << tru_name_prefix << "tru_state";
   std::string str_tru_state(ss.str());
   sc_trace(wf, s_tru_state, str_tru_state);
+ 
+  ss.str("");
+  ss << tru_name_prefix << "current_region";
+  std::string str_current_region(ss.str());
+  sc_trace(wf, s_current_region, str_current_region);
   
   ss.str("");
   ss << tru_name_prefix << "current_event_hits_left_in";
@@ -144,7 +156,7 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss.str("");
   ss << tru_name_prefix << "event_buffers_used_in";  
   std::string str_event_buffers_used_in(ss.str());
-  sc_trace(wf, s_event_buffers_used_in, str_event_buffers_used_in);    
+  sc_trace(wf, s_event_buffers_used_in, str_event_buffers_used_in);
   
   for(int i = 0; i < N_REGIONS; i++) {
     ss.str("");

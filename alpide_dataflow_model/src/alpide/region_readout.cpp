@@ -36,6 +36,8 @@ RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
 ///@param time_now Current simulation time
 void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
 {
+  s_region_fifo_size = s_region_fifo.num_available();
+  
   if(s_region_fifo_out->num_free() > 0) {
     s_busy_out.write(false);
     
@@ -120,4 +122,9 @@ void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) co
   ss << region_name_prefix << "busy_out";
   std::string str_busy_out(ss.str());
   sc_trace(wf, s_busy_out, str_busy_out);
+
+  ss.str("");
+  ss << region_name_prefix << "region_fifo_size";
+  std::string str_region_fifo_size(ss.str());
+  sc_trace(wf, s_region_fifo_size, str_region_fifo_size);  
 }
