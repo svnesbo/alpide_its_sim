@@ -14,7 +14,19 @@
 #include <string>
 
 
-enum TRU_state_t {CHIP_HEADER, CHIP_EMPTY_FRAME, REGION_HEADER, CHIP_TRAILER, REGION_DATA, IDLE};
+enum TRU_state_t {CHIP_HEADER = 0,
+                  CHIP_EMPTY_FRAME = 1,
+                  REGION_HEADER = 2,
+                  CHIP_TRAILER = 3,
+                  REGION_DATA = 4,
+                  IDLE = 5};
+
+// enum TRU_state_t {CHIP_HEADER,
+//                   CHIP_EMPTY_FRAME,
+//                   REGION_HEADER,
+//                   CHIP_TRAILER,
+//                   REGION_DATA,
+//                   IDLE};
 
 class TopReadoutUnit : sc_core::sc_module
 {
@@ -30,12 +42,13 @@ public:
 
   ///@brief Alpide chip clock (typically 40MHz)
   sc_in_clk s_clk_in;
+
+  sc_signal<sc_uint<8> > s_tru_state;
   
 private:
   unsigned int mCurrentRegion;
   unsigned int mChipId;
   unsigned int mBunchCounter;
-  TRU_state_t mTRUState;
   
 public:
   TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);

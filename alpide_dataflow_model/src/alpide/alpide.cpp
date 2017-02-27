@@ -15,10 +15,11 @@ SC_HAS_PROCESS(Alpide);
 ///@param name    SystemC module name
 ///@param chip_id Desired chip id
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               bool enable_readout_traces, bool enable_clustering,
-               bool continuous_mode)
+               int tru_fifo_size, bool enable_readout_traces,
+               bool enable_clustering, bool continuous_mode)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
+  , s_top_readout_fifo(tru_fifo_size)
 {
   mChipId = chip_id;
   mEnableReadoutTraces = enable_readout_traces;
@@ -38,9 +39,12 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     ss << "RRU_" << i;
     mRRUs[i] = new RegionReadoutUnit(ss.str().c_str(), i, region_fifo_size, enable_clustering);
 
+    //s_region_fifos[i] = new sc_fifo<AlpideDataWord>(region_fifo_size);
+    
     // Conenct RRU->TRU FIFOs
-    mRRUs[i]->s_region_fifo_out(s_region_fifos[i]);
-    mTRU->s_region_fifo_in[i](s_region_fifos[i]);
+//    mRRUs[i]->s_region_fifo_out(*s_region_fifos[i]);
+//    mTRU->s_region_fifo_in[i](*s_region_fifos[i]);
+    mTRU->s_region_fifo_in[i](mRRUs[i]->s_region_fifo);
 
     // Connect RRU->TRU region empty signals
     mTRU->s_region_empty_in[i](s_region_empty[i]);
@@ -54,11 +58,18 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   
   SC_METHOD(matrixReadout);
   sensitive_pos << s_matrix_readout_clk_in;
+
+  SC_METHOD(dataTransmission);
+  sensitive_pos << s_system_clk_in;
 }
 
 
-///@brief Matrix readout SystemC method. This function is run one time per 40MHz clock cycle,
-///       and will read out one pixel from each region (if there are pixels available in that region).
+///@brief Matrix readout SystemC method. This method is clocked by the matrix readout clock.
+///       The matrix readout period can be specified by the user in a register in the Alpide,
+///       and is intended to allow the priority encoder a little more time to "settle" because
+///       it is a relatively slow asynchronous circuit.
+///       The method here triggers readout of a pixel from each region, into region buffers,
+///       and updates some status signals related to regions/event-buffers.
 void Alpide::matrixReadout(void)
 {
   uint64_t time_now = sc_time_stamp().value();
@@ -83,6 +94,18 @@ void Alpide::matrixReadout(void)
 }
 
 
+///@brief Data transmission SystemC method. Currently runs on 40MHz clock.
+///@todo Implement more advanced data transmission method.
+void Alpide::dataTransmission(void)
+{
+  AlpideDataWord dw;
+  
+  if(s_top_readout_fifo.nb_read(dw)) {
+    sc_uint<24> data = dw.data[2] << 16 | dw.data[1] << 8 | dw.data[0];
+    s_serial_data_output = data;
+  }
+}
+
 ///@brief Add SystemC signals to log in VCD trace file.
 ///@param wf Pointer to VCD trace file object
 ///@param name_prefix Name prefix to be added to all the trace names
@@ -99,9 +122,14 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss.str("");
   ss << alpide_name_prefix << "hits_in_matrix";
   std::string str_hits_in_matrix(ss.str());
+
+  ss.str("");
+  ss << alpide_name_prefix << "serial_data_output";
+  std::string str_serial_data_output(ss.str());  
   
   sc_trace(wf, s_event_buffers_used, str_event_buffers_used);
   sc_trace(wf, s_total_number_of_hits, str_hits_in_matrix);
+  sc_trace(wf, s_serial_data_output, str_serial_data_output);  
 
   mTRU->addTraces(wf, alpide_name_prefix);
 

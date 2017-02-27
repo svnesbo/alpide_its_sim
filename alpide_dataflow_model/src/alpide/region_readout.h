@@ -21,10 +21,16 @@
 class RegionReadoutUnit : sc_core::sc_module
 {
 public:
-  // SystemC signals  
-  sc_port<sc_fifo_out_if<AlpideDataWord> > s_region_fifo_out;
+  // SystemC signals 
+  sc_fifo<AlpideDataWord> s_region_fifo;
   sc_out<bool> s_region_empty_out;
   sc_signal<bool> s_busy_out;
+private:
+  // I would have preferred that s_region_fifo_out was the interface to the outside world, and
+  // have an array of sc_fifo objects in the Alpide class for each region, which connects to this.
+  // But sc_fifo needs to be initialized with size when constructed, and I found no good way to
+  // initialize a large array of objects to the same value (other than 0).
+  sc_port<sc_fifo_out_if<AlpideDataWord> > s_region_fifo_out;
   
 private:
   /// The region handled by this RRU

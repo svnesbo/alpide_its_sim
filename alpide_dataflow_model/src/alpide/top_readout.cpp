@@ -12,9 +12,10 @@ SC_HAS_PROCESS(TopReadoutUnit);
 TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id)
   : sc_core::sc_module(name)
   , mChipId(chip_id)
-  , mTRUState(IDLE)
 {
   mCurrentRegion = 0;
+
+  s_tru_state = IDLE;
   
   SC_METHOD(topRegionReadoutProcess);
   sensitive_pos << s_clk_in;  
@@ -35,20 +36,20 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     mBunchCounter = 0;
     
   if(s_tru_fifo_out->num_free() > 0) {
-    switch(mTRUState) {
+    switch(s_tru_state.read()) {
     case CHIP_HEADER:
       s_tru_fifo_out->nb_write(AlpideChipHeader(mChipId, mBunchCounter));
       if(s_current_event_hits_left_in.read() == 0)
-        mTRUState = CHIP_EMPTY_FRAME;
+        s_tru_state = CHIP_EMPTY_FRAME;
       else {
         mCurrentRegion = 0;
-        mTRUState = REGION_HEADER;
+        s_tru_state = REGION_HEADER;
       }
       break;
       
     case CHIP_EMPTY_FRAME:
       s_tru_fifo_out->nb_write(AlpideChipEmptyFrame(mChipId, mBunchCounter));
-      mTRUState = CHIP_TRAILER;
+      s_tru_state = CHIP_TRAILER;
       break;
       
     case REGION_HEADER:
@@ -62,13 +63,13 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 
       
       if(mCurrentRegion < N_REGIONS) {
-        mTRUState = REGION_DATA;        
+        s_tru_state = REGION_DATA;        
         s_tru_fifo_out->nb_write(AlpideRegionHeader(mCurrentRegion));
         break;
       } else {
         // No break here - Allow program to continue into
         // CHIP_TRAILER state if we have read out all regions
-        mTRUState = CHIP_TRAILER;
+        s_tru_state = CHIP_TRAILER;
       }
 
     case CHIP_TRAILER:
@@ -77,9 +78,9 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       s_tru_fifo_out->nb_write(AlpideChipTrailer(readout_flags));
 
       if(s_event_buffers_used_in.read() > 0)
-        mTRUState = CHIP_HEADER;
+        s_tru_state = CHIP_HEADER;
       else
-        mTRUState = IDLE;
+        s_tru_state = IDLE;
       break;      
 
     case REGION_DATA:
@@ -96,9 +97,9 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
             s_region_fifo_in[mCurrentRegion]->num_available() == 0)
       {
         if(mCurrentRegion == (N_REGIONS-1))
-          mTRUState = CHIP_TRAILER;
+          s_tru_state = CHIP_TRAILER;
         else
-          mTRUState = REGION_HEADER;
+          s_tru_state = REGION_HEADER;
       }
       break;
       
@@ -106,12 +107,12 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       s_tru_fifo_out->nb_write(AlpideIdle());
 
       if(s_event_buffers_used_in.read() > 0)
-        mTRUState = CHIP_HEADER;
+        s_tru_state = CHIP_HEADER;
       
       break;
       
     default:
-      mTRUState = IDLE;
+      s_tru_state = IDLE;
       break;
     }
     
@@ -130,6 +131,11 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss << name_prefix << "TRU/";
   std::string tru_name_prefix = ss.str();
 
+  ss.str("");
+  ss << tru_name_prefix << "tru_state";
+  std::string str_tru_state(ss.str());
+  sc_trace(wf, s_tru_state, str_tru_state);
+  
   ss.str("");
   ss << tru_name_prefix << "current_event_hits_left_in";
   std::string str_current_event_hits_left_in(ss.str());

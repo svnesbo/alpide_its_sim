@@ -18,10 +18,12 @@ RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
                                      unsigned int fifo_size,
                                      bool cluster_enable)
   : sc_core::sc_module(name)
+  , s_region_fifo(fifo_size)
   , mRegionId(region_num)
   , mFifoSizeLimit(fifo_size)
   , mClusteringEnabled(cluster_enable)
 {
+  s_region_fifo_out(s_region_fifo);
   mFifoSizeLimitEnabled = (mFifoSizeLimit > 0);
   mClusterStarted = false;
 }

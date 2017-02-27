@@ -69,6 +69,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
 
   defaultSettings["alpide/clustering_enable"] = DEFAULT_ALPIDE_CLUSTERING_ENABLE;
   defaultSettings["alpide/region_fifo_size"] = DEFAULT_ALPIDE_REGION_FIFO_SIZE;
+  defaultSettings["alpide/tru_fifo_size"] = DEFAULT_ALPIDE_TRU_FIFO_SIZE;  
   defaultSettings["alpide/region_size"] = DEFAULT_ALPIDE_REGION_SIZE;
   defaultSettings["alpide/pixel_shaping_dead_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_DEAD_TIME_NS;
   defaultSettings["alpide/pixel_shaping_active_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_ACTIVE_TIME_NS;
