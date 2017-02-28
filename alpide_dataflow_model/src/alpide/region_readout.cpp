@@ -110,7 +110,7 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
 void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
 {
   std::stringstream ss;
-  ss << name_prefix << "RRU_" << mRegionId << "/";
+  ss << name_prefix << "RRU_" << mRegionId << ".";
   std::string region_name_prefix = ss.str();
 
   ss.str("");

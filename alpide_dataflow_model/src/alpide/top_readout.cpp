@@ -135,13 +135,13 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
 {
   std::stringstream ss;
-  ss << name_prefix << "TRU/";
+  ss << name_prefix << "TRU.";
   std::string tru_name_prefix = ss.str();
 
   ss.str("");
   ss << tru_name_prefix << "tru_state";
   std::string str_tru_state(ss.str());
-  sc_trace(wf, s_tru_state, str_tru_state);
+   sc_trace(wf, s_tru_state, str_tru_state);
  
   ss.str("");
   ss << tru_name_prefix << "current_region";
@@ -151,7 +151,7 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss.str("");
   ss << tru_name_prefix << "current_event_hits_left_in";
   std::string str_current_event_hits_left_in(ss.str());
-  sc_trace(wf, s_current_event_hits_left_in, str_current_event_hits_left_in);  
+  sc_trace(wf, s_current_event_hits_left_in, str_current_event_hits_left_in);
 
   ss.str("");
   ss << tru_name_prefix << "event_buffers_used_in";  

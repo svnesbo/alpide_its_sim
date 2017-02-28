@@ -81,11 +81,12 @@ void Alpide::matrixReadout(void)
   s_total_number_of_hits = getHitTotalAllEvents();
 
   s_oldest_event_number_of_hits = getHitsRemainingInOldestEvent();
-  
-  ///@todo Rewrite this... Iterate over RRU class objects, call the RRUs' readoutNextPixel(),
-  ///      and let the RRUs read out the pixels from the pixel matrix.
-  ///      This allows the readout of pixels to be controlled by the priority encoder clock,
-  ///      but the readout from the FIFOs can be done from a process running at a higher clock rate
+
+  ///@todo When and where should the events be deleted?
+  ///      Currently it happens in PixelMatrix::readoutPixel() when there are no more hits in the matrix.
+  ///      But perhaps it is more correct that we iterate over all regions, and when all the
+  ///      region_empty signals from the RRUs have been set, then we delete the event from here,
+  ///      and not automatically from PixelMatrix::readoutPixel()?
   
   // Read out a pixel from each region in the matrix
   for(int region_num = 0; region_num < N_REGIONS; region_num++) {
@@ -114,7 +115,7 @@ void Alpide::dataTransmission(void)
 void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 {
   std::stringstream ss;
-  ss << name_prefix << "alpide_" << mChipId << "/";
+  ss << name_prefix << "alpide_" << mChipId << ".";
   std::string alpide_name_prefix = ss.str();
 
   ss.str("");
