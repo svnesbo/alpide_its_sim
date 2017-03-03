@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include "region_readout.h"
+#include "../misc/vcd_trace.h"
 
 ///@brief Constructor for RegionReadoutUnit class
 ///@param name SystemC module name
@@ -121,18 +122,8 @@ void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) co
   ss << name_prefix << "RRU_" << mRegionId << ".";
   std::string region_name_prefix = ss.str();
 
-  ss.str("");
-  ss << region_name_prefix << "region_empty_out";
-  std::string str_region_empty_out(ss.str());
-  sc_trace(wf, s_region_empty_out, str_region_empty_out);
-  
-  ss.str("");
-  ss << region_name_prefix << "busy_out";
-  std::string str_busy_out(ss.str());
-  sc_trace(wf, s_busy_out, str_busy_out);
-
-  ss.str("");
-  ss << region_name_prefix << "region_fifo_size";
-  std::string str_region_fifo_size(ss.str());
-  sc_trace(wf, s_region_fifo_size, str_region_fifo_size);  
+  addTrace(wf, region_name_prefix, "region_empty_out", s_region_empty_out);
+  addTrace(wf, region_name_prefix, "busy_out", s_busy_out);
+  addTrace(wf, region_name_prefix, "region_fifo_size", s_region_fifo_size);  
 }
+

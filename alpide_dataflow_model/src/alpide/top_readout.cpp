@@ -7,6 +7,8 @@
 
 
 #include "top_readout.h"
+#include "../misc/vcd_trace.h"
+
 
 SC_HAS_PROCESS(TopReadoutUnit);
 TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id)
@@ -142,31 +144,13 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   std::stringstream ss;
   ss << name_prefix << "TRU.";
   std::string tru_name_prefix = ss.str();
-
-  ss.str("");
-  ss << tru_name_prefix << "tru_state";
-  std::string str_tru_state(ss.str());
-   sc_trace(wf, s_tru_state, str_tru_state);
- 
-  ss.str("");
-  ss << tru_name_prefix << "current_region";
-  std::string str_current_region(ss.str());
-  sc_trace(wf, s_current_region, str_current_region);
   
-  ss.str("");
-  ss << tru_name_prefix << "current_event_hits_left_in";
-  std::string str_current_event_hits_left_in(ss.str());
-  sc_trace(wf, s_current_event_hits_left_in, str_current_event_hits_left_in);
-
-  ss.str("");
-  ss << tru_name_prefix << "event_buffers_used_in";  
-  std::string str_event_buffers_used_in(ss.str());
-  sc_trace(wf, s_event_buffers_used_in, str_event_buffers_used_in);
+  addTrace(wf, tru_name_prefix, "tru_state", s_tru_state);   
+  addTrace(wf, tru_name_prefix, "current_region", s_current_region);     
+  addTrace(wf, tru_name_prefix, "current_event_hits_left_in", s_current_event_hits_left_in);       
+  addTrace(wf, tru_name_prefix, "event_buffers_used_in", s_event_buffers_used_in);         
   
   for(int i = 0; i < N_REGIONS; i++) {
-    ss.str("");
-    ss << tru_name_prefix << "region_empty_in_" << i;
-    std::string str_region_empty_in(ss.str());
-    sc_trace(wf, s_region_empty_in[i], str_region_empty_in);
+    addTrace(wf, tru_name_prefix, "region_empty_in_" + std::to_string(i), s_region_empty_in[i]);             
   }
 }

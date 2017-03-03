@@ -6,6 +6,7 @@
  */
 
 #include "alpide.h"
+#include "../misc/vcd_trace.h"
 #include <string>
 #include <sstream>
 
@@ -120,26 +121,10 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss << name_prefix << "alpide_" << mChipId << ".";
   std::string alpide_name_prefix = ss.str();
 
-  ss.str("");
-  ss << alpide_name_prefix << "event_buffers_used";
-  std::string str_event_buffers_used(ss.str());
-
-  ss.str("");
-  ss << alpide_name_prefix << "hits_in_matrix";
-  std::string str_hits_in_matrix(ss.str());
-
-  ss.str("");
-  ss << alpide_name_prefix << "serial_data_output";
-  std::string str_serial_data_output(ss.str());
-
-  ss.str("");
-  ss << alpide_name_prefix << "tru_fifo_size";  
-  std::string str_tru_fifo_size(ss.str());
-  
-  sc_trace(wf, s_event_buffers_used, str_event_buffers_used);
-  sc_trace(wf, s_total_number_of_hits, str_hits_in_matrix);
-  sc_trace(wf, s_serial_data_output, str_serial_data_output);
-  sc_trace(wf, s_tru_fifo_size, str_tru_fifo_size);  
+  addTrace(wf, alpide_name_prefix, "event_buffers_used", s_event_buffers_used);
+  addTrace(wf, alpide_name_prefix, "hits_in_matrix", s_total_number_of_hits);
+  addTrace(wf, alpide_name_prefix, "serial_data_output", s_serial_data_output);
+  addTrace(wf, alpide_name_prefix, "tru_fifo_size", s_tru_fifo_size);  
 
   mTRU->addTraces(wf, alpide_name_prefix);
 

@@ -80,7 +80,7 @@ void TriggerEvent::feedHitsToChip(PixelMatrix &matrix) const
 }
 
 
-///@todo Revisit this function, since I have changed this class a lot...
+///@todo Note in use.. Revisit this function, since I have changed this class a lot...
 ///@brief Write this event to file, in XML format.
 ///       The filename will be: "path/event<mEventId>.xml"
 ///@param path Path to store file in. 

@@ -200,7 +200,7 @@ void Stimuli::stimuliEventProcess(void)
 
 
 ///@brief Add SystemC signals to log in VCD trace file.
-///@todo Make it configurable which traces we want in the file?
+///@param wf VCD waveform file pointer
 void Stimuli::addTraces(sc_trace_file *wf) const
 {
   sc_trace(wf, s_strobe, "STROBE");
