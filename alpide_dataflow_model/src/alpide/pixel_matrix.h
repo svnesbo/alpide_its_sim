@@ -60,10 +60,10 @@ public:
   PixelMatrix(bool continuous_mode);
   bool newEvent(uint64_t event_time);
   void setPixel(unsigned int col, unsigned int row);
-  PixelData readPixel(uint64_t event_time,
+  PixelData readPixel(uint64_t time_now,
                       int start_double_col = 0,
                       int stop_double_col = N_PIXEL_COLS/2);
-  PixelData readPixelRegion(int region, uint64_t event_time);
+  PixelData readPixelRegion(int region, uint64_t time_now);
   int getNumEvents(void) {return mColumnBuffs.size();}
   int getHitsRemainingInOldestEvent(void);
   int getHitTotalAllEvents(void);

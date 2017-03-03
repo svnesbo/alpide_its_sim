@@ -64,9 +64,6 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();
   mTriggerDelayNs = settings->value("event/trigger_delay_ns").toInt();  
 
-  bool write_vcd = settings->value("data_output/write_vcd").toBool();
-
-
   // Instantiate event generator object
   mEvents = new EventGenerator("event_gen", settings, mOutputPath);
 

@@ -95,7 +95,7 @@ PixelData PixelDoubleColumn::readPixel(void) {
 bool PixelDoubleColumn::inspectPixel(unsigned int col_num, unsigned int row_num) {
   bool retval = false;
 
-#ifdef EXCEPTION_CHECK
+#ifdef EXCEPTION_CHECKS
   // Out of range exception check
   if(row_num >= N_PIXEL_ROWS) {
     throw std::out_of_range ("row_num");

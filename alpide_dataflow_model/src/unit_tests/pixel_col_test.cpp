@@ -1,4 +1,4 @@
-#include "pixel_col.h"
+#include "../alpide/pixel_col.h"
 #define BOOST_TEST_MODULE PixelDoubleColumnTest
 //#include <boost/test/unit_test.hpp>
 #include <boost/test/included/unit_test.hpp>
