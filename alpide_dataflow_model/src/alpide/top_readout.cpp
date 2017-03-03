@@ -1,6 +1,6 @@
 /**
  * @file   top_readout.cpp
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   February 20, 2017
  * @brief  Class for implementing the Top Readout Unit (TRU) in the Alpide chip.
  */
@@ -24,7 +24,9 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
 
 ///@brief SystemC method that controls readout from regions, should run on the 40MHz clock.
 ///       The regions are read out in ascending order, and each event is encapsulated with
-///       a CHIP_HEADER and CHIP_TRAILER word. 
+///       a CHIP_HEADER and CHIP_TRAILER word. See the state machine diagram for a better
+///       explanation.
+///@image html TRU_state_machine.png
 void TopReadoutUnit::topRegionReadoutProcess(void)
 {
   int readout_flags;
@@ -35,7 +37,10 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   mBunchCounter++;
   if(mBunchCounter == LHC_ORBIT_BUNCH_COUNT)
     mBunchCounter = 0;
-    
+
+
+  // See the block diagrams mentioned in the brief for this function for a better
+  // explanation of how this state machine works.
   if(s_tru_fifo_out->num_free() > 0) {
     switch(s_tru_state.read()) {
     case CHIP_HEADER:

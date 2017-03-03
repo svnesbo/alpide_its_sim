@@ -31,6 +31,7 @@ SC_HAS_PROCESS(EventGenerator);
 ///@brief Constructor for EventGenerator with gaussian multiplicity distribution.
 ///@param name SystemC module name
 ///@param settings QSettings object with simulation settings.
+///@param output_path Directory path to store simulation output data in
 EventGenerator::EventGenerator(sc_core::sc_module_name name,
                                const QSettings* settings,
                                std::string output_path)
@@ -598,6 +599,10 @@ void EventGenerator::removeInactiveHits(void)
 ///@brief Create a new trigger event at the given start time. It checks if trigger event
 ///       should be filtered or not, and updates trigger ID count. 
 ///@param event_start Start time of trigger event (time when strobe signal went high).
+///@param event_end End time of trigger event (time when strobe signal went low again).
+///@param chip_id Chip ID to generate event for
+///@return Pointer to new TriggerEvent object that was allocated on the stack.
+///        Caller must remember to delete it when done in order to free memory.
 TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start, int64_t event_end, int chip_id)
 {
   ///@todo Should I check distance between start time of two triggers?

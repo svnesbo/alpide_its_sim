@@ -14,15 +14,17 @@ SC_HAS_PROCESS(Alpide);
 ///@brief Constructor for Alpide.
 ///@param name    SystemC module name
 ///@param chip_id Desired chip id
+///@param region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
+///@param tru_fifo_size Depth of Top Readout Unit (TRU) FIFO
+///@param enable_clustering Enable clustering and use of DATA LONG words
+///@param continuous_mode Enable continuous mode (triggered mode if false)
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               int tru_fifo_size, bool enable_readout_traces,
-               bool enable_clustering, bool continuous_mode)
+               int tru_fifo_size, bool enable_clustering, bool continuous_mode)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
   , s_top_readout_fifo(tru_fifo_size)
 {
   mChipId = chip_id;
-  mEnableReadoutTraces = enable_readout_traces;
 
   s_event_buffers_used = 0;
   s_total_number_of_hits = 0;

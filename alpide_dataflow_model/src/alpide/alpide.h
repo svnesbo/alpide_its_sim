@@ -66,8 +66,7 @@ private:
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-         int tru_fifo_size, bool enable_readout_traces,
-         bool enable_clustering, bool continuous_mode);
+         int tru_fifo_size, bool enable_clustering, bool continuous_mode);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };

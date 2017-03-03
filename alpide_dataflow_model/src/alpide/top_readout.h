@@ -1,6 +1,6 @@
 /**
  * @file   top_readout.h
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   February 20, 2017
  * @brief  Class for implementing the Top Readout Unit (TRU) in the Alpide chip.
  */
@@ -14,6 +14,10 @@
 #include <string>
 
 
+/// The TopReadoutUnit (TRU) class is a simple representation of the TRU in the Alpide chip.
+/// It should be connected to the Region Readout Unit (RRU) in the Alpide object,
+/// and will be responsible for reading out from the RRUs with the topRegionReadoutProcess,
+/// which should run at the system clock (40MHz).
 class TopReadoutUnit : sc_core::sc_module
 {
 public:

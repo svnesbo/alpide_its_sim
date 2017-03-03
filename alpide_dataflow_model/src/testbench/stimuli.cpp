@@ -89,7 +89,6 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
                                  i,
                                  region_fifo_size,
                                  tru_fifo_size,
-                                 write_vcd,
                                  enable_clustering,
                                  mContinuousMode);
     
@@ -206,7 +205,8 @@ void Stimuli::addTraces(sc_trace_file *wf) const
 {
   sc_trace(wf, s_strobe, "STROBE");
   sc_trace(wf, s_physics_event, "PHYSICS_EVENT");
-  
+
+  // Add traces for all Alpide chips
   for(auto it = mAlpideChips.begin(); it != mAlpideChips.end(); it++) {
     (*it)->addTraces(wf, "");
   }

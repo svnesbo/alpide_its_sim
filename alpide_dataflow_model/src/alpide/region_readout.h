@@ -1,6 +1,6 @@
 /**
  * @file   region_readout.h
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   February 20, 2017
  * @brief  Class for implementing the Region Readout Unit (RRU) in the Alpide chip.
  *

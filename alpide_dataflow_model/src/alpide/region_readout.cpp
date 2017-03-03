@@ -1,6 +1,6 @@
 /**
  * @file   region_readout.cpp
- * @Author Simon Voigt Nesbo
+ * @author Simon Voigt Nesbo
  * @date   February 20, 2017
  * @brief  Class for implementing the Region Readout Unit (RRU) in the Alpide chip.
  *
@@ -10,6 +10,7 @@
 #include "region_readout.h"
 
 ///@brief Constructor for RegionReadoutUnit class
+///@param name SystemC module name
 ///@param region_num The region number that this RRU is assigned to
 ///@param fifo_size  Size limit on the RRU's FIFO. 0 for no limit.
 ///@param cluster_enable Enable/disable clustering and use of DATA LONG data words
@@ -32,12 +33,19 @@ RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
 ///@brief Read out the next pixel from this region's priority encoder.
 ///       This function should be called from a process that runs at
 ///       the priority encoder readout clock.
+///       The function here will look for pixel clusters and generate DATA LONG
+///       words when possible if clustering is enabled, otherwise it will only
+///       send DATA SHORT words. See the flowchart for a better explanation of
+///       how this function works.
+///@image html RRU_pixel_readout.png
 ///@param matrix Reference to pixel matrix
 ///@param time_now Current simulation time
 void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
 {
   s_region_fifo_size = s_region_fifo.num_available();
-  
+
+  // See the flowchart mentioned in this function's brief for a
+  // better understanding of how this is implemented
   if(s_region_fifo_out->num_free() > 0) {
     s_busy_out.write(false);
     

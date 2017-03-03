@@ -2,7 +2,7 @@
  * @file   alpide_data_format.h
  * @author Simon Voigt Nesbo
  * @date   February 20, 2017
- * @brief  Definitions for data format used in Alpide chip
+ * @brief  Definitions for data format used in Alpide chip.
  */
 
 #ifndef ALPIDE_DATA_FORMAT_H
@@ -26,6 +26,10 @@ const uint8_t DW_BUSY_ON = 0b11110001;
 const uint8_t DW_BUSY_OFF = 0b11110000;
 
 
+///@brief The FIFOs in the Alpide chip are 24 bits, or 3 bytes, wide. This is a base class for the
+///       data words that holds 3 bytes, and is used as the data type in the SystemC FIFO templates.
+///       This class shouldn't be used on its own, the various types of data words are implemented
+///       in derived classes.
 class AlpideDataWord
 {
 public:
