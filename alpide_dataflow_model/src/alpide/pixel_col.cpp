@@ -9,6 +9,20 @@
 #include <stdexcept>
 
 
+///@brief Constructor for pixel data based on region number, priority encoder number in region,
+///       and pixel address in priority encoder. This is how the data are specified when they
+///       are transmitted as data long/short words.
+///@param region Region number
+///@param pri_enc Priority encoder number in region (ie. double column number in region).
+///@param addr Prioritized address in priority encoder
+PixelData(int region, int pri_enc, int addr)
+{
+  mRow = addr >> 1;
+  mCol = ((addr&1) ^ (mRow&1)); // LSB of column
+  mCol = (region << 6) | (pri_enc << 1) | mCol;  
+}
+
+
 bool PixelData::operator==(const PixelData& rhs) const
 {
   return (this->mCol == rhs.mCol) && (this->mRow == rhs.mRow);

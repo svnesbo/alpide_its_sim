@@ -13,17 +13,48 @@
 
 using std::uint8_t;
 
-/// Alpide data words. The MSBs identify datawords, the LSBs are parameters.
-/// Note: there is not a fixed width for the MSB identifier part.
-const uint8_t DW_IDLE = 0b11111111;
-const uint8_t DW_CHIP_HEADER = 0b10100000;
-const uint8_t DW_CHIP_TRAILER = 0b10110000;
-const uint8_t DW_CHIP_EMPTY_FRAME = 0b11100000;
-const uint8_t DW_REGION_HEADER = 0b11000000;
-const uint8_t DW_DATA_SHORT = 0b01000000;
-const uint8_t DW_DATA_LONG = 0b00000000;
-const uint8_t DW_BUSY_ON = 0b11110001;
-const uint8_t DW_BUSY_OFF = 0b11110000;
+///@defgroup Alpide data format definitions
+///@{
+///
+/// Alpide Data format and valid data words (from Alpide manual)
+/// IDLE                 1111 1111
+/// CHIP HEADER          1010<chip id[3:0]><BUNCH COUNTER FOR FRAME[10:3]>
+/// CHIP TRAILER         1011<readout flags[3:0]>
+/// CHIP EMPTY FRAME     1110<chip id[3:0]><BUNCH COUNTER FOR FRAME[10:3]>
+/// REGION HEADER        110<region id[4:0]>
+/// DATA SHORT           01<encoder id[3:0]><addr[9:0]>
+/// DATA LONG            00<encoder id[3:0]><addr[9:0]> 0 <hit map[6:0]> 1111 0001 1111
+/// BUSY ON              1111 0001
+/// BUSY OFF             1111 0000
+
+
+/// Alpide data words, used to initialize the 24-bit FIFOs in the Alpide chip.
+/// The MSBs in the words identify datawords, the LSBs are parameters.
+/// Note 1: There is not a fixed width for the MSB identifier part.
+/// Note 2: Not to be confused with the definitions in AlpideDataTypes in alpide_data_parser.h,
+///         which is for identifying individual bytes in a datastream.
+const uint8_t DW_IDLE               = 0b11111111;
+const uint8_t DW_CHIP_HEADER        = 0b10100000;
+const uint8_t DW_CHIP_TRAILER       = 0b10110000;
+const uint8_t DW_CHIP_EMPTY_FRAME   = 0b11100000;
+const uint8_t DW_REGION_HEADER      = 0b11000000;
+const uint8_t DW_DATA_SHORT         = 0b01000000;
+const uint8_t DW_DATA_LONG          = 0b00000000;
+const uint8_t DW_BUSY_ON            = 0b11110001;
+const uint8_t DW_BUSY_OFF           = 0b11110000;
+
+/// Mask for busy and idle words
+const uint8_t MASK_IDLE_BUSY = 0b11111111;
+
+/// Mask for chip header/trailer/empty frame words
+const uint8_t MASK_CHIP = 0b11110000;
+
+/// Mask for region header word
+const uint8_t MASK_REGION_HEADER = 0b11100000;
+
+/// Mask for data short/long words
+const uint8_t MASK_DATA = 0b11000000;
+///@}  
 
 
 ///@brief The FIFOs in the Alpide chip are 24 bits, or 3 bytes, wide. This is a base class for the
