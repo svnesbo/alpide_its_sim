@@ -15,7 +15,7 @@
 ///@param region Region number
 ///@param pri_enc Priority encoder number in region (ie. double column number in region).
 ///@param addr Prioritized address in priority encoder
-PixelData(int region, int pri_enc, int addr)
+PixelData::PixelData(int region, int pri_enc, int addr)
 {
   mRow = addr >> 1;
   mCol = ((addr&1) ^ (mRow&1)); // LSB of column

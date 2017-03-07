@@ -5,6 +5,9 @@
  * @brief  Source file for stimuli function for Alpide Dataflow SystemC model
  */
 
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "stimuli.h"
 #include <systemc.h>
 #include <list>
@@ -91,6 +94,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     
     mAlpideChips[i]->s_matrix_readout_clk_in(matrix_readout_clock);
     mAlpideChips[i]->s_system_clk_in(clock);
+    mAlpideChips[i]->s_serial_data_output(s_alpide_serial_data[i]);
   }
   
   SC_CTHREAD(stimuliMainProcess, clock.pos());

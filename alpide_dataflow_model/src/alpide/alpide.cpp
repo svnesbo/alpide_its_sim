@@ -5,6 +5,9 @@
  * @brief  Source file for Alpide class.
  */
 
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "alpide.h"
 #include "../misc/vcd_trace.h"
 #include <string>

@@ -6,17 +6,19 @@
  *         and building/reconstructing events/frames from the data
  */
 
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 #include "alpide_data_parser.h"
 #include <cstddef>
 
 
-///@brief Look for a hit in this event frame
-///@param h Reference to hit object
-///@return True if h is in event frame, false if not.
-bool AlpideEventFrame::hitInEvent(Hit& h) const
+///@brief Look for a pixel hit in this event frame
+///@param pixel Reference to PixelData object
+///@return True if pixel is in event frame, false if not.
+bool AlpideEventFrame::pixelHitInEvent(PixelData& pixel) const
 {
-  if(mHitSet.find(h) != mHitSet.end())
+  if(mPixelDataSet.find(pixel) != mPixelDataSet.end())
     return true;
   else
     return false;
@@ -37,7 +39,7 @@ const AlpideEventFrame* AlpideEventBuilder::getNextEvent(void) const
   if(mEvents.empty())
     return nullptr;
   else
-    return &mEvents.begin();
+    return &mEvents.front();
 }
 
 
@@ -84,7 +86,7 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     if(!mEvents.empty()) {
       uint8_t pri_enc_id = (dw.data[2] >> 2) & 0x0F;
       uint16_t addr = ((dw.data[2] & 0x03) << 8) | dw.data[1];
-      mEvents.back().addHit(PixelData(mCurrentRegion, pri_enc_id, addr));
+      mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr));
     }
     break;
     
@@ -95,12 +97,12 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
       uint8_t hitmap = dw.data[0] & 0x3F;
 
       // Add hit for base address of cluster
-      mEvents.back().addHit(PixelData(mCurrentRegion, pri_enc_id, addr));
+      mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr));
       
       for(int i = 0; i < 7; i++, addr++) {
         // Add a hit for each bit that is set in the hitmap
         if((hitmap >> i) & 0x01)
-          mEvents.back().addHit(PixelData(mCurrentRegion, pri_enc_id, addr+i+1));
+          mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr+i+1));
       }
     }
     break;
@@ -119,6 +121,15 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
   case ALPIDE_UNKNOWN:
     ///@todo Unknown Alpide data word received. Do something smart here?
     break;
+
+  case ALPIDE_DATA_SHORT2:
+  case ALPIDE_DATA_LONG2:
+  case ALPIDE_DATA_LONG3:
+  case ALPIDE_CHIP_HEADER2:
+  case ALPIDE_CHIP_EMPTY_FRAME2:
+    // These should never occur in data_parsed.byte[2].
+    // They are here to get rid off compiler warnings :)
+    break;
   }
 }
 
@@ -135,7 +146,7 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
   // Parse most significant byte - Check all options...
   uint8_t data_word_check = dw.data[2] & MASK_DATA;
   uint8_t chip_word_check = dw.data[2] & MASK_CHIP;
-  uint8_t region_word_check = dw.data[2] & MASK_REGION;  
+  uint8_t region_word_check = dw.data[2] & MASK_REGION_HEADER;
   uint8_t idle_busy_word_check = dw.data[2] & MASK_IDLE_BUSY;    
 
 
@@ -205,7 +216,7 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 ///       It will also increase counters for the corresponding words.
 ///@param data One of the "additional" bytes in a data word to parse
 ///@return Data word type for "additional" byte provided in data argument
-AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data) const
+AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
 {
   if(data == DW_IDLE) {
     mIdleByteCount++;
@@ -224,7 +235,7 @@ AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data) const
 
 
 SC_HAS_PROCESS(AlpideDataParser);
-void AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name)
+AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name)
   : sc_core::sc_module(name)
 {
   SC_METHOD(parserInputProcess);

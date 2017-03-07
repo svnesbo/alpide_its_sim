@@ -5,6 +5,9 @@
  * @details A simple event generator for Alpide SystemC simulation model.
  */
 
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "event_generator.h"
 #include "../alpide/alpide_constants.h"
 #include <boost/current_function.hpp>

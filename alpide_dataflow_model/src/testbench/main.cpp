@@ -5,6 +5,9 @@
  * @brief  Main source file for Alpide Dataflow SystemC simulation testbench
  */
 
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "../settings/settings.h"
 #include "../event/event_generator.h"
 #include "../alpide/alpide.h"

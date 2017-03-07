@@ -10,6 +10,9 @@
  *
  */
 
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "trigger_event.h"
 #include <systemc.h>
 #include <sstream>

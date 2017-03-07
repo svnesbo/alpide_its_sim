@@ -1,10 +1,33 @@
+/**
+ * @file   alpide_test.cpp
+ * @author Simon Voigt Nesbo
+ * @date   March 7, 2017
+ * @brief  "Unit test" for the whole Alpide chip.
+ *         Boost test could presumably not be used for this test, because both SystemC and boost test 
+ *         expects to be in charge of main.
+ *         Anyway, the test does the following:
+ *         1) Sets up an Alpide chip object
+ *         2) Sets up an AlpideDataParser object
+ *         3) Sets up necessary clocks and signals, and connects the alpide and parser objects.
+ *         4) Creates an event with some hits, and feeds it to the alpide
+ *         5) Starts the SystemC simulation and lets it run for a little while
+ *         6) Verifies that the parser has received the event and that the hits are the same
+ */
+
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "../alpide/alpide.h"
-#define BOOST_TEST_MODULE AlpideTest
-#include <boost/test/included/unit_test.hpp>
+#include "../alpide/alpide_data_parser.h"
+#include <boost/random/random_device.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
 #include <vector>
+#include <iostream>
 
 
-BOOST_AUTO_TEST_CASE( alpide_test )
+//BOOST_AUTO_TEST_CASE( alpide_test )
+int sc_main(int argc, char** argv)
 {
   boost::random::mt19937 rand_gen;
   boost::random::uniform_int_distribution<int> rand_x_dist(0, N_PIXEL_COLS-1);
@@ -17,11 +40,9 @@ BOOST_AUTO_TEST_CASE( alpide_test )
   bool continuous_mode = false;
   bool enable_clustering = true;
 
-  // Just a dummy counter value for every time a simulation time is needed
-  long event_time = 0;
+  std::cout << "Setting up Alpide SystemC simulation" << std::endl;
 
-  BOOST_TEST_MESSAGE("Setting up Alpide SystemC simulation");
-  
+  // Setup SystemC stuff
   Alpide alpide("alpide",
                 0,
                 128,
@@ -31,14 +52,33 @@ BOOST_AUTO_TEST_CASE( alpide_test )
 
   AlpideDataParser parser("parser");
 
+  sc_trace_file *wf = NULL;
+  sc_core::sc_set_time_resolution(1, sc_core::SC_NS);
+  
+  // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
+  sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true);
+
+  int matrix_readout_period = 50; // 50 ns
+  sc_clock clock_matrix_readout("clock_matrix_readout",
+                                matrix_readout_period,
+                                0.5, 2, true);
+  sc_signal<sc_uint<24> > alpide_serial_data;
+
+  alpide.s_system_clk_in(clock_40MHz);
+  alpide.s_matrix_readout_clk_in(clock_matrix_readout);
+  alpide.s_serial_data_output(alpide_serial_data);
+
   // Initialize SystemC stuff and connect signals to Alpide here
-  parser.serial_data_in(alpide.s_serial_data_output);
+  parser.s_serial_data_in(alpide_serial_data);
+  parser.s_clk_in(clock_40MHz);
   
   // Start/run for x number of clock cycles
-  sc_core::sc_start();
+  sc_core::sc_start(1000, sc_core::SC_NS);
 
 
-  BOOST_TEST_MESSAGE("Creating event with 100 random hits");
+  std::cout << "Creating event with 100 random hits" << std::endl;
+  
+  int64_t time_now = sc_time_stamp().value();
   
   // Create a trigger event object
   TriggerEvent e(time_now, time_now+1000, chip_id, event_id++);
@@ -63,21 +103,43 @@ BOOST_AUTO_TEST_CASE( alpide_test )
 
 
   // Start/run for x number of clock cycles
-  sc_core::sc_start();
+  sc_core::sc_start(100000, sc_core::SC_US);
 
   // By now the chip object should have finished transmitting the hits,
   // so the parser should have one full hit
-  BOOST_TEST_MESSAGE("Checking that the chip has transmitted 1 full event.");
-  BOOST_CHECK_EQUAL(parser.getNumEvents(), 1);
+  std::cout << "Checking that the chip has transmitted 1 full event." << std::endl;
+  if(parser.getNumEvents() == 1) {
+    std::cout << "Alpide parser correctly contains 1 event." << std::endl;
+  } else {
+    std::cout << "Error: Alpide parser contains " << parser.getNumEvents();
+    std::cout << " events, should have 1." << std::endl;
+  }
 
-  BOOST_TEST_MESSAGE("Checking that the parsed event has the right amount ofhits.");
-  BOOST_CHECK_EQUAL(parser.getEvent(0).getEventSize(), hit_vector.size());
+  const AlpideEventFrame* event = parser.getNextEvent();
+  if(event == nullptr) {
+    std::cout << "Error: parser returned null pointer for next event." << std::endl;
+    return -1;
+  }
 
-  BOOST_TEST_MESSAGE("Checking that the event contains all the hits that were generated, and nothimg more.");  
+  std::cout << "Checking that the parsed event has the right amount of hits." << std::endl;
+  if(event->getEventSize() == hit_vector.size()) {
+    std::cout << "Alpide parser event size correctly matches input hit vector size." << std::endl;
+  } else {
+    std::cout << "Error: Alpide parser event size is " << event->getEventSize();
+    std::cout << ", should equal input hit vector size which is " << hit_vector.size();
+    std::cout << "." << std::endl;
+  }  
+
+  std::cout << "Checking that the event contains all the hits that were generated, and nothimg more." << std::endl;
   while(!hit_vector.empty()) {
-    BOOST_CHECK_EQUAL(parser.getEvent(0).hitInEvent(hit_vector.back()), true);
+    if(event->pixelHitInEvent(hit_vector.back()) == false) {
+      std::cout << "Error: missing pixel " << hit_vector.back().getCol() << ":";
+      std::cout << hit_vector.back().getRow() << " in Alpide parser event." << std::endl;
+    }
     hit_vector.pop_back();
   }
+
+  sc_core::sc_stop();
 
   
   ///@todo Create more advanced tests of Alpide chip here.. test that clusters are generated

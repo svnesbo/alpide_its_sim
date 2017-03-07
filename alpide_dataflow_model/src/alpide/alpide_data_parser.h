@@ -13,6 +13,7 @@
 #include "alpide_data_format.h"
 #include "../event/trigger_event.h"
 #include <vector>
+#include <systemc.h>
 
 
 /// Enumerations used to identify the meaning of the different bytes in the data stream from
@@ -34,7 +35,6 @@ enum AlpideDataTypes {ALPIDE_IDLE,
                       ALPIDE_BUSY_OFF,
                       ALPIDE_UNKNOWN};
 
-AlpideDataWordTypes parseAlpideData(AlpideDataWord);
 
 struct AlpideDataParsed {
   AlpideDataTypes data[3];
@@ -43,16 +43,17 @@ struct AlpideDataParsed {
 
 class AlpideEventFrame {
 private:
-  std::set<Hit> mHitSet;  
+  std::set<PixelData> mPixelDataSet;  
   bool mFrameCompleted;
   
 public:
   AlpideEventFrame() : mFrameCompleted(false) {}
-  bool hitInEvent(Hit& h) const;
+  bool pixelHitInEvent(PixelData& pixel) const;
   void setFrameCompleted(bool val) {mFrameCompleted = val;}
   bool getFrameCompleted(void) {return mFrameCompleted;}
-  void addHit(const Hit& h) {
-    mHitSet.insert(h);    
+  unsigned int getEventSize(void) const {return mPixelDataSet.size();}
+  void addPixelHit(const PixelData& pixel) {
+    mPixelDataSet.insert(pixel);    
   }  
 };
 
@@ -60,6 +61,8 @@ public:
 class AlpideEventBuilder {
 private:
   std::vector<AlpideEventFrame> mEvents;
+
+  unsigned int mCurrentRegion = 0;
 
   // Counters for statistics
   long mIdleCount;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
@@ -81,12 +84,12 @@ public:
   void inputDataWord(AlpideDataWord dw);
   AlpideDataParsed parseDataWord(AlpideDataWord dw);
 private:
-  AlpideDataTypes parseNonHeaderBytes(uint8_t data) const;
+  AlpideDataTypes parseNonHeaderBytes(uint8_t data);
 };
 
 
 
-class AlpideDataParser : sc_core::sc_module, AlpideEventBuilder {
+class AlpideDataParser : sc_core::sc_module, public AlpideEventBuilder {
 public:
   // SystemC signals
   sc_in<sc_uint<24> > s_serial_data_in;

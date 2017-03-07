@@ -20,6 +20,7 @@ public:
   sc_in_clk matrix_readout_clock;
   sc_signal<bool> s_strobe;
   sc_signal<bool> s_physics_event;
+  sc_signal<sc_uint<24> > s_alpide_serial_data[N_REGIONS];
   sc_event_queue E_trigger_event_available;
 
 private:
