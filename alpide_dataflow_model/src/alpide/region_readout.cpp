@@ -77,7 +77,8 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
           s_region_empty_out.write(true);          
         }
         // Is the pixel within cluster that was started by a pixel that was read out previously?
-        else if(p.getPriEncPixelAddress() <= (mPixelHitBaseAddr+DATA_LONG_PIXMAP_SIZE)) {
+        else if(p.getPriEncNumInRegion() == mPixelHitEncoderId &&
+                p.getPriEncPixelAddress() <= (mPixelHitBaseAddr+DATA_LONG_PIXMAP_SIZE)) {
           // Calculate its location in the pixel map argument used in DATA LONG
           unsigned int hitmap_pixel_num = (p.getPriEncPixelAddress() - mPixelHitBaseAddr - 1);
           mPixelHitmap |= 1 << hitmap_pixel_num;
@@ -93,8 +94,10 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
             s_region_fifo_out->nb_write(AlpideDataShort(mPixelHitEncoderId, mPixelHitBaseAddr));
           else
             s_region_fifo_out->nb_write(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
-          
+
+          // Get base address, priority encoder number, etc. for the new pixel (cluster)
           mClusterStarted = true;
+          mPixelHitEncoderId = p.getPriEncNumInRegion();
           mPixelHitBaseAddr = p.getPriEncPixelAddress();
           mPixelHitmap = 0;
           s_region_empty_out.write(false);          

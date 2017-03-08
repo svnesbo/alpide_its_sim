@@ -9,8 +9,11 @@
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
+#include "../misc/vcd_trace.h"
 #include "alpide_data_parser.h"
 #include <cstddef>
+#include <iostream>
+#include <bitset>
 
 
 ///@brief Look for a pixel hit in this event frame
@@ -60,46 +63,63 @@ void AlpideEventBuilder::popEvent(void)
 void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
 {
   AlpideDataParsed data_parsed = parseDataWord(dw);
+  unsigned long data = (dw.data[2] << 16) | (dw.data[1] << 8) | dw.data[0];
+  std::bitset<24> data_bits(data);
 
   // Create new frame/event?
   switch(data_parsed.data[2]) {
   case ALPIDE_CHIP_HEADER1:
+    std::cout << "Got ALPIDE_CHIP_HEADER1: " << data_bits << std::endl;
     mEvents.push_back(AlpideEventFrame());
     break;
     
   case ALPIDE_CHIP_TRAILER:
+    std::cout << "Got ALPIDE_CHIP_TRAILER: " << data_bits << std::endl;    
     if(!mEvents.empty())
       mEvents.back().setFrameCompleted(true);
     break;
     
   case ALPIDE_CHIP_EMPTY_FRAME1:
+    std::cout << "Got ALPIDE_CHIP_EMPTY_FRAME1: " << data_bits << std::endl;    
     // Create an empty event frame
     mEvents.push_back(AlpideEventFrame());
     mEvents.back().setFrameCompleted(true);
     break;
     
   case ALPIDE_REGION_HEADER:
+    std::cout << "Got ALPIDE_REGION_HEADER: " << data_bits << std::endl;    
     mCurrentRegion = dw.data[2] & 0b00011111;
+    std::cout << "\tCurrent region: " << mCurrentRegion << std::endl;
     break;
     
   case ALPIDE_DATA_SHORT1:
+    std::cout << "Got ALPIDE_DATA_SHORT1: " << data_bits << std::endl;
     if(!mEvents.empty()) {
       uint8_t pri_enc_id = (dw.data[2] >> 2) & 0x0F;
       uint16_t addr = ((dw.data[2] & 0x03) << 8) | dw.data[1];
       mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr));
+      std::cout << "\t" << "pri_enc: " << static_cast<unsigned int>(pri_enc_id);
+      std::cout << "\t" << "addr: " << addr << std::endl;
     }
     break;
     
   case ALPIDE_DATA_LONG1:
+    std::cout << "Got ALPIDE_DATA_LONG1: " << data_bits << std::endl;
     if(!mEvents.empty()) {
       uint8_t pri_enc_id = (dw.data[2] >> 2) & 0x0F;
       uint16_t addr = ((dw.data[2] & 0x03) << 8) | dw.data[1];      
-      uint8_t hitmap = dw.data[0] & 0x3F;
+      uint8_t hitmap = dw.data[0] & 0x7F;
+      std::bitset<7> hitmap_bits(hitmap);
+
+      std::cout << "\t" << "pri_enc: " << static_cast<unsigned int>(pri_enc_id);
+      std::cout << "\t" << "addr: " << addr << std::endl;
+      std::cout << "\t" << "hitmap: " << hitmap_bits << std::endl;
 
       // Add hit for base address of cluster
       mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr));
-      
-      for(int i = 0; i < 7; i++, addr++) {
+
+      // There's 7 hits in a hitmap
+      for(int i = 0; i < 8; i++) {
         // Add a hit for each bit that is set in the hitmap
         if((hitmap >> i) & 0x01)
           mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr+i+1));
@@ -108,17 +128,24 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     break;
     
   case ALPIDE_IDLE:
+    std::cout << "Got ALPIDE_IDLE: " << data_bits << std::endl;    
     break;
     
   case ALPIDE_BUSY_ON:
+    std::cout << "Got ALPIDE_BUSY_ON: " << data_bits << std::endl;    
     ///@todo Busy on here
     break;
     
   case ALPIDE_BUSY_OFF:
+    std::cout << "Got ALPIDE_BUSY_OFF: " << data_bits << std::endl;    
     ///@todo Busy off here
     break;
     
   case ALPIDE_UNKNOWN:
+    std::cout << "Got ALPIDE_UNKNOWN: " << data_bits << std::endl;
+    std::cout << "Byte 2: " << std::hex << static_cast<unsigned>(dw.data[2]) << std::endl;
+    std::cout << "Byte 1: " << std::hex << static_cast<unsigned>(dw.data[1]) << std::endl;
+    std::cout << "Byte 0: " << std::hex << static_cast<unsigned>(dw.data[0]) << std::endl;
     ///@todo Unknown Alpide data word received. Do something smart here?
     break;
 
@@ -127,6 +154,7 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
   case ALPIDE_DATA_LONG3:
   case ALPIDE_CHIP_HEADER2:
   case ALPIDE_CHIP_EMPTY_FRAME2:
+    std::cout << "Got ALPIDE_SOMETHING.., which I shouldn't be receiving here..: " << data_bits << std::endl;    
     // These should never occur in data_parsed.byte[2].
     // They are here to get rid off compiler warnings :)
     break;
@@ -155,7 +183,7 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
     data_parsed.data[2] = ALPIDE_DATA_LONG1;
     data_parsed.data[1] = ALPIDE_DATA_LONG2;
     data_parsed.data[0] = ALPIDE_DATA_LONG3;    
-  } if(data_word_check == DW_DATA_SHORT) {
+  } else if(data_word_check == DW_DATA_SHORT) {
     mDataShortCount++;
     data_parsed.data[2] = ALPIDE_DATA_SHORT1;
     data_parsed.data[1] = ALPIDE_DATA_SHORT2;
@@ -258,5 +286,19 @@ void AlpideDataParser::parserInputProcess(void)
   dw.data[1] = s_serial_data_in.read().range(15,8);
   dw.data[2] = s_serial_data_in.read().range(23,16);    
     
-  parseDataWord(dw);
+  inputDataWord(dw);
+}
+
+
+///@brief Add SystemC signals to log in VCD trace file.
+///@param wf Pointer to VCD trace file object
+///@param name_prefix Name prefix to be added to all the trace names
+void AlpideDataParser::addTraces(sc_trace_file *wf, std::string name_prefix) const
+{
+  std::stringstream ss;
+  ss << name_prefix << "alpide_data_parser" << ".";
+  std::string parser_name_prefix = ss.str();
+
+  addTrace(wf, parser_name_prefix, "serial_data_in", s_serial_data_in);
+  addTrace(wf, parser_name_prefix, "clk_in", s_clk_in);
 }

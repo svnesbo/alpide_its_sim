@@ -26,20 +26,25 @@
 #include <iostream>
 
 
-//BOOST_AUTO_TEST_CASE( alpide_test )
 int sc_main(int argc, char** argv)
 {
-  boost::random::mt19937 rand_gen;
-  boost::random::uniform_int_distribution<int> rand_x_dist(0, N_PIXEL_COLS-1);
-  boost::random::uniform_int_distribution<int> rand_y_dist(0, N_PIXEL_ROWS-1);
-  int rand_x, rand_y;
   std::vector<Hit> hit_vector;
-  
+  int rand_x, rand_y;    
   int chip_id = 0;
   int event_id = 0;
   bool continuous_mode = false;
   bool enable_clustering = true;
 
+  // Set up random number generators
+  boost::random::mt19937 rand_gen;
+  boost::random::uniform_int_distribution<int> rand_x_dist(0, N_PIXEL_COLS-1);
+  boost::random::uniform_int_distribution<int> rand_y_dist(0, N_PIXEL_ROWS-1);
+  boost::random::random_device r;
+  std::cout << "Boost random_device entropy: " << r.entropy() << std::endl;
+  unsigned int random_seed = r();
+  rand_gen.seed(random_seed);
+  
+  
   std::cout << "Setting up Alpide SystemC simulation" << std::endl;
 
   // Setup SystemC stuff
@@ -71,6 +76,13 @@ int sc_main(int argc, char** argv)
   // Initialize SystemC stuff and connect signals to Alpide here
   parser.s_serial_data_in(alpide_serial_data);
   parser.s_clk_in(clock_40MHz);
+
+  wf = sc_create_vcd_trace_file("alpide_test_waveforms");
+
+  //sc_trace(wf, clock_40MHz, "clock");
+  //sc_trace(wf, clock_matrix_readout, "clock_matrix_readout");
+  alpide.addTraces(wf, "");
+  parser.addTraces(wf, "");
   
   // Start/run for x number of clock cycles
   sc_core::sc_start(1000, sc_core::SC_NS);
@@ -88,6 +100,8 @@ int sc_main(int argc, char** argv)
     rand_x = rand_x_dist(rand_gen);
     rand_y = rand_y_dist(rand_gen);
 
+    std::cout << rand_x << ";" << rand_y << std::endl;
+
     // Store hits in vector - used later to check against data from serial output
     hit_vector.emplace_back(rand_x, rand_y, time_now, time_now+1000);
 
@@ -95,15 +109,12 @@ int sc_main(int argc, char** argv)
     e.addHit(hit_vector.back());
   }
 
-  // Create an event in the Alpide
-  alpide.newEvent(time_now);
-
   // Feed trigger event to Alpide
   e.feedHitsToChip(alpide);
 
 
   // Start/run for x number of clock cycles
-  sc_core::sc_start(100000, sc_core::SC_US);
+  sc_core::sc_start(10, sc_core::SC_US);
 
   // By now the chip object should have finished transmitting the hits,
   // so the parser should have one full hit
@@ -130,17 +141,30 @@ int sc_main(int argc, char** argv)
     std::cout << "." << std::endl;
   }  
 
-  std::cout << "Checking that the event contains all the hits that were generated, and nothimg more." << std::endl;
+  std::cout << "Checking that the event contains all the hits that were generated, and nothing more." << std::endl;
   while(!hit_vector.empty()) {
     if(event->pixelHitInEvent(hit_vector.back()) == false) {
       std::cout << "Error: missing pixel " << hit_vector.back().getCol() << ":";
       std::cout << hit_vector.back().getRow() << " in Alpide parser event." << std::endl;
+    } else {
+      std::cout << "Success: Pixel " << hit_vector.back().getCol() << ":";
+      std::cout << hit_vector.back().getRow() << " found in Alpide parser event." << std::endl;
     }
     hit_vector.pop_back();
   }
 
+  std::cout << "Pixels in parser: " << std::endl;
+  auto pix_iter = event->getPixelSetIterator();
+  while(pix_iter != event->getPixelSetEnd()) {
+    std::cout << pix_iter->getCol() << ";" << pix_iter->getRow() << std::endl;
+    pix_iter++;
+  }
+
   sc_core::sc_stop();
 
+  if(wf != NULL) {
+    sc_close_vcd_trace_file(wf);
+  }  
   
   ///@todo Create more advanced tests of Alpide chip here.. test that clusters are generated
   ///      correctly, that data is read out sufficiently fast, etc.

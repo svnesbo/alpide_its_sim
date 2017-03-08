@@ -7,6 +7,7 @@
 
 #include "pixel_col.h"
 #include <stdexcept>
+#include <iostream>
 
 
 ///@brief Constructor for pixel data based on region number, priority encoder number in region,
@@ -19,7 +20,7 @@ PixelData::PixelData(int region, int pri_enc, int addr)
 {
   mRow = addr >> 1;
   mCol = ((addr&1) ^ (mRow&1)); // LSB of column
-  mCol = (region << 6) | (pri_enc << 1) | mCol;  
+  mCol = (region << 5) | (pri_enc << 1) | mCol;
 }
 
 

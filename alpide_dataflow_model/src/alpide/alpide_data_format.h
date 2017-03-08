@@ -142,7 +142,7 @@ class AlpideDataShort : public AlpideDataWord
 {
 public:
   AlpideDataShort(uint8_t encoder_id, uint16_t addr) {
-    data[2] = DW_DATA_SHORT | ((encoder_id & 0x0F) << 4) | ((addr >> 8) & 0x03);
+    data[2] = DW_DATA_SHORT | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
     data[1] = addr & 0xFF;
     data[0] = DW_IDLE;
   }
@@ -153,7 +153,7 @@ class AlpideDataLong : public AlpideDataWord
 {
 public:
   AlpideDataLong(uint8_t encoder_id, uint16_t addr, uint8_t hitmap) {
-    data[2] = DW_DATA_LONG | ((encoder_id & 0x0F) << 4) | ((addr >> 8) & 0x03);
+    data[2] = DW_DATA_LONG | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
     data[1] = addr & 0xFF;
     data[0] = hitmap & 0x7F;
   }

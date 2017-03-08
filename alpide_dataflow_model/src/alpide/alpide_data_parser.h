@@ -54,7 +54,13 @@ public:
   unsigned int getEventSize(void) const {return mPixelDataSet.size();}
   void addPixelHit(const PixelData& pixel) {
     mPixelDataSet.insert(pixel);    
-  }  
+  }
+  std::set<PixelData>::const_iterator getPixelSetIterator(void) const {
+    return mPixelDataSet.cbegin();
+  }
+  std::set<PixelData>::const_iterator getPixelSetEnd(void) const {
+    return mPixelDataSet.cend();
+  }
 };
 
 
@@ -100,6 +106,7 @@ private:
   
 public:
   AlpideDataParser(sc_core::sc_module_name name);
+  void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 
 
