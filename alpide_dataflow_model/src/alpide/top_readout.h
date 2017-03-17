@@ -14,6 +14,18 @@
 #include <string>
 
 
+struct FrameStartFifoWord {
+  sc_uint<1> busy_violation;
+  sc_uint<8> BC_for_frame; // Bunch counter
+};
+
+
+struct FrameEndFifoWord {
+  sc_uint<1> flushed_incomplete;
+  sc_uint<1> strobe_extended;
+  sc_uint<1> busy_transition;
+};  
+
 /// The TopReadoutUnit (TRU) class is a simple representation of the TRU in the Alpide chip.
 /// It should be connected to the Region Readout Unit (RRU) in the Alpide object,
 /// and will be responsible for reading out from the RRUs with the topRegionReadoutProcess,
@@ -39,6 +51,8 @@ private:
   sc_signal<sc_uint<8> > s_current_region;
   sc_signal<bool> s_busy_on_signalled;
   sc_signal<bool> s_busy_off_signalled;
+  sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
+  sc_fifo<FrameEndFIfoWord> s_frame_end_fifo;
   
 private:
 
