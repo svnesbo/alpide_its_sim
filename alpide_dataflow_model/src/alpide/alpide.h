@@ -35,7 +35,9 @@ public:
   ///@brief 40MHz LHC clock
   sc_in_clk s_system_clk_in;
 
-  sc_out<sc_uint<24> > s_serial_data_output;  
+  sc_out<sc_uint<24> > s_serial_data_output;
+
+  sc_signal<bool> s_busy_status;
 
   ///@brief Number of events stored in the chip at any given time
   sc_signal<sc_uint<8> > s_event_buffers_used;

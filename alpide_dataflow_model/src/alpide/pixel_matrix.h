@@ -53,6 +53,7 @@ private:
   ///                        also counts up in that case.
   uint64_t mTriggerEventsRejected = 0;
 
+protected:
   ///@brief True: Continuous, False: Triggered
   bool mContinuousMode;
   

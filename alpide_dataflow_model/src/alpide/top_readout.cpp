@@ -20,6 +20,11 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
   s_current_region = 0;
 
   s_tru_state = IDLE;
+
+  s_busy_on_signalled = false;
+
+  // Avoid sending BUSY OFF upon startup
+  s_busy_off_signalled = true;
   
   SC_METHOD(topRegionReadoutProcess);
   sensitive_pos << s_clk_in;  
@@ -35,7 +40,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 {
   int readout_flags;
   unsigned int region;
-  AlpideDataWord data;
+  AlpideDataWord data_out;
   
   // Bunch counter wraps around each orbit
   mBunchCounter++;
@@ -48,7 +53,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   if(s_tru_fifo_out->num_free() > 0) {
     switch(s_tru_state.read()) {
     case CHIP_HEADER:
-      s_tru_fifo_out->nb_write(AlpideChipHeader(mChipId, mBunchCounter));
+      data_out = AlpideChipHeader(mChipId, mBunchCounter);
       if(s_current_event_hits_left_in.read() == 0)
         s_tru_state = CHIP_EMPTY_FRAME;
       else {
@@ -58,7 +63,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       break;
       
     case CHIP_EMPTY_FRAME:
-      s_tru_fifo_out->nb_write(AlpideChipEmptyFrame(mChipId, mBunchCounter));
+      data_out = AlpideChipEmptyFrame(mChipId, mBunchCounter);
       s_tru_state = CHIP_TRAILER;
       break;
       
@@ -69,13 +74,13 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       if(s_region_empty_in[region].read() == false ||
          s_region_fifo_in[region]->num_available() > 0)
       {
-        s_tru_state = REGION_DATA;        
-        s_tru_fifo_out->nb_write(AlpideRegionHeader(region));
+        s_tru_state = REGION_DATA;
+        data_out = AlpideRegionHeader(region);
         break;        
       } else if(region < (N_REGIONS-1)) { // Search for region with data
         region++;
         s_current_region = region;
-        s_tru_fifo_out->nb_write(AlpideIdle());
+        data_out = AlpideIdle();
         break;
       } else { // No more data
         // No break here - Allow program to continue into
@@ -86,7 +91,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     case CHIP_TRAILER:
       ///@todo Implement some readout flags here?
       readout_flags = 0;
-      s_tru_fifo_out->nb_write(AlpideChipTrailer(readout_flags));
+      data_out = AlpideChipTrailer(readout_flags);
 
       if(s_event_buffers_used_in.read() > 0)
         s_tru_state = CHIP_HEADER;
@@ -98,11 +103,10 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       region = s_current_region.read();
       
       if(s_region_fifo_in[region]->num_available() > 0) {
-        s_region_fifo_in[region]->nb_read(data);
-        s_tru_fifo_out->nb_write(data);
+        s_region_fifo_in[region]->nb_read(data_out);
       } else {
         // Insert IDLE if the region FIFO is currently empty
-        s_tru_fifo_out->nb_write(AlpideIdle());
+        data_out = AlpideIdle();
       }
 
       // Is the region empty, and was this the last word in the region FIFO?
@@ -120,7 +124,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       break;
       
     case IDLE:
-      s_tru_fifo_out->nb_write(AlpideIdle());
+      data_out = AlpideIdle();
 
       if(s_event_buffers_used_in.read() > 0)
         s_tru_state = CHIP_HEADER;
@@ -131,6 +135,25 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       s_tru_state = IDLE;
       break;
     }
+
+    // Check if busy status has changed, and whether it has been signalled yet
+    if(s_busy_status_in == true && s_busy_on_signalled == false) {
+      // Check if there is an IDLE word, and replace it with BUSY ON
+      if(data_out.signalBusyOn() == true) {
+        std::cout << "BUSY ON signalled" << std::endl;
+        s_busy_on_signalled = true;
+        s_busy_off_signalled = false;
+      }
+    } else if(s_busy_status_in == false && s_busy_off_signalled == false) {
+      // Check if there is an IDLE word, and replace it with BUSY OFF
+      if(data_out.signalBusyOff() == true) {
+        std::cout << "BUSY OFF signalled" << std::endl;
+        s_busy_off_signalled = true;
+        s_busy_on_signalled = false;
+      }      
+    }
+    
+    s_tru_fifo_out->nb_write(data_out);
     
   } else { // TRU FIFO Full
     // Do something smart here.. do we need to signal busy?

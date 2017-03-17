@@ -24,6 +24,7 @@ public:
   // SystemC signals
   sc_port<sc_fifo_in_if<AlpideDataWord> > s_region_fifo_in[N_REGIONS];
   sc_in<bool> s_region_empty_in[N_REGIONS];
+  sc_in<bool> s_busy_status_in;
   sc_in<sc_uint<32> > s_current_event_hits_left_in;
   sc_in<sc_uint<8> > s_event_buffers_used_in;
 
@@ -36,6 +37,8 @@ public:
 private:
   sc_signal<sc_uint<8> > s_tru_state;
   sc_signal<sc_uint<8> > s_current_region;
+  sc_signal<bool> s_busy_on_signalled;
+  sc_signal<bool> s_busy_off_signalled;
   
 private:
 

@@ -250,9 +250,11 @@ AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
     mIdleByteCount++;
     return ALPIDE_IDLE;
   } else if(data == DW_BUSY_ON) {
+    std::cout << "Got BUSY_ON" << std::endl;
     mBusyOnCount++;
     return ALPIDE_BUSY_ON;
   } else if(data == DW_BUSY_OFF) {
+    std::cout << "Got BUSY_OFF" << std::endl;    
     mBusyOffCount++;
     return ALPIDE_BUSY_OFF;
   } else {

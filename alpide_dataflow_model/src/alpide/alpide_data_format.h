@@ -64,7 +64,36 @@ const uint8_t MASK_DATA = 0b11000000;
 class AlpideDataWord
 {
 public:
-  uint8_t data[3];  
+  uint8_t data[3];
+
+  bool signalBusyOn(void) {
+    if(data[0] == DW_IDLE) {
+      data[0] = DW_BUSY_ON;
+      return true;
+    } else if(data[1] == DW_IDLE) {
+      data[1] = DW_BUSY_ON;
+      return true;
+    } else if(data[2] == DW_IDLE) {
+      data[2] = DW_BUSY_ON;
+      return true;
+    } else {
+      return false;
+    }
+  }
+  bool signalBusyOff(void) {
+    if(data[0] == DW_IDLE) {
+      data[0] = DW_BUSY_OFF;
+      return true;
+    } else if(data[1] == DW_IDLE) {
+      data[1] = DW_BUSY_OFF;
+      return true;
+    } else if(data[2] == DW_IDLE) {
+      data[2] = DW_BUSY_OFF;
+      return true;
+    } else {
+      return false;
+    }
+  }    
 };
 
 ///@todo Overload this for all AlpideDataWord classes, so SystemC can print them to trace files properly?

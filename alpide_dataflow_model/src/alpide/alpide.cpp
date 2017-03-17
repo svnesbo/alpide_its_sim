@@ -33,6 +33,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   s_event_buffers_used = 0;
   s_total_number_of_hits = 0;
   s_oldest_event_number_of_hits = 0;
+  s_busy_status = false;
 
   mTRU = new TopReadoutUnit("TRU", chip_id);
 
@@ -58,6 +59,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   }
 
   mTRU->s_clk_in(s_system_clk_in);
+  mTRU->s_busy_status_in(s_busy_status);
   mTRU->s_event_buffers_used_in(s_event_buffers_used);
   mTRU->s_current_event_hits_left_in(s_oldest_event_number_of_hits);
   mTRU->s_tru_fifo_out(s_top_readout_fifo);
@@ -79,9 +81,28 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 void Alpide::matrixReadout(void)
 {
   uint64_t time_now = sc_time_stamp().value();
+  int MEBs_in_use = getNumEvents();
   
   // Update signal with number of event buffers
-  s_event_buffers_used = getNumEvents();
+  s_event_buffers_used = MEBs_in_use;
+
+  if(mContinuousMode) {
+    if(MEBs_in_use > 1) {
+      s_busy_status = true;
+      // Notify TRU so BUSY ON word can be sent here?
+    } else {
+      s_busy_status = false;
+      // Notify TRU so BUSY OFF word can be sent here?
+    }
+  } else { // Triggered mode
+    if(MEBs_in_use > 2) { // All MEBs full
+      s_busy_status = true;
+      // Notify TRU so BUSY ON word can be sent here?      
+    } else {
+      s_busy_status = false;
+      // Notify TRU so BUSY ON word can be sent here?      
+    }
+  }
 
   // Update signal with total number of hits in all event buffers
   s_total_number_of_hits = getHitTotalAllEvents();
