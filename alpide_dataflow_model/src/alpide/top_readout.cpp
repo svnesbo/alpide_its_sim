@@ -49,6 +49,100 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   // explanation of how this state machine works.
   if(s_tru_fifo_out->num_free() > 0) {
     switch(s_tru_state.read()) {
+    case EMPTY:
+      if(s_frame_end_fifo.num_available() > 0) {
+        // Read out 
+        s_tru_state = IDLE;
+      }
+      break;
+      
+    case IDLE:
+      if(s_frame_start_fifo.num_available() > 0)
+        s_tru_state = WAIT_REGION_DATA;
+      break;
+      
+    case WAIT_REGION_DATA:
+      // Wait for data to become available from regions...
+      if(/* data available, or empty chip? */)
+        s_tru_state = CHIP_HEADER;
+      break;
+      
+    case CHIP_HEADER:
+      // num_free() > 0, or a threshold??
+      if(s_tru_fifo_out.num_free() > 0) {
+        if(/* Busy violation */) {
+          // Do something smart here...?
+          s_tru_state = BUSY_VIOLATION;
+        } if(/* There's data: Normal Chip Header */) {
+          // Which BC count should be used??? Should match when event occured, not when it is read out
+          // Get the header/trailer bits from FRAME START/END FIFO HERE..
+          data_out = AlpideChipHeader(mChipId, mBunchCounter);
+          s_tru_state = REGION_DATA;
+        } else {
+          /* No data: Chip Empty Header/Frame */
+          // Which BC count should be used??? Should match when event occured, not when it is read out
+          // Get the header/trailer bits from FRAME START/END FIFO HERE..          
+          data_out = AlpideChipEmptyFrame(mChipId, mBunchCounter);
+          s_tru_state = EMPTY;
+        }
+        s_tru_fifo_out->nb_write(data_out);
+      }
+      break;
+
+      
+    case BUSY_VIOLATION:
+      // Are we outputting something here???
+      s_tru_state = IDLE;
+      break;
+      
+    case REGION_DATA:
+      if(/* New region */) {
+        data_out = AlpideRegionHeader(region);
+      } else {
+        s_region_fifo_in[region]->nb_read(data_out);        
+      }
+
+      if(/*TRU Data FIFO full - num_free() == 0, or a threshold??*/) {
+        s_tru_state = WAIT;
+      } else if(/* Regions fully read out */) {
+        s_tru_state = CHIP_TRAILER;
+      }
+      break;
+      
+    case WAIT:
+      // num_free() > 0, or a threshold??
+      if(s_tru_fifo_out.num_free() > 0) {
+        if(/* More region data */)
+          s_tru_state = REGION_DATA;
+        else /* No more region data - output chip trailer */
+          s_tru_state = CHIP_TRAILER;
+      }
+      break;
+      
+    case CHIP_TRAILER:
+      // num_free() == 0, or a threshold??
+      if(s_tru_fifo_out.num_free() == 0 || s_frame_end_fifo.num_available() == 0) {
+        ///@todo Read  something from s_frame_end_fifo here..
+        ///@todo Implement some readout flags here?
+        readout_flags = 0; 
+        data_out = AlpideChipTrailer(readout_flags);
+        s_tru_state = IDLE;
+      }
+      break;
+    }
+
+
+
+
+
+
+
+
+
+
+    
+    // -------------------------------------------------------------
+    // Old TRU implementation
     case CHIP_HEADER:
       data_out = AlpideChipHeader(mChipId, mBunchCounter);
       if(s_current_event_hits_left_in.read() == 0)

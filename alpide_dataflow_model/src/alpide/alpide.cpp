@@ -42,12 +42,6 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     std::stringstream ss;
     ss << "RRU_" << i;
     mRRUs[i] = new RegionReadoutUnit(ss.str().c_str(), i, region_fifo_size, enable_clustering);
-
-    //s_region_fifos[i] = new sc_fifo<AlpideDataWord>(region_fifo_size);
-    
-    // Conenct RRU->TRU FIFOs
-//    mRRUs[i]->s_region_fifo_out(*s_region_fifos[i]);
-//    mTRU->s_region_fifo_in[i](*s_region_fifos[i]);
     mTRU->s_region_fifo_in[i](mRRUs[i]->s_region_fifo);
 
     // Connect RRU->TRU region empty signals
@@ -69,13 +63,60 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 }
 
 
+///@brief Indicate to the Alpide that we are starting on a new event. If the call is
+///       successful a new MEB slice is created, and the next calls to setPixel will add pixels
+///       to the new event.
+///@param event_time Simulation time when the event is pushed/latched into MEB
+///                  (use current simulation time).
+///@return True if successful and a new MEB slice was created. Returns false if a new MEB slice
+///        could not be created (happens only in triggered mode).
+///@todo   Does this return value make sense??
+bool Alpide::newEvent(uint64_t event_time)
+{
+  bool rv = PixelMatrix::newEvent(event_time);
+
+  // Event successfully created - push a frame start word to the TRU's Frame Start FIFO
+  if(rv == true) {
+    // Create frame and push to TRU frame start FIFO - with "normal" values
+  } else {
+    // If we are in triggered - BUSY VIOLATION?
+    // If we are in continuous - Delete the oldest MEB, and make room for this event?
+  }
+  
+  return true;
+}
+
+
+
+///@todo GET RID OFF THIS FUNCTION! IMPLEMENT EACH RRU AS A SYSTEMC METHOD/PROCESS, WITH A STATE MACHINE!
+///@todo Actually, keep this function, because I don't have a good way of passing a reference
+///      to the pixel matrix to the RRUs without using this function... :(
 ///@brief Matrix readout SystemC method. This method is clocked by the matrix readout clock.
 ///       The matrix readout period can be specified by the user in a register in the Alpide,
 ///       and is intended to allow the priority encoder a little more time to "settle" because
 ///       it is a relatively slow asynchronous circuit.
 ///       The method here triggers readout of a pixel from each region, into region buffers,
 ///       and updates some status signals related to regions/event-buffers.
-void Alpide::matrixReadout(void)
+void Alpide::matrixPriEncReadout(void)
+{
+  uint64_t time_now = sc_time_stamp().value();
+  int MEBs_in_use = getNumEvents();
+  
+  // Read out a pixel from each region in the matrix
+  for(int region_num = 0; region_num < N_REGIONS; region_num++) {
+    mRRUs[region_num]->readoutNextPixel(*this, time_now);
+  }
+}
+
+
+
+///@brief Matrix readout SystemC method. This method is clocked by the matrix readout clock.
+///       The matrix readout period can be specified by the user in a register in the Alpide,
+///       and is intended to allow the priority encoder a little more time to "settle" because
+///       it is a relatively slow asynchronous circuit.
+///       The method here triggers readout of a pixel from each region, into region buffers,
+///       and updates some status signals related to regions/event-buffers.
+void Alpide::frameReadoutProcess(void)
 {
   uint64_t time_now = sc_time_stamp().value();
   int MEBs_in_use = getNumEvents();

@@ -64,10 +64,13 @@ private:
   ///       the same pixel cluster range.
   bool mClusterStarted;
 
+private:
+  void readoutNextPixel(PixelMatrix& matrix, uint64_t time_now);
+  
 public:
   RegionReadoutUnit(sc_core::sc_module_name name, unsigned int region_num,
                     unsigned int fifo_size, bool cluster_enable);
-  void readoutNextPixel(PixelMatrix& matrix, uint64_t time_now);
+  void readoutProcess(void);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;  
 };
 

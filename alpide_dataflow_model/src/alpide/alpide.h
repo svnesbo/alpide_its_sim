@@ -71,11 +71,13 @@ private:
   
   void matrixReadout(void);
   void dataTransmission(void);
+  void frameReadoutProcess(void); // FROMU
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
          int tru_fifo_size, bool enable_clustering, bool continuous_mode);
   int getChipId(void) {return mChipId;}
+  bool newEvent(uint64_t event_time);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 

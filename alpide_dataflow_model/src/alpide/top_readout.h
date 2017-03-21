@@ -55,10 +55,11 @@ public:
 private:
   sc_signal<sc_uint<8> > s_tru_state;
   sc_signal<sc_uint<8> > s_current_region;
+  sc_signal<bool> s_readout_abort;
   sc_signal<bool> s_busy_on_signalled;
   sc_signal<bool> s_busy_off_signalled;
-  //sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
-  //sc_fifo<FrameEndFIfoWord> s_frame_end_fifo;
+  sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
+  sc_fifo<FrameEndFifoWord> s_frame_end_fifo;
   
 private:
 
@@ -66,13 +67,15 @@ private:
   unsigned int mBunchCounter;
 
   enum TRU_state_t {
-    CHIP_HEADER = 0,
-    CHIP_EMPTY_FRAME = 1,
-    REGION_HEADER = 2,
-    CHIP_TRAILER = 3,
-    REGION_DATA = 4,
-    IDLE = 5
-  };  
+    EMPTY = 0,
+    IDLE = 1,
+    WAIT_REGION_DATA = 2,
+    CHIP_HEADER = 3,    
+    BUSY_VIOLATION = 4,
+    REGION_DATA = 5,
+    WAIT = 6,
+    CHIP_TRAILER = 7
+  };    
   
 public:
   TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);

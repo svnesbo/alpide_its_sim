@@ -59,7 +59,7 @@ protected:
   
 public:
   PixelMatrix(bool continuous_mode);
-  bool newEvent(uint64_t event_time);
+  virtual bool newEvent(uint64_t event_time);
   void setPixel(unsigned int col, unsigned int row);
   PixelData readPixel(uint64_t time_now,
                       int start_double_col = 0,
