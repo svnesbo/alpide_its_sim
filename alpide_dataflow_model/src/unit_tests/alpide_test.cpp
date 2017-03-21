@@ -14,9 +14,6 @@
  *         6) Verifies that the parser has received the event and that the hits are the same
  */
 
-// Ignore warnings about use of auto_ptr in SystemC library
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 #include "../alpide/alpide.h"
 #include "../alpide/alpide_data_parser.h"
 #include <boost/random/random_device.hpp>

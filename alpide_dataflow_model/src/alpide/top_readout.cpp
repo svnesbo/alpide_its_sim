@@ -5,9 +5,6 @@
  * @brief  Class for implementing the Top Readout Unit (TRU) in the Alpide chip.
  */
 
-// Ignore warnings about use of auto_ptr in SystemC library
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 #include "top_readout.h"
 #include "../misc/vcd_trace.h"
 

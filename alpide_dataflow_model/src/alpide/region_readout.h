@@ -11,8 +11,13 @@
 
 #include "alpide_data_format.h"
 #include "pixel_matrix.h"
-#include <systemc.h>
 #include <cstdint>
+
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <systemc.h>
+#pragma GCC diagnostic pop
 
 /// The RegionReadoutUnit class is a simple representation of the RRU in the Alpide chip.
 /// It has a member function that accepts pixel hits inputs, the RRU class will hold on to

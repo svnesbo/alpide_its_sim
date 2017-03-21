@@ -10,8 +10,14 @@
 
 #include "region_readout.h"
 #include "alpide_constants.h"
-#include <systemc.h>
 #include <string>
+
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <systemc.h>
+#pragma GCC diagnostic pop
+
 
 
 struct FrameStartFifoWord {
@@ -51,8 +57,8 @@ private:
   sc_signal<sc_uint<8> > s_current_region;
   sc_signal<bool> s_busy_on_signalled;
   sc_signal<bool> s_busy_off_signalled;
-  sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
-  sc_fifo<FrameEndFIfoWord> s_frame_end_fifo;
+  //sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
+  //sc_fifo<FrameEndFIfoWord> s_frame_end_fifo;
   
 private:
 

@@ -6,9 +6,6 @@
  *
  */
 
-// Ignore warnings about use of auto_ptr in SystemC library
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 #include <iostream>
 #include "region_readout.h"
 #include "../misc/vcd_trace.h"

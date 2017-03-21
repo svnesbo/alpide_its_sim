@@ -5,11 +5,14 @@
  * @brief  Source file for stimuli function for Alpide Dataflow SystemC model
  */
 
-// Ignore warnings about use of auto_ptr in SystemC library
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 #include "stimuli.h"
+
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
+#pragma GCC diagnostic pop
+
 #include <list>
 #include <sstream>
 #include <fstream>

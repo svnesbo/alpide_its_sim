@@ -9,7 +9,12 @@
 #ifndef VCD_TRACE_H
 #define VCD_TRACE_H
 
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
+#pragma GCC diagnostic pop
+
 #include <string>
 #include <sstream>
 

@@ -13,7 +13,12 @@
 #include "alpide_data_format.h"
 #include "../event/trigger_event.h"
 #include <vector>
+
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
+#pragma GCC diagnostic pop
 
 
 /// Enumerations used to identify the meaning of the different bytes in the data stream from

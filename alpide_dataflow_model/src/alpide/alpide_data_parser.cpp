@@ -6,9 +6,6 @@
  *         and building/reconstructing events/frames from the data
  */
 
-// Ignore warnings about use of auto_ptr in SystemC library
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 #include "../misc/vcd_trace.h"
 #include "alpide_data_parser.h"
 #include <cstddef>
