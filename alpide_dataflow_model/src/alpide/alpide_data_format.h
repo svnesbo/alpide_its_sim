@@ -38,6 +38,7 @@ const uint8_t DW_CHIP_HEADER        = 0b10100000;
 const uint8_t DW_CHIP_TRAILER       = 0b10110000;
 const uint8_t DW_CHIP_EMPTY_FRAME   = 0b11100000;
 const uint8_t DW_REGION_HEADER      = 0b11000000;
+const uint8_t DW_REGION_TRAILER     = 0b10000000; ///@todo What is the id for this word??
 const uint8_t DW_DATA_SHORT         = 0b01000000;
 const uint8_t DW_DATA_LONG          = 0b00000000;
 const uint8_t DW_BUSY_ON            = 0b11110001;
@@ -161,6 +162,18 @@ class AlpideRegionHeader : public AlpideDataWord
 public:
   AlpideRegionHeader(uint8_t region_id) {
     data[2] = DW_REGION_HEADER | (region_id & 0x1F);
+    data[1] = DW_IDLE;
+    data[0] = DW_IDLE;
+  }
+};
+
+
+class AlpideRegionTrailer : public AlpideDataWord
+{
+public:
+//  AlpideRegionHeader(uint8_t region_id) {
+  AlpideRegionHeader(void) {  
+    data[2] = DW_REGION_Trailer /* | (region_id & 0x1F)*/;
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
   }

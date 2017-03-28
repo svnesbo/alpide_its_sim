@@ -31,23 +31,31 @@ RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
 }
 
 ///@brief SystemC process/method that implements the Region Readout Unit
-///       state machine.
-void RegionReadoutUnit::readoutProcess(void)
+///       state machine for reading out hits from Multi Event Buffer in
+///       the pixel matrix.
+///       NOTE: Should run at priority encoder clock frequency.
+void RegionReadoutUnit::regionMatrixReadoutProcess(void)
 {
-  switch(s_rru_state) {
+  AlpideDataWord data_out;
+  
+  switch(s_rru_readout_state) {
   case IDLE:
     if(s_frame_readout_start)
-      s_rru_state = START_READOUT;
+      s_rru_readout_state = START_READOUT;
     break;
     
   case START_READOUT:
     if(s_region_fifo_out->num_free() > 0) {
       // Put REGION_HEADER word on RRU FIFO
-
+      // NOTE: REGION_HEADER is not put on RRU FIFO.....
+      ////////////data_out = AlpideRegionHeader(mRegionId);
+      s_region_fifo_out->nb_write(data_out);
+      
       if(s_readout_abort) {
-        s_rru_state = IDLE;
+        ///@todo Implement abort handling
+        s_rru_readout_state = IDLE;
       } else {
-        s_rru_state = READOUT_AND_CLUSTERING;
+        s_rru_readout_state = READOUT_AND_CLUSTERING;
       }
     }
     break;
@@ -57,18 +65,77 @@ void RegionReadoutUnit::readoutProcess(void)
       readoutNextPixel(matrix, time_now);
     }
 
-    if(s_region_empty_out)
-      s_rru_state = REGION_TRAILER;
+    if(s_readout_abort)
+      ///@todo Implement abort handling
+      s_rru_readout_state = IDLE;
+    else if(s_region_empty_out)
+      s_rru_readout_state = REGION_TRAILER;
+    
     break;
     
   case REGION_TRAILER:
     if(s_region_fifo_out->num_free() > 0) {
       // Put REGION_TRAILER word on RRU FIFO
-      s_rru_state = REGION_IDLE;
+      data_out = AlpideRegionTrailer();
+      s_rru_readout_state = REGION_IDLE;
     }    
     break;
   }
 }
+
+
+///@brief SystemC process/method that implements the state machine that
+///       determines if the region is valid (has data this frame)
+///       Note: should run on Alpide system clock frequency.
+void RegionReadoutUnit::regionValidProcess(void)
+{
+  switch(s_rru_valid_state) {
+  case IDLE:
+    s_region_valid_out = false;
+    
+    if(s_region_event_start)
+      s_rru_valid_state = EMPTY;
+    break;
+    
+  case EMPTY:
+    bool fifo_empty = s_region_fifo_out->num_available() == 0;
+    s_region_valid_out = (!fifo_empty /* && Region trailer word */);
+
+    
+    if(s_readout_abort)
+      s_rru_valid_state = IDLE;
+    else if(s_region_fifo_out->num_available() > 0) {
+      // Get next word from FIFO (peek, not read??)
+      // Or should this process sort of monitor what is being read from FIFO??
+
+      // If trailer -> go to POP
+
+      // If not trailer -> go to VALID
+    }
+    break;
+    
+  case VALID:
+    s_region_valid_out = (!fifo_empty /* && Region trailer word */);
+    
+    if(s_readout_abort)
+      s_rru_valid_state = IDLE;
+    else {
+    }
+    break;
+    
+  case POP:
+    s_region_valid = false;
+    
+    if(s_region_event_pop_in || s_readout_abort)
+      s_rru_valid_state = IDLE;
+    break;
+    
+  default:
+    s_rru_valid_state = IDLE;
+    break;
+  }
+}
+
 
 ///@brief Read out the next pixel from this region's priority encoder.
 ///       NOTE: This function should be called from a process that runs at

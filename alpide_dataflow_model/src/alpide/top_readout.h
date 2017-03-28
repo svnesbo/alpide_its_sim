@@ -45,6 +45,7 @@ public:
   sc_in<bool> s_busy_status_in;
   sc_in<sc_uint<32> > s_current_event_hits_left_in;
   sc_in<sc_uint<8> > s_event_buffers_used_in;
+  sc_out<bool> s_region_event_pop_out;
 
   ///@brief Output from TRU
   sc_port<sc_fifo_out_if<AlpideDataWord> > s_tru_fifo_out;

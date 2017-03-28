@@ -29,6 +29,8 @@ public:
   // SystemC signals 
   sc_fifo<AlpideDataWord> s_region_fifo;
   sc_out<bool> s_region_empty_out;
+  sc_out<bool> s_region_valid_out;
+  sc_in<bool> s_region_event_pop_in;    
   sc_signal<bool> s_busy_out;
   sc_signal<sc_uint<8> > s_region_fifo_size;
 private:
@@ -37,6 +39,8 @@ private:
   // But sc_fifo needs to be initialized with size when constructed, and I found no good way to
   // initialize a large array of objects to the same value (other than 0).
   sc_port<sc_fifo_out_if<AlpideDataWord> > s_region_fifo_out;
+  sc_signal<sc_uint<8> > s_rru_readout_state;
+  sc_signal<sc_uint<8> > s_rru_valid_state;    
   
 private:
   /// The region handled by this RRU
@@ -64,13 +68,28 @@ private:
   ///       the same pixel cluster range.
   bool mClusterStarted;
 
+  enum RRU_readout_state_t {
+    IDLE = 0,
+    START_READOUT = 1,
+    READOUT_AND_CLUSTERING = 2,
+    REGION_TRAILER = 3
+  };
+
+  enum RRU_valid_state_t {
+    IDLE = 0,
+    EMPTY = 1,
+    VALID = 2,
+    POP = 3
+  };        
+
 private:
   void readoutNextPixel(PixelMatrix& matrix, uint64_t time_now);
   
 public:
   RegionReadoutUnit(sc_core::sc_module_name name, unsigned int region_num,
                     unsigned int fifo_size, bool cluster_enable);
-  void readoutProcess(void);
+  void regionMatrixReadoutProcess(void);
+  void regionValidProcess(void);  
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;  
 };
 
