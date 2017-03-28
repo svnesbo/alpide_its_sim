@@ -78,7 +78,8 @@ private:
 
   std::vector<RegionReadoutUnit*> mRRUs;
   TopReadoutUnit* mTRU;
-  
+
+  void strobeProcess(void);
   void matrixReadout(void);
   void dataTransmission(void);
   void frameReadoutProcess(void); // FROMU

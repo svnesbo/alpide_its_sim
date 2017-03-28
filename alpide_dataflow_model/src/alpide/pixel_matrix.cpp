@@ -25,39 +25,28 @@ PixelMatrix::PixelMatrix(bool continuous_mode)
 ///       to the new event.
 ///@param event_time Simulation time when the event is pushed/latched into MEB
 ///                  (use current simulation time).
-///@return True if successful and a new MEB slice was created. Returns false if a new MEB slice
-///        could not be created (happens only in triggered mode).
 bool PixelMatrix::newEvent(uint64_t event_time)
 {
+  bool ret_val = true;
+
   // Update the histogram value for the previous MEB size, with the duration
   // that has passed since the last update, before pushing this event to the MEBs
   unsigned int MEB_size = mColumnBuffs.size();
   mMEBHistogram[MEB_size] += event_time - mMEBHistoLastUpdateTime;
   mMEBHistoLastUpdateTime = event_time;
 
-  // In continuous mode the Alpide chip always reserves 1 MEB slice for future events
-  // So if the 3rd MEB slice is being filled, then the chip will erase the oldest MEB
-  // slice (even if readout hasn't completed yet).
-  if(mContinuousMode == true && MEB_size == 2) {
-    // The event we are deleting has previously been marked as accepted,
-    // now change that to rejected
-    mTriggerEventsAccepted--;
-    mTriggerEventsRejected++;
-    
-    mColumnBuffsPixelsLeft.pop_front();
-    mColumnBuffs.pop();
-  }
-  // If 3 MEBs are already used in triggered mode, don't accept any new events
-  else if(mContinuousMode == false && MEB_size == 3) {
-    mTriggerEventsRejected++;
-    return false;
-  }
-
-  mTriggerEventsAccepted++;
   mColumnBuffs.push(std::vector<PixelDoubleColumn>(N_PIXEL_COLS/2));
   mColumnBuffsPixelsLeft.push_back(int(0)); // 0 hits so far for this event
-  
-  return true;
+}
+
+
+///@brief Delete an event from the MEB. No checks are made to see if there are actually
+///       stored events to delete. Underlying container will probably throw an exception
+///       if called when there are not.
+bool PixelMatrix::deleteEvent(void)
+{
+  mColumnBuffsPixelsLeft.pop_front();
+  mColumnBuffs.pop();
 }
 
 

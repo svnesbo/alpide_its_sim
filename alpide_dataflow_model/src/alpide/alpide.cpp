@@ -58,6 +58,9 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 
   s_tru_frame_start_fifo_in(mTRU->s_tru_frame_start_fifo);
   s_tru_frame_end_fifo_in(mTRU->s_tru_frame_end_fifo);
+
+  SC_METHOD(strobeProcess);
+  sensitive << s_strobe_in;
   
   SC_METHOD(matrixReadout);
   sensitive_pos << s_matrix_readout_clk_in;
@@ -80,9 +83,16 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 ///@todo   Does this return value make sense??
 bool Alpide::newEvent(uint64_t event_time)
 {
-  FrameStartFifoWord frame_start_data = {0, mBunchCounter};
+  PixelMatrix::newEvent(event_time);
 
-  bool rv = PixelMatrix::newEvent(event_time);
+
+
+
+
+
+
+
+  FrameStartFifoWord frame_start_data = {0, mBunchCounter};
 
   // Event successfully created - push a frame start word to the TRU's Frame Start FIFO
   if(rv == false) {
@@ -109,6 +119,92 @@ bool Alpide::newEvent(uint64_t event_time)
   return rv;
 }
 
+
+///@brief SystemC process/method controlled by STROBE input.
+///       Controls creation of new Multi Event Buffers (MEBs).
+void Alpide::strobeProcess(void)
+{
+  int64_t time_now = sc_time_stamp().value();
+
+  if(s_strobe_in) {   // Strobe rising edge    
+    if(mContinuousMode) {
+      mChipReady = true; // A free event buffer is guaranteed in continuous mode..
+
+      if(getNumEvents() == 2) {
+        deleteEvent();
+
+        // No change in number of accepted events, since previous 
+        // event was accepted but is now being "rejected".
+        mTriggerEventsRejected++;
+
+        s_readout_abort = true;
+        s_busy_violation = true;
+      } else {
+        mTriggerEventsAccepted++;
+        s_readout_abort = false;
+        s_busy_violation = false;
+      }
+
+      newEvent();
+
+      // Are we, or did we become busy now?
+      if(getNumEvents() == 2) {
+        s_multi_event_buffers_busy = true;
+      } else {
+        s_multi_event_buffers_busy = false;
+      }
+    } 
+    else if(!mContinuousMode) {
+      s_busy_violation = false;
+      s_readout_abort = false; // No abort in triggered mode
+
+      if(getNumEvents() == 3) {
+        mChipReady = false;
+        mTriggerEventsRejected++;
+        s_busy_violation = true;
+      } else {
+        newEvent();
+        mTriggerEventsAccepted++;
+        mChipReady = true;
+        s_busy_violation = false;
+      }
+
+      // Are we, or did we become busy now?
+      if(getNumEvents() == 3)
+        s_multi_event_buffers_busy = true;
+      else
+        s_multi_event_busy = false;
+    }
+  }
+  else {   // Strobe falling edge
+    mChipReady = false;
+    
+    FrameStartFifoWord frame_start_data = {0, mBunchCounter};
+
+    if(s_tru_frame_start_fifo_in.num_free() == 0) {
+      // FATAL, TRU FRAME FIFO will now overflow
+      s_tru_frame_fifo_busy = true;
+      s_tru_data_overrun_mode = true;
+      s_tru_frame_fifo_fatal_overflow = true;
+    } else if(s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL2) {
+      // DATA OVERRUN MODE
+      s_tru_frame_fifo_busy = true;
+      s_tru_data_overrun_mode = true;
+      s_tru_frame_fifo_fatal_false = true;
+    } else if{s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL1) {
+      // BUSY
+      s_tru_frame_fifo_busy = true;
+      s_tru_data_overrun_mode = false;
+      s_tru_frame_fifo_fatal_false = true;
+    } else {
+      s_tru_frame_fifo_busy = false;
+      s_tru_data_overrun_mode = false;
+      s_tru_frame_fifo_fatal_false = true;
+    }
+
+    s_tru_frame_start_fifo_in.nb_write(frame_start_data);
+  }
+}
 
 
 ///@todo GET RID OFF THIS FUNCTION! IMPLEMENT EACH RRU AS A SYSTEMC METHOD/PROCESS, WITH A STATE MACHINE!
@@ -198,6 +294,7 @@ void Alpide::dataTransmission(void)
     s_serial_data_output = data;
   }
 }
+
 
 ///@brief Add SystemC signals to log in VCD trace file.
 ///@param wf Pointer to VCD trace file object
