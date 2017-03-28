@@ -14,6 +14,9 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
   : sc_core::sc_module(name)
   , mChipId(chip_id)
 {
+  s_frame_start_fifo_out(s_frame_start_fifo);
+  s_frame_end_fifo_out(s_frame_end_fifo);
+
   s_current_region = 0;
 
   s_tru_state = IDLE;
@@ -38,13 +41,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   int readout_flags;
   unsigned int region;
   AlpideDataWord data_out;
-  
-  // Bunch counter wraps around each orbit
-  mBunchCounter++;
-  if(mBunchCounter == LHC_ORBIT_BUNCH_COUNT)
-    mBunchCounter = 0;
-
-
+ 
   // Default assignments?
   s_region_event_pop_out = false;  
 

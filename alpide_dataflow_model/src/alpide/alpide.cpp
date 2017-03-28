@@ -6,6 +6,7 @@
  */
 
 #include "alpide.h"
+#include "alpide_constants.h"
 #include "../misc/vcd_trace.h"
 #include <string>
 #include <sstream>
@@ -54,9 +55,15 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   mTRU->s_event_buffers_used_in(s_event_buffers_used);
   mTRU->s_current_event_hits_left_in(s_oldest_event_number_of_hits);
   mTRU->s_tru_fifo_out(s_top_readout_fifo);
+
+  s_tru_frame_start_fifo_in(mTRU->s_tru_frame_start_fifo);
+  s_tru_frame_end_fifo_in(mTRU->s_tru_frame_end_fifo);
   
   SC_METHOD(matrixReadout);
   sensitive_pos << s_matrix_readout_clk_in;
+
+  SC_METHOD(frameReadoutProcess);
+  sensitive_pos << s_system_clk_in;
 
   SC_METHOD(dataTransmission);
   sensitive_pos << s_system_clk_in;
@@ -73,17 +80,33 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 ///@todo   Does this return value make sense??
 bool Alpide::newEvent(uint64_t event_time)
 {
+  FrameStartFifoWord frame_start_data = {0, mBunchCounter};
+
   bool rv = PixelMatrix::newEvent(event_time);
 
   // Event successfully created - push a frame start word to the TRU's Frame Start FIFO
-  if(rv == true) {
-    // Create frame and push to TRU frame start FIFO - with "normal" values
-  } else {
-    // If we are in triggered - BUSY VIOLATION?
-    // If we are in continuous - Delete the oldest MEB, and make room for this event?
+  if(rv == false) {
+    ///@todo Is busy violation only in triggered mode, or also continuous?
+    frame_start_data.busy_violation = 1;
+
+    if(mContinuousMode) {
+      s_readout_abort = true;
+    }
   }
+
+  if(s_tru_frame_start_fifo_in.num_free() == 0) {
+    // FATAL, TRU FRAME FIFO has overflowed!
+  } else if(s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL2) {
+    // DATA OVERRUN MODE
+  } else if{s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL1) {
+    // BUSY
+  }
+  s_tru_frame_start_fifo_in.nb_write(frame_start_data);
+
+  FrameEndFifoWord frame_end_data = {0, 0, 0};
+  s_tru_frame_end_fifo_in.nb_write(frame_end_data);
   
-  return true;
+  return rv;
 }
 
 
@@ -110,16 +133,18 @@ void Alpide::matrixPriEncReadout(void)
 
 
 
-///@brief Matrix readout SystemC method. This method is clocked by the matrix readout clock.
-///       The matrix readout period can be specified by the user in a register in the Alpide,
-///       and is intended to allow the priority encoder a little more time to "settle" because
-///       it is a relatively slow asynchronous circuit.
-///       The method here triggers readout of a pixel from each region, into region buffers,
-///       and updates some status signals related to regions/event-buffers.
+///@brief Frame readout SystemC method @ 40MHz (system clock). 
+///       Essentially does the same job as the FROMU (Frame Read Out Management Unit) in the
+///       Alpide chip.
 void Alpide::frameReadoutProcess(void)
 {
   uint64_t time_now = sc_time_stamp().value();
   int MEBs_in_use = getNumEvents();
+
+  // Bunch counter wraps around each orbit
+  mBunchCounter++;
+  if(mBunchCounter == LHC_ORBIT_BUNCH_COUNT)
+    mBunchCounter = 0;
   
   // Update signal with number of event buffers
   s_event_buffers_used = MEBs_in_use;

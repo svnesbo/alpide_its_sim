@@ -39,8 +39,11 @@ struct FrameEndFifoWord {
 class TopReadoutUnit : sc_core::sc_module
 {
 public:
-  // SystemC signals
+  ///@defgroup SystemC ports
+  ///@{
   sc_port<sc_fifo_in_if<AlpideDataWord> > s_region_fifo_in[N_REGIONS];
+  sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
+  sc_fifo<FrameEndFifoWord> s_frame_end_fifo;
   sc_in<bool> s_region_empty_in[N_REGIONS];
   sc_in<bool> s_busy_status_in;
   sc_in<sc_uint<32> > s_current_event_hits_left_in;
@@ -52,20 +55,22 @@ public:
 
   ///@brief Alpide chip clock (typically 40MHz)
   sc_in_clk s_clk_in;
+  ///@}
 
 private:
+  ///@defgroup SystemC internal signals
+  ///@{
   sc_signal<sc_uint<8> > s_tru_state;
   sc_signal<sc_uint<8> > s_current_region;
   sc_signal<bool> s_readout_abort;
   sc_signal<bool> s_busy_on_signalled;
   sc_signal<bool> s_busy_off_signalled;
-  sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
-  sc_fifo<FrameEndFifoWord> s_frame_end_fifo;
-  
-private:
+  sc_signal<sc_fifo_out_if<FrameStartFifoWord> > s_frame_start_fifo_out;
+  sc_signal<sc_fifo_out_if<FrameEndFifoWord> > s_frame_end_fifo_out;
+  ///@}  
 
+  // Standard C++ members
   unsigned int mChipId;
-  unsigned int mBunchCounter;
 
   enum TRU_state_t {
     EMPTY = 0,
