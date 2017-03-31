@@ -224,7 +224,6 @@ void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) co
   std::string region_name_prefix = ss.str();
 
   addTrace(wf, region_name_prefix, "region_empty_out", s_region_empty_out);
-  addTrace(wf, region_name_prefix, "busy_out", s_busy_out);
   addTrace(wf, region_name_prefix, "region_fifo_size", s_region_fifo_size);  
 }
 

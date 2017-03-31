@@ -21,11 +21,6 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
 
   s_tru_state = IDLE;
 
-  s_busy_on_signalled = false;
-
-  // Avoid sending BUSY OFF upon startup
-  s_busy_off_signalled = true;
-  
   SC_METHOD(topRegionReadoutProcess);
   sensitive_pos << s_clk_in;  
 }
@@ -43,12 +38,14 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   AlpideDataWord data_out;
  
   // Default assignments?
-  s_region_event_pop_out = false;  
+  
 
   switch(s_tru_state.read()) {
   case EMPTY:
     bool frame_end_fifo_empty = s_frame_end_fifo.num_available() == 0;
     s_region_event_pop_out = !frame_end_fifo_empty;
+    s_region_event_start = false;
+    s_region_data_read_out[mCurrentRegion] = false;
     
     
     if(!frame_end_fifo_empty) {
@@ -58,17 +55,38 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     break;
       
   case IDLE:
+    bool frame_start_fifo_empty = frame_start_fifo.num_available() == 0;
+    s_region_event_start = !frame_start_fifo_empty;
+    s_region_event_pop_out = false;
+    s_region_data_read_out[mCurrentRegion] = false;    
+    
     if(s_frame_start_fifo.num_available() > 0)
       s_tru_state = WAIT_REGION_DATA;
+
     break;
       
   case WAIT_REGION_DATA:
+    s_region_event_pop_out = false;
+    s_region_event_start = false;    
+    s_region_data_read_out[mCurrentRegion] = false;    
+
     // Wait for data to become available from regions...
     if(/* data available, or empty chip? */)
       s_tru_state = CHIP_HEADER;
+    
     break;
       
   case CHIP_HEADER:
+    bool data_fifo_full = s_tru_fifo_out.num_free() == 0;
+
+    s_region_data_read_out[mCurrentRegion] =
+      !data_fifo_full &&
+      !s_region_valid_in[mCurrentRegion] &&
+      !s_region_empty_in[mCurrentRegion];
+    
+    s_region_event_pop_out = false;
+    s_region_event_start = false;
+    
     // num_free() > 0, or a threshold??
     if(s_tru_fifo_out.num_free() > 0) {
       if(/* Busy violation */) {
@@ -92,11 +110,18 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 
       
   case BUSY_VIOLATION:
+    s_region_event_pop_out = false;
+    s_region_event_start = false;
+    s_region_data_read_out[mCurrentRegion] = false;
+    
     // Are we outputting something here???
     s_tru_state = IDLE;
     break;
       
   case REGION_DATA:
+    s_region_event_pop_out = false;
+    s_region_event_start = false;
+    
     if(/* New region */) {
       data_out = AlpideRegionHeader(region);
     } else {
@@ -111,6 +136,16 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     break;
       
   case WAIT:
+    bool data_fifo_full = s_tru_fifo_out.num_free() == 0;
+
+    s_region_data_read_out[mCurrentRegion] =
+      !data_fifo_full &&
+      !s_region_valid_in[mCurrentRegion] &&
+      !s_region_empty_in[mCurrentRegion];
+    
+    s_region_event_pop_out = false;
+    s_region_event_start = false;
+    
     // num_free() > 0, or a threshold??
     if(s_tru_fifo_out.num_free() > 0) {
       if(/* More region data */)
@@ -125,6 +160,8 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     bool frame_end_fifo_empty = s_frame_end_fifo.num_available() == 0;
     bool tru_data_fifo_full = s_tru_fifo_out.num_free() == 0;
     s_region_event_pop_out = !frame_end_fifo_empty && !tru_data_fifo_full;
+    s_region_event_start = false;
+    s_region_data_read_out[mCurrentRegion] = false;    
     
     if(!tru_data_fifo_full || !frame_end_fifo_empty) {
       ///@todo Read  something from s_frame_end_fifo here..
@@ -149,10 +186,4 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   
   addTrace(wf, tru_name_prefix, "tru_state", s_tru_state);   
   addTrace(wf, tru_name_prefix, "current_region", s_current_region);     
-  addTrace(wf, tru_name_prefix, "current_event_hits_left_in", s_current_event_hits_left_in);       
-  addTrace(wf, tru_name_prefix, "event_buffers_used_in", s_event_buffers_used_in);         
-  
-  for(int i = 0; i < N_REGIONS; i++) {
-    addTrace(wf, tru_name_prefix, "region_empty_in_" + std::to_string(i), s_region_empty_in[i]);             
-  }
 }

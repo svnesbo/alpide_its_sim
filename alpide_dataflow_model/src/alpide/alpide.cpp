@@ -31,7 +31,14 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   s_event_buffers_used = 0;
   s_total_number_of_hits = 0;
   s_oldest_event_number_of_hits = 0;
-  s_busy_status = false;
+
+  s_tru_frame_fifo_busy = false;
+  s_tru_data_overrun_mode = false;
+  s_tru_frame_fifo_fatal_overflow = false;
+  s_multi_event_buffers_busy = false;
+  s_busy_violation = false;
+  s_busy_status = false;  
+  s_readout_abort = false;
 
   mTRU = new TopReadoutUnit("TRU", chip_id);
 
@@ -43,85 +50,49 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     std::stringstream ss;
     ss << "RRU_" << i;
     mRRUs[i] = new RegionReadoutUnit(ss.str().c_str(), i, region_fifo_size, enable_clustering);
-    mTRU->s_region_fifo_in[i](mRRUs[i]->s_region_fifo);
 
-    // Connect RRU->TRU region empty signals
-    mTRU->s_region_empty_in[i](s_region_empty[i]);
-    mRRUs[i]->s_region_empty_out(s_region_empty[i]);    
+///@todo Replace with a signal, data_read signal is used for reading from region FIFO now
+//    mTRU->s_region_fifo_in[i](mRRUs[i]->s_region_fifo);
+    
+    mRRUs[i]->s_frame_readout_start_in(s_frame_readout_start);
+    mRRUs[i]->s_region_event_start_in(s_region_event_start);
+    mRRUs[i]->s_region_event_pop_in(s_region_event_pop);
+    mRRUs[i]->s_region_data_read_in(s_region_data_read);
+
+    mRRUs[i]->s_region_empty_out(s_region_empty[i]);
+    mRRUs[i]->s_region_valid_out(s_region_valid[i]);
+
+    mTRU->s_region_empty_in(s_region_empty[i]);
+    mTRU->s_region_valid_in(s_region_valid[i]);    
   }
 
   mTRU->s_clk_in(s_system_clk_in);
-  mTRU->s_busy_status_in(s_busy_status);
-  mTRU->s_event_buffers_used_in(s_event_buffers_used);
-  mTRU->s_current_event_hits_left_in(s_oldest_event_number_of_hits);
+
+  ///@todo Rename TRU FIFO to DMU FIFO?
   mTRU->s_tru_fifo_out(s_top_readout_fifo);
+  
+  mTRU->s_region_event_start_out(s_region_event_start);
+  mTRU->s_region_event_pop_out(s_region_event_pop);  
 
   s_tru_frame_start_fifo_in(mTRU->s_tru_frame_start_fifo);
   s_tru_frame_end_fifo_in(mTRU->s_tru_frame_end_fifo);
 
+  
   SC_METHOD(strobeProcess);
   sensitive << s_strobe_in;
   
   SC_METHOD(matrixReadout);
   sensitive_pos << s_matrix_readout_clk_in;
 
-  SC_METHOD(frameReadoutProcess);
+  SC_METHOD(mainProcess);
   sensitive_pos << s_system_clk_in;
-
-  SC_METHOD(dataTransmission);
-  sensitive_pos << s_system_clk_in;
-}
-
-
-///@brief Indicate to the Alpide that we are starting on a new event. If the call is
-///       successful a new MEB slice is created, and the next calls to setPixel will add pixels
-///       to the new event.
-///@param event_time Simulation time when the event is pushed/latched into MEB
-///                  (use current simulation time).
-///@return True if successful and a new MEB slice was created. Returns false if a new MEB slice
-///        could not be created (happens only in triggered mode).
-///@todo   Does this return value make sense??
-bool Alpide::newEvent(uint64_t event_time)
-{
-  PixelMatrix::newEvent(event_time);
-
-
-
-
-
-
-
-
-  FrameStartFifoWord frame_start_data = {0, mBunchCounter};
-
-  // Event successfully created - push a frame start word to the TRU's Frame Start FIFO
-  if(rv == false) {
-    ///@todo Is busy violation only in triggered mode, or also continuous?
-    frame_start_data.busy_violation = 1;
-
-    if(mContinuousMode) {
-      s_readout_abort = true;
-    }
-  }
-
-  if(s_tru_frame_start_fifo_in.num_free() == 0) {
-    // FATAL, TRU FRAME FIFO has overflowed!
-  } else if(s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL2) {
-    // DATA OVERRUN MODE
-  } else if{s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL1) {
-    // BUSY
-  }
-  s_tru_frame_start_fifo_in.nb_write(frame_start_data);
-
-  FrameEndFifoWord frame_end_data = {0, 0, 0};
-  s_tru_frame_end_fifo_in.nb_write(frame_end_data);
-  
-  return rv;
 }
 
 
 ///@brief SystemC process/method controlled by STROBE input.
 ///       Controls creation of new Multi Event Buffers (MEBs).
+///       Note: it is assumed that STROBE is synchronous to the clock.
+///       It will not be "dangerous" if it is not, but it will deviate from the real chip implementation.
 void Alpide::strobeProcess(void)
 {
   int64_t time_now = sc_time_stamp().value();
@@ -173,7 +144,7 @@ void Alpide::strobeProcess(void)
       if(getNumEvents() == 3)
         s_multi_event_buffers_busy = true;
       else
-        s_multi_event_busy = false;
+        s_multi_event_buffers_busy = false;
     }
   }
   else {   // Strobe falling edge
@@ -207,9 +178,6 @@ void Alpide::strobeProcess(void)
 }
 
 
-///@todo GET RID OFF THIS FUNCTION! IMPLEMENT EACH RRU AS A SYSTEMC METHOD/PROCESS, WITH A STATE MACHINE!
-///@todo Actually, keep this function, because I don't have a good way of passing a reference
-///      to the pixel matrix to the RRUs without using this function... :(
 ///@brief Matrix readout SystemC method. This method is clocked by the matrix readout clock.
 ///       The matrix readout period can be specified by the user in a register in the Alpide,
 ///       and is intended to allow the priority encoder a little more time to "settle" because
@@ -232,7 +200,7 @@ void Alpide::matrixPriEncReadout(void)
 ///@brief Frame readout SystemC method @ 40MHz (system clock). 
 ///       Essentially does the same job as the FROMU (Frame Read Out Management Unit) in the
 ///       Alpide chip.
-void Alpide::frameReadoutProcess(void)
+void Alpide::frameReadout(void)
 {
   uint64_t time_now = sc_time_stamp().value();
   int MEBs_in_use = getNumEvents();
@@ -245,24 +213,6 @@ void Alpide::frameReadoutProcess(void)
   // Update signal with number of event buffers
   s_event_buffers_used = MEBs_in_use;
 
-  if(mContinuousMode) {
-    if(MEBs_in_use > 1) {
-      s_busy_status = true;
-      // Notify TRU so BUSY ON word can be sent here?
-    } else {
-      s_busy_status = false;
-      // Notify TRU so BUSY OFF word can be sent here?
-    }
-  } else { // Triggered mode
-    if(MEBs_in_use > 2) { // All MEBs full
-      s_busy_status = true;
-      // Notify TRU so BUSY ON word can be sent here?      
-    } else {
-      s_busy_status = false;
-      // Notify TRU so BUSY ON word can be sent here?      
-    }
-  }
-
   // Update signal with total number of hits in all event buffers
   s_total_number_of_hits = getHitTotalAllEvents();
 
@@ -273,15 +223,28 @@ void Alpide::frameReadoutProcess(void)
   ///      But perhaps it is more correct that we iterate over all regions, and when all the
   ///      region_empty signals from the RRUs have been set, then we delete the event from here,
   ///      and not automatically from PixelMatrix::readoutPixel()?
-  
-  // Read out a pixel from each region in the matrix
-  for(int region_num = 0; region_num < N_REGIONS; region_num++) {
-    mRRUs[region_num]->readoutNextPixel(*this, time_now);
-  }
+
+  ///@todo Start readout here
+
+  ///@todo Push frame end word to TRU FIFO when done with readout here
+  FrameEndFifoWord frame_end_data = {0, 0, 0};
+  s_tru_frame_end_fifo_in.nb_write(frame_end_data);    
 }
 
 
 ///@brief Data transmission SystemC method. Currently runs on 40MHz clock.
+///@todo Implement more advanced data transmission method.
+void Alpide::mainProcess(void)
+{
+  frameReadout();  
+  dataTransmission();
+
+  s_busy_status = (s_tru_frame_fifo_busy || s_multi_event_buffers_busy)
+}
+
+
+///@brief Read out DMU FIFOs and output data on "serial" line.
+///       Should be called one time per clock cycle.
 ///@todo Implement more advanced data transmission method.
 void Alpide::dataTransmission(void)
 {

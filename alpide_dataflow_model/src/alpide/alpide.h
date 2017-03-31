@@ -48,9 +48,6 @@ public:
   ///@todo Should these signals be private maybe?
   ///@defgroup SystemC signals
   ///@{
-  sc_signal<bool> s_busy_status;
-
-  sc_signal<bool> s_readout_abort;
 
   ///@brief Number of events stored in the chip at any given time
   sc_signal<sc_uint<8> > s_event_buffers_used;
@@ -62,7 +59,21 @@ public:
   sc_signal<sc_uint<32> > s_oldest_event_number_of_hits;
 
   sc_signal<bool> s_region_empty[N_REGIONS];
+  sc_signal<bool> s_region_valid[N_REGIONS];
+  sc_signal<bool> s_region_data_read[N_REGIONS];
+  sc_signal<bool> s_region_event_pop;
+  sc_signal<bool> s_region_event_start;
 
+  ///@brief Frame Readout Managment Unit (FROMU) signals
+  sc_signal<bool> s_frame_readout_start;
+  sc_signal<bool> s_readout_abort;
+  sc_signal<bool> s_tru_frame_fifo_busy;
+  sc_signal<bool> s_tru_data_overrun_mode;
+  sc_signal<bool> s_tru_frame_fifo_fatal_overflow;
+  sc_signal<bool> s_multi_event_buffers_busy;
+  sc_signal<bool> s_busy_violation;
+  sc_signal<bool> s_busy_status;  
+  
   ///@brief Region FIFOs
   sc_fifo<AlpideDataWord> s_top_readout_fifo;
   sc_signal<sc_fifo_in_if<FrameStartFifoWord> > s_tru_frame_start_fifo_in;
@@ -79,10 +90,12 @@ private:
   std::vector<RegionReadoutUnit*> mRRUs;
   TopReadoutUnit* mTRU;
 
+
+  void mainProcess(void);  
   void strobeProcess(void);
+  void frameReadout(void); // FROMU    
   void matrixReadout(void);
   void dataTransmission(void);
-  void frameReadoutProcess(void); // FROMU
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
