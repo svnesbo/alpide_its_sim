@@ -43,6 +43,7 @@ int TopReadoutUnit::getNextRegion(void)
 ///       The regions are read out in ascending order, and each event is encapsulated with
 ///       a CHIP_HEADER and CHIP_TRAILER word. See the state machine diagram for a better
 ///       explanation.
+///@todo Update state machine pictures with Alpide documentation + simplified FSM diagram
 ///@image html TRU_state_machine.png
 void TopReadoutUnit::topRegionReadoutProcess(void)
 {
@@ -61,11 +62,9 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   case EMPTY:
     s_region_event_pop_out = !frame_end_fifo_empty;
     s_region_event_start = false;
-    s_region_data_read_out[mCurrentRegion] = false;
-    
-    
+    s_region_data_read_out[current_region] = false;
+        
     if(!frame_end_fifo_empty) {
-      // Read out 
       s_tru_state = IDLE;
     }
     break;
@@ -73,46 +72,50 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   case IDLE:
     s_region_event_pop_out = false;    
     s_region_event_start = !frame_start_fifo_empty;
-    s_region_data_read_out[mCurrentRegion] = false;    
+    s_region_data_read_out[current_region] = false;    
     
-    if(s_frame_start_fifo.num_available() > 0)
-      s_tru_state = WAIT_REGION_DATA;
+    if(!frame_start_fifo_empty) {
+      s_frame_start_fifo.nb_read(mCurrentFrameStartWord);
 
+      if (s_busy_violation_in || s_readout_abort_in)
+        s_tru_state = CHIP_HEADER;
+      else
+        s_tru_state = WAIT_REGION_DATA;
+    }
     break;
       
   case WAIT_REGION_DATA:
     s_region_event_pop_out = false;
     s_region_event_start = false;    
-    s_region_data_read_out[mCurrentRegion] = false;    
+    s_region_data_read_out[current_region] = false;    
 
     // Wait for data to become available from regions...
-    if(/* data available, or empty chip? */)
-      s_tru_state = CHIP_HEADER;
-    
+    if(all_regions_empty && !s_readout_abort_in)
+      s_tru_state = WAIT_REGION_DATA;
+    else
+      s_tru_state = CHIP_HEADER;    
     break;
       
   case CHIP_HEADER:
     s_region_event_pop_out = false;
     s_region_event_start = false;    
-    s_region_data_read_out[mCurrentRegion] =
+    s_region_data_read_out[current_region] =
       !tru_data_fifo_full &&
-      !s_region_valid_in[mCurrentRegion] &&
-      !s_region_empty_in[mCurrentRegion];
+      s_region_valid_in[current_region] &&
+      !s_region_empty_in[current_region];
     
     if(!tru_data_fifo_full) {
-      if(/* Busy violation */) {
-        // Do something smart here...?
+      if(mCurrentFrameStartWord.busy_violation) {
+        // Busy violation frame
+        data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
         s_tru_state = BUSY_VIOLATION;
-      } if(/* There's data: Normal Chip Header */) {
-        // Which BC count should be used??? Should match when event occured, not when it is read out
-        // Get the header/trailer bits from FRAME START/END FIFO HERE..
-        data_out = AlpideChipHeader(mChipId, mBunchCounter);
+      } if(!all_regions_empty) {
+        // Normal data frame
+        data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
         s_tru_state = REGION_DATA;
       } else {
-        /* No data: Chip Empty Header/Frame */
-        // Which BC count should be used??? Should match when event occured, not when it is read out
-        // Get the header/trailer bits from FRAME START/END FIFO HERE..          
-        data_out = AlpideChipEmptyFrame(mChipId, mBunchCounter);
+        // Empty frame
+        data_out = AlpideChipEmptyFrame(mChipId, mCurrentFrameStartWord);
         s_tru_state = EMPTY;
       }
       s_tru_fifo_out->nb_write(data_out);
@@ -123,9 +126,11 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   case BUSY_VIOLATION:
     s_region_event_pop_out = false;
     s_region_event_start = false;
-    s_region_data_read_out[mCurrentRegion] = false;
-    
-    // Are we outputting something here???
+    s_region_data_read_out[current_region] = false;
+
+    ///@todo Set busy violation flag in readout_flags
+    data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
+
     s_tru_state = IDLE;
     break;
       
@@ -134,7 +139,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_event_start = false;
 
     // New region? Output region header
-    if(current_region != mPreviousRegion) {
+    if(current_region != s_previous_region) {
       data_out = AlpideRegionHeader(region);
     } else {
       s_region_fifo_in[region]->nb_read(data_out);        
@@ -150,10 +155,10 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   case WAIT:
     s_region_event_pop_out = false;
     s_region_event_start = false;
-    s_region_data_read_out[mCurrentRegion] =
+    s_region_data_read_out[current_region] =
       !tru_data_fifo_full &&
-      !s_region_valid_in[mCurrentRegion] &&
-      !s_region_empty_in[mCurrentRegion];
+      !s_region_valid_in[current_region] &&
+      !s_region_empty_in[current_region];
     
     if(!tru_data_fifo_full) {
       if(/* More region data */)
@@ -166,13 +171,13 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   case CHIP_TRAILER:
     s_region_event_pop_out = !frame_end_fifo_empty && !tru_data_fifo_full;
     s_region_event_start = false;
-    s_region_data_read_out[mCurrentRegion] = false;    
+    s_region_data_read_out[current_region] = false;    
     
     if(!tru_data_fifo_full || !frame_end_fifo_empty) {
       ///@todo Read  something from s_frame_end_fifo here..
       ///@todo Implement some readout flags here?
       readout_flags = 0; 
-      data_out = AlpideChipTrailer(readout_flags);
+      data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
       s_tru_state = IDLE;
     }
     break;
@@ -180,9 +185,9 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 
   // "Reset" the previous region counter when all regions are read out
   if(all_regions_empty)
-    mPreviousRegion = 0;
+    s_previous_region = 0;
   else
-    mPreviousRegion = current_region;
+    s_previous_region = current_region;
 }
 
 

@@ -44,6 +44,11 @@ const uint8_t DW_DATA_LONG          = 0b00000000;
 const uint8_t DW_BUSY_ON            = 0b11110001;
 const uint8_t DW_BUSY_OFF           = 0b11110000;
 
+const uint8_t READOUT_FLAGS_BUSY_VIOLATION     = 0b00001000;
+const uint8_t READOUT_FLAGS_FLUSHED_INCOMPLETE = 0b00000100;
+const uint8_t READOUT_FLAGS_STROBE_EXTENDED    = 0b00000010;
+const uint8_t READOUT_FLAGS_BUSY_TRANSITION    = 0b00000001;
+
 /// Mask for busy and idle words
 const uint8_t MASK_IDLE_BUSY = 0b11111111;
 
@@ -56,6 +61,21 @@ const uint8_t MASK_REGION_HEADER = 0b11100000;
 /// Mask for data short/long words
 const uint8_t MASK_DATA = 0b11000000;
 ///@}  
+
+
+/// Data word stored in FRAME START FIFO
+struct FrameStartFifoWord {
+  bool busy_violation;
+  uint16_t BC_for_frame; // Bunch counter
+};
+
+
+/// Data word stored in FRAME END FIFO
+struct FrameEndFifoWord {
+  bool flushed_incomplete;
+  bool strobe_extended;
+  bool busy_transition;
+};  
 
 
 ///@brief The FIFOs in the Alpide chip are 24 bits, or 3 bytes, wide. This is a base class for the
@@ -129,6 +149,8 @@ public:
     data[1] = bc_masked;
     data[0] = DW_IDLE;
   }
+  AlpideChipHeader(uint8_t chip_id, FrameStartFifoWord& frame_start)
+    : AlpideChipHeader(chip_id, frame_start.BC_for_frame) {}  
 };
 
 
@@ -139,6 +161,16 @@ public:
     data[2] = DW_CHIP_TRAILER | (readout_flags & 0x0F);
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
+  }
+  AlpideChipTrailer(FrameStartFifoWord& frame_start,
+                    FrameEndFifoWord& frame_end) {
+    data[2] = DW_CHIP_TRAILER
+      | (frame_start.busy_violation ? READOUT_FLAGS_BUSY_VIOLATION : 0)
+      | (frame_end.flushed_incomplete ? READOUT_FLAGS_FLUSHED_INCOMPLETE : 0)
+      | (frame_end.strobe_extended ? READOUT_FLAGS_STROBE_EXTENDED : 0)
+      | (frame_end.busy_transition ? READOUT_FLAGS_BUSY_TRANSITION : 0);
+    data[1] = DW_IDLE;
+    data[0] = DW_IDLE;    
   }
 };
 
@@ -154,6 +186,8 @@ public:
     data[1] = bc_masked;
     data[0] = DW_IDLE;
   }
+  AlpideChipEmptyFrame(uint8_t chip_id, FrameStartFifoWord& frame_start)
+    : AlpideChipEmptyFrame(chip_id, frame_start.BC_for_frame) {}   
 };
 
 
@@ -176,18 +210,6 @@ public:
     data[2] = DW_REGION_TRAILER;
     data[1] = DW_REGION_TRAILER;
     data[0] = DW_REGION_TRAILER;
-  }
-};
-
-
-class AlpideRegionTrailer : public AlpideDataWord
-{
-public:
-//  AlpideRegionHeader(uint8_t region_id) {
-  AlpideRegionHeader(void) {  
-    data[2] = DW_REGION_Trailer /* | (region_id & 0x1F)*/;
-    data[1] = DW_IDLE;
-    data[0] = DW_IDLE;
   }
 };
 

@@ -68,6 +68,8 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   }
 
   mTRU->s_clk_in(s_system_clk_in);
+  mTRU->s_readout_abort_in(s_readout_abort);
+  mTRU->s_data_overrun_mode_in(s_data_overrun_mode);
 
   ///@todo Rename TRU FIFO to DMU FIFO?
   mTRU->s_tru_fifo_out(s_top_readout_fifo);
@@ -152,7 +154,9 @@ void Alpide::strobeProcess(void)
   else {   // Strobe falling edge
     mChipReady = false;
     
-    FrameStartFifoWord frame_start_data = {0, mBunchCounter};
+    FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
+
+    s_busy_violation = false;
 
     if(s_tru_frame_start_fifo_in.num_free() == 0) {
       // FATAL, TRU FRAME FIFO will now overflow

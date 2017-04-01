@@ -10,6 +10,7 @@
 
 #include "region_readout.h"
 #include "alpide_constants.h"
+#include "alpide_data_format.h"
 #include <string>
 
 // Ignore warnings about use of auto_ptr in SystemC library
@@ -18,19 +19,6 @@
 #include <systemc.h>
 #pragma GCC diagnostic pop
 
-
-
-struct FrameStartFifoWord {
-  sc_uint<1> busy_violation;
-  sc_uint<8> BC_for_frame; // Bunch counter
-};
-
-
-struct FrameEndFifoWord {
-  sc_uint<1> flushed_incomplete;
-  sc_uint<1> strobe_extended;
-  sc_uint<1> busy_transition;
-};  
 
 /// The TopReadoutUnit (TRU) class is a simple representation of the TRU in the Alpide chip.
 /// It should be connected to the Region Readout Unit (RRU) in the Alpide object,
@@ -41,14 +29,15 @@ class TopReadoutUnit : sc_core::sc_module
 public:
   ///@defgroup SystemC ports
   ///@{
-  ///@brief Alpide chip clock (typically 40MHz)
-  sc_in_clk s_clk_in;
 
+  ///@brief Alpide chip clock (typically 40MHz)
+  sc_in_clk s_clk_in; 
+  
+  sc_in<bool> s_readout_abort_in;
+  sc_in<bool> s_data_overrun_mode_in;  
   sc_in<bool> s_region_empty_in[N_REGIONS];
   sc_in<bool> s_region_valid_in[N_REGIONS];
-  sc_in<bool> s_readout_abort_in;
-  sc_in<bool> s_data_overrun_mode_in;
-  sc_in<AlpideDataWord> s_region_data_in[N_REGIONS];    
+  sc_in<AlpideDataWord> s_region_data_in[N_REGIONS];
 
   sc_out<bool> s_region_event_pop_out;
   sc_out<bool> s_region_event_start_out;
@@ -66,7 +55,7 @@ private:
   ///@defgroup SystemC internal signals
   ///@{
   sc_signal<sc_uint<8> > s_tru_state;
-  sc_signal<sc_uint<8> > s_current_region;
+  sc_signal<sc_uint<8> > s_previous_region;
   sc_signal<bool> s_readout_abort;
   sc_signal<sc_fifo_out_if<FrameStartFifoWord> > s_frame_start_fifo_out;
   sc_signal<sc_fifo_out_if<FrameEndFifoWord> > s_frame_end_fifo_out;
@@ -74,7 +63,7 @@ private:
 
   // Standard C++ members
   unsigned int mChipId;
-  unsigned int mPreviousRegion;
+  FrameStartFifoWord mCurrentFrameStartWord;
 
   enum TRU_state_t {
     EMPTY = 0,
