@@ -61,6 +61,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 
     mRRUs[i]->s_region_empty_out(s_region_empty[i]);
     mRRUs[i]->s_region_valid_out(s_region_valid[i]);
+    mRRUs[i]->s_region_data_out(s_region_data[i]);
 
     mTRU->s_region_empty_in(s_region_empty[i]);
     mTRU->s_region_valid_in(s_region_valid[i]);    
@@ -72,7 +73,8 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   mTRU->s_tru_fifo_out(s_top_readout_fifo);
   
   mTRU->s_region_event_start_out(s_region_event_start);
-  mTRU->s_region_event_pop_out(s_region_event_pop);  
+  mTRU->s_region_event_pop_out(s_region_event_pop);
+  mTRU->s_region_data_in(s_region_data[i]);
 
   s_tru_frame_start_fifo_in(mTRU->s_tru_frame_start_fifo);
   s_tru_frame_end_fifo_in(mTRU->s_tru_frame_end_fifo);

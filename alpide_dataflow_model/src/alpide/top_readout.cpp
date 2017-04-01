@@ -26,6 +26,19 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
 }
 
 
+///@brief Find the first region that is not empty, and return its region id.
+///@return ID of first non-empty region. Returns -1 if all regions are empty.
+int TopReadoutUnit::getNextRegion(void)
+{
+  for(int i = 0; i < N_REGIONS; i++) {
+    if(s_region_empty_in[i] == false)
+      return i;
+  }
+  
+  return -1;
+}
+
+
 ///@brief SystemC method that controls readout from regions, should run on the 40MHz clock.
 ///       The regions are read out in ascending order, and each event is encapsulated with
 ///       a CHIP_HEADER and CHIP_TRAILER word. See the state machine diagram for a better
@@ -36,13 +49,16 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   int readout_flags;
   unsigned int region;
   AlpideDataWord data_out;
- 
-  // Default assignments?
-  
+
+  int current_region = getNextRegion();
+
+  bool all_regions_empty = current_region == -1 ? true : false;
+  bool tru_data_fifo_full = s_tru_fifo_out.num_free() == 0;
+  bool frame_start_fifo_empty = frame_start_fifo.num_available() == 0;
+  bool frame_end_fifo_empty = s_frame_end_fifo.num_available() == 0;
 
   switch(s_tru_state.read()) {
   case EMPTY:
-    bool frame_end_fifo_empty = s_frame_end_fifo.num_available() == 0;
     s_region_event_pop_out = !frame_end_fifo_empty;
     s_region_event_start = false;
     s_region_data_read_out[mCurrentRegion] = false;
@@ -55,9 +71,8 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     break;
       
   case IDLE:
-    bool frame_start_fifo_empty = frame_start_fifo.num_available() == 0;
+    s_region_event_pop_out = false;    
     s_region_event_start = !frame_start_fifo_empty;
-    s_region_event_pop_out = false;
     s_region_data_read_out[mCurrentRegion] = false;    
     
     if(s_frame_start_fifo.num_available() > 0)
@@ -77,18 +92,14 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     break;
       
   case CHIP_HEADER:
-    bool data_fifo_full = s_tru_fifo_out.num_free() == 0;
-
+    s_region_event_pop_out = false;
+    s_region_event_start = false;    
     s_region_data_read_out[mCurrentRegion] =
-      !data_fifo_full &&
+      !tru_data_fifo_full &&
       !s_region_valid_in[mCurrentRegion] &&
       !s_region_empty_in[mCurrentRegion];
     
-    s_region_event_pop_out = false;
-    s_region_event_start = false;
-    
-    // num_free() > 0, or a threshold??
-    if(s_tru_fifo_out.num_free() > 0) {
+    if(!tru_data_fifo_full) {
       if(/* Busy violation */) {
         // Do something smart here...?
         s_tru_state = BUSY_VIOLATION;
@@ -121,33 +132,30 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   case REGION_DATA:
     s_region_event_pop_out = false;
     s_region_event_start = false;
-    
-    if(/* New region */) {
+
+    // New region? Output region header
+    if(current_region != mPreviousRegion) {
       data_out = AlpideRegionHeader(region);
     } else {
       s_region_fifo_in[region]->nb_read(data_out);        
     }
 
-    if(/*TRU Data FIFO full - num_free() == 0, or a threshold??*/) {
+    if(tru_data_fifo_full) {
       s_tru_state = WAIT;
-    } else if(/* Regions fully read out */) {
+    } else if(all_regions_empty) {
       s_tru_state = CHIP_TRAILER;
     }
     break;
       
   case WAIT:
-    bool data_fifo_full = s_tru_fifo_out.num_free() == 0;
-
+    s_region_event_pop_out = false;
+    s_region_event_start = false;
     s_region_data_read_out[mCurrentRegion] =
-      !data_fifo_full &&
+      !tru_data_fifo_full &&
       !s_region_valid_in[mCurrentRegion] &&
       !s_region_empty_in[mCurrentRegion];
     
-    s_region_event_pop_out = false;
-    s_region_event_start = false;
-    
-    // num_free() > 0, or a threshold??
-    if(s_tru_fifo_out.num_free() > 0) {
+    if(!tru_data_fifo_full) {
       if(/* More region data */)
         s_tru_state = REGION_DATA;
       else /* No more region data - output chip trailer */
@@ -156,9 +164,6 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     break;
       
   case CHIP_TRAILER:
-    // num_free() == 0, or a threshold??
-    bool frame_end_fifo_empty = s_frame_end_fifo.num_available() == 0;
-    bool tru_data_fifo_full = s_tru_fifo_out.num_free() == 0;
     s_region_event_pop_out = !frame_end_fifo_empty && !tru_data_fifo_full;
     s_region_event_start = false;
     s_region_data_read_out[mCurrentRegion] = false;    
@@ -172,6 +177,12 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     }
     break;
   }
+
+  // "Reset" the previous region counter when all regions are read out
+  if(all_regions_empty)
+    mPreviousRegion = 0;
+  else
+    mPreviousRegion = current_region;
 }
 
 

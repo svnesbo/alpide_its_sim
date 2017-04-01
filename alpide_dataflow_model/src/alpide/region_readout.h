@@ -34,6 +34,7 @@ public:
 
   sc_out<bool> s_region_empty_out;
   sc_out<bool> s_region_valid_out;
+  sc_out<AlpideDataWord> s_region_data_out;
   
   sc_fifo<AlpideDataWord> s_region_fifo;  
 

@@ -43,11 +43,12 @@ public:
   ///@{
   ///@brief Alpide chip clock (typically 40MHz)
   sc_in_clk s_clk_in;
-  
+
   sc_in<bool> s_region_empty_in[N_REGIONS];
   sc_in<bool> s_region_valid_in[N_REGIONS];
   sc_in<bool> s_readout_abort_in;
   sc_in<bool> s_data_overrun_mode_in;
+  sc_in<AlpideDataWord> s_region_data_in[N_REGIONS];    
 
   sc_out<bool> s_region_event_pop_out;
   sc_out<bool> s_region_event_start_out;
@@ -73,6 +74,7 @@ private:
 
   // Standard C++ members
   unsigned int mChipId;
+  unsigned int mPreviousRegion;
 
   enum TRU_state_t {
     EMPTY = 0,
@@ -83,7 +85,9 @@ private:
     REGION_DATA = 5,
     WAIT = 6,
     CHIP_TRAILER = 7
-  };    
+  };
+
+  int getNextRegion(void);
   
 public:
   TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);

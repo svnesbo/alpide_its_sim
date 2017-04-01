@@ -61,8 +61,9 @@ public:
   sc_signal<bool> s_region_empty[N_REGIONS];
   sc_signal<bool> s_region_valid[N_REGIONS];
   sc_signal<bool> s_region_data_read[N_REGIONS];
+  sc_signal<bool> s_region_event_start;  
   sc_signal<bool> s_region_event_pop;
-  sc_signal<bool> s_region_event_start;
+  sc_in<AlpideDataWord> s_region_data[N_REGIONS];  
 
   ///@brief Frame Readout Managment Unit (FROMU) signals
   sc_signal<bool> s_frame_readout_start;
