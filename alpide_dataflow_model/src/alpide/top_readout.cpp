@@ -53,6 +53,8 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 
   int current_region = getNextRegion();
 
+  ///@todo Whooops... region empty is not the same as region not valid..
+  ///      It means the region FIFO is empty, not necessarily the region's MEBs..
   bool all_regions_empty = current_region == -1 ? true : false;
   bool tru_data_fifo_full = s_tru_fifo_out.num_free() == 0;
   bool frame_start_fifo_empty = frame_start_fifo.num_available() == 0;
@@ -151,8 +153,9 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       s_tru_state = CHIP_TRAILER;
     }
     break;
-      
-  case WAIT:
+
+  
+  case WAIT: // Data FIFO full or waiting for more region data
     s_region_event_pop_out = false;
     s_region_event_start = false;
     s_region_data_read_out[current_region] =
@@ -161,7 +164,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       !s_region_empty_in[current_region];
     
     if(!tru_data_fifo_full) {
-      if(/* More region data */)
+      if(!s_readout_abort_in && (tru_data_fifo_full || s_region_empty_in[current_region]))
         s_tru_state = REGION_DATA;
       else /* No more region data - output chip trailer */
         s_tru_state = CHIP_TRAILER;

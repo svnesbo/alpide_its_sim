@@ -21,7 +21,8 @@ SC_HAS_PROCESS(Alpide);
 ///@param enable_clustering Enable clustering and use of DATA LONG words
 ///@param continuous_mode Enable continuous mode (triggered mode if false)
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               int tru_fifo_size, bool enable_clustering, bool continuous_mode)
+               int tru_fifo_size, bool enable_clustering, bool continuous_mode,
+               bool matrix_readout_speed)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
   , s_top_readout_fifo(tru_fifo_size)
@@ -49,11 +50,15 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   for(int i = 0; i < N_REGIONS; i++) {
     std::stringstream ss;
     ss << "RRU_" << i;
-    mRRUs[i] = new RegionReadoutUnit(ss.str().c_str(), i, region_fifo_size, enable_clustering);
+    mRRUs[i] = new RegionReadoutUnit(ss.str().c_str(),
+                                     i,
+                                     region_fifo_size,
+                                     matrix_readout_speed,
+                                     enable_clustering);
 
 ///@todo Replace with a signal, data_read signal is used for reading from region FIFO now
 //    mTRU->s_region_fifo_in[i](mRRUs[i]->s_region_fifo);
-    
+    mRRUs[i]->s_system_clk_in(s_system_clk_in);
     mRRUs[i]->s_frame_readout_start_in(s_frame_readout_start);
     mRRUs[i]->s_region_event_start_in(s_region_event_start);
     mRRUs[i]->s_region_event_pop_in(s_region_event_pop);
@@ -162,21 +167,22 @@ void Alpide::strobeProcess(void)
       // FATAL, TRU FRAME FIFO will now overflow
       s_tru_frame_fifo_busy = true;
       s_tru_data_overrun_mode = true;
+
+      ///@todo The FATAL overflow bit/signal has to be cleared by a RORST/GRST command
+      ///      in the Alpide chip, it will not be cleared by automatically.
       s_tru_frame_fifo_fatal_overflow = true;
     } else if(s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL2) {
       // DATA OVERRUN MODE
       s_tru_frame_fifo_busy = true;
       s_tru_data_overrun_mode = true;
-      s_tru_frame_fifo_fatal_false = true;
+      ///@todo set readout abort signal here??
     } else if{s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL1) {
       // BUSY
       s_tru_frame_fifo_busy = true;
       s_tru_data_overrun_mode = false;
-      s_tru_frame_fifo_fatal_false = true;
     } else {
       s_tru_frame_fifo_busy = false;
       s_tru_data_overrun_mode = false;
-      s_tru_frame_fifo_fatal_false = true;
     }
 
     s_tru_frame_start_fifo_in.nb_write(frame_start_data);

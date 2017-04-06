@@ -18,76 +18,109 @@
 RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
                                      unsigned int region_num,
                                      unsigned int fifo_size,
+                                     bool matrix_readout_speed,
                                      bool cluster_enable)
   : sc_core::sc_module(name)
   , s_region_fifo(fifo_size)
   , mRegionId(region_num)
   , mFifoSizeLimit(fifo_size)
+  , mMatrixReadoutSpeed(matrix_readout_speed)
   , mClusteringEnabled(cluster_enable)
 {
+  s_region_fifo_in(s_region_fifo);
   s_region_fifo_out(s_region_fifo);
+  
   mFifoSizeLimitEnabled = (mFifoSizeLimit > 0);
   mClusterStarted = false;
+
+  SC_METHOD(regionReadoutProcess);
+  sensitive_pos << s_system_clk_in;  
 }
 
-///@brief SystemC process/method that implements the Region Readout Unit
-///       state machine for reading out hits from Multi Event Buffer in
-///       the pixel matrix.
-///       NOTE: Should run at priority encoder clock frequency.
-void RegionReadoutUnit::regionMatrixReadoutProcess(void)
+///@brief SystemC process/method that implements the logic in the
+///       Region Readout Unit (RRU). NOTE: Should run at system clock frequency (40MHz).
+void RegionReadoutUnit::regionReadoutProcess(void)
 {
   AlpideDataWord data_out;
+
+  // Is TRU requesting to read out next word from FIFO?
+  if(s_region_data_read_in) {
+    s_region_fifo_in->nb_read(data_out);
+    s_region_data_out = data_out;
+  }
+
+  s_region_fifo_empty_out = s_region_fifo_in->num_available() > 0;
+
+  matrixReadoutFSM();
+  regionValidFSM();
+}
+
+
+void RegionReadoutUnit::matrixReadoutFSM(void)
+{
+  bool region_fifo_full = s_region_fifo_in->num_free();  
+  bool matrix_readout_ready = false;
+
+  if(mMatrixReadoutSpeed && s_matrix_readout_delay_counter > 0)
+    matrix_readout_ready = true;
+  else if(!mMatrixReadoutSpeed && s_matrix_readout_delay_counter >= 2)
+    matrix_readout_ready = true;
+
   
   switch(s_rru_readout_state) {
   case IDLE:
-    if(s_frame_readout_start)
+    if(s_frame_readout_start && !s_region_matrix_empty) {
+      s_matrix_readout_delay_counter = 0;
       s_rru_readout_state = START_READOUT;
+    } else if(s_frame_readout_start && s_region_matrix_empty)
+      s_rru_readout_state = REGION_TRAILER;
+    else
+      s_rru_readout_state = IDLE;
     break;
     
   case START_READOUT:
-    if(s_region_fifo_out->num_free() > 0) {
-      // Put REGION_HEADER word on RRU FIFO
-      // NOTE: REGION_HEADER is not put on RRU FIFO.....
-      ////////////data_out = AlpideRegionHeader(mRegionId);
-      s_region_fifo_out->nb_write(data_out);
-      
-      if(s_readout_abort) {
-        ///@todo Implement abort handling
-        s_rru_readout_state = IDLE;
-      } else {
-        s_rru_readout_state = READOUT_AND_CLUSTERING;
-      }
-    }
+    if(s_readout_abort)
+      s_rru_readout_state = IDLE;
+    else if(matrix_readout_ready) // Wait for matrix readout delay
+      s_rru_readout_state = READOUT_AND_CLUSTERING;
+    else
+      s_matrix_readout_delay_counter++;
+    
     break;
     
   case READOUT_AND_CLUSTERING:
-    if(s_region_fifo_out->num_free() > 0) {
-      readoutNextPixel(matrix, time_now);
-    }
-
     if(s_readout_abort)
-      ///@todo Implement abort handling
       s_rru_readout_state = IDLE;
-    else if(s_region_empty_out)
-      s_rru_readout_state = REGION_TRAILER;
-    
+    else if(matrix_readout_ready) { // Wait for matrix readout delay
+      if(!s_region_matrix_empty) {
+        if(!region_fifo_full) {
+          readoutNextPixel(matrix, time_now);          
+          s_matrix_delay_counter = 0;
+        }
+      } else {
+        s_rru_readout_state = REGION_TRAILER;
+      }
+    } else {
+      s_matrix_readout_delay_counter++;
+    }
     break;
     
   case REGION_TRAILER:
-    if(s_region_fifo_out->num_free() > 0) {
+    if(s_readout_abort)
+      s_rru_readout_state = IDLE;
+    else if(!region_fifo_full) {
       // Put REGION_TRAILER word on RRU FIFO
-      data_out = AlpideRegionTrailer();
-      s_rru_readout_state = REGION_IDLE;
+      s_region_fifo_out.nb_write(AlpideRegionTrailer(););
+      s_rru_readout_state = IDLE;
     }    
     break;
   }
 }
 
-
 ///@brief SystemC process/method that implements the state machine that
 ///       determines if the region is valid (has data this frame)
 ///       Note: should run on Alpide system clock frequency.
-void RegionReadoutUnit::regionValidProcess(void)
+void RegionReadoutUnit::regionValidFSM(void)
 {
   switch(s_rru_valid_state) {
   case IDLE:
@@ -156,13 +189,13 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
   if(mClusteringEnabled) {
     if(mClusterStarted == false) {
       if(p == NoPixelHit)
-        s_region_empty_out.write(true);
+        s_region_matrix_empty.write(true);
       else {
         mClusterStarted = true;
         mPixelHitEncoderId = p.getPriEncNumInRegion();
         mPixelHitBaseAddr = p.getPriEncPixelAddress();
         mPixelHitmap = 0;
-        s_region_empty_out.write(false);
+        s_region_matrix_empty.write(false);
       }
     } else { // Cluster already started
       if(p == NoPixelHit) { // Indicates that we already read out all pixels from this region          
@@ -172,7 +205,7 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
           s_region_fifo_out->nb_write(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
           
         mClusterStarted = false;
-        s_region_empty_out.write(true);          
+        s_region_matrix_empty.write(true);          
       }
       // Is the pixel within cluster that was started by a pixel that was read out previously?
       else if(p.getPriEncNumInRegion() == mPixelHitEncoderId &&
@@ -186,7 +219,7 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
           s_region_fifo_out->nb_write(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
           mClusterStarted = false;
         }
-        s_region_empty_out.write(false);
+        s_region_matrix_empty.write(false);
       } else { // New pixel not in same cluster as previous pixels
         if(mPixelHitmap == 0)
           s_region_fifo_out->nb_write(AlpideDataShort(mPixelHitEncoderId, mPixelHitBaseAddr));
@@ -198,17 +231,17 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
         mPixelHitEncoderId = p.getPriEncNumInRegion();
         mPixelHitBaseAddr = p.getPriEncPixelAddress();
         mPixelHitmap = 0;
-        s_region_empty_out.write(false);          
+        s_region_matrix_empty.write(false);          
       }
     }
   } else { // Clustering not enabled
     if(p == NoPixelHit) {
-      s_region_empty_out.write(true);
+      s_region_matrix_empty.write(true);
     } else {
       unsigned int encoder_id = p.getPriEncNumInRegion();        
       unsigned int base_addr = p.getPriEncPixelAddress();
       s_region_fifo_out->nb_write(AlpideDataShort(encoder_id, base_addr));
-      s_region_empty_out.write(false);        
+      s_region_matrix_empty.write(false);        
     }
   }
 }
@@ -224,6 +257,7 @@ void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) co
   std::string region_name_prefix = ss.str();
 
   addTrace(wf, region_name_prefix, "region_empty_out", s_region_empty_out);
+  addTrace(wf, region_name_prefix, "region_matrix_empty", s_region_matrix_empty);  
   addTrace(wf, region_name_prefix, "region_fifo_size", s_region_fifo_size);  
 }
 

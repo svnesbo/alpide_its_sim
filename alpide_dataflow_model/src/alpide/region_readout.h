@@ -26,33 +26,50 @@
 class RegionReadoutUnit : sc_core::sc_module
 {
 public:
-  // SystemC signals
+  ///@defgroup SystemC ports
+  ///@{
+  
+  ///@brief 40MHz LHC clock
+  sc_in_clk s_system_clk_in;
+  
+  /// This signal comes from FROMU, on deassertion of trigger, and indicates that start of
+  /// readout from current pixel matrix event buffer to region FIFO can start
   sc_in<bool> s_frame_readout_start_in;
+
+  /// This comes from TRU, when reaodut of next frame from region FIFO to TRU FIFO should start
   sc_in<bool> s_region_event_start_in;
+
+  /// This comes from TRU, when reaodut of next frame from region FIFO to TRU FIFO should start
   sc_in<bool> s_region_event_pop_in;
+  
   sc_in<bool> s_region_data_read_in;
 
-  sc_out<bool> s_region_empty_out;
+  sc_out<bool> s_region_fifo_empty_out;
   sc_out<bool> s_region_valid_out;
   sc_out<AlpideDataWord> s_region_data_out;
-  
-  sc_fifo<AlpideDataWord> s_region_fifo;  
-
+  ///@}
 private:
   sc_signal<sc_uint<8> > s_rru_readout_state;
   sc_signal<sc_uint<8> > s_rru_valid_state;
-  
-  // I would have preferred that s_region_fifo_out was the interface to the outside world, and
-  // have an array of sc_fifo objects in the Alpide class for each region, which connects to this.
-  // But sc_fifo needs to be initialized with size when constructed, and I found no good way to
-  // initialize a large array of objects to the same value (other than 0).
+  sc_signal<bool> s_region_matrix_empty;
+  sc_signal<sc_uint<2> > s_matrix_readout_delay_counter;
+
+  sc_fifo<AlpideDataWord> s_region_fifo;  
   sc_port<sc_fifo_out_if<AlpideDataWord> > s_region_fifo_out;
+  sc_port<sc_fifo_in_if<AlpideDataWord> > s_region_fifo_in;
   
   sc_signal<sc_uint<8> > s_region_fifo_size;
   
 private:
   /// The region handled by this RRU
   unsigned int mRegionId;
+
+  /// Corresponds to Matrix Readout Speed bit in 0x0001 Mode Control register in Alpide chip.
+  /// True: 20MHz readout. False: 10MHz readout.
+  bool mMatrixReadoutSpeed;
+
+  /// Used with mMatrixReadoutSpeed to implement a delay when readout out pixel matrix.
+  bool mMatrixReadoutCounter;
 
   /// Corresponds to pixel address in DATA SHORT/LONG words, in priority encoder order
   std::uint16_t mPixelHitBaseAddr;
@@ -95,9 +112,11 @@ private:
   
 public:
   RegionReadoutUnit(sc_core::sc_module_name name, unsigned int region_num,
-                    unsigned int fifo_size, bool cluster_enable);
-  void regionMatrixReadoutProcess(void);
-  void regionValidProcess(void);  
+                    unsigned int fifo_size, bool matrix_readout_speed,
+                    bool cluster_enable);
+  void regionReadoutProcess(void);
+  void regionMatrixReadoutFSM(void);  
+  void regionValidFSM(void);  
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;  
 };
 
