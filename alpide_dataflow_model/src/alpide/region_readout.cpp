@@ -49,10 +49,16 @@ void RegionReadoutUnit::regionReadoutProcess(void)
     s_region_data_out = data_out;
   }
 
-  s_region_fifo_empty_out = s_region_fifo_in->num_available() > 0;
+  s_region_fifo_empty_out = s_region_fifo_in->is_empty();
 
   matrixReadoutFSM();
   regionValidFSM();
+
+  // Update region data output
+  if(s_region_data_read_in || s_region_event_pop_in) {
+    if(s_region_fifo_out.nb_get(data_out)
+       s_region_data_out = data_out;
+  }
 }
 
 
@@ -206,9 +212,9 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
     } else { // Cluster already started
       if(p == NoPixelHit) { // Indicates that we already read out all pixels from this region          
         if(mPixelHitmap == 0)
-          s_region_fifo_out->nb_write(AlpideDataShort(mPixelHitEncoderId, mPixelHitBaseAddr));
+          s_region_fifo_in->nb_put(AlpideDataShort(mPixelHitEncoderId, mPixelHitBaseAddr));
         else
-          s_region_fifo_out->nb_write(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
+          s_region_fifo_in->nb_put(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
           
         mClusterStarted = false;
         s_region_matrix_empty.write(true);          
@@ -222,15 +228,15 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
 
         // Last pixel in cluster?
         if(hitmap_pixel_num == DATA_LONG_PIXMAP_SIZE-1) {
-          s_region_fifo_out->nb_write(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
+          s_region_fifo_in->nb_put(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
           mClusterStarted = false;
         }
         s_region_matrix_empty.write(false);
       } else { // New pixel not in same cluster as previous pixels
         if(mPixelHitmap == 0)
-          s_region_fifo_out->nb_write(AlpideDataShort(mPixelHitEncoderId, mPixelHitBaseAddr));
+          s_region_fifo_in->nb_put(AlpideDataShort(mPixelHitEncoderId, mPixelHitBaseAddr));
         else
-          s_region_fifo_out->nb_write(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
+          s_region_fifo_in->nb_put(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
 
         // Get base address, priority encoder number, etc. for the new pixel (cluster)
         mClusterStarted = true;
@@ -246,7 +252,7 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix, uint64_t time_now)
     } else {
       unsigned int encoder_id = p.getPriEncNumInRegion();        
       unsigned int base_addr = p.getPriEncPixelAddress();
-      s_region_fifo_out->nb_write(AlpideDataShort(encoder_id, base_addr));
+      s_region_fifo_in->nb_put(AlpideDataShort(encoder_id, base_addr));
       s_region_matrix_empty.write(false);        
     }
   }

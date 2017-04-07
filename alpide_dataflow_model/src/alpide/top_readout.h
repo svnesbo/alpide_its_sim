@@ -77,6 +77,7 @@ private:
   };
 
   int getNextRegion(void);
+  bool getAllRegionsEmpty(void);
   
 public:
   TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);
