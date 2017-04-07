@@ -90,7 +90,6 @@ private:
   void mainProcess(void);  
   void strobeProcess(void);
   void frameReadout(void); // FROMU    
-  void matrixReadout(void);
   void dataTransmission(void);
 
 public:

@@ -58,12 +58,8 @@ int sc_main(int argc, char** argv)
   sc_core::sc_set_time_resolution(1, sc_core::SC_NS);
   
   // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
-  sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true);
+  sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true, true);
 
-  int matrix_readout_period = 50; // 50 ns
-  sc_clock clock_matrix_readout("clock_matrix_readout",
-                                matrix_readout_period,
-                                0.5, 2, true);
   sc_signal<sc_uint<24> > alpide_serial_data;
 
   alpide.s_system_clk_in(clock_40MHz);

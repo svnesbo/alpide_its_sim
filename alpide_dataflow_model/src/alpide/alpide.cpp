@@ -89,9 +89,6 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   
   SC_METHOD(strobeProcess);
   sensitive << s_strobe_in;
-  
-  SC_METHOD(matrixReadout);
-  sensitive_pos << s_matrix_readout_clk_in;
 
   SC_METHOD(mainProcess);
   sensitive_pos << s_system_clk_in;
@@ -188,25 +185,6 @@ void Alpide::strobeProcess(void)
     s_tru_frame_start_fifo_in.nb_write(frame_start_data);
   }
 }
-
-
-///@brief Matrix readout SystemC method. This method is clocked by the matrix readout clock.
-///       The matrix readout period can be specified by the user in a register in the Alpide,
-///       and is intended to allow the priority encoder a little more time to "settle" because
-///       it is a relatively slow asynchronous circuit.
-///       The method here triggers readout of a pixel from each region, into region buffers,
-///       and updates some status signals related to regions/event-buffers.
-void Alpide::matrixPriEncReadout(void)
-{
-  uint64_t time_now = sc_time_stamp().value();
-  int MEBs_in_use = getNumEvents();
-  
-  // Read out a pixel from each region in the matrix
-  for(int region_num = 0; region_num < N_REGIONS; region_num++) {
-    mRRUs[region_num]->readoutNextPixel(*this, time_now);
-  }
-}
-
 
 
 ///@brief Frame readout SystemC method @ 40MHz (system clock). 
