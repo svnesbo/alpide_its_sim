@@ -58,7 +58,7 @@ void RegionReadoutUnit::regionReadoutProcess(void)
 
 void RegionReadoutUnit::matrixReadoutFSM(void)
 {
-  bool region_fifo_full = s_region_fifo_in->num_free();  
+  bool region_fifo_full = s_region_fifo_in->is_full();
   bool matrix_readout_ready = false;
 
   if(mMatrixReadoutSpeed && s_matrix_readout_delay_counter > 0)
@@ -110,7 +110,7 @@ void RegionReadoutUnit::matrixReadoutFSM(void)
       s_rru_readout_state = IDLE;
     else if(!region_fifo_full) {
       // Put REGION_TRAILER word on RRU FIFO
-      s_region_fifo_out.nb_write(AlpideRegionTrailer(););
+      s_region_fifo_in.nb_put(AlpideRegionTrailer(););
       s_rru_readout_state = IDLE;
     }    
     break;
@@ -122,42 +122,48 @@ void RegionReadoutUnit::matrixReadoutFSM(void)
 ///       Note: should run on Alpide system clock frequency.
 void RegionReadoutUnit::regionValidFSM(void)
 {
+  AlpideDataWord dw;
+  bool region_fifo_empty = s_region_fifo_out->is_empty();
+  bool region_data_is_trailer = false;
+
+  if(!region_fifo_empty) {
+    s_region_fifo_out->nb_peek(dw);
+    if(dw.data[0] == DW_REGION_TRAILER)
+      region_data_is_trailer = true;
+  }
+  
   switch(s_rru_valid_state) {
   case IDLE:
     s_region_valid_out = false;
     
-    if(s_region_event_start)
+    if(s_region_event_start && !readout_abort)
       s_rru_valid_state = EMPTY;
     break;
     
   case EMPTY:
-    bool fifo_empty = s_region_fifo_out->num_available() == 0;
-    s_region_valid_out = (!fifo_empty /* && Region trailer word */);
-
+    s_region_valid_out = (!region_fifo_empty && region_data_is_trailer);
     
     if(s_readout_abort)
       s_rru_valid_state = IDLE;
-    else if(s_region_fifo_out->num_available() > 0) {
-      // Get next word from FIFO (peek, not read??)
-      // Or should this process sort of monitor what is being read from FIFO??
-
-      // If trailer -> go to POP
-
-      // If not trailer -> go to VALID
+    else if(!region_fifo_empty && region_data_is_trailer)
+      s_rru_valid_state = POP;
+    else if(region_fifo_empty && !region_data_is_trailer)
+      s_rru_valid_state = VALID;
     }
     break;
     
   case VALID:
-    s_region_valid_out = (!fifo_empty /* && Region trailer word */);
+    s_region_valid_out = (!fifo_empty && region_data_is_trailer);
     
     if(s_readout_abort)
       s_rru_valid_state = IDLE;
-    else {
+    else if(region_data_is_trailer) {
+      s_rru_valid_state = POP;
     }
     break;
     
   case POP:
-    s_region_valid = false;
+    s_region_valid_out = false;
     
     if(s_region_event_pop_in || s_readout_abort)
       s_rru_valid_state = IDLE;

@@ -11,6 +11,7 @@
 
 #include "alpide_data_format.h"
 #include "pixel_matrix.h"
+#include <tlm.h>
 #include <cstdint>
 
 // Ignore warnings about use of auto_ptr in SystemC library
@@ -54,9 +55,9 @@ private:
   sc_signal<bool> s_region_matrix_empty;
   sc_signal<sc_uint<2> > s_matrix_readout_delay_counter;
 
-  sc_fifo<AlpideDataWord> s_region_fifo;  
-  sc_port<sc_fifo_out_if<AlpideDataWord> > s_region_fifo_out;
-  sc_port<sc_fifo_in_if<AlpideDataWord> > s_region_fifo_in;
+  tlm::tlm_fifo<AlpideDataWord> s_region_fifo;
+  sc_port<tlm::tlm_fifo_put_if<AlpideDataWord> > s_region_fifo_in;
+  sc_port<tlm::tlm_fifo_get_if<AlpideDataWord> > s_region_fifo_out;
   
   sc_signal<sc_uint<8> > s_region_fifo_size;
   
