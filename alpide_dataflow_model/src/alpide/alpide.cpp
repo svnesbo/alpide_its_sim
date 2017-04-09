@@ -45,7 +45,6 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 
   // Allocate/create/name SystemC FIFOs for the regions and connect the
   // Region Readout Units (RRU) FIFO outputs to Top Readout Unit (TRU) FIFO inputs
-  //s_region_fifos.reserve(N_REGIONS);
   mRRUs.reserve(N_REGIONS);
   for(int i = 0; i < N_REGIONS; i++) {
     std::stringstream ss;
@@ -56,8 +55,6 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
                                      matrix_readout_speed,
                                      enable_clustering);
 
-///@todo Replace with a signal, data_read signal is used for reading from region FIFO now
-//    mTRU->s_region_fifo_in[i](mRRUs[i]->s_region_fifo);
     mRRUs[i]->s_system_clk_in(s_system_clk_in);
     mRRUs[i]->s_frame_readout_start_in(s_frame_readout_start);
     mRRUs[i]->s_region_event_start_in(s_region_event_start);
@@ -89,7 +86,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 
   
   SC_METHOD(strobeProcess);
-  sensitive << s_strobe_in;
+  sensitive << s_strobe_n_in;
 
   SC_METHOD(mainProcess);
   sensitive_pos << s_system_clk_in;
@@ -105,9 +102,9 @@ void Alpide::strobeProcess(void)
 {
   int64_t time_now = sc_time_stamp().value();
 
-  if(!s_strobe_in) {   // Strobe falling edge - start of frame/event, strobe is active low
+  if(!s_strobe_n_in) {   // Strobe falling edge - start of frame/event, strobe is active low
     if(mContinuousMode) {
-      mChipReady = true; // A free event buffer is guaranteed in continuous mode..
+      s_chip_ready_out = true; // A free event buffer is guaranteed in continuous mode..
 
       if(getNumEvents() == 2) {
         deleteEvent(time_now);
@@ -138,13 +135,13 @@ void Alpide::strobeProcess(void)
       s_readout_abort = false; // No abort in triggered mode
 
       if(getNumEvents() == 3) {
-        mChipReady = false;
+        s_chip_ready_out = false;
         mTriggerEventsRejected++;
         s_busy_violation = true;
       } else {
         newEvent();
         mTriggerEventsAccepted++;
-        mChipReady = true;
+        s_chip_ready_out = true;
         s_busy_violation = false;
       }
 
@@ -156,7 +153,7 @@ void Alpide::strobeProcess(void)
     }
   }
   else {   // Strobe rising edge - end of frame/event
-    mChipReady = false;
+    s_chip_ready_out = false;
     
     FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
 
@@ -221,11 +218,6 @@ void Alpide::frameReadout(void)
 
   s_oldest_event_number_of_hits = getHitsRemainingInOldestEvent();
 
-  ///@todo When and where should the events be deleted?
-  ///      Currently it happens in PixelMatrix::readoutPixel() when there are no more hits in the matrix.
-  ///      But perhaps it is more correct that we iterate over all regions, and when all the
-  ///      region_empty signals from the RRUs have been set, then we delete the event from here,
-  ///      and not automatically from PixelMatrix::readoutPixel()?
 
   switch(s_fromu_readout_state) {
   case WAIT_FOR_EVENTS:

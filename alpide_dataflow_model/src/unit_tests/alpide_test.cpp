@@ -59,10 +59,14 @@ int sc_main(int argc, char** argv)
   
   // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
   sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true, true);
+  sc_signal<bool> strobe_n = true;
+  sc_signal<bool> chip_ready;
 
   sc_signal<sc_uint<24> > alpide_serial_data;
 
   alpide.s_system_clk_in(clock_40MHz);
+  alpide.s_strobe_n_in(strobe_n);
+  alpide.s_chip_ready_out(chip_ready);
   alpide.s_matrix_readout_clk_in(clock_matrix_readout);
   alpide.s_serial_data_output(alpide_serial_data);
 
@@ -80,6 +84,22 @@ int sc_main(int argc, char** argv)
   // Start/run for x number of clock cycles
   sc_core::sc_start(1000, sc_core::SC_NS);
 
+  // Set strobe active - the Alpide will create an event itself then
+  strobe_n = false;
+  sc_core::sc_start(100, sc_core::SC_NS);
+
+  // The chip_ready signal should have been set now by the Alpide class after
+  // receiving the strobe, indicating that we can feed hits to the Alpide
+  std::cout << "Checking that the chip is ready...";
+  if(chip_ready) {
+    std::cout << "  Ok" << std::endl;
+  } else {
+    std::cout << "  Not ok. Chip not ready." << std::endl;
+    return -1;
+  }  
+
+  // Set strobe inactive again, and feed hits to the chip before resuming simulation
+  strobe_n = true;
 
   std::cout << "Creating event with 100 random hits" << std::endl;
   

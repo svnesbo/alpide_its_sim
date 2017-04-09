@@ -36,7 +36,11 @@ public:
   
   ///@brief 40MHz LHC clock
   sc_in_clk s_system_clk_in;
+  sc_in<bool> s_strobe_n_in;
 
+  ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
+  sc_in<bool> s_chip_ready_out;
+  
   sc_out<sc_uint<24> > s_serial_data_output;
   ///@}
   

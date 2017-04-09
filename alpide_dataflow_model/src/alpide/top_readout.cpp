@@ -68,8 +68,6 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   int current_region = getNextRegion();  
   bool no_regions_valid = current_region == -1 ? true : false;
   
-  ///@todo Whooops... region empty is not the same as region not valid..
-  ///      It means the region FIFO is empty, not necessarily the region's MEBs..
   bool all_regions_empty = getAllRegionsEmpty();
   bool tru_data_fifo_full = s_tru_fifo_out.num_free() == 0;
   bool frame_start_fifo_empty = frame_start_fifo.num_available() == 0;

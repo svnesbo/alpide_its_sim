@@ -76,7 +76,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   // Connect SystemC signals to EventGenerator
   mEvents->s_clk_in(clock);  
   mEvents->E_trigger_event_available(E_trigger_event_available);
-  mEvents->s_strobe_in(s_strobe);
+  mEvents->s_strobe_in(s_strobe_n);
   mEvents->s_physics_event_out(s_physics_event);
 
   int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
@@ -97,8 +97,13 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
                                  mContinuousMode);
     
     mAlpideChips[i]->s_system_clk_in(clock);
+    mAlpideChips[i]->s_strobe_n_in(s_strobe_n);
+    mAlpideChips[i]->s_chip_ready_out(s_chip_ready[i]);
     mAlpideChips[i]->s_serial_data_output(s_alpide_serial_data[i]);
   }
+
+  s_strobe_n = true;
+  s_physics_event = false;
   
   SC_CTHREAD(stimuliMainProcess, clock.pos());
   
@@ -130,19 +135,19 @@ void Stimuli::stimuliMainProcess(void)
       }
 
       if(mContinuousMode == true) {
-        s_strobe.write(true);
+        s_strobe_n.write(false);
         wait(mStrobeActiveNs, SC_NS);
 
-        s_strobe.write(false);
+        s_strobe_n.write(true);
         wait(mStrobeInactiveNs, SC_NS);
       } else {
         wait(s_physics_event.value_changed_event());
         if(s_physics_event.read() == true) {
           wait(mTriggerDelayNs, SC_NS);
-          s_strobe.write(true);
+          s_strobe_n.write(false);
         
           wait(mStrobeActiveNs, SC_NS);
-          s_strobe.write(false);
+          s_strobe_n.write(true);
         }
       }
 
@@ -188,7 +193,10 @@ void Stimuli::stimuliEventProcess(void)
     // Don't process if we received NoTriggerEvent
     if(e.getEventId() != -1) {
       int chip_id = e.getChipId();
-      e.feedHitsToChip(*mAlpideChips[chip_id]);
+
+      // Only give events to chips that are ready - discard the event if not
+      if(s_chip_ready[chip_id])
+        e.feedHitsToChip(*mAlpideChips[chip_id]);
 
       #ifdef DEBUG_OUTPUT
       std::cout << "Number of events in chip: " << mAlpideChips[chip_id]->getNumEvents() << std::endl;
@@ -207,7 +215,7 @@ void Stimuli::stimuliEventProcess(void)
 ///@param wf VCD waveform file pointer
 void Stimuli::addTraces(sc_trace_file *wf) const
 {
-  sc_trace(wf, s_strobe, "STROBE");
+  sc_trace(wf, s_strobe_n, "STROBE_N");
   sc_trace(wf, s_physics_event, "PHYSICS_EVENT");
 
   // Add traces for all Alpide chips
