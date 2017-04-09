@@ -224,7 +224,18 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   std::stringstream ss;
   ss << name_prefix << "TRU.";
   std::string tru_name_prefix = ss.str();
+ 
+  addTrace(wf, tru_name_prefix, "readout_abort_in", s_readout_abort_in);
+  addTrace(wf, tru_name_prefix, "data_overrun_mode_in", s_data_overrun_mode_in);
+  addTrace(wf, tru_name_prefix, "region_event_pop_out", s_region_event_pop_out);
+  addTrace(wf, tru_name_prefix, "region_event_start_out", s_region_event_start_out);
+  addTrace(wf, tru_name_prefix, "region_data_read_out", s_region_data_read_out);
+  addTrace(wf, tru_name_prefix, "frame_start_fifo", s_frame_start_fifo);
+  addTrace(wf, tru_name_prefix, "frame_end_fifo", s_frame_end_fifo);
+  addTrace(wf, tru_name_prefix, "tru_fifo_out", s_tru_fifo_out);
+  addTrace(wf, tru_name_prefix, "current_region", s_current_region);
+  addTrace(wf, tru_name_prefix, "current_region", s_current_region);
   
-  addTrace(wf, tru_name_prefix, "tru_state", s_tru_state);   
-  addTrace(wf, tru_name_prefix, "current_region", s_current_region);     
+  addTrace(wf, tru_name_prefix, "tru_state", s_tru_state);
+  addTrace(wf, tru_name_prefix, "previous_region", s_previous_region);
 }

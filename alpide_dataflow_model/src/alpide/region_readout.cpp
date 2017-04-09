@@ -278,6 +278,22 @@ void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) co
 
   addTrace(wf, region_name_prefix, "region_empty_out", s_region_empty_out);
   addTrace(wf, region_name_prefix, "region_matrix_empty", s_region_matrix_empty);  
-  addTrace(wf, region_name_prefix, "region_fifo_size", s_region_fifo_size);  
+  addTrace(wf, region_name_prefix, "region_fifo_size", s_region_fifo_size);
+  addTrace(wf, region_name_prefix, "frame_readout_start_in", s_frame_readout_start_in);
+  addTrace(wf, region_name_prefix, "region_event_start_in", s_region_event_start_in);
+  addTrace(wf, region_name_prefix, "region_event_pop_in", s_region_event_pop_in);
+  addTrace(wf, region_name_prefix, "region_data_read_in", s_region_data_read_in);
+  addTrace(wf, region_name_prefix, "frame_readout_done_out", s_frame_readout_done_out);
+  addTrace(wf, region_name_prefix, "region_fifo_empty_out", s_region_fifo_empty_out);
+  addTrace(wf, region_name_prefix, "region_valid_out", s_region_valid_out);
+  addTrace(wf, region_name_prefix, "region_data_out", s_region_data_out);
+  addTrace(wf, region_name_prefix, "rru_readout_state", s_rru_readout_state);  
+  addTrace(wf, region_name_prefix, "rru_valid_state", s_rru_valid_state);
+  addTrace(wf, region_name_prefix, "region_matrix_empty", s_region_matrix_empty);
+  addTrace(wf, region_name_prefix, "matrix_readout_delay_counter", s_matrix_readout_delay_counter);
+  addTrace(wf, region_name_prefix, "region_fifo", s_region_fifo);
+  addTrace(wf, region_name_prefix, "region_fifo_in", s_region_fifo_in);
+  addTrace(wf, region_name_prefix, "region_fifo_out", s_region_fifo_out);    
+  addTrace(wf, region_name_prefix, "region_fifo_size", s_region_fifo_size);    
 }
 

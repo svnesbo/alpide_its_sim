@@ -56,7 +56,6 @@ private:
   ///@{
   sc_signal<sc_uint<8> > s_tru_state;
   sc_signal<sc_uint<8> > s_previous_region;
-  sc_signal<bool> s_readout_abort;
   sc_signal<sc_fifo_out_if<FrameStartFifoWord> > s_frame_start_fifo_out;
   sc_signal<sc_fifo_out_if<FrameEndFifoWord> > s_frame_end_fifo_out;
   ///@}  

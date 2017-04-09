@@ -302,13 +302,33 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss << name_prefix << "alpide_" << mChipId << ".";
   std::string alpide_name_prefix = ss.str();
 
-  addTrace(wf, alpide_name_prefix, "event_buffers_used", s_event_buffers_used);
-  addTrace(wf, alpide_name_prefix, "hits_in_matrix", s_total_number_of_hits);
+  addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);
   addTrace(wf, alpide_name_prefix, "serial_data_output", s_serial_data_output);
-  addTrace(wf, alpide_name_prefix, "tru_fifo_size", s_tru_fifo_size);  
+  addTrace(wf, alpide_name_prefix, "event_buffers_used", s_event_buffers_used);
+  addTrace(wf, alpide_name_prefix, "total_number_of_hits", s_total_number_of_hits);
+  addTrace(wf, alpide_name_prefix, "oldest_event_number_of_hits", s_oldest_event_number_of_hits);
+  addTrace(wf, alpide_name_prefix, "tru_fifo_size", s_tru_fifo_size);
+
+  addTrace(wf, alpide_name_prefix, "region_event_start", s_region_event_start);
+  addTrace(wf, alpide_name_prefix, "region_event_pop", s_region_event_pop);    
+
+  addTrace(wf, alpide_name_prefix, "frame_readout_start", s_frame_readout_start);
+  addTrace(wf, alpide_name_prefix, "frame_readout_done_all", s_frame_readout_done_all);
+  addTrace(wf, alpide_name_prefix, "readout_abort", s_readout_abort);
+  addTrace(wf, alpide_name_prefix, "tru_frame_fifo_busy", s_tru_frame_fifo_busy);
+  addTrace(wf, alpide_name_prefix, "tru_data_overrun_mode", s_tru_data_overrun_mode);
+  addTrace(wf, alpide_name_prefix, "tru_frame_fifo_fatal_overflow", s_tru_frame_fifo_fatal_overflow);
+  addTrace(wf, alpide_name_prefix, "multi_event_buffers_busy", s_multi_event_buffers_busy);
+
+  addTrace(wf, alpide_name_prefix, "busy_violation", s_busy_violation;);
+  addTrace(wf, alpide_name_prefix, "busy_status", s_busy_status);
+
+  addTrace(wf, alpide_name_prefix, "fromu_readout_state", s_fromu_readout_state);
+  addTrace(wf, alpide_name_prefix, "tru_fifo_size", s_tru_fifo_size);
 
   mTRU->addTraces(wf, alpide_name_prefix);
-
+  
   for(int i = 0; i < N_REGIONS; i++)
-    mRRUs[i]->addTraces(wf, alpide_name_prefix);
+    mRRUs[i]->addTraces(wf, alpide_name_prefix);    
+
 }
