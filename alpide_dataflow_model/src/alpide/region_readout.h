@@ -45,6 +45,7 @@ public:
   
   sc_in<bool> s_region_data_read_in;
 
+  sc_out<bool> s_frame_readout_done_out;
   sc_out<bool> s_region_fifo_empty_out;
   sc_out<bool> s_region_valid_out;
   sc_out<AlpideDataWord> s_region_data_out;

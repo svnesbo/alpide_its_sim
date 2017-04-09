@@ -46,7 +46,7 @@ bool TopReadoutUnit::getAllRegionsEmpty(void)
   bool all_empty = true;
   
   for(int i = 0; i < N_REGIONS; i++) {
-    all_empty = all_empty & s_region_empty_in[i];
+    all_empty = all_empty & s_region_fifo_empty_in[i];
   }
   
   return all_empty;
@@ -121,7 +121,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_data_read_out[current_region] =
       !tru_data_fifo_full &&
       !no_regions_valid &&
-      !s_region_empty_in[current_region];
+      !s_region_fifo_empty_in[current_region];
     
     if(!tru_data_fifo_full) {
       if(mCurrentFrameStartWord.busy_violation) {
@@ -162,7 +162,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_data_read_out[current_region] =
       !tru_data_fifo_full &&
       !no_regions_valid &&
-      !s_region_empty_in[current_region];
+      !s_region_fifo_empty_in[current_region];
     
     // New region? Output region header
     if(current_region != s_previous_region) {
@@ -185,11 +185,11 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_data_read_out[current_region] =
       !tru_data_fifo_full &&
       !no_regions_valid &&
-      !s_region_empty_in[current_region];
+      !s_region_fifo_empty_in[current_region];
 
     if(s_readout_abort_in || no_regions_valid)
       s_tru_state = CHIP_TRAILER;
-    else if(tru_data_fifo_full || s_region_empty_in[current_region])
+    else if(tru_data_fifo_full || s_region_fifo_empty_in[current_region])
       s_tru_state = WAIT;
     else
       s_tru_state = REGION_DATA;

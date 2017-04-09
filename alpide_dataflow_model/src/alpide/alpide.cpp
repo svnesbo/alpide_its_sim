@@ -64,11 +64,12 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     mRRUs[i]->s_region_event_pop_in(s_region_event_pop);
     mRRUs[i]->s_region_data_read_in(s_region_data_read);
 
-    mRRUs[i]->s_region_empty_out(s_region_empty[i]);
+    mRRUs[i]->s_frame_readout_done_out(s_frame_readout_done[i]);
+    mRRUs[i]->s_region_fifo_empty_out(s_region_fifo_empty[i]);
     mRRUs[i]->s_region_valid_out(s_region_valid[i]);
     mRRUs[i]->s_region_data_out(s_region_data[i]);
 
-    mTRU->s_region_empty_in(s_region_empty[i]);
+    mTRU->s_region_fifo_empty_in(s_region_empty[i]);
     mTRU->s_region_valid_in(s_region_valid[i]);    
   }
 
@@ -96,14 +97,15 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 
 
 ///@brief SystemC process/method controlled by STROBE input.
-///       Controls creation of new Multi Event Buffers (MEBs).
+///       Controls creation of new Multi Event Buffers (MEBs). Together with the frameReadout function, this
+///       process essentially does the same as the FROMU (Frame Read Out Management Unit) in the Alpide chip.
 ///       Note: it is assumed that STROBE is synchronous to the clock.
 ///       It will not be "dangerous" if it is not, but it will deviate from the real chip implementation.
 void Alpide::strobeProcess(void)
 {
   int64_t time_now = sc_time_stamp().value();
 
-  if(s_strobe_in) {   // Strobe rising edge    
+  if(!s_strobe_in) {   // Strobe falling edge - start of frame/event, strobe is active low
     if(mContinuousMode) {
       mChipReady = true; // A free event buffer is guaranteed in continuous mode..
 
@@ -153,7 +155,7 @@ void Alpide::strobeProcess(void)
         s_multi_event_buffers_busy = false;
     }
   }
-  else {   // Strobe falling edge
+  else {   // Strobe rising edge - end of frame/event
     mChipReady = false;
     
     FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
@@ -187,9 +189,20 @@ void Alpide::strobeProcess(void)
 }
 
 
+///@brief Data transmission SystemC method. Currently runs on 40MHz clock.
+///@todo Implement more advanced data transmission method.
+void Alpide::mainProcess(void)
+{
+  frameReadout();  
+  dataTransmission();
+
+  s_busy_status = (s_tru_frame_fifo_busy || s_multi_event_buffers_busy)
+}
+
+
 ///@brief Frame readout SystemC method @ 40MHz (system clock). 
-///       Essentially does the same job as the FROMU (Frame Read Out Management Unit) in the
-///       Alpide chip.
+///       Together with the strobeProcess, this function essentially does the same job as the
+///       FROMU (Frame Read Out Management Unit) in the Alpide chip.
 void Alpide::frameReadout(void)
 {
   uint64_t time_now = sc_time_stamp().value();
@@ -214,22 +227,48 @@ void Alpide::frameReadout(void)
   ///      region_empty signals from the RRUs have been set, then we delete the event from here,
   ///      and not automatically from PixelMatrix::readoutPixel()?
 
-  ///@todo Start readout here
+  switch(s_fromu_readout_state) {
+  case WAIT_FOR_EVENTS:
+    s_frame_readout_start = false;
+    s_frame_readout_done_all = false;
+    
+    if(s_event_buffers_used > 0)
+      s_fromu_readout_state = REGION_READOUT_START;
+    break;
+    
+  case REGION_READOUT_START:
+    s_frame_readout_start = true;
+    s_frame_readout_done_all = false;
+    s_fromu_readout_state = WAIT_FOR_REGION_READOUT;
+    break;
+    
+  case WAIT_FOR_REGION_READOUT:
+    s_frame_readout_start = false;
+    s_frame_readout_done_all = getFrameReadoutDone();
 
-  ///@todo Push frame end word to TRU FIFO when done with readout here
-  FrameEndFifoWord frame_end_data = {0, 0, 0};
-  s_tru_frame_end_fifo_in.nb_write(frame_end_data);    
-}
+    if(s_frame_readout_done_all)
+      s_fromu_readout_state = REGION_READOUT_DONE;
+    break;
+    
+  case REGION_READOUT_DONE:
+    s_frame_readout_start = false;
+    s_frame_readout_done_all = false;
 
+    FrameEndFifoWord frame_end_data = {0, 0, 0};
+    s_tru_frame_end_fifo_in.nb_write(frame_end_data);
 
-///@brief Data transmission SystemC method. Currently runs on 40MHz clock.
-///@todo Implement more advanced data transmission method.
-void Alpide::mainProcess(void)
-{
-  frameReadout();  
-  dataTransmission();
+    // Delete the event/frame in matrix/multi-event-buffer that has just been read out
+    deleteEvent();
+    s_fromu_readout_state = WAIT_FOR_EVENTS;
+    break;
+    
+  default:
+    s_frame_readout_start = false;
+    s_frame_readout_done_all = false;    
+    s_fromu_readout_state = WAIT_FOR_EVENTS;
+    break;
+  }
 
-  s_busy_status = (s_tru_frame_fifo_busy || s_multi_event_buffers_busy)
 }
 
 
@@ -246,6 +285,19 @@ void Alpide::dataTransmission(void)
     sc_uint<24> data = dw.data[2] << 16 | dw.data[1] << 8 | dw.data[0];
     s_serial_data_output = data;
   }
+}
+
+
+///@brief Get logical AND/product of all regions' frame_readout_done signals.
+///@return True when frame_readout_done is set in all regions
+bool Alpide::getFrameReadoutDone(void)
+{
+  bool done = true;
+  
+  for(int i = 0; i < N_REGIONS; i++)
+    done &= s_frame_readout_done[i];
+
+  return done;
 }
 
 

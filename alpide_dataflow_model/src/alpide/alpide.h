@@ -62,13 +62,25 @@ public:
 
   ///@brief Frame Readout Managment Unit (FROMU) signals
   sc_signal<bool> s_frame_readout_start;
+  sc_signal<bool> s_frame_readout_done[N_REGIONS];
+  sc_signal<bool> s_frame_readout_done_all;
   sc_signal<bool> s_readout_abort;
   sc_signal<bool> s_tru_frame_fifo_busy;
   sc_signal<bool> s_tru_data_overrun_mode;
   sc_signal<bool> s_tru_frame_fifo_fatal_overflow;
   sc_signal<bool> s_multi_event_buffers_busy;
   sc_signal<bool> s_busy_violation;
-  sc_signal<bool> s_busy_status;  
+  sc_signal<bool> s_busy_status;
+
+  enum FROMU_readout_state_t {
+    WAIT_FOR_EVENTS = 0,
+    REGION_READOUT_START = 1,
+    WAIT_FOR_REGION_READOUT = 2,
+    REGION_READOUT_DONE = 3
+  };
+
+  sc_signal<FROMU_readout_state_t> s_fromu_readout_state;
+  
   
   ///@brief Region FIFOs
   sc_fifo<AlpideDataWord> s_top_readout_fifo;
@@ -91,6 +103,7 @@ private:
   void strobeProcess(void);
   void frameReadout(void); // FROMU    
   void dataTransmission(void);
+  bool Alpide::getFrameReadoutDone(void);
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,

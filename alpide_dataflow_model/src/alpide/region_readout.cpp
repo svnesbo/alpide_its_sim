@@ -75,6 +75,8 @@ void RegionReadoutUnit::matrixReadoutFSM(void)
   
   switch(s_rru_readout_state) {
   case IDLE:
+    s_frame_readout_done_out = !s_frame_readout_start_in;
+    
     if(s_frame_readout_start && !s_region_matrix_empty) {
       s_matrix_readout_delay_counter = 0;
       s_rru_readout_state = START_READOUT;
@@ -85,6 +87,8 @@ void RegionReadoutUnit::matrixReadoutFSM(void)
     break;
     
   case START_READOUT:
+    s_frame_readout_done_out = false;
+    
     if(s_readout_abort)
       s_rru_readout_state = IDLE;
     else if(matrix_readout_ready) // Wait for matrix readout delay
@@ -95,6 +99,8 @@ void RegionReadoutUnit::matrixReadoutFSM(void)
     break;
     
   case READOUT_AND_CLUSTERING:
+    s_frame_readout_done_out = false;
+
     if(s_readout_abort)
       s_rru_readout_state = IDLE;
     else if(matrix_readout_ready) { // Wait for matrix readout delay
@@ -112,6 +118,8 @@ void RegionReadoutUnit::matrixReadoutFSM(void)
     break;
     
   case REGION_TRAILER:
+    s_frame_readout_done_out = false;
+    
     if(s_readout_abort)
       s_rru_readout_state = IDLE;
     else if(!region_fifo_full) {
