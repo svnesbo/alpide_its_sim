@@ -17,8 +17,6 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
   s_frame_start_fifo_out(s_frame_start_fifo);
   s_frame_end_fifo_out(s_frame_end_fifo);
 
-  s_current_region = 0;
-
   s_tru_state = IDLE;
 
   SC_METHOD(topRegionReadoutProcess);
@@ -233,8 +231,6 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, tru_name_prefix, "frame_start_fifo", s_frame_start_fifo);
   addTrace(wf, tru_name_prefix, "frame_end_fifo", s_frame_end_fifo);
   addTrace(wf, tru_name_prefix, "tru_fifo_out", s_tru_fifo_out);
-  addTrace(wf, tru_name_prefix, "current_region", s_current_region);
-  addTrace(wf, tru_name_prefix, "current_region", s_current_region);
   
   addTrace(wf, tru_name_prefix, "tru_state", s_tru_state);
   addTrace(wf, tru_name_prefix, "previous_region", s_previous_region);
