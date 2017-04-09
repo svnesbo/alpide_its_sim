@@ -43,8 +43,15 @@ bool PixelMatrix::newEvent(uint64_t event_time)
 ///@brief Delete an event from the MEB. No checks are made to see if there are actually
 ///       stored events to delete. Underlying container will probably throw an exception
 ///       if called when there are not.
-bool PixelMatrix::deleteEvent(void)
+///@param  time_now Simulation time when this readout is occuring
+void PixelMatrix::deleteEvent(uint64_t time_now)
 {
+  // Update the histogram value for the previous MEB size, with the duration
+  // that has passed since the last update, before popping this MEB.
+  unsigned int MEB_size = mColumnBuffs.size();
+  mMEBHistogram[MEB_size] += time_now - mMEBHistoLastUpdateTime;
+  mMEBHistoLastUpdateTime = time_now;
+      
   mColumnBuffsPixelsLeft.pop_front();
   mColumnBuffs.pop();
 }
@@ -127,18 +134,6 @@ PixelData PixelMatrix::readPixel(uint64_t time_now, int start_double_col, int st
         break;
       }
     }
-
-    // If this was the last hit in this event buffer, remove the event buffer from the queue  
-    if(oldest_event_buffer_hits_remaining == 0) {
-      // Update the histogram value for the previous MEB size, with the duration
-      // that has passed since the last update, before popping this MEB.
-      unsigned int MEB_size = mColumnBuffs.size();
-      mMEBHistogram[MEB_size] += time_now - mMEBHistoLastUpdateTime;
-      mMEBHistoLastUpdateTime = time_now;
-  
-      mColumnBuffs.pop();
-      mColumnBuffsPixelsLeft.pop_front();
-    }      
   }
 
   return pixel_retval;

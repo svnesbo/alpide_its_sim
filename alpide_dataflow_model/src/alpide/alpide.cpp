@@ -110,7 +110,7 @@ void Alpide::strobeProcess(void)
       mChipReady = true; // A free event buffer is guaranteed in continuous mode..
 
       if(getNumEvents() == 2) {
-        deleteEvent();
+        deleteEvent(time_now);
 
         // No change in number of accepted events, since previous 
         // event was accepted but is now being "rejected".
@@ -258,7 +258,7 @@ void Alpide::frameReadout(void)
     s_tru_frame_end_fifo_in.nb_write(frame_end_data);
 
     // Delete the event/frame in matrix/multi-event-buffer that has just been read out
-    deleteEvent();
+    deleteEvent(time_now);
     s_fromu_readout_state = WAIT_FOR_EVENTS;
     break;
     

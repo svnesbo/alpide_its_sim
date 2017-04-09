@@ -110,7 +110,6 @@ public:
          int tru_fifo_size, bool enable_clustering, bool continuous_mode,
          bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
-  bool newEvent(uint64_t event_time);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 
