@@ -14,9 +14,6 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
   : sc_core::sc_module(name)
   , mChipId(chip_id)
 {
-  s_frame_start_fifo_out(s_frame_start_fifo);
-  s_frame_end_fifo_out(s_frame_end_fifo);
-
   s_tru_state = IDLE;
 
   SC_METHOD(topRegionReadoutProcess);
@@ -25,15 +22,18 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
 
 
 ///@brief Find the first valid region, and return its region id.
-///@return ID of first valid region. Returns -1 if no regions are valid.
-int TopReadoutUnit::getNextRegion(void)
+///@param region_out Reference to an integer that will hold the region id.
+///@return True if a valid region was found.
+bool TopReadoutUnit::getNextRegion(int& region_out)
 {
   for(int i = 0; i < N_REGIONS; i++) {
-    if(s_region_valid_in[i] == true)
-      return i;
+    if(s_region_valid_in[i] == true) {
+      region_out = i;
+      return true;
+    }
   }
-  
-  return -1;
+  region_out = 0;
+  return false;
 }
 
 
@@ -60,26 +60,24 @@ bool TopReadoutUnit::getAllRegionsEmpty(void)
 void TopReadoutUnit::topRegionReadoutProcess(void)
 {
   int readout_flags;
-  unsigned int region;
   AlpideDataWord data_out;
 
-  int current_region = getNextRegion();  
-  bool no_regions_valid = current_region == -1 ? true : false;
-  
+  int current_region;
+  bool no_regions_valid = getNextRegion(current_region);
   bool all_regions_empty = getAllRegionsEmpty();
-  bool tru_data_fifo_full = s_tru_fifo_out.num_free() == 0;
-  bool frame_start_fifo_empty = frame_start_fifo.num_available() == 0;
-  bool frame_end_fifo_empty = s_frame_end_fifo.num_available() == 0;
+  bool tru_data_fifo_full = s_dmu_fifo_input->num_free() == 0;
+  bool frame_start_fifo_empty = s_frame_start_fifo_output->num_available() == 0;  
+  bool frame_end_fifo_empty = s_frame_end_fifo_output->num_available() == 0;
 
   // New region? Make sure region data read signal for previous region was set low then
-  if(current_region != s_previous_region)
-    s_region_data_out[s_previous_region] = false;
+  if(current_region != s_previous_region.read())
+    s_region_data_read_out[s_previous_region.read()] = false;
 
 
-  switch(s_tru_state) {
+  switch(s_tru_state.read()) {
   case EMPTY:
     s_region_event_pop_out = !frame_end_fifo_empty;
-    s_region_event_start = false;
+    s_region_event_start_out = false;
     s_region_data_read_out[current_region] = false;
         
     if(!frame_end_fifo_empty) {
@@ -89,18 +87,18 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       
   case IDLE:
     s_region_event_pop_out = false;    
-    s_region_event_start = !frame_start_fifo_empty;
+    s_region_event_start_out = !frame_start_fifo_empty;
     s_region_data_read_out[current_region] = false;    
     
     if(!frame_start_fifo_empty) {
-      s_frame_start_fifo.nb_read(mCurrentFrameStartWord);
+      s_frame_start_fifo_output->nb_read(mCurrentFrameStartWord);
       s_tru_state = WAIT_REGION_DATA;
     }
     break;
       
   case WAIT_REGION_DATA:
     s_region_event_pop_out = false;
-    s_region_event_start = false;    
+    s_region_event_start_out = false;    
     s_region_data_read_out[current_region] = false;    
 
     ///@todo Should I maybe use the empty signal for the current
@@ -113,7 +111,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       
   case CHIP_HEADER:
     s_region_event_pop_out = false;
-    s_region_event_start = false;    
+    s_region_event_start_out = false;    
     s_region_data_read_out[current_region] =
       !tru_data_fifo_full &&
       !no_regions_valid &&
@@ -133,38 +131,38 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
         data_out = AlpideChipEmptyFrame(mChipId, mCurrentFrameStartWord);
         s_tru_state = EMPTY;
       }
-      s_tru_fifo_out->nb_write(data_out);
+      s_dmu_fifo_input->nb_write(data_out);
     }
     break;
 
       
   case BUSY_VIOLATION:
     s_region_event_pop_out = false;
-    s_region_event_start = false;
+    s_region_event_start_out = false;
     s_region_data_read_out[current_region] = false;
 
-    s_frame_end_fifo.nb_read(mCurrentFrameEndWord);
+    s_frame_end_fifo_output->nb_read(mCurrentFrameEndWord);
     
     // Busy violation bit is included in frame start word
     data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
-    s_tru_fifo_out->nb_write(data_out);
+    s_dmu_fifo_input->nb_write(data_out);
 
     s_tru_state = IDLE;
     break;
       
   case REGION_DATA:
     s_region_event_pop_out = false;
-    s_region_event_start = false;
+    s_region_event_start_out = false;
     s_region_data_read_out[current_region] =
       !tru_data_fifo_full &&
       !no_regions_valid &&
       !s_region_fifo_empty_in[current_region];
     
     // New region? Output region header
-    if(current_region != s_previous_region) {
-      data_out = AlpideRegionHeader(region);
+    if(current_region != s_previous_region.read()) {
+      data_out = AlpideRegionHeader(current_region);
     } else {
-      s_region_fifo_in[region]->nb_read(data_out);
+      s_region_fifo_in[current_region]->nb_read(data_out);
     }
 
     if(tru_data_fifo_full) {
@@ -177,7 +175,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   
   case WAIT: // Data FIFO full or waiting for more region data
     s_region_event_pop_out = false;
-    s_region_event_start = false;
+    s_region_event_start_out = false;
     s_region_data_read_out[current_region] =
       !tru_data_fifo_full &&
       !no_regions_valid &&
@@ -193,13 +191,13 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       
   case CHIP_TRAILER:
     s_region_event_pop_out = !frame_end_fifo_empty && !tru_data_fifo_full;
-    s_region_event_start = false;
+    s_region_event_start_out = false;
     s_region_data_read_out[current_region] = false;    
     
     if(!tru_data_fifo_full && !frame_end_fifo_empty) {
-      s_frame_end_fifo.nb_read(mCurrentFrameEndWord);
+      s_frame_end_fifo_output->nb_read(mCurrentFrameEndWord);
       data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
-      s_tru_fifo_out->nb_write(data_out);
+      s_dmu_fifo_input->nb_write(data_out);
       
       s_tru_state = IDLE;
     }
@@ -228,9 +226,7 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, tru_name_prefix, "region_event_pop_out", s_region_event_pop_out);
   addTrace(wf, tru_name_prefix, "region_event_start_out", s_region_event_start_out);
   addTrace(wf, tru_name_prefix, "region_data_read_out", s_region_data_read_out);
-  addTrace(wf, tru_name_prefix, "frame_start_fifo", s_frame_start_fifo);
-  addTrace(wf, tru_name_prefix, "frame_end_fifo", s_frame_end_fifo);
-  addTrace(wf, tru_name_prefix, "tru_fifo_out", s_tru_fifo_out);
+//  addTrace(wf, tru_name_prefix, "dmu_fifo_input", s_dmu_fifo_input);
   
   addTrace(wf, tru_name_prefix, "tru_state", s_tru_state);
   addTrace(wf, tru_name_prefix, "previous_region", s_previous_region);

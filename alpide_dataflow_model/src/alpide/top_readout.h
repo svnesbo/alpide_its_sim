@@ -41,14 +41,15 @@ public:
 
   sc_out<bool> s_region_event_pop_out;
   sc_out<bool> s_region_event_start_out;
-  sc_out<bool> s_region_data_read_out;
+  sc_out<bool> s_region_data_read_out[N_REGIONS];
   
   sc_port<sc_fifo_in_if<AlpideDataWord> > s_region_fifo_in[N_REGIONS];
-  sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
-  sc_fifo<FrameEndFifoWord> s_frame_end_fifo;
+
+  sc_port<sc_fifo_in_if<FrameStartFifoWord>> s_frame_start_fifo_output;
+  sc_port<sc_fifo_in_if<FrameEndFifoWord>> s_frame_end_fifo_output;
   
   ///@brief Output from TRU
-  sc_port<sc_fifo_out_if<AlpideDataWord> > s_tru_fifo_out;
+  sc_port<sc_fifo_out_if<AlpideDataWord>> s_dmu_fifo_input;
   ///@}
 
 private:
@@ -56,13 +57,12 @@ private:
   ///@{
   sc_signal<sc_uint<8> > s_tru_state;
   sc_signal<sc_uint<8> > s_previous_region;
-  sc_signal<sc_fifo_out_if<FrameStartFifoWord> > s_frame_start_fifo_out;
-  sc_signal<sc_fifo_out_if<FrameEndFifoWord> > s_frame_end_fifo_out;
   ///@}  
 
   // Standard C++ members
   unsigned int mChipId;
   FrameStartFifoWord mCurrentFrameStartWord;
+  FrameEndFifoWord mCurrentFrameEndWord;  
 
   enum TRU_state_t {
     EMPTY = 0,
@@ -75,7 +75,7 @@ private:
     CHIP_TRAILER = 7
   };
 
-  int getNextRegion(void);
+  bool getNextRegion(int& region_out);
   bool getAllRegionsEmpty(void);
   
 public:

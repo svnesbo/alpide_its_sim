@@ -25,10 +25,8 @@ PixelMatrix::PixelMatrix(bool continuous_mode)
 ///       to the new event.
 ///@param event_time Simulation time when the event is pushed/latched into MEB
 ///                  (use current simulation time).
-bool PixelMatrix::newEvent(uint64_t event_time)
+void PixelMatrix::newEvent(uint64_t event_time)
 {
-  bool ret_val = true;
-
   // Update the histogram value for the previous MEB size, with the duration
   // that has passed since the last update, before pushing this event to the MEBs
   unsigned int MEB_size = mColumnBuffs.size();

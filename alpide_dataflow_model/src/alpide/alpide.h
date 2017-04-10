@@ -39,7 +39,7 @@ public:
   sc_in<bool> s_strobe_n_in;
 
   ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
-  sc_in<bool> s_chip_ready_out;
+  sc_out<bool> s_chip_ready_out;
   
   sc_out<sc_uint<24> > s_serial_data_output;
   ///@}
@@ -57,12 +57,12 @@ public:
   ///@brief Number of hits in oldest multi event buffer
   sc_signal<sc_uint<32> > s_oldest_event_number_of_hits;
 
-  sc_signal<bool> s_region_empty[N_REGIONS];
+  sc_signal<bool> s_region_fifo_empty[N_REGIONS];
   sc_signal<bool> s_region_valid[N_REGIONS];
   sc_signal<bool> s_region_data_read[N_REGIONS];
   sc_signal<bool> s_region_event_start;  
   sc_signal<bool> s_region_event_pop;
-  sc_in<AlpideDataWord> s_region_data[N_REGIONS];
+  sc_signal<AlpideDataWord> s_region_data[N_REGIONS];
 
   ///@brief Frame Readout Managment Unit (FROMU) signals
   sc_signal<bool> s_frame_readout_start;
@@ -75,6 +75,17 @@ public:
   sc_signal<bool> s_multi_event_buffers_busy;
   sc_signal<bool> s_busy_violation;
   sc_signal<bool> s_busy_status;
+  
+  
+  sc_fifo<AlpideDataWord> s_dmu_fifo;
+  
+  sc_signal<sc_uint<8> > s_dmu_fifo_size;
+  ///@}
+
+private:  
+  sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
+  sc_fifo<FrameEndFifoWord> s_frame_end_fifo;
+
 
   enum FROMU_readout_state_t {
     WAIT_FOR_EVENTS = 0,
@@ -83,21 +94,24 @@ public:
     REGION_READOUT_DONE = 3
   };
 
-  sc_signal<FROMU_readout_state_t> s_fromu_readout_state;
-  
-  
-  ///@brief Region FIFOs
-  sc_fifo<AlpideDataWord> s_top_readout_fifo;
-  sc_signal<sc_fifo_in_if<FrameStartFifoWord> > s_tru_frame_start_fifo_in;
-  sc_signal<sc_fifo_in_if<FrameEndFifoWord> > s_tru_frame_end_fifo_in;
-  
-  sc_signal<sc_uint<8> > s_tru_fifo_size;
-  ///@}
+  sc_signal<FROMU_readout_state_t> s_fromu_readout_state;  
     
 private:
   int mChipId;
   bool mEnableReadoutTraces;
-  unsigned int mBunchCounter;
+  uint16_t mBunchCounter;
+  
+  ///@brief Number of (trigger) events that are accepted into an MEB by the chip
+  uint64_t mTriggerEventsAccepted = 0;
+
+  ///@brief Triggered mode: If 3 MEBs are already full, the chip will not accept more events
+  ///                       until one of those 3 MEBs have been read out. This variable is counted
+  ///                       up for each event that is not accepted.
+  ///       Continuous mode: The Alpide chip will always guarantee that there is a free MEB slice
+  ///                        in continuous mode. It does this by deleting the oldest MEB slice (even
+  ///                        if it has not been read out) when the 3rd one is filled. This variable
+  ///                        also counts up in that case.
+  uint64_t mTriggerEventsRejected = 0;
 
   std::vector<RegionReadoutUnit*> mRRUs;
   TopReadoutUnit* mTRU;
@@ -107,14 +121,16 @@ private:
   void strobeProcess(void);
   void frameReadout(void); // FROMU    
   void dataTransmission(void);
-  bool Alpide::getFrameReadoutDone(void);
+  bool getFrameReadoutDone(void);
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-         int tru_fifo_size, bool enable_clustering, bool continuous_mode,
+         int dmu_fifo_size, bool enable_clustering, bool continuous_mode,
          bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
+  uint64_t getTriggerEventsAcceptedCount(void) const {return mTriggerEventsAccepted;}
+  uint64_t getTriggerEventsRejectedCount(void) const {return mTriggerEventsRejected;}  
 };
 
 

@@ -17,15 +17,15 @@ SC_HAS_PROCESS(Alpide);
 ///@param name    SystemC module name
 ///@param chip_id Desired chip id
 ///@param region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
-///@param tru_fifo_size Depth of Top Readout Unit (TRU) FIFO
+///@param dmu_fifo_size Depth of DMU (Data Management Unit) FIFO.
 ///@param enable_clustering Enable clustering and use of DATA LONG words
 ///@param continuous_mode Enable continuous mode (triggered mode if false)
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               int tru_fifo_size, bool enable_clustering, bool continuous_mode,
+               int dmu_fifo_size, bool enable_clustering, bool continuous_mode,
                bool matrix_readout_speed)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
-  , s_top_readout_fifo(tru_fifo_size)
+  , s_dmu_fifo(dmu_fifo_size)
 {
   mChipId = chip_id;
 
@@ -50,6 +50,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     std::stringstream ss;
     ss << "RRU_" << i;
     mRRUs[i] = new RegionReadoutUnit(ss.str().c_str(),
+                                     this,
                                      i,
                                      region_fifo_size,
                                      matrix_readout_speed,
@@ -57,33 +58,30 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 
     mRRUs[i]->s_system_clk_in(s_system_clk_in);
     mRRUs[i]->s_frame_readout_start_in(s_frame_readout_start);
+    mRRUs[i]->s_readout_abort_in(s_readout_abort);    
     mRRUs[i]->s_region_event_start_in(s_region_event_start);
     mRRUs[i]->s_region_event_pop_in(s_region_event_pop);
-    mRRUs[i]->s_region_data_read_in(s_region_data_read);
+    mRRUs[i]->s_region_data_read_in(s_region_data_read[i]);
 
     mRRUs[i]->s_frame_readout_done_out(s_frame_readout_done[i]);
     mRRUs[i]->s_region_fifo_empty_out(s_region_fifo_empty[i]);
     mRRUs[i]->s_region_valid_out(s_region_valid[i]);
     mRRUs[i]->s_region_data_out(s_region_data[i]);
 
-    mTRU->s_region_fifo_empty_in(s_region_empty[i]);
-    mTRU->s_region_valid_in(s_region_valid[i]);    
+    mTRU->s_region_fifo_empty_in[i](s_region_fifo_empty[i]);
+    mTRU->s_region_valid_in[i](s_region_valid[i]);
+    mTRU->s_region_data_in[i](s_region_data[i]);
+    mTRU->s_region_data_read_out[i](s_region_data_read[i]);    
   }
 
   mTRU->s_clk_in(s_system_clk_in);
   mTRU->s_readout_abort_in(s_readout_abort);
-  mTRU->s_data_overrun_mode_in(s_data_overrun_mode);
-
-  ///@todo Rename TRU FIFO to DMU FIFO?
-  mTRU->s_tru_fifo_out(s_top_readout_fifo);
-  
+  mTRU->s_data_overrun_mode_in(s_tru_data_overrun_mode);
   mTRU->s_region_event_start_out(s_region_event_start);
   mTRU->s_region_event_pop_out(s_region_event_pop);
-  mTRU->s_region_data_in(s_region_data[i]);
-
-  s_tru_frame_start_fifo_in(mTRU->s_tru_frame_start_fifo);
-  s_tru_frame_end_fifo_in(mTRU->s_tru_frame_end_fifo);
-
+  mTRU->s_frame_start_fifo_output(s_frame_start_fifo);
+  mTRU->s_frame_end_fifo_output(s_frame_end_fifo);
+  mTRU->s_dmu_fifo_input(s_dmu_fifo);  
   
   SC_METHOD(strobeProcess);
   sensitive << s_strobe_n_in;
@@ -121,7 +119,7 @@ void Alpide::strobeProcess(void)
         s_busy_violation = false;
       }
 
-      newEvent();
+      newEvent(time_now);
 
       // Are we, or did we become busy now?
       if(getNumEvents() == 2) {
@@ -139,7 +137,7 @@ void Alpide::strobeProcess(void)
         mTriggerEventsRejected++;
         s_busy_violation = true;
       } else {
-        newEvent();
+        newEvent(time_now);
         mTriggerEventsAccepted++;
         s_chip_ready_out = true;
         s_busy_violation = false;
@@ -156,10 +154,11 @@ void Alpide::strobeProcess(void)
     s_chip_ready_out = false;
     
     FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
+    int frame_start_fifo_size_used = TRU_FRAME_FIFO_SIZE - s_frame_start_fifo.num_free();
 
     s_busy_violation = false;
 
-    if(s_tru_frame_start_fifo_in.num_free() == 0) {
+    if(s_frame_start_fifo.num_free() == 0) {    
       // FATAL, TRU FRAME FIFO will now overflow
       s_tru_frame_fifo_busy = true;
       s_tru_data_overrun_mode = true;
@@ -167,12 +166,12 @@ void Alpide::strobeProcess(void)
       ///@todo The FATAL overflow bit/signal has to be cleared by a RORST/GRST command
       ///      in the Alpide chip, it will not be cleared by automatically.
       s_tru_frame_fifo_fatal_overflow = true;
-    } else if(s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL2) {
+    } else if(frame_start_fifo_size_used > TRU_FRAME_FIFO_ALMOST_FULL2) {
       // DATA OVERRUN MODE
       s_tru_frame_fifo_busy = true;
       s_tru_data_overrun_mode = true;
       ///@todo set readout abort signal here??
-    } else if{s_tru_frame_start_fifo_in.num_available() > TRU_FRAME_FIFO_ALMOST_FULL1) {
+    } else if(frame_start_fifo_size_used > TRU_FRAME_FIFO_ALMOST_FULL1) {
       // BUSY
       s_tru_frame_fifo_busy = true;
       s_tru_data_overrun_mode = false;
@@ -181,7 +180,7 @@ void Alpide::strobeProcess(void)
       s_tru_data_overrun_mode = false;
     }
 
-    s_tru_frame_start_fifo_in.nb_write(frame_start_data);
+    s_frame_start_fifo.nb_write(frame_start_data);    
   }
 }
 
@@ -193,7 +192,7 @@ void Alpide::mainProcess(void)
   frameReadout();  
   dataTransmission();
 
-  s_busy_status = (s_tru_frame_fifo_busy || s_multi_event_buffers_busy)
+  s_busy_status = (s_tru_frame_fifo_busy || s_multi_event_buffers_busy);
 }
 
 
@@ -202,6 +201,7 @@ void Alpide::mainProcess(void)
 ///       FROMU (Frame Read Out Management Unit) in the Alpide chip.
 void Alpide::frameReadout(void)
 {
+  FrameEndFifoWord frame_end_data;  
   uint64_t time_now = sc_time_stamp().value();
   int MEBs_in_use = getNumEvents();
 
@@ -224,7 +224,7 @@ void Alpide::frameReadout(void)
     s_frame_readout_start = false;
     s_frame_readout_done_all = false;
     
-    if(s_event_buffers_used > 0)
+    if(s_event_buffers_used.read() > 0)
       s_fromu_readout_state = REGION_READOUT_START;
     break;
     
@@ -246,8 +246,8 @@ void Alpide::frameReadout(void)
     s_frame_readout_start = false;
     s_frame_readout_done_all = false;
 
-    FrameEndFifoWord frame_end_data = {0, 0, 0};
-    s_tru_frame_end_fifo_in.nb_write(frame_end_data);
+    frame_end_data = {0, 0, 0};
+    s_frame_end_fifo.nb_write(frame_end_data);    
 
     // Delete the event/frame in matrix/multi-event-buffer that has just been read out
     deleteEvent(time_now);
@@ -271,9 +271,9 @@ void Alpide::dataTransmission(void)
 {
   AlpideDataWord dw;
 
-  s_tru_fifo_size = s_top_readout_fifo.num_available();
+  s_dmu_fifo_size = s_dmu_fifo.num_available();
   
-  if(s_top_readout_fifo.nb_read(dw)) {
+  if(s_dmu_fifo.nb_read(dw)) {
     sc_uint<24> data = dw.data[2] << 16 | dw.data[1] << 8 | dw.data[0];
     s_serial_data_output = data;
   }
@@ -307,7 +307,6 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, alpide_name_prefix, "event_buffers_used", s_event_buffers_used);
   addTrace(wf, alpide_name_prefix, "total_number_of_hits", s_total_number_of_hits);
   addTrace(wf, alpide_name_prefix, "oldest_event_number_of_hits", s_oldest_event_number_of_hits);
-  addTrace(wf, alpide_name_prefix, "tru_fifo_size", s_tru_fifo_size);
 
   addTrace(wf, alpide_name_prefix, "region_event_start", s_region_event_start);
   addTrace(wf, alpide_name_prefix, "region_event_pop", s_region_event_pop);    
@@ -320,11 +319,14 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, alpide_name_prefix, "tru_frame_fifo_fatal_overflow", s_tru_frame_fifo_fatal_overflow);
   addTrace(wf, alpide_name_prefix, "multi_event_buffers_busy", s_multi_event_buffers_busy);
 
-  addTrace(wf, alpide_name_prefix, "busy_violation", s_busy_violation;);
+  addTrace(wf, alpide_name_prefix, "busy_violation", s_busy_violation);
   addTrace(wf, alpide_name_prefix, "busy_status", s_busy_status);
 
   addTrace(wf, alpide_name_prefix, "fromu_readout_state", s_fromu_readout_state);
-  addTrace(wf, alpide_name_prefix, "tru_fifo_size", s_tru_fifo_size);
+  addTrace(wf, alpide_name_prefix, "dmu_fifo_size", s_dmu_fifo_size);
+
+//  addTrace(wf, alpide_name_prefix, "frame_start_fifo", s_frame_start_fifo);
+//  addTrace(wf, alpide_name_prefix, "frame_end_fifo", s_frame_end_fifo);  
 
   mTRU->addTraces(wf, alpide_name_prefix);
   

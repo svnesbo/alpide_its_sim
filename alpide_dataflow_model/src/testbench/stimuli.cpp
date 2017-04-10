@@ -80,9 +80,9 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   mEvents->s_physics_event_out(s_physics_event);
 
   int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
-  int tru_fifo_size = settings->value("alpide/tru_fifo_size").toInt();
+  int dmu_fifo_size = settings->value("alpide/dmu_fifo_size").toInt();
   bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
-  bool matrix_readout_speed = simulation_settings->value("alpide/matrix_readout_speed").toBool();
+  bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed").toBool();
   
   // Instantiate and connect signals to Alpide
   mAlpideChips.resize(mNumChips);
@@ -92,9 +92,10 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     mAlpideChips[i] = new Alpide(chip_name.str().c_str(),
                                  i,
                                  region_fifo_size,
-                                 tru_fifo_size,
+                                 dmu_fifo_size,
                                  enable_clustering,
-                                 mContinuousMode);
+                                 mContinuousMode,
+                                 matrix_readout_speed);
     
     mAlpideChips[i]->s_system_clk_in(clock);
     mAlpideChips[i]->s_strobe_n_in(s_strobe_n);
