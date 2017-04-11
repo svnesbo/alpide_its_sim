@@ -9,9 +9,15 @@
 #include "../misc/vcd_trace.h"
 
 
+///@todo Name all signals in constructor? Is there any benefit?
 SC_HAS_PROCESS(TopReadoutUnit);
 TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id)
   : sc_core::sc_module(name)
+  , s_clk_in("clk_in")
+  , s_readout_abort_in("readout_abort_in")
+  , s_data_overrun_mode_in("data_overrun_mode_in")
+  , s_region_event_pop_out("region_event_pop_out")
+  , s_region_event_start_out("region_event_start_out")
   , mChipId(chip_id)
 {
   s_tru_state = IDLE;
@@ -65,7 +71,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   int current_region;
   bool no_regions_valid = getNextRegion(current_region);
   bool all_regions_empty = getAllRegionsEmpty();
-  bool tru_data_fifo_full = s_dmu_fifo_input->num_free() == 0;
+  bool dmu_data_fifo_full = s_dmu_fifo_input->num_free() == 0;
   bool frame_start_fifo_empty = s_frame_start_fifo_output->num_available() == 0;  
   bool frame_end_fifo_empty = s_frame_end_fifo_output->num_available() == 0;
 
@@ -113,11 +119,11 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_event_pop_out = false;
     s_region_event_start_out = false;    
     s_region_data_read_out[current_region] =
-      !tru_data_fifo_full &&
+      !dmu_data_fifo_full &&
       !no_regions_valid &&
       !s_region_fifo_empty_in[current_region];
     
-    if(!tru_data_fifo_full) {
+    if(!dmu_data_fifo_full) {
       if(mCurrentFrameStartWord.busy_violation) {
         // Busy violation frame
         data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
@@ -154,18 +160,23 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_event_pop_out = false;
     s_region_event_start_out = false;
     s_region_data_read_out[current_region] =
-      !tru_data_fifo_full &&
+      !dmu_data_fifo_full &&
       !no_regions_valid &&
       !s_region_fifo_empty_in[current_region];
     
     // New region? Output region header
+    ///@todo This won't work.. we will loose one word of data from the regions here,
+    ///      because the s_region_data_read_out signal will be high in this state.
+    ///      The region header needs to come from the RRU.
     if(current_region != s_previous_region.read()) {
       data_out = AlpideRegionHeader(current_region);
     } else {
-      s_region_fifo_in[current_region]->nb_read(data_out);
+      data_out = s_region_data_in[current_region];
     }
 
-    if(tru_data_fifo_full) {
+    s_dmu_fifo_input->nb_write(data_out);
+
+    if(dmu_data_fifo_full) {
       s_tru_state = WAIT;
     } else if(no_regions_valid) {
       s_tru_state = CHIP_TRAILER;
@@ -177,24 +188,24 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_event_pop_out = false;
     s_region_event_start_out = false;
     s_region_data_read_out[current_region] =
-      !tru_data_fifo_full &&
+      !dmu_data_fifo_full &&
       !no_regions_valid &&
       !s_region_fifo_empty_in[current_region];
 
     if(s_readout_abort_in || no_regions_valid)
       s_tru_state = CHIP_TRAILER;
-    else if(tru_data_fifo_full || s_region_fifo_empty_in[current_region])
+    else if(dmu_data_fifo_full || s_region_fifo_empty_in[current_region])
       s_tru_state = WAIT;
     else
       s_tru_state = REGION_DATA;
     break;
       
   case CHIP_TRAILER:
-    s_region_event_pop_out = !frame_end_fifo_empty && !tru_data_fifo_full;
+    s_region_event_pop_out = !frame_end_fifo_empty && !dmu_data_fifo_full;
     s_region_event_start_out = false;
     s_region_data_read_out[current_region] = false;    
     
-    if(!tru_data_fifo_full && !frame_end_fifo_empty) {
+    if(!dmu_data_fifo_full && !frame_end_fifo_empty) {
       s_frame_end_fifo_output->nb_read(mCurrentFrameEndWord);
       data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
       s_dmu_fifo_input->nb_write(data_out);

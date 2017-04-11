@@ -84,9 +84,6 @@ private:
   sc_signal<sc_uint<2> > s_matrix_readout_delay_counter;
 
   tlm::tlm_fifo<AlpideDataWord> s_region_fifo;
-//  sc_port<tlm::tlm_fifo_put_if<AlpideDataWord> > s_region_fifo_input;
-//  sc_port<tlm::tlm_fifo_get_if<AlpideDataWord> > s_region_fifo_output;
-  
   sc_signal<sc_uint<8> > s_region_fifo_size;
   
 private:
@@ -138,66 +135,5 @@ public:
 };
 
 
-/*
-
-inline std::ostream& operator<< (std::ostream& stream, const RO_FSM& readout_fsm_state) {
-  switch(readout_fsm_state) {
-  case RO_FSM::IDLE:
-    stream << "IDLE";
-    break;
-  case RO_FSM::START_READOUT:
-    stream << "START_READOUT";    
-    break;
-  case RO_FSM::READOUT_AND_CLUSTERING:
-    stream << "READOUT_AND_CLUSTERING";
-    break;
-  case RO_FSM::REGION_TRAILER:
-    stream << "REGION_TRAILER";
-    break;
-  default:
-    stream << "UNKNOWN_STATE";
-    break;
-  }
-
-  return stream;
-}
-
-inline std::ostream& operator<< (std::ostream& stream, const VALID_FSM& valid_fsm_state) {
-  switch(valid_fsm_state) {
-  case VALID_FSM::IDLE:
-    stream << "IDLE";
-    break;
-  case VALID_FSM::EMPTY:
-    stream << "EMPTY";    
-    break;
-  case VALID_FSM::VALID:
-    stream << "VALID";
-    break;
-  case VALID_FSM::POP:
-    stream << "POP";
-    break;
-  default:
-    stream << "UNKNOWN_STATE";
-    break;
-  }
-
-  return stream;
-}
-
-inline bool operator==(const RO_FSM& lhs, const RO_FSM& rhs) {
-  return (static_cast<int>(lhs) == static_cast<int>(rhs));
-}
-
-*/
-
-// inline RO_FSM& operator=(RO_FSM& lhs, const RO_FSM& rhs) {
-//   return static_cast<RO_FSM>(static_cast<int>(lhs) = static_cast<int>(rhs));
-// }
-
-// inline void sc_trace(sc_trace_file *tf, const RO_FSM& v, const std::string& NAME) {
-//   sc_trace(tf, v.info, NAME + ".info");
-//   sc_trace(tf, v.flag, NAME + ".flag");
-// }
-        
 
 #endif

@@ -43,8 +43,6 @@ public:
   sc_out<bool> s_region_event_start_out;
   sc_out<bool> s_region_data_read_out[N_REGIONS];
   
-  sc_port<sc_fifo_in_if<AlpideDataWord> > s_region_fifo_in[N_REGIONS];
-
   sc_port<sc_fifo_in_if<FrameStartFifoWord>> s_frame_start_fifo_output;
   sc_port<sc_fifo_in_if<FrameEndFifoWord>> s_frame_end_fifo_output;
   
