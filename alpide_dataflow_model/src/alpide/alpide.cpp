@@ -219,7 +219,7 @@ void Alpide::frameReadout(void)
   s_oldest_event_number_of_hits = getHitsRemainingInOldestEvent();
 
 
-  switch(s_fromu_readout_state) {
+  switch(s_fromu_readout_state.read()) {
   case WAIT_FOR_EVENTS:
     s_frame_readout_start = false;
     s_frame_readout_done_all = false;

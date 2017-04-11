@@ -55,6 +55,12 @@ private:
   ///@{
   sc_signal<sc_uint<8> > s_tru_state;
   sc_signal<sc_uint<8> > s_previous_region;
+
+  ///@brief Signal copy of all_regions_empty variable, 1 cycle delayed
+  sc_signal<bool> s_all_regions_empty_debug;
+
+  ///@brief Signal copy of no_regions_valid variable, 1 cycle delayed  
+  sc_signal<bool> s_no_regions_valid_debug;
   ///@}  
 
   // Standard C++ members

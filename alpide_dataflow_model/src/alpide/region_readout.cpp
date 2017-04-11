@@ -287,14 +287,10 @@ void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) co
 //  addTrace(wf, region_name_prefix, "region_data_out", s_region_data_out);  
   addTrace(wf, region_name_prefix, "rru_readout_state", s_rru_readout_state);  
   addTrace(wf, region_name_prefix, "rru_valid_state", s_rru_valid_state);
-
-  
-  addTrace(wf, region_name_prefix, "region_matrix_empty", s_region_matrix_empty);
   addTrace(wf, region_name_prefix, "matrix_readout_delay_counter", s_matrix_readout_delay_counter);
 
 ///@todo Probably need to a stream << operator to allow values from fifo to be printed to trace file
 //  addTrace(wf, region_name_prefix, "region_fifo", s_region_fifo);
 
-  addTrace(wf, region_name_prefix, "region_fifo_size", s_region_fifo_size);    
 }
 

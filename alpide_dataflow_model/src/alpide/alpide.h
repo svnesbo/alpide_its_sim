@@ -94,7 +94,7 @@ private:
     REGION_READOUT_DONE = 3
   };
 
-  sc_signal<FROMU_readout_state_t> s_fromu_readout_state;  
+  sc_signal<sc_uint<8>> s_fromu_readout_state;  
     
 private:
   int mChipId;

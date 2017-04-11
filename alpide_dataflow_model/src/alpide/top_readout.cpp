@@ -9,15 +9,9 @@
 #include "../misc/vcd_trace.h"
 
 
-///@todo Name all signals in constructor? Is there any benefit?
 SC_HAS_PROCESS(TopReadoutUnit);
 TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id)
   : sc_core::sc_module(name)
-  , s_clk_in("clk_in")
-  , s_readout_abort_in("readout_abort_in")
-  , s_data_overrun_mode_in("data_overrun_mode_in")
-  , s_region_event_pop_out("region_event_pop_out")
-  , s_region_event_start_out("region_event_start_out")
   , mChipId(chip_id)
 {
   s_tru_state = IDLE;
@@ -69,11 +63,14 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   AlpideDataWord data_out;
 
   int current_region;
-  bool no_regions_valid = getNextRegion(current_region);
+  bool no_regions_valid = !getNextRegion(current_region);
   bool all_regions_empty = getAllRegionsEmpty();
   bool dmu_data_fifo_full = s_dmu_fifo_input->num_free() == 0;
   bool frame_start_fifo_empty = s_frame_start_fifo_output->num_available() == 0;  
   bool frame_end_fifo_empty = s_frame_end_fifo_output->num_available() == 0;
+
+  s_all_regions_empty_debug = all_regions_empty;  
+  s_no_regions_valid_debug = no_regions_valid;
 
   // New region? Make sure region data read signal for previous region was set low then
   if(current_region != s_previous_region.read())
@@ -205,7 +202,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_event_start_out = false;
     s_region_data_read_out[current_region] = false;    
     
-    if(!dmu_data_fifo_full && !frame_end_fifo_empty) {
+    if(!frame_end_fifo_empty && !dmu_data_fifo_full) {
       s_frame_end_fifo_output->nb_read(mCurrentFrameEndWord);
       data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
       s_dmu_fifo_input->nb_write(data_out);
@@ -238,6 +235,9 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, tru_name_prefix, "region_event_start_out", s_region_event_start_out);
   addTrace(wf, tru_name_prefix, "region_data_read_out", s_region_data_read_out);
 //  addTrace(wf, tru_name_prefix, "dmu_fifo_input", s_dmu_fifo_input);
+
+  addTrace(wf, tru_name_prefix, "all_regions_empty_debug", s_all_regions_empty_debug);
+  addTrace(wf, tru_name_prefix, "no_regions_valid_debug", s_no_regions_valid_debug);
   
   addTrace(wf, tru_name_prefix, "tru_state", s_tru_state);
   addTrace(wf, tru_name_prefix, "previous_region", s_previous_region);
