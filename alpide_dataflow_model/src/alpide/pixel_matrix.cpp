@@ -83,6 +83,64 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
 }
 
 
+///@brief  Check if the region denoted by start_double_col and stop_double_col is empty.
+///@param  start_double_col Start of region in terms of double columns
+///@param  stop_double_col End of region in terms of double columns
+///@return True if empty
+///@throw  std::out_of_range if start_double_col is less than zero, or larger
+///        than (N_PIXEL_COLS/2)-1.
+///@throw  std::out_of_range if stop_double_col is less than one, or larger
+///        than N_PIXEL_COLS/2.
+///@throw  std::out_of_range if stop_double_col is greater than or equal to start_double_col
+bool PixelMatrix::regionEmpty(int start_double_col, int stop_double_col) {
+  bool region_empty = true;
+
+#ifdef EXCEPTION_CHECKS
+  // Out of range exception check
+  if(start_double_col < 0 || start_double_col > (N_PIXEL_COLS/2)-1) {
+    throw std::out_of_range("start_double_col");
+  } else if(stop_double_col < 1 || stop_double_col > (N_PIXEL_COLS/2)) {
+    throw std::out_of_range("stop_double_col");
+  } else if(start_double_col >= stop_double_col) {
+    throw std::out_of_range("stop_double_col >= start_double_col");
+  }
+#endif
+  
+  // Do we have any stored events?
+  if(mColumnBuffs.empty() == false) {
+    std::vector<PixelDoubleColumn>& oldest_event_buffer = mColumnBuffs.front();
+
+    // Search for the first column that has pixels
+    for(int i = start_double_col; i < stop_double_col; i++) {
+      if(oldest_event_buffer[i].pixelHitsRemaining() > 0) {
+        region_empty = false;
+        break;
+      }
+    }
+  }
+
+  return region_empty;
+}
+
+
+///@brief  Check if a region of the pixel matrix is empty
+///@param  region The region number to check
+///@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
+///        (PixelData object with coords = (-1,-1)).
+///@throw  std::out_of_range if region is less than zero, or greater than N_REGIONS-1
+bool PixelMatrix::regionEmpty(int region) {
+#ifdef EXCEPTION_CHECKS
+  if(region < 0 || region >= N_REGIONS)
+    throw std::out_of_range("region");
+#endif
+
+  int start_double_col = N_PIXEL_DOUBLE_COLS_PER_REGION*region;
+  int stop_double_col = (N_PIXEL_DOUBLE_COLS_PER_REGION*(region+1));
+
+  return regionEmpty(start_double_col, stop_double_col);
+}
+
+
 ///@brief Read out the next pixel from the pixel matrix, and erase it from the MEB.
 ///        This member function will read out pixels from the oldest event buffer.
 ///        The pixels will be by default be read out from the double columns in consecutive

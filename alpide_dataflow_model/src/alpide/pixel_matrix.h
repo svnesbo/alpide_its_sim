@@ -50,6 +50,8 @@ public:
   void newEvent(uint64_t event_time);
   void deleteEvent(uint64_t event_time);
   void setPixel(unsigned int col, unsigned int row);
+  bool regionEmpty(int start_double_col, int stop_double_col);
+  bool regionEmpty(int region);
   PixelData readPixel(uint64_t time_now,
                       int start_double_col = 0,
                       int stop_double_col = N_PIXEL_COLS/2);

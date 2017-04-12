@@ -26,10 +26,12 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
   , s_dmu_fifo(dmu_fifo_size)
+  , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
+  , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
 {
   mChipId = chip_id;
 
-  s_event_buffers_used = 0;
+  s_event_buffers_used_debug = 0;
   s_total_number_of_hits = 0;
   s_oldest_event_number_of_hits = 0;
 
@@ -71,7 +73,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     mTRU->s_region_fifo_empty_in[i](s_region_fifo_empty[i]);
     mTRU->s_region_valid_in[i](s_region_valid[i]);
     mTRU->s_region_data_in[i](s_region_data[i]);
-    mTRU->s_region_data_read_out[i](s_region_data_read[i]);    
+    mTRU->s_region_data_read_out[i](s_region_data_read[i]);
   }
 
   mTRU->s_clk_in(s_system_clk_in);
@@ -154,7 +156,7 @@ void Alpide::strobeProcess(void)
     s_chip_ready_out = false;
     
     FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
-    int frame_start_fifo_size_used = TRU_FRAME_FIFO_SIZE - s_frame_start_fifo.num_free();
+    int frame_start_fifo_size = TRU_FRAME_FIFO_SIZE - s_frame_start_fifo.num_free();
 
     s_busy_violation = false;
 
@@ -166,12 +168,12 @@ void Alpide::strobeProcess(void)
       ///@todo The FATAL overflow bit/signal has to be cleared by a RORST/GRST command
       ///      in the Alpide chip, it will not be cleared by automatically.
       s_tru_frame_fifo_fatal_overflow = true;
-    } else if(frame_start_fifo_size_used > TRU_FRAME_FIFO_ALMOST_FULL2) {
+    } else if(frame_start_fifo_size > TRU_FRAME_FIFO_ALMOST_FULL2) {
       // DATA OVERRUN MODE
       s_tru_frame_fifo_busy = true;
       s_tru_data_overrun_mode = true;
       ///@todo set readout abort signal here??
-    } else if(frame_start_fifo_size_used > TRU_FRAME_FIFO_ALMOST_FULL1) {
+    } else if(frame_start_fifo_size > TRU_FRAME_FIFO_ALMOST_FULL1) {
       // BUSY
       s_tru_frame_fifo_busy = true;
       s_tru_data_overrun_mode = false;
@@ -204,6 +206,8 @@ void Alpide::frameReadout(void)
   FrameEndFifoWord frame_end_data;  
   uint64_t time_now = sc_time_stamp().value();
   int MEBs_in_use = getNumEvents();
+  int frame_start_fifo_size = TRU_FRAME_FIFO_SIZE - s_frame_start_fifo.num_free();
+  s_frame_start_fifo_size_debug = frame_start_fifo_size;
 
   // Bunch counter wraps around each orbit
   mBunchCounter++;
@@ -211,7 +215,7 @@ void Alpide::frameReadout(void)
     mBunchCounter = 0;
   
   // Update signal with number of event buffers
-  s_event_buffers_used = MEBs_in_use;
+  s_event_buffers_used_debug = MEBs_in_use;
 
   // Update signal with total number of hits in all event buffers
   s_total_number_of_hits = getHitTotalAllEvents();
@@ -224,7 +228,7 @@ void Alpide::frameReadout(void)
     s_frame_readout_start = false;
     s_frame_readout_done_all = false;
     
-    if(s_event_buffers_used.read() > 0)
+    if(frame_start_fifo_size > 0)
       s_fromu_readout_state = REGION_READOUT_START;
     break;
     
@@ -236,7 +240,9 @@ void Alpide::frameReadout(void)
     
   case WAIT_FOR_REGION_READOUT:
     s_frame_readout_start = false;
-    s_frame_readout_done_all = getFrameReadoutDone();
+
+    // Inhibit done signal the cycle we are giving out the start signal
+    s_frame_readout_done_all = getFrameReadoutDone() && !s_frame_readout_start;    
 
     if(s_frame_readout_done_all)
       s_fromu_readout_state = REGION_READOUT_DONE;
@@ -287,7 +293,7 @@ bool Alpide::getFrameReadoutDone(void)
   bool done = true;
   
   for(int i = 0; i < N_REGIONS; i++)
-    done &= s_frame_readout_done[i];
+    done = done && s_frame_readout_done[i];
 
   return done;
 }
@@ -304,7 +310,8 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 
   addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);
   addTrace(wf, alpide_name_prefix, "serial_data_output", s_serial_data_output);
-  addTrace(wf, alpide_name_prefix, "event_buffers_used", s_event_buffers_used);
+  addTrace(wf, alpide_name_prefix, "event_buffers_used_debug", s_event_buffers_used_debug);
+  addTrace(wf, alpide_name_prefix, "frame_start_fifo_size_debug", s_frame_start_fifo_size_debug);  
   addTrace(wf, alpide_name_prefix, "total_number_of_hits", s_total_number_of_hits);
   addTrace(wf, alpide_name_prefix, "oldest_event_number_of_hits", s_oldest_event_number_of_hits);
 

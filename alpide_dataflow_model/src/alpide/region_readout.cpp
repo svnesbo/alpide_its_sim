@@ -25,6 +25,7 @@ RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
                                      bool cluster_enable)
   : sc_core::sc_module(name)
   , s_region_fifo(fifo_size)
+  , mRegionHeader(region_num)
   , mRegionId(region_num)
   , mMatrixReadoutSpeed(matrix_readout_speed)    
   , mFifoSizeLimit(fifo_size)
@@ -46,13 +47,24 @@ RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
 void RegionReadoutUnit::regionReadoutProcess(void)
 {
   AlpideDataWord data_out;
-  s_region_fifo_empty_out = s_region_fifo.used() == 0;
+  s_region_fifo_size = s_region_fifo.used();    
+  s_region_fifo_empty_out = (s_region_fifo.used() == 0);
+
 
   regionMatrixReadoutFSM();
   regionValidFSM();
+  regionHeaderFSM();
 
   // Update region data output
-  if(s_region_data_read_in || s_region_event_pop_in) {
+  if(s_region_event_pop_in) { // Always pop region trailer when pop is asserted
+    if(s_region_fifo.nb_get(data_out))    
+       s_region_data_out = data_out;
+  }
+  // Otherwise, prioritize header over data
+  else if(s_generate_region_header) {
+    s_region_data_out = mRegionHeader;
+  }
+  else if(s_region_data_read_in) {
     if(s_region_fifo.nb_get(data_out))    
        s_region_data_out = data_out;
   }
@@ -63,6 +75,7 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
 {
   bool region_fifo_full = (s_region_fifo.size() - s_region_fifo.used()) == 0;
   bool matrix_readout_ready = false;
+  bool region_matrix_empty = false;
 
   if(mMatrixReadoutSpeed && (s_matrix_readout_delay_counter.read() > 0))
     matrix_readout_ready = true;
@@ -73,14 +86,21 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
   switch(s_rru_readout_state.read()) {
   case RO_FSM::IDLE:
     s_frame_readout_done_out = !s_frame_readout_start_in;
-    
-    if(s_frame_readout_start_in && !s_region_matrix_empty) {
-      s_matrix_readout_delay_counter = 0;
-      s_rru_readout_state = RO_FSM::START_READOUT;
-    } else if(s_frame_readout_start_in && s_region_matrix_empty)
-      s_rru_readout_state = RO_FSM::REGION_TRAILER;
-    else
+
+    if(s_frame_readout_start_in) {
+      s_region_matrix_empty_debug = region_matrix_empty = mPixelMatrix->regionEmpty(mRegionId);
+
+      // Start readout if this region has hits, otherwise just output region trailer
+      if(!region_matrix_empty) { 
+        s_matrix_readout_delay_counter = 0;
+        s_rru_readout_state = RO_FSM::START_READOUT;
+      } else { 
+        s_rru_readout_state = RO_FSM::REGION_TRAILER;
+      }
+    } else {
+      s_region_matrix_empty_debug = false;
       s_rru_readout_state = RO_FSM::IDLE;
+    }
     break;
     
   case RO_FSM::START_READOUT:
@@ -101,13 +121,12 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
     if(s_readout_abort_in)
       s_rru_readout_state = RO_FSM::IDLE;
     else if(matrix_readout_ready) { // Wait for matrix readout delay
-      if(!s_region_matrix_empty) {
-        if(!region_fifo_full) {
-          readoutNextPixel(*mPixelMatrix);
-          s_matrix_readout_delay_counter = 0;
+      if(!region_fifo_full) {
+        s_region_matrix_empty_debug = region_matrix_empty = readoutNextPixel(*mPixelMatrix);
+        s_matrix_readout_delay_counter = 0;
+        if(region_matrix_empty) {
+          s_rru_readout_state = RO_FSM::REGION_TRAILER;
         }
-      } else {
-        s_rru_readout_state = RO_FSM::REGION_TRAILER;
       }
     } else {
       s_matrix_readout_delay_counter = s_matrix_readout_delay_counter.read() + 1;
@@ -152,19 +171,19 @@ void RegionReadoutUnit::regionValidFSM(void)
     break;
     
   case VALID_FSM::EMPTY:
-    s_region_valid_out = (!region_fifo_empty && region_data_is_trailer);
+    s_region_valid_out = (!region_fifo_empty && !region_data_is_trailer);
     
     if(s_readout_abort_in)
       s_rru_valid_state = VALID_FSM::IDLE;
     else if(!region_fifo_empty && region_data_is_trailer)
       s_rru_valid_state = VALID_FSM::POP;
-    else if(region_fifo_empty && !region_data_is_trailer)
+    else if(!region_fifo_empty && !region_data_is_trailer)
       s_rru_valid_state = VALID_FSM::VALID;
 
     break;
     
   case VALID_FSM::VALID:
-    s_region_valid_out = (!region_fifo_empty && region_data_is_trailer);
+    s_region_valid_out = !region_data_is_trailer;
     
     if(s_readout_abort_in)
       s_rru_valid_state = VALID_FSM::IDLE;
@@ -187,6 +206,32 @@ void RegionReadoutUnit::regionValidFSM(void)
 }
 
 
+///@brief SystemC process/method that implements the state machine that
+///       determines when the region header should be outputted
+///       Note: should run on Alpide system clock frequency.
+void RegionReadoutUnit::regionHeaderFSM(void)
+{
+  switch(s_rru_header_state.read()) {
+  case HEADER_FSM::HEADER:
+    s_generate_region_header = true;
+    if(!s_readout_abort_in && s_region_data_read_in)
+      s_rru_header_state = HEADER_FSM::DATA;
+    break;
+    
+  case HEADER_FSM::DATA:
+    s_generate_region_header = false;
+    if(s_readout_abort_in || s_region_event_pop_in)
+      s_rru_header_state = HEADER_FSM::HEADER;
+    break;
+    
+  default:
+    s_generate_region_header = true;
+    s_rru_header_state = HEADER_FSM::HEADER;
+    break;
+  }
+}
+
+
 ///@brief Read out the next pixel from this region's priority encoder.
 ///       NOTE: This function should be called from a process that runs at
 ///             the priority encoder readout clock.
@@ -196,23 +241,24 @@ void RegionReadoutUnit::regionValidFSM(void)
 ///       how this function works.
 ///@image html RRU_pixel_readout.png
 ///@param matrix Reference to pixel matrix
-void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
+///@return False if matrix is empty and no pixel was read out
+bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
 {
+  bool region_matrix_empty = false;
   int64_t time_now = sc_time_stamp().value();
-  s_region_fifo_size = s_region_fifo.used();
 
   PixelData p = matrix.readPixelRegion(mRegionId, time_now);
 
   if(mClusteringEnabled) {
     if(mClusterStarted == false) {
       if(p == NoPixelHit)
-        s_region_matrix_empty.write(true);
+        region_matrix_empty = true;
       else {
         mClusterStarted = true;
         mPixelHitEncoderId = p.getPriEncNumInRegion();
         mPixelHitBaseAddr = p.getPriEncPixelAddress();
         mPixelHitmap = 0;
-        s_region_matrix_empty.write(false);
+        region_matrix_empty = false;
       }
     } else { // Cluster already started
       if(p == NoPixelHit) { // Indicates that we already read out all pixels from this region          
@@ -222,7 +268,7 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
           s_region_fifo.nb_put(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
           
         mClusterStarted = false;
-        s_region_matrix_empty.write(true);          
+        region_matrix_empty = true;
       }
       // Is the pixel within cluster that was started by a pixel that was read out previously?
       else if(p.getPriEncNumInRegion() == mPixelHitEncoderId &&
@@ -236,7 +282,7 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
           s_region_fifo.nb_put(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr, mPixelHitmap));
           mClusterStarted = false;
         }
-        s_region_matrix_empty.write(false);
+        region_matrix_empty = false;
       } else { // New pixel not in same cluster as previous pixels
         if(mPixelHitmap == 0)
           s_region_fifo.nb_put(AlpideDataShort(mPixelHitEncoderId, mPixelHitBaseAddr));
@@ -248,19 +294,21 @@ void RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
         mPixelHitEncoderId = p.getPriEncNumInRegion();
         mPixelHitBaseAddr = p.getPriEncPixelAddress();
         mPixelHitmap = 0;
-        s_region_matrix_empty.write(false);          
+        region_matrix_empty = false;
       }
     }
   } else { // Clustering not enabled
     if(p == NoPixelHit) {
-      s_region_matrix_empty.write(true);
+      region_matrix_empty = true;
     } else {
       unsigned int encoder_id = p.getPriEncNumInRegion();        
       unsigned int base_addr = p.getPriEncPixelAddress();
       s_region_fifo.nb_put(AlpideDataShort(encoder_id, base_addr));
-      s_region_matrix_empty.write(false);        
+      region_matrix_empty = false;
     }
   }
+
+  return region_matrix_empty;
 }
 
 
@@ -273,7 +321,7 @@ void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) co
   ss << name_prefix << "RRU_" << mRegionId << ".";
   std::string region_name_prefix = ss.str();
 
-  addTrace(wf, region_name_prefix, "region_matrix_empty", s_region_matrix_empty);  
+  addTrace(wf, region_name_prefix, "region_matrix_empty_debug", s_region_matrix_empty_debug);
   addTrace(wf, region_name_prefix, "region_fifo_size", s_region_fifo_size);
   addTrace(wf, region_name_prefix, "frame_readout_start_in", s_frame_readout_start_in);
   addTrace(wf, region_name_prefix, "region_event_start_in", s_region_event_start_in);
@@ -287,7 +335,9 @@ void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) co
 //  addTrace(wf, region_name_prefix, "region_data_out", s_region_data_out);  
   addTrace(wf, region_name_prefix, "rru_readout_state", s_rru_readout_state);  
   addTrace(wf, region_name_prefix, "rru_valid_state", s_rru_valid_state);
+  addTrace(wf, region_name_prefix, "rru_header_state", s_rru_header_state);
   addTrace(wf, region_name_prefix, "matrix_readout_delay_counter", s_matrix_readout_delay_counter);
+  addTrace(wf, region_name_prefix, "generate_region_header", s_generate_region_header);
 
 ///@todo Probably need to a stream << operator to allow values from fifo to be printed to trace file
 //  addTrace(wf, region_name_prefix, "region_fifo", s_region_fifo);

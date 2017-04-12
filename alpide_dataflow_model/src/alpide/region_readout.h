@@ -44,6 +44,13 @@ namespace VALID_FSM {
   };
 }
 
+namespace HEADER_FSM {
+  enum {
+    HEADER = 0,
+    DATA = 1,
+  };
+}
+
 
 /// The RegionReadoutUnit class is a simple representation of the RRU in the Alpide chip.
 /// It has a member function that accepts pixel hits inputs, the RRU class will hold on to
@@ -80,11 +87,18 @@ public:
 private:  
   sc_signal<sc_uint<8>> s_rru_readout_state;
   sc_signal<sc_uint<8>> s_rru_valid_state;
-  sc_signal<bool> s_region_matrix_empty;
+  sc_signal<sc_uint<1>> s_rru_header_state;
+  sc_signal<bool> s_generate_region_header;
+
+  /// Delayed one clock cycle compared to when it is used..
+  sc_signal<bool> s_region_matrix_empty_debug;
+  
   sc_signal<sc_uint<2> > s_matrix_readout_delay_counter;
 
   tlm::tlm_fifo<AlpideDataWord> s_region_fifo;
   sc_signal<sc_uint<8> > s_region_fifo_size;
+
+  AlpideRegionHeader mRegionHeader;
   
 private:
   /// The region handled by this RRU
@@ -122,7 +136,7 @@ private:
   PixelMatrix* mPixelMatrix;
 
 private:
-  void readoutNextPixel(PixelMatrix& matrix);
+  bool readoutNextPixel(PixelMatrix& matrix);
   
 public:
   RegionReadoutUnit(sc_core::sc_module_name name, PixelMatrix* matrix,
@@ -130,7 +144,8 @@ public:
                     bool matrix_readout_speed, bool cluster_enable);
   void regionReadoutProcess(void);
   void regionMatrixReadoutFSM(void);  
-  void regionValidFSM(void);  
+  void regionValidFSM(void);
+  void regionHeaderFSM(void);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;  
 };
 

@@ -41,7 +41,7 @@ public:
   ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
   sc_out<bool> s_chip_ready_out;
   
-  sc_out<sc_uint<24> > s_serial_data_output;
+  sc_out<sc_uint<24>> s_serial_data_output;
   ///@}
   
   ///@todo Should these signals be private maybe?
@@ -49,10 +49,11 @@ public:
   ///@{
 
   ///@brief Number of events stored in the chip at any given time
-  sc_signal<sc_uint<8> > s_event_buffers_used;
+  sc_signal<sc_uint<8>> s_event_buffers_used_debug;
+  sc_signal<sc_uint<8>> s_frame_start_fifo_size_debug;
 
   ///@brief Sum of all hits in all multi event buffers
-  sc_signal<sc_uint<32> > s_total_number_of_hits;
+  sc_signal<sc_uint<32>> s_total_number_of_hits;
 
   ///@brief Number of hits in oldest multi event buffer
   sc_signal<sc_uint<32> > s_oldest_event_number_of_hits;

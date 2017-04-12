@@ -24,7 +24,7 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
 ///@brief Find the first valid region, and return its region id.
 ///@param region_out Reference to an integer that will hold the region id.
 ///@return True if a valid region was found.
-bool TopReadoutUnit::getNextRegion(int& region_out)
+bool TopReadoutUnit::getNextRegion(unsigned int& region_out)
 {
   for(int i = 0; i < N_REGIONS; i++) {
     if(s_region_valid_in[i] == true) {
@@ -37,14 +37,14 @@ bool TopReadoutUnit::getNextRegion(int& region_out)
 }
 
 
-///@brief OR all region empty signals together
+///@brief AND all region empty signals together
 ///@return true if all regions are empty
 bool TopReadoutUnit::getAllRegionsEmpty(void)
 {
   bool all_empty = true;
   
   for(int i = 0; i < N_REGIONS; i++) {
-    all_empty = all_empty & s_region_fifo_empty_in[i];
+    all_empty = all_empty && s_region_fifo_empty_in[i];
   }
   
   return all_empty;
@@ -62,7 +62,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   int readout_flags;
   AlpideDataWord data_out;
 
-  int current_region;
+  unsigned int current_region;
   bool no_regions_valid = !getNextRegion(current_region);
   bool all_regions_empty = getAllRegionsEmpty();
   bool dmu_data_fifo_full = s_dmu_fifo_input->num_free() == 0;
@@ -233,7 +233,6 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, tru_name_prefix, "data_overrun_mode_in", s_data_overrun_mode_in);
   addTrace(wf, tru_name_prefix, "region_event_pop_out", s_region_event_pop_out);
   addTrace(wf, tru_name_prefix, "region_event_start_out", s_region_event_start_out);
-  addTrace(wf, tru_name_prefix, "region_data_read_out", s_region_data_read_out);
 //  addTrace(wf, tru_name_prefix, "dmu_fifo_input", s_dmu_fifo_input);
 
   addTrace(wf, tru_name_prefix, "all_regions_empty_debug", s_all_regions_empty_debug);
@@ -241,4 +240,7 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   
   addTrace(wf, tru_name_prefix, "tru_state", s_tru_state);
   addTrace(wf, tru_name_prefix, "previous_region", s_previous_region);
+
+  // This is an array, have to iterate over it.. but the same signal is already added in the RRUs
+  //addTrace(wf, tru_name_prefix, "region_data_read_out", s_region_data_read_out);
 }

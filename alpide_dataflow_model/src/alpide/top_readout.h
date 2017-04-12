@@ -79,7 +79,7 @@ private:
     CHIP_TRAILER = 7
   };
 
-  bool getNextRegion(int& region_out);
+  bool getNextRegion(unsigned int& region_out);
   bool getAllRegionsEmpty(void);
   
 public:
