@@ -84,7 +84,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
   int dmu_fifo_size = settings->value("alpide/dmu_fifo_size").toInt();
   bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
-  bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed").toBool();
+  bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
   
   // Instantiate and connect signals to Alpide
   mAlpideChips.resize(mNumChips);

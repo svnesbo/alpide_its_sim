@@ -73,7 +73,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["alpide/region_size"] = DEFAULT_ALPIDE_REGION_SIZE;
   defaultSettings["alpide/pixel_shaping_dead_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_DEAD_TIME_NS;
   defaultSettings["alpide/pixel_shaping_active_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_ACTIVE_TIME_NS;
-  defaultSettings["alpide/matrix_readout_speed"] = DEFAULT_ALPIDE_MATRIX_READOUT_SPEED;
+  defaultSettings["alpide/matrix_readout_speed_fast"] = DEFAULT_ALPIDE_MATRIX_READOUT_SPEED_FAST;
 
   
   QStringList simSettingsKeys = readoutSimSettings->allKeys();
