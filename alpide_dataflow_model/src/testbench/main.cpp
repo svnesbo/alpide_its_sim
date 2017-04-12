@@ -22,6 +22,20 @@
 #include <chrono>
 #include <ctime>
 #include <QDir>
+#include <unistd.h>
+#include <signal.h>
+
+volatile bool g_terminate_program = false;
+
+
+///@brief Callback function for CTRL+C (SIGINT) signal, used for exiting the simulation
+/// nicely and not lose data if the user presses CTRL+C on the command line.
+void signal_callback_handler(int signum)
+{
+  std::cout << std::endl << "Caught signal " << signum << ", terminating simulation." << std::endl;
+
+  g_terminate_program = true;
+}
 
 
 ///@brief Create output directory "$PWD/sim_output/Run <timestamp>".
@@ -64,6 +78,9 @@ int sc_main(int argc, char** argv)
   // Create output data directory
   std::string output_dir_str = create_output_dir(simulation_settings);
 
+  // Register a signal and signal handler, so that we exit the simulation nicely
+  // and not lose data if the user presses CTRL+C on the command line
+  signal(SIGINT, signal_callback_handler);  
   
   // Setup SystemC simulation
   Stimuli stimuli("stimuli", simulation_settings, output_dir_str);

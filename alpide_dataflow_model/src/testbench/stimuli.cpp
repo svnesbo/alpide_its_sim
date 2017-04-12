@@ -17,6 +17,8 @@
 #include <sstream>
 #include <fstream>
 
+extern volatile bool g_terminate_program;
+
 
 ///@brief Takes a list of t_delta values (time between events) for the last events,
 ///       calculates the average event rate over those events, and prints it to std::cout.
@@ -126,7 +128,7 @@ void Stimuli::stimuliMainProcess(void)
 
   std::cout << "Staring simulation of " << mNumEvents << " events." << std::endl;
   
-  while(simulation_done == false) {
+  while(simulation_done == false && g_terminate_program == false) {
     // Generate strobe pulses for as long as we have more events to simulate
     if(mEvents->getTriggerEventCount() < mNumEvents) {
       if((mEvents->getTriggerEventCount() % 100) == 0) {
@@ -166,15 +168,13 @@ void Stimuli::stimuliMainProcess(void)
           
       if(events_left == 0) {
         std::cout << "Finished generating all events, and Alpide chip is done emptying MEBs.\n";
-      
         simulation_done = true;
-        sc_core::sc_stop();
       } else {
         wait();
       }
     }
   }
-
+  sc_core::sc_stop();
   writeDataToFile();
 }
 
