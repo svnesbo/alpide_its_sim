@@ -90,6 +90,8 @@ private:
   int64_t mLastTriggerEventStartTimeNs = 0;
   int64_t mLastTriggerEventEndTimeNs = 0;
 
+  bool mStrobeActive = false;
+
   /// Start time of next trigger event (start time recorded on STROBE rising edge).
   /// Event actually created and hits assigned to it on STROBE falling edge.
   int64_t mNextTriggerEventStartTimeNs = 0;

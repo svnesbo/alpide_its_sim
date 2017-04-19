@@ -81,6 +81,7 @@ public:
   sc_fifo<AlpideDataWord> s_dmu_fifo;
   
   sc_signal<sc_uint<8> > s_dmu_fifo_size;
+  sc_signal<bool> s_chip_ready_internal;
   ///@}
 
 private:  
@@ -100,6 +101,7 @@ private:
 private:
   int mChipId;
   bool mEnableReadoutTraces;
+  bool mStrobeActive;
   uint16_t mBunchCounter;
   
   ///@brief Number of (trigger) events that are accepted into an MEB by the chip
@@ -119,7 +121,7 @@ private:
 
 
   void mainProcess(void);  
-  void strobeProcess(void);
+  void strobeInput(void);
   void frameReadout(void); // FROMU    
   void dataTransmission(void);
   bool getFrameReadoutDone(void);

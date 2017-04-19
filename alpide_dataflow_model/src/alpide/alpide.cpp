@@ -25,6 +25,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
                bool matrix_readout_speed)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
+  , s_chip_ready_out("chip_ready_out")
   , s_dmu_fifo(dmu_fifo_size)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
@@ -42,7 +43,10 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   s_busy_violation = false;
   s_busy_status = false;  
   s_readout_abort = false;
+  s_chip_ready_internal = false;
 
+  mStrobeActive = false;
+  
   mTRU = new TopReadoutUnit("TRU", chip_id);
 
   // Allocate/create/name SystemC FIFOs for the regions and connect the
@@ -85,26 +89,28 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   mTRU->s_frame_end_fifo_output(s_frame_end_fifo);
   mTRU->s_dmu_fifo_input(s_dmu_fifo);  
   
-  SC_METHOD(strobeProcess);
-  sensitive << s_strobe_n_in;
+  // SC_METHOD(strobeProcess);
+  // sensitive << s_strobe_n_in;
 
   SC_METHOD(mainProcess);
   sensitive_pos << s_system_clk_in;
 }
 
 
-///@brief SystemC process/method controlled by STROBE input.
+///@brief This function handles the strobe input to the Alpide class object.
 ///       Controls creation of new Multi Event Buffers (MEBs). Together with the frameReadout function, this
 ///       process essentially does the same as the FROMU (Frame Read Out Management Unit) in the Alpide chip.
 ///       Note: it is assumed that STROBE is synchronous to the clock.
 ///       It will not be "dangerous" if it is not, but it will deviate from the real chip implementation.
-void Alpide::strobeProcess(void)
+void Alpide::strobeInput(void)
 {
   int64_t time_now = sc_time_stamp().value();
 
-  if(!s_strobe_n_in) {   // Strobe falling edge - start of frame/event, strobe is active low
+  if(s_strobe_n_in.read() == false && mStrobeActive == false) {   // Strobe falling edge - start of frame/event, strobe is active low
+    mStrobeActive = true;
+    
     if(mContinuousMode) {
-      s_chip_ready_out = true; // A free event buffer is guaranteed in continuous mode..
+      s_chip_ready_internal = true; // A free event buffer is guaranteed in continuous mode..
 
       if(getNumEvents() == 2) {
         deleteEvent(time_now);
@@ -135,13 +141,13 @@ void Alpide::strobeProcess(void)
       s_readout_abort = false; // No abort in triggered mode
 
       if(getNumEvents() == 3) {
-        s_chip_ready_out = false;
+        s_chip_ready_internal = false;
         mTriggerEventsRejected++;
         s_busy_violation = true;
       } else {
         newEvent(time_now);
         mTriggerEventsAccepted++;
-        s_chip_ready_out = true;
+        s_chip_ready_internal = true;
         s_busy_violation = false;
       }
 
@@ -152,9 +158,12 @@ void Alpide::strobeProcess(void)
         s_multi_event_buffers_busy = false;
     }
   }
-  else {   // Strobe rising edge - end of frame/event
-    s_chip_ready_out = false;
-    
+  // Strobe rising edge - end of frame/event
+  // Make sure we can't trigger first on the wrong end of strobe by checking chip_ready signal
+  else if(s_strobe_n_in.read() == true && mStrobeActive == true) {
+    s_chip_ready_internal = false;
+    mStrobeActive = false;
+
     FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
     int frame_start_fifo_size = TRU_FRAME_FIFO_SIZE - s_frame_start_fifo.num_free();
 
@@ -183,6 +192,8 @@ void Alpide::strobeProcess(void)
     }
 
     s_frame_start_fifo.nb_write(frame_start_data);    
+  } else {
+    s_readout_abort = false;
   }
 }
 
@@ -191,10 +202,15 @@ void Alpide::strobeProcess(void)
 ///@todo Implement more advanced data transmission method.
 void Alpide::mainProcess(void)
 {
+  strobeInput();
   frameReadout();  
   dataTransmission();
+  
 
   s_busy_status = (s_tru_frame_fifo_busy || s_multi_event_buffers_busy);
+
+  // For the stimuli class to work properly this needs to be delayed one clock cycle
+  s_chip_ready_out = s_chip_ready_internal;
 }
 
 
@@ -228,7 +244,8 @@ void Alpide::frameReadout(void)
     s_frame_readout_start = false;
     s_frame_readout_done_all = false;
     
-    if(frame_start_fifo_size > 0)
+//    if(frame_start_fifo_size > 0)
+    if(MEBs_in_use > 1 || (MEBs_in_use == 1 && mStrobeActive == false))
       s_fromu_readout_state = REGION_READOUT_START;
     break;
     
@@ -244,7 +261,9 @@ void Alpide::frameReadout(void)
     // Inhibit done signal the cycle we are giving out the start signal
     s_frame_readout_done_all = getFrameReadoutDone() && !s_frame_readout_start;    
 
-    if(s_frame_readout_done_all)
+    if(s_readout_abort)
+      s_fromu_readout_state = WAIT_FOR_EVENTS;
+    else if(s_frame_readout_done_all)
       s_fromu_readout_state = REGION_READOUT_DONE;
     break;
     
@@ -309,6 +328,7 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   std::string alpide_name_prefix = ss.str();
 
   addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);
+  addTrace(wf, alpide_name_prefix, "chip_ready_internal", s_chip_ready_internal);
   addTrace(wf, alpide_name_prefix, "serial_data_output", s_serial_data_output);
   addTrace(wf, alpide_name_prefix, "event_buffers_used_debug", s_event_buffers_used_debug);
   addTrace(wf, alpide_name_prefix, "frame_start_fifo_size_debug", s_frame_start_fifo_size_debug);  

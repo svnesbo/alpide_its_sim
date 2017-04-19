@@ -709,17 +709,22 @@ void EventGenerator::triggerEventProcess(void)
   print_function_timestamp();
   #endif
       
-  // Rising edge
-  if(s_strobe_in.read() == true) {
+  // Falling edge - active low strobe
+  if(s_strobe_in.read() == false) {
     // Save the current simulation time when the strobe was asserted.
     // We will create the triggerEvent object when it is deasserted, and need to
     // remember the start time.
     mNextTriggerEventStartTimeNs = time_now;
-  } else { // Falling edge.
+
+    // Make sure this process doesn't trigger the first time on the wrong strobe edge..
+    mStrobeActive = true;
+  } else if(mStrobeActive) { // Rising edge.
+    mStrobeActive = false;
+
     for(int chip_id = 0; chip_id < mNumChips; chip_id++) {
       TriggerEvent* next_trigger_event = generateNextTriggerEvent(mNextTriggerEventStartTimeNs,
-                                                                 time_now,
-                                                                 chip_id);
+                                                                  time_now,
+                                                                  chip_id);
       
       mEventQueue[chip_id].push(next_trigger_event);
 
