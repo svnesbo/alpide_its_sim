@@ -83,6 +83,14 @@ void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 }
 
 
+///@brief Clear (flush) contents of double column 
+void PixelDoubleColumn::clear(void) {
+  std::cout << "Clearing pixel double column. Size before: " << pixelColumn.size();
+  pixelColumn.clear();
+  std::cout << " Size after: " << pixelColumn.size() << std::endl;
+}
+
+
 ///@brief Read out the next pixel from this double column, and erase it from the MEB.
 ///        Pixels are read out in an order corresponding to that of the priority encoder
 ///        in the Alpide chip.

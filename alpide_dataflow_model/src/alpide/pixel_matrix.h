@@ -49,6 +49,7 @@ public:
   PixelMatrix(bool continuous_mode);
   void newEvent(uint64_t event_time);
   void deleteEvent(uint64_t event_time);
+  void flushOldestEvent(void);
   void setPixel(unsigned int col, unsigned int row);
   bool regionEmpty(int start_double_col, int stop_double_col);
   bool regionEmpty(int region);

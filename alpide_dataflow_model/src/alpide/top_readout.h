@@ -34,7 +34,7 @@ public:
   sc_in_clk s_clk_in; 
   
   sc_in<bool> s_readout_abort_in;
-  sc_in<bool> s_data_overrun_mode_in;  
+  sc_in<bool> s_fatal_state_in;  
   sc_in<bool> s_region_fifo_empty_in[N_REGIONS];
   sc_in<bool> s_region_valid_in[N_REGIONS];
   sc_in<AlpideDataWord> s_region_data_in[N_REGIONS];

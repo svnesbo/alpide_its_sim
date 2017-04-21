@@ -36,10 +36,10 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   s_total_number_of_hits = 0;
   s_oldest_event_number_of_hits = 0;
 
-  s_tru_frame_fifo_busy = false;
-  s_tru_data_overrun_mode = false;
-  s_tru_frame_fifo_fatal_overflow = false;
+  s_frame_fifo_busy = false;
+  s_fatal_state = false;  
   s_multi_event_buffers_busy = false;
+  s_flushed_incomplete = false;
   s_busy_violation = false;
   s_busy_status = false;  
   s_readout_abort = false;
@@ -82,7 +82,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 
   mTRU->s_clk_in(s_system_clk_in);
   mTRU->s_readout_abort_in(s_readout_abort);
-  mTRU->s_data_overrun_mode_in(s_tru_data_overrun_mode);
+  mTRU->s_fatal_state_in(s_fatal_state);
   mTRU->s_region_event_start_out(s_region_event_start);
   mTRU->s_region_event_pop_out(s_region_event_pop);
   mTRU->s_frame_start_fifo_output(s_frame_start_fifo);
@@ -97,6 +97,20 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 }
 
 
+///@brief Data transmission SystemC method. Currently runs on 40MHz clock.
+///@todo Implement more advanced data transmission method.
+void Alpide::mainProcess(void)
+{
+  strobeInput();
+  frameReadout();  
+  dataTransmission();
+  updateBusyStatus();
+
+  // For the stimuli class to work properly this needs to be delayed one clock cycle
+  s_chip_ready_out = s_chip_ready_internal;
+}
+
+
 ///@brief This function handles the strobe input to the Alpide class object.
 ///       Controls creation of new Multi Event Buffers (MEBs). Together with the frameReadout function, this
 ///       process essentially does the same as the FROMU (Frame Read Out Management Unit) in the Alpide chip.
@@ -108,37 +122,42 @@ void Alpide::strobeInput(void)
 
   if(s_strobe_n_in.read() == false && mStrobeActive == false) {   // Strobe falling edge - start of frame/event, strobe is active low
     mStrobeActive = true;
-    
-    if(mContinuousMode) {
-      s_chip_ready_internal = true; // A free event buffer is guaranteed in continuous mode..
 
-      if(getNumEvents() == 2) {
-        deleteEvent(time_now);
+    if(s_readout_abort) {
+      // Don't accept events in data overrun mode (ie. when readout_abort is set)
+      mTriggerEventsRejected++;      
+    }
+    else if(mContinuousMode) {
+      
 
-        // No change in number of accepted events, since previous 
-        // event was accepted but is now being "rejected".
+      if(getNumEvents() == 3) {
+        // Reject events if all MEBs are full in continuous
         mTriggerEventsRejected++;
-
-        s_readout_abort = true;
         s_busy_violation = true;
-      } else {
+        s_flushed_incomplete = false;
+        s_chip_ready_internal = false;
+      } else if(getNumEvents() == 2) {
+        // Flush oldest event to make room if we are becoming full in continuous
+        flushOldestEvent();
+        newEvent(time_now);
+        
+        mTriggerEventsFlushed++;
         mTriggerEventsAccepted++;
-        s_readout_abort = false;
         s_busy_violation = false;
-      }
-
-      newEvent(time_now);
-
-      // Are we, or did we become busy now?
-      if(getNumEvents() == 2) {
-        s_multi_event_buffers_busy = true;
+        s_flushed_incomplete = true;
+        s_chip_ready_internal = true;
       } else {
-        s_multi_event_buffers_busy = false;
+        // Normal operation in continuous, with at least 2 free buffers
+        newEvent(time_now);
+        
+        mTriggerEventsAccepted++;
+        s_busy_violation = false;
+        s_flushed_incomplete = false;
+        s_chip_ready_internal = true;
       }
     } 
     else if(!mContinuousMode) {
-      s_busy_violation = false;
-      s_readout_abort = false; // No abort in triggered mode
+      s_flushed_incomplete = false; // No flushing in triggered mode
 
       if(getNumEvents() == 3) {
         s_chip_ready_internal = false;
@@ -150,12 +169,6 @@ void Alpide::strobeInput(void)
         s_chip_ready_internal = true;
         s_busy_violation = false;
       }
-
-      // Are we, or did we become busy now?
-      if(getNumEvents() == 3)
-        s_multi_event_buffers_busy = true;
-      else
-        s_multi_event_buffers_busy = false;
     }
   }
   // Strobe rising edge - end of frame/event
@@ -167,50 +180,42 @@ void Alpide::strobeInput(void)
     FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
     int frame_start_fifo_size = TRU_FRAME_FIFO_SIZE - s_frame_start_fifo.num_free();
 
-    s_busy_violation = false;
-
-    if(s_frame_start_fifo.num_free() == 0) {    
+    // In case of busy violation, there is no corresponding event in the MEBs,
+    // so we have to add a frame end word to the fifo from here instead of in frameReadout().
+    if(s_busy_violation) {
+      FrameEndFifoWord frame_end_data = {false, false, false};
+      s_frame_end_fifo.nb_write(mNextFrameEndWord);
+      s_busy_violation = false;
+    }
+    
+    // Once set, we are only allowed to clear the readout_abort signal
+    // (ie go out of data overrun mode) when the frame fifo has been cleared.
+    if(s_frame_start_fifo.num_free() == TRU_FRAME_FIFO_SIZE &&
+       s_frame_end_fifo.num_free() == TRU_FRAME_FIFO_SIZE) {
+      s_frame_fifo_busy = false;
+      s_readout_abort = false;
+    } else if(s_frame_start_fifo.num_free() == 0) {    
       // FATAL, TRU FRAME FIFO will now overflow
-      s_tru_frame_fifo_busy = true;
-      s_tru_data_overrun_mode = true;
+      s_frame_fifo_busy = true;
+      s_readout_abort = true;
 
       ///@todo The FATAL overflow bit/signal has to be cleared by a RORST/GRST command
-      ///      in the Alpide chip, it will not be cleared by automatically.
-      s_tru_frame_fifo_fatal_overflow = true;
+      ///      in the Alpide chip, it will not be cleared by automatically.            
+      s_fatal_state = true;
     } else if(frame_start_fifo_size > TRU_FRAME_FIFO_ALMOST_FULL2) {
       // DATA OVERRUN MODE
-      s_tru_frame_fifo_busy = true;
-      s_tru_data_overrun_mode = true;
-      ///@todo set readout abort signal here??
+      ///@todo Need to clear RRU FIFOs, and MEBs when entering this state
+      s_frame_fifo_busy = true;
+      s_readout_abort = true;
     } else if(frame_start_fifo_size > TRU_FRAME_FIFO_ALMOST_FULL1) {
       // BUSY
-      s_tru_frame_fifo_busy = true;
-      s_tru_data_overrun_mode = false;
-    } else {
-      s_tru_frame_fifo_busy = false;
-      s_tru_data_overrun_mode = false;
+      s_frame_fifo_busy = true;
+    } else if(!s_readout_abort) {
+      s_frame_fifo_busy = false;
     }
-
+    
     s_frame_start_fifo.nb_write(frame_start_data);    
-  } else {
-    s_readout_abort = false;
   }
-}
-
-
-///@brief Data transmission SystemC method. Currently runs on 40MHz clock.
-///@todo Implement more advanced data transmission method.
-void Alpide::mainProcess(void)
-{
-  strobeInput();
-  frameReadout();  
-  dataTransmission();
-  
-
-  s_busy_status = (s_tru_frame_fifo_busy || s_multi_event_buffers_busy);
-
-  // For the stimuli class to work properly this needs to be delayed one clock cycle
-  s_chip_ready_out = s_chip_ready_internal;
 }
 
 
@@ -219,11 +224,12 @@ void Alpide::mainProcess(void)
 ///       FROMU (Frame Read Out Management Unit) in the Alpide chip.
 void Alpide::frameReadout(void)
 {
-  FrameEndFifoWord frame_end_data;  
   uint64_t time_now = sc_time_stamp().value();
   int MEBs_in_use = getNumEvents();
   int frame_start_fifo_size = TRU_FRAME_FIFO_SIZE - s_frame_start_fifo.num_free();
+  int frame_end_fifo_size = TRU_FRAME_FIFO_SIZE - s_frame_end_fifo.num_free();
   s_frame_start_fifo_size_debug = frame_start_fifo_size;
+  s_frame_end_fifo_size_debug = frame_end_fifo_size;
 
   // Bunch counter wraps around each orbit
   mBunchCounter++;
@@ -243,8 +249,9 @@ void Alpide::frameReadout(void)
   case WAIT_FOR_EVENTS:
     s_frame_readout_start = false;
     s_frame_readout_done_all = false;
-    
-//    if(frame_start_fifo_size > 0)
+
+    // If there is only 1 MEB in use, but strobe is still active,
+    // then this event is not ready to be read out yet.
     if(MEBs_in_use > 1 || (MEBs_in_use == 1 && mStrobeActive == false))
       s_fromu_readout_state = REGION_READOUT_START;
     break;
@@ -261,18 +268,27 @@ void Alpide::frameReadout(void)
     // Inhibit done signal the cycle we are giving out the start signal
     s_frame_readout_done_all = getFrameReadoutDone() && !s_frame_readout_start;    
 
-    if(s_readout_abort)
-      s_fromu_readout_state = WAIT_FOR_EVENTS;
-    else if(s_frame_readout_done_all)
+
+    if(s_frame_readout_done_all) {
+      mNextFrameEndWord.flushed_incomplete = s_flushed_incomplete;
+
+      ///@todo Strobe extended not implemented yet
+      mNextFrameEndWord.strobe_extended = false;
+
+      ///@todo Should the busy_transition flag always be set like this when chip is busy,
+      ///      or should it only happen when the chip goes into or out of busy state?
+      mNextFrameEndWord.busy_transition = s_busy_status;
+
+      s_flushed_incomplete = false;
       s_fromu_readout_state = REGION_READOUT_DONE;
+    }
     break;
     
   case REGION_READOUT_DONE:
     s_frame_readout_start = false;
     s_frame_readout_done_all = false;
 
-    frame_end_data = {0, 0, 0};
-    s_frame_end_fifo.nb_write(frame_end_data);    
+    s_frame_end_fifo.nb_write(mNextFrameEndWord);
 
     // Delete the event/frame in matrix/multi-event-buffer that has just been read out
     deleteEvent(time_now);
@@ -318,6 +334,26 @@ bool Alpide::getFrameReadoutDone(void)
 }
 
 
+///@brief Update internal busy status signals
+void Alpide::updateBusyStatus(void)
+{
+  if(mContinuousMode) {
+    if(getNumEvents() > 1) {
+      s_multi_event_buffers_busy = true;
+    } else {
+      s_multi_event_buffers_busy = false;
+    }
+  } else { // Triggered mode
+    if(getNumEvents() == 3)
+      s_multi_event_buffers_busy = true;
+    else
+      s_multi_event_buffers_busy = false;
+  }
+
+  s_busy_status = (s_frame_fifo_busy || s_multi_event_buffers_busy);
+}
+
+
 ///@brief Add SystemC signals to log in VCD trace file.
 ///@param wf Pointer to VCD trace file object
 ///@param name_prefix Name prefix to be added to all the trace names
@@ -331,7 +367,8 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, alpide_name_prefix, "chip_ready_internal", s_chip_ready_internal);
   addTrace(wf, alpide_name_prefix, "serial_data_output", s_serial_data_output);
   addTrace(wf, alpide_name_prefix, "event_buffers_used_debug", s_event_buffers_used_debug);
-  addTrace(wf, alpide_name_prefix, "frame_start_fifo_size_debug", s_frame_start_fifo_size_debug);  
+  addTrace(wf, alpide_name_prefix, "frame_start_fifo_size_debug", s_frame_start_fifo_size_debug);
+  addTrace(wf, alpide_name_prefix, "frame_end_fifo_size_debug", s_frame_end_fifo_size_debug);    
   addTrace(wf, alpide_name_prefix, "total_number_of_hits", s_total_number_of_hits);
   addTrace(wf, alpide_name_prefix, "oldest_event_number_of_hits", s_oldest_event_number_of_hits);
 
@@ -340,14 +377,13 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 
   addTrace(wf, alpide_name_prefix, "frame_readout_start", s_frame_readout_start);
   addTrace(wf, alpide_name_prefix, "frame_readout_done_all", s_frame_readout_done_all);
-  addTrace(wf, alpide_name_prefix, "readout_abort", s_readout_abort);
-  addTrace(wf, alpide_name_prefix, "tru_frame_fifo_busy", s_tru_frame_fifo_busy);
-  addTrace(wf, alpide_name_prefix, "tru_data_overrun_mode", s_tru_data_overrun_mode);
-  addTrace(wf, alpide_name_prefix, "tru_frame_fifo_fatal_overflow", s_tru_frame_fifo_fatal_overflow);
-  addTrace(wf, alpide_name_prefix, "multi_event_buffers_busy", s_multi_event_buffers_busy);
-
+  addTrace(wf, alpide_name_prefix, "flushed_incomplete", s_flushed_incomplete);  
   addTrace(wf, alpide_name_prefix, "busy_violation", s_busy_violation);
   addTrace(wf, alpide_name_prefix, "busy_status", s_busy_status);
+  addTrace(wf, alpide_name_prefix, "frame_fifo_busy", s_frame_fifo_busy);
+  addTrace(wf, alpide_name_prefix, "multi_event_buffers_busy", s_multi_event_buffers_busy);  
+  addTrace(wf, alpide_name_prefix, "readout_abort", s_readout_abort);
+  addTrace(wf, alpide_name_prefix, "fatal_state", s_fatal_state);
 
   addTrace(wf, alpide_name_prefix, "fromu_readout_state", s_fromu_readout_state);
   addTrace(wf, alpide_name_prefix, "dmu_fifo_size", s_dmu_fifo_size);

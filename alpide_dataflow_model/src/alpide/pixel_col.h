@@ -116,6 +116,7 @@ private:
   std::set<PixelData, PixelPriorityEncoder> pixelColumn;
 public:
   void setPixel(unsigned int col_num, unsigned int row_num);
+  void clear(void);
   bool inspectPixel(unsigned int col_num, unsigned int row_num);
   PixelData readPixel(void);
   unsigned int pixelHitsRemaining(void);

@@ -51,6 +51,7 @@ public:
   ///@brief Number of events stored in the chip at any given time
   sc_signal<sc_uint<8>> s_event_buffers_used_debug;
   sc_signal<sc_uint<8>> s_frame_start_fifo_size_debug;
+  sc_signal<sc_uint<8>> s_frame_end_fifo_size_debug;
 
   ///@brief Sum of all hits in all multi event buffers
   sc_signal<sc_uint<32>> s_total_number_of_hits;
@@ -69,11 +70,11 @@ public:
   sc_signal<bool> s_frame_readout_start;
   sc_signal<bool> s_frame_readout_done[N_REGIONS];
   sc_signal<bool> s_frame_readout_done_all;
+  sc_signal<bool> s_frame_fifo_busy;
+  sc_signal<bool> s_multi_event_buffers_busy;  
+  sc_signal<bool> s_fatal_state;
   sc_signal<bool> s_readout_abort;
-  sc_signal<bool> s_tru_frame_fifo_busy;
-  sc_signal<bool> s_tru_data_overrun_mode;
-  sc_signal<bool> s_tru_frame_fifo_fatal_overflow;
-  sc_signal<bool> s_multi_event_buffers_busy;
+  sc_signal<bool> s_flushed_incomplete;  
   sc_signal<bool> s_busy_violation;
   sc_signal<bool> s_busy_status;
   
@@ -88,6 +89,7 @@ private:
   sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
   sc_fifo<FrameEndFifoWord> s_frame_end_fifo;
 
+  FrameEndFifoWord mNextFrameEndWord;
 
   enum FROMU_readout_state_t {
     WAIT_FOR_EVENTS = 0,
@@ -110,11 +112,13 @@ private:
   ///@brief Triggered mode: If 3 MEBs are already full, the chip will not accept more events
   ///                       until one of those 3 MEBs have been read out. This variable is counted
   ///                       up for each event that is not accepted.
-  ///       Continuous mode: The Alpide chip will always guarantee that there is a free MEB slice
-  ///                        in continuous mode. It does this by deleting the oldest MEB slice (even
-  ///                        if it has not been read out) when the 3rd one is filled. This variable
-  ///                        also counts up in that case.
   uint64_t mTriggerEventsRejected = 0;
+
+  ///@brief Continuous mode only.
+  ///       The Alpide chip will try to guarantee that there is a free MEB slice in continuous mode.
+  ///       It does this by deleting the oldest MEB slice (even if it has not been read out) when
+  ///       the 3rd one is filled. This variable counts up in that case.
+  uint64_t mTriggerEventsFlushed = 0;  
 
   std::vector<RegionReadoutUnit*> mRRUs;
   TopReadoutUnit* mTRU;
@@ -125,6 +129,7 @@ private:
   void frameReadout(void); // FROMU    
   void dataTransmission(void);
   bool getFrameReadoutDone(void);
+  void updateBusyStatus(void);
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,

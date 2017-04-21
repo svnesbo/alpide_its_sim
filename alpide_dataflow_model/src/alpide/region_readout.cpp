@@ -77,6 +77,8 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
   bool matrix_readout_ready = false;
   bool region_matrix_empty = false;
 
+  // The Alpide has a choice of two different matrix priority encoder readout speeds:
+  // 1/2 of 40MHz clock, or 1/4 of 40MHz clock
   if(mMatrixReadoutSpeed && (s_matrix_readout_delay_counter.read() > 0))
     matrix_readout_ready = true;
   else if(!mMatrixReadoutSpeed && (s_matrix_readout_delay_counter.read() >= 2))

@@ -121,11 +121,14 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       !s_region_fifo_empty_in[current_region];
     
     if(!dmu_data_fifo_full) {
-      if(mCurrentFrameStartWord.busy_violation) {
+      if(s_readout_abort_in) {
+        data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
+        s_tru_state = CHIP_TRAILER;
+      } else if(mCurrentFrameStartWord.busy_violation) {
         // Busy violation frame
         data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
         s_tru_state = BUSY_VIOLATION;
-      } if(!all_regions_empty) {
+      } else if(!all_regions_empty) {
         // Normal data frame
         data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
         s_tru_state = REGION_DATA;
@@ -161,16 +164,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       !no_regions_valid &&
       !s_region_fifo_empty_in[current_region];
     
-    // New region? Output region header
-    ///@todo This won't work.. we will loose one word of data from the regions here,
-    ///      because the s_region_data_read_out signal will be high in this state.
-    ///      The region header needs to come from the RRU.
-    if(current_region != s_previous_region.read()) {
-      data_out = AlpideRegionHeader(current_region);
-    } else {
-      data_out = s_region_data_in[current_region];
-    }
-
+    data_out = s_region_data_in[current_region];
     s_dmu_fifo_input->nb_write(data_out);
 
     if(dmu_data_fifo_full) {
@@ -204,6 +198,21 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     
     if(!frame_end_fifo_empty && !dmu_data_fifo_full) {
       s_frame_end_fifo_output->nb_read(mCurrentFrameEndWord);
+
+      // Special combinations of the readout flags are observed in
+      // data overrun mode (ie. readout abort is set), and in fatal mode.
+      if(s_fatal_state_in) {
+        mCurrentFrameStartWord.busy_violation = true;
+        mCurrentFrameEndWord.flushed_incomplete = true;
+        mCurrentFrameEndWord.strobe_extended = true;
+        mCurrentFrameEndWord.busy_transition = false;
+      } else if(s_readout_abort_in) {
+        mCurrentFrameStartWord.busy_violation = true;
+        mCurrentFrameEndWord.flushed_incomplete = true;
+        mCurrentFrameEndWord.strobe_extended = false;
+        mCurrentFrameEndWord.busy_transition = false;
+      }
+      
       data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
       s_dmu_fifo_input->nb_write(data_out);
       
@@ -230,7 +239,7 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   std::string tru_name_prefix = ss.str();
  
   addTrace(wf, tru_name_prefix, "readout_abort_in", s_readout_abort_in);
-  addTrace(wf, tru_name_prefix, "data_overrun_mode_in", s_data_overrun_mode_in);
+  addTrace(wf, tru_name_prefix, "fatal_state_in", s_fatal_state_in);  
   addTrace(wf, tru_name_prefix, "region_event_pop_out", s_region_event_pop_out);
   addTrace(wf, tru_name_prefix, "region_event_start_out", s_region_event_start_out);
 //  addTrace(wf, tru_name_prefix, "dmu_fifo_input", s_dmu_fifo_input);

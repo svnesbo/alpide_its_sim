@@ -38,6 +38,22 @@ void PixelMatrix::newEvent(uint64_t event_time)
 }
 
 
+///@brief Flush the oldest event by clearing all double columns and setting its size to zero
+void PixelMatrix::flushOldestEvent(void)
+{
+  if(mColumnBuffs.empty() == false) {
+    std::vector<PixelDoubleColumn>& oldest_event_buffer = mColumnBuffs.front();
+    int& oldest_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.front();
+
+    for(auto it = oldest_event_buffer.begin(); it != oldest_event_buffer.end(); it++) {
+      it->clear();
+    }
+    
+    oldest_event_buffer_hits_remaining = 0;
+  }  
+}
+
+
 ///@brief Delete the oldest event from the MEB (if there are any events at all,
 ///       calling this function with no events is fine).
 ///@param  time_now Simulation time when this readout is occuring
