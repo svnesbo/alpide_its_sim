@@ -85,9 +85,7 @@ void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 
 ///@brief Clear (flush) contents of double column 
 void PixelDoubleColumn::clear(void) {
-  std::cout << "Clearing pixel double column. Size before: " << pixelColumn.size();
   pixelColumn.clear();
-  std::cout << " Size after: " << pixelColumn.size() << std::endl;
 }
 
 

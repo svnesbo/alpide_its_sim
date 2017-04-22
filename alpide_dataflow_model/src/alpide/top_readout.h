@@ -19,6 +19,12 @@
 #include <systemc.h>
 #pragma GCC diagnostic pop
 
+// Ignore warnings about functions with unused variables in TLM library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#include <tlm.h>
+#pragma GCC diagnostic pop
+
 
 /// The TopReadoutUnit (TRU) class is a simple representation of the TRU in the Alpide chip.
 /// It should be connected to the Region Readout Unit (RRU) in the Alpide object,
@@ -43,8 +49,13 @@ public:
   sc_out<bool> s_region_event_start_out;
   sc_out<bool> s_region_data_read_out[N_REGIONS];
   
-  sc_port<sc_fifo_in_if<FrameStartFifoWord>> s_frame_start_fifo_output;
-  sc_port<sc_fifo_in_if<FrameEndFifoWord>> s_frame_end_fifo_output;
+  //sc_port<sc_fifo_in_if<FrameStartFifoWord>> s_frame_start_fifo_output;
+  //sc_port<sc_fifo_in_if<FrameEndFifoWord>> s_frame_end_fifo_output;
+  
+  // Outputs from the FIFO, not outputs from the TRU module/class
+  sc_port<tlm::tlm_nonblocking_get_peek_if<FrameStartFifoWord>> s_frame_start_fifo_output;
+  sc_port<tlm::tlm_nonblocking_get_peek_if<FrameEndFifoWord>> s_frame_end_fifo_output;
+  
   
   ///@brief Output from TRU
   sc_port<sc_fifo_out_if<AlpideDataWord>> s_dmu_fifo_input;

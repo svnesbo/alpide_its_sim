@@ -66,8 +66,9 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   bool no_regions_valid = !getNextRegion(current_region);
   bool all_regions_empty = getAllRegionsEmpty();
   bool dmu_data_fifo_full = s_dmu_fifo_input->num_free() == 0;
-  bool frame_start_fifo_empty = s_frame_start_fifo_output->num_available() == 0;  
-  bool frame_end_fifo_empty = s_frame_end_fifo_output->num_available() == 0;
+
+  bool frame_start_fifo_empty = !s_frame_start_fifo_output->nb_can_get();
+  bool frame_end_fifo_empty = !s_frame_end_fifo_output->nb_can_get();
 
   s_all_regions_empty_debug = all_regions_empty;  
   s_no_regions_valid_debug = no_regions_valid;
@@ -82,8 +83,12 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_event_pop_out = !frame_end_fifo_empty;
     s_region_event_start_out = false;
     s_region_data_read_out[current_region] = false;
-        
+    
     if(!frame_end_fifo_empty) {
+      // "Pop" the frame from the frame FIFO
+      s_frame_start_fifo_output->nb_get(mCurrentFrameStartWord);
+      s_frame_end_fifo_output->nb_get(mCurrentFrameEndWord);
+      
       s_tru_state = IDLE;
     }
     break;
@@ -94,7 +99,7 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_data_read_out[current_region] = false;    
     
     if(!frame_start_fifo_empty) {
-      s_frame_start_fifo_output->nb_read(mCurrentFrameStartWord);
+      s_frame_start_fifo_output->nb_peek(mCurrentFrameStartWord);
       s_tru_state = WAIT_REGION_DATA;
     }
     break;
@@ -121,13 +126,16 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       !s_region_fifo_empty_in[current_region];
     
     if(!dmu_data_fifo_full) {
-      if(s_readout_abort_in) {
-        data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
-        s_tru_state = CHIP_TRAILER;
-      } else if(mCurrentFrameStartWord.busy_violation) {
+      if(mCurrentFrameStartWord.busy_violation) {
         // Busy violation frame
+        // Since no frame end word is added in busy violation, we always
+        // have to visit this state, and not the normal chip trailer state,
+        // even in readout abort (data overrun) mode.
         data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
         s_tru_state = BUSY_VIOLATION;
+      } else if(s_readout_abort_in) {
+        data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
+        s_tru_state = CHIP_TRAILER;
       } else if(!all_regions_empty) {
         // Normal data frame
         data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
@@ -147,9 +155,11 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_event_start_out = false;
     s_region_data_read_out[current_region] = false;
 
-    s_frame_end_fifo_output->nb_read(mCurrentFrameEndWord);
+    s_frame_start_fifo_output->nb_get(mCurrentFrameStartWord);
     
     // Busy violation bit is included in frame start word
+    ///@todo Special busy violation frame end word? I'm just sending some old
+    ///      frame word here??
     data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
     s_dmu_fifo_input->nb_write(data_out);
 
@@ -197,7 +207,9 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     s_region_data_read_out[current_region] = false;    
     
     if(!frame_end_fifo_empty && !dmu_data_fifo_full) {
-      s_frame_end_fifo_output->nb_read(mCurrentFrameEndWord);
+      // "Pop" the frame from the frame FIFO
+      s_frame_start_fifo_output->nb_get(mCurrentFrameStartWord);
+      s_frame_end_fifo_output->nb_get(mCurrentFrameEndWord);
 
       // Special combinations of the readout flags are observed in
       // data overrun mode (ie. readout abort is set), and in fatal mode.

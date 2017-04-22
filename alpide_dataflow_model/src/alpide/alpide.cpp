@@ -123,18 +123,12 @@ void Alpide::strobeInput(void)
   if(s_strobe_n_in.read() == false && mStrobeActive == false) {   // Strobe falling edge - start of frame/event, strobe is active low
     mStrobeActive = true;
 
-    if(s_readout_abort) {
-      // Don't accept events in data overrun mode (ie. when readout_abort is set)
-      mTriggerEventsRejected++;      
-    }
-    else if(mContinuousMode) {
-      
-
+    if(mContinuousMode) {
       if(getNumEvents() == 3) {
         // Reject events if all MEBs are full in continuous
         mTriggerEventsRejected++;
         s_busy_violation = true;
-        s_flushed_incomplete = false;
+        //s_flushed_incomplete = false;
         s_chip_ready_internal = false;
       } else if(getNumEvents() == 2) {
         // Flush oldest event to make room if we are becoming full in continuous
@@ -178,26 +172,32 @@ void Alpide::strobeInput(void)
     mStrobeActive = false;
 
     FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
-    int frame_start_fifo_size = TRU_FRAME_FIFO_SIZE - s_frame_start_fifo.num_free();
+    int frame_start_fifo_size = s_frame_start_fifo.used();
+    bool frame_start_fifo_empty = !s_frame_start_fifo.nb_can_get();
+    bool frame_start_fifo_full = !s_frame_start_fifo.nb_can_put();
+    bool frame_end_fifo_empty = !s_frame_end_fifo.nb_can_get();
 
-    // In case of busy violation, there is no corresponding event in the MEBs,
-    // so we have to add a frame end word to the fifo from here instead of in frameReadout().
-    if(s_busy_violation) {
-      FrameEndFifoWord frame_end_data = {false, false, false};
-      s_frame_end_fifo.nb_write(mNextFrameEndWord);
-      s_busy_violation = false;
-    }
+    s_busy_violation = false;
     
     // Once set, we are only allowed to clear the readout_abort signal
     // (ie go out of data overrun mode) when the frame fifo has been cleared.
-    if(s_frame_start_fifo.num_free() == TRU_FRAME_FIFO_SIZE &&
-       s_frame_end_fifo.num_free() == TRU_FRAME_FIFO_SIZE) {
+    if(frame_start_fifo_empty && frame_end_fifo_empty) {
+      if(s_readout_abort == true) {
+        std::cout << "@ " << time_now << " ns:\t" << "Alpide chip ID: " << mChipId;
+        std::cout << " exited data overrun mode." << std::endl;
+      }
+            
       s_frame_fifo_busy = false;
       s_readout_abort = false;
-    } else if(s_frame_start_fifo.num_free() == 0) {    
+    } else if(frame_start_fifo_full) {    
       // FATAL, TRU FRAME FIFO will now overflow
       s_frame_fifo_busy = true;
       s_readout_abort = true;
+
+      if(s_fatal_state == false) {
+        std::cout << "@ " << time_now << " ns:\t" << "Alpide chip ID: " << mChipId;
+        std::cout << " entered fatal mode." << std::endl;
+      }
 
       ///@todo The FATAL overflow bit/signal has to be cleared by a RORST/GRST command
       ///      in the Alpide chip, it will not be cleared by automatically.            
@@ -205,6 +205,12 @@ void Alpide::strobeInput(void)
     } else if(frame_start_fifo_size > TRU_FRAME_FIFO_ALMOST_FULL2) {
       // DATA OVERRUN MODE
       ///@todo Need to clear RRU FIFOs, and MEBs when entering this state
+
+      if(s_readout_abort == false) {
+        std::cout << "@ " << time_now << " ns:\t" << "Alpide chip ID: " << mChipId;
+        std::cout << " entered data overrun mode." << std::endl;
+      }
+      
       s_frame_fifo_busy = true;
       s_readout_abort = true;
     } else if(frame_start_fifo_size > TRU_FRAME_FIFO_ALMOST_FULL1) {
@@ -214,7 +220,7 @@ void Alpide::strobeInput(void)
       s_frame_fifo_busy = false;
     }
     
-    s_frame_start_fifo.nb_write(frame_start_data);    
+    s_frame_start_fifo.nb_put(frame_start_data);
   }
 }
 
@@ -226,8 +232,8 @@ void Alpide::frameReadout(void)
 {
   uint64_t time_now = sc_time_stamp().value();
   int MEBs_in_use = getNumEvents();
-  int frame_start_fifo_size = TRU_FRAME_FIFO_SIZE - s_frame_start_fifo.num_free();
-  int frame_end_fifo_size = TRU_FRAME_FIFO_SIZE - s_frame_end_fifo.num_free();
+  int frame_start_fifo_size = s_frame_start_fifo.used();
+  int frame_end_fifo_size = s_frame_end_fifo.used();
   s_frame_start_fifo_size_debug = frame_start_fifo_size;
   s_frame_end_fifo_size_debug = frame_end_fifo_size;
 
@@ -288,7 +294,7 @@ void Alpide::frameReadout(void)
     s_frame_readout_start = false;
     s_frame_readout_done_all = false;
 
-    s_frame_end_fifo.nb_write(mNextFrameEndWord);
+    s_frame_end_fifo.nb_put(mNextFrameEndWord);
 
     // Delete the event/frame in matrix/multi-event-buffer that has just been read out
     deleteEvent(time_now);
