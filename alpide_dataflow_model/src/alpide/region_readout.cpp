@@ -127,9 +127,10 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
   case RO_FSM::READOUT_AND_CLUSTERING:
     s_frame_readout_done_out = false;
 
-    if(s_readout_abort_in)
+    if(s_readout_abort_in) {
+      mClusterStarted = false;
       s_rru_readout_state = RO_FSM::IDLE;
-    else if(matrix_readout_ready) { // Wait for matrix readout delay
+    } else if(matrix_readout_ready) { // Wait for matrix readout delay
       if(!region_fifo_full) {
         s_region_matrix_empty_debug = region_matrix_empty = readoutNextPixel(*mPixelMatrix);
         s_matrix_readout_delay_counter = 0;
@@ -180,7 +181,11 @@ void RegionReadoutUnit::regionValidFSM(void)
     break;
     
   case VALID_FSM::EMPTY:
-    s_region_valid_out = (!region_fifo_empty && !region_data_is_trailer);
+    // Slight modification from how valid signal is determined in the Valid FSM diagrams
+    // in the Alpide Chip EDR presentation, the clustering may take some time and we
+    // need to get the valid signal fast enough to prevent the TRU to going to the TRAILER
+    // state too soon because it thinks no regions are valid...
+    s_region_valid_out = ((!region_fifo_empty || mClusterStarted) && !region_data_is_trailer);
     
     if(s_readout_abort_in)
       s_rru_valid_state = VALID_FSM::IDLE;

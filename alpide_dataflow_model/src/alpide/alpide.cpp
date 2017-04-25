@@ -325,14 +325,18 @@ void Alpide::frameReadout(void)
 ///@todo Implement more advanced data transmission method.
 void Alpide::dataTransmission(void)
 {
-  AlpideDataWord dw;
+  AlpideDataWord dw = AlpideComma();
 
   s_dmu_fifo_size = s_dmu_fifo.num_available();
-  
-  if(s_dmu_fifo.nb_read(dw)) {
-    sc_uint<24> data = dw.data[2] << 16 | dw.data[1] << 8 | dw.data[0];
-    s_serial_data_output = data;
+
+  // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
+  if(s_dmu_fifo.nb_read(dw) == false) {
+    dw = AlpideComma();
+//    dw = AlpideIdle();
   }
+
+  sc_uint<24> data = dw.data[2] << 16 | dw.data[1] << 8 | dw.data[0];
+  s_serial_data_output = data;  
 }
 
 

@@ -33,6 +33,7 @@ using std::uint8_t;
 /// DATA LONG            00<encoder id[3:0]><addr[9:0]> 0 <hit map[6:0]> 1111 0001 1111
 /// BUSY ON              1111 0001
 /// BUSY OFF             1111 0000
+/// COMMA                1011 1100 (but using 1111 1110 to avoid confusion with CHIP TRAILER).
 
 
 /// Alpide data words, used to initialize the 24-bit FIFOs in the Alpide chip.
@@ -51,13 +52,17 @@ const uint8_t DW_DATA_LONG          = 0b00000000;
 const uint8_t DW_BUSY_ON            = 0b11110001;
 const uint8_t DW_BUSY_OFF           = 0b11110000;
 
+/// This is not the correct COMMA word, but using this value instead makes this
+/// simulation model a bit simpler because the word cannot be confused with CHIP TRAILER
+const uint8_t DW_COMMA              = 0b11111110;
+
 const uint8_t READOUT_FLAGS_BUSY_VIOLATION     = 0b00001000;
 const uint8_t READOUT_FLAGS_FLUSHED_INCOMPLETE = 0b00000100;
 const uint8_t READOUT_FLAGS_STROBE_EXTENDED    = 0b00000010;
 const uint8_t READOUT_FLAGS_BUSY_TRANSITION    = 0b00000001;
 
-/// Mask for busy and idle words
-const uint8_t MASK_IDLE_BUSY = 0b11111111;
+/// Mask for busy, idle and comma words
+const uint8_t MASK_IDLE_BUSY_COMMA = 0b11111111;
 
 /// Mask for chip header/trailer/empty frame words
 const uint8_t MASK_CHIP = 0b11110000;
@@ -352,6 +357,17 @@ public:
     data[2] = DW_BUSY_OFF;
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
+  }
+};
+
+
+class AlpideComma : public AlpideDataWord
+{
+public:
+  AlpideComma() {
+    data[2] = DW_COMMA;
+    data[1] = DW_COMMA;
+    data[0] = DW_COMMA;    
   }
 };
 

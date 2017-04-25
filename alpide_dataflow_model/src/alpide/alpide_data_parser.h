@@ -38,6 +38,7 @@ enum AlpideDataTypes {ALPIDE_IDLE,
                       ALPIDE_DATA_LONG3,
                       ALPIDE_BUSY_ON,
                       ALPIDE_BUSY_OFF,
+                      ALPIDE_COMMA,
                       ALPIDE_UNKNOWN};
 
 
@@ -76,6 +77,7 @@ private:
   unsigned int mCurrentRegion = 0;
 
   // Counters for statistics
+  long mCommaCount;
   long mIdleCount;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
   long mIdleByteCount;    // Idle word byte counts
   long mBusyOnCount;

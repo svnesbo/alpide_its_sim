@@ -143,8 +143,13 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     std::cout << "Byte 2: " << std::hex << static_cast<unsigned>(dw.data[2]) << std::endl;
     std::cout << "Byte 1: " << std::hex << static_cast<unsigned>(dw.data[1]) << std::endl;
     std::cout << "Byte 0: " << std::hex << static_cast<unsigned>(dw.data[0]) << std::endl;
+    std::cout << std::dec;
     ///@todo Unknown Alpide data word received. Do something smart here?
     break;
+
+  case ALPIDE_COMMA:
+    std::cout << "Got ALPIDE_COMMA: " << data_bits << std::endl;    
+    break;    
 
   case ALPIDE_DATA_SHORT2:
   case ALPIDE_DATA_LONG2:
@@ -172,7 +177,7 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
   uint8_t data_word_check = dw.data[2] & MASK_DATA;
   uint8_t chip_word_check = dw.data[2] & MASK_CHIP;
   uint8_t region_word_check = dw.data[2] & MASK_REGION_HEADER;
-  uint8_t idle_busy_word_check = dw.data[2] & MASK_IDLE_BUSY;    
+  uint8_t idle_busy_comma_word_check = dw.data[2] & MASK_IDLE_BUSY_COMMA;
 
 
   if(data_word_check == DW_DATA_LONG) {
@@ -205,21 +210,26 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
     data_parsed.data[2] = ALPIDE_REGION_HEADER;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);            
-  } else if(idle_busy_word_check == DW_IDLE) {
+  } else if(idle_busy_comma_word_check == DW_IDLE) {
     mIdleCount++;
     mIdleByteCount++;    
     data_parsed.data[2] = ALPIDE_IDLE;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);                
-  } else if(idle_busy_word_check == DW_BUSY_ON) {
+  } else if(idle_busy_comma_word_check == DW_BUSY_ON) {
     mBusyOnCount++;    
     data_parsed.data[2] = ALPIDE_BUSY_ON;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);                    
-  } else if(idle_busy_word_check == DW_BUSY_OFF) {
+  } else if(idle_busy_comma_word_check == DW_BUSY_OFF) {
     mBusyOffCount++;    
     data_parsed.data[2] = ALPIDE_BUSY_OFF;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
+    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);                        
+  } else if(idle_busy_comma_word_check == DW_COMMA) {
+    mCommaCount++;
+    data_parsed.data[2] = ALPIDE_COMMA;
+    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);                        
   } else {
     mUnknownDataWordCount++;    
@@ -254,6 +264,10 @@ AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
     std::cout << "Got BUSY_OFF" << std::endl;    
     mBusyOffCount++;
     return ALPIDE_BUSY_OFF;
+  } else if(data == DW_COMMA) {
+    std::cout << "Got COMMA" << std::endl;    
+    mCommaCount++;
+    return ALPIDE_COMMA;
   } else {
     mUnknownDataWordCount++;
     return ALPIDE_UNKNOWN;
@@ -276,10 +290,6 @@ AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name)
 void AlpideDataParser::parserInputProcess(void)
 {
   AlpideDataWord dw;
-
-  // dw.data[0] = s_serial_data_in.read() & 0xFF;
-  // dw.data[1] = (s_serial_data_in.read() >> 8) & 0xFF;
-  // dw.data[2] = (s_serial_data_in.read() >> 16) & 0xFF;
 
   dw.data[0] = s_serial_data_in.read().range(7, 0);
   dw.data[1] = s_serial_data_in.read().range(15,8);

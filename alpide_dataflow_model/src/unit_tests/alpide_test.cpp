@@ -31,6 +31,7 @@ int sc_main(int argc, char** argv)
   int event_id = 0;
   bool continuous_mode = false;
   bool enable_clustering = true;
+  bool matrix_readout_speed = true;
 
   // Set up random number generators
   boost::random::mt19937 rand_gen;
@@ -50,7 +51,8 @@ int sc_main(int argc, char** argv)
                 128,
                 64,
                 enable_clustering,
-                continuous_mode);
+                continuous_mode,
+                matrix_readout_speed);
 
   AlpideDataParser parser("parser");
 
@@ -58,8 +60,8 @@ int sc_main(int argc, char** argv)
   sc_core::sc_set_time_resolution(1, sc_core::SC_NS);
   
   // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
-  sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true, true);
-  sc_signal<bool> strobe_n = true;
+  sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true);
+  sc_signal<bool> strobe_n; 
   sc_signal<bool> chip_ready;
 
   sc_signal<sc_uint<24> > alpide_serial_data;
@@ -67,17 +69,19 @@ int sc_main(int argc, char** argv)
   alpide.s_system_clk_in(clock_40MHz);
   alpide.s_strobe_n_in(strobe_n);
   alpide.s_chip_ready_out(chip_ready);
-  alpide.s_matrix_readout_clk_in(clock_matrix_readout);
   alpide.s_serial_data_output(alpide_serial_data);
 
   // Initialize SystemC stuff and connect signals to Alpide here
   parser.s_serial_data_in(alpide_serial_data);
   parser.s_clk_in(clock_40MHz);
 
+  strobe_n = true;
+
   wf = sc_create_vcd_trace_file("alpide_test_waveforms");
 
   //sc_trace(wf, clock_40MHz, "clock");
   //sc_trace(wf, clock_matrix_readout, "clock_matrix_readout");
+  sc_trace(wf, strobe_n, "STROBE_N");
   alpide.addTraces(wf, "");
   parser.addTraces(wf, "");
   
@@ -98,8 +102,7 @@ int sc_main(int argc, char** argv)
     return -1;
   }  
 
-  // Set strobe inactive again, and feed hits to the chip before resuming simulation
-  strobe_n = true;
+  // Feed hits to the chip before resuming simulation
 
   std::cout << "Creating event with 100 random hits" << std::endl;
   
@@ -125,9 +128,13 @@ int sc_main(int argc, char** argv)
   // Feed trigger event to Alpide
   e.feedHitsToChip(alpide);
 
+  // Set strobe inactive again to indicate that the chip can start working
+  // on reading out the event
+  strobe_n = true;  
 
   // Start/run for x number of clock cycles
   sc_core::sc_start(10, sc_core::SC_US);
+  
 
   // By now the chip object should have finished transmitting the hits,
   // so the parser should have one full hit
