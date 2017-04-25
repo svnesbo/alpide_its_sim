@@ -46,10 +46,16 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
   BOOST_CHECK_EQUAL(pixel.getRow(), test_row_num);
   BOOST_CHECK(pixel == PixelData(test_col_num, test_row_num));
 
-  BOOST_TEST_MESSAGE("Check matrix has zero hits and events remaining.");
+  BOOST_TEST_MESSAGE("Check matrix has zero hits remaining.");
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 0);
   BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 0);
-  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);  
+
+  BOOST_TEST_MESSAGE("Check matrix still has an (empty) event remaining.");  
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 1);
+
+  matrix.deleteEvent(event_time++);
+  BOOST_TEST_MESSAGE("Check matrix has zero events left after deleting event.");  
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);
 
   BOOST_TEST_MESSAGE("Attempting to read out another pixel, checking that there are no more hits.");
   pixel = matrix.readPixel(event_time++);
@@ -82,9 +88,11 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
   BOOST_CHECK_EQUAL(pixel.getCol(), 1+N_PIXEL_COLS_PER_REGION*11);
   BOOST_CHECK_EQUAL(pixel.getRow(), 432);
 
-  BOOST_TEST_MESSAGE("Check matrix has zero hits and events remaining.");
+  BOOST_TEST_MESSAGE("Check matrix has zero hits in one empty event left, and zero events after deletion.");
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 0);
   BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 0);
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 1);
+  matrix.deleteEvent(event_time++);
   BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);
   
   
@@ -118,9 +126,14 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
   pixel = matrix.readPixel(event_time++);
   BOOST_CHECK(pixel == pixel1); // Note, not same order as they were inserted due to pri encoder
 
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 2);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 2);
+  BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 0);
+
+  matrix.deleteEvent(event_time++);
   BOOST_CHECK_EQUAL(matrix.getNumEvents(), 1);
   BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 2);
-  BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 2);
+  BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 2);  
   
   pixel = matrix.readPixel(event_time++);
   BOOST_CHECK(pixel == pixel3); // Note, not same order as they were inserted due to pri encoder
@@ -132,9 +145,14 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
   pixel = matrix.readPixel(event_time++);
   BOOST_CHECK(pixel == pixel2); // Note, not same order as they were inserted due to pri encoder
 
-  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 1);
   BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 0);
   BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 0);
+
+  matrix.deleteEvent(event_time++);
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);
+  BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), 0);
+  BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), 0);    
   
   pixel = matrix.readPixel(event_time++);
   BOOST_CHECK(pixel == NoPixelHit);  
@@ -157,6 +175,8 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
     BOOST_CHECK_EQUAL(matrix.getHitTotalAllEvents(), N_REGIONS-(i+1));
     BOOST_CHECK_EQUAL(matrix.getHitsRemainingInOldestEvent(), N_REGIONS-(i+1));    
   }
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 1);
+  matrix.deleteEvent(event_time++);
   BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);
 
 
@@ -183,9 +203,17 @@ BOOST_AUTO_TEST_CASE( pixel_matrix_test )
     pixel = matrix.readPixel(event_time++);
     BOOST_CHECK(pixel == pixel_prioritized);
   }
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 1);
+  matrix.deleteEvent(event_time++);
+  BOOST_CHECK_EQUAL(matrix.getNumEvents(), 0);
+  
 
   BOOST_TEST_MESSAGE("Checking that setting a pixel when there are no events throws an exception.");
   BOOST_CHECK_THROW(matrix.setPixel(0, 0), std::out_of_range);
+
+
+  BOOST_TEST_MESSAGE("Checking that trying to delete an event when there are no events throws an exception.");
+  BOOST_CHECK_THROW(matrix.deleteEvent(event_time++), std::out_of_range);
 
 
   BOOST_TEST_MESSAGE("Checking that setting pixels out of range throws exception.");

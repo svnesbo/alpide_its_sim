@@ -56,7 +56,8 @@ void PixelMatrix::flushOldestEvent(void)
 
 ///@brief Delete the oldest event from the MEB (if there are any events at all,
 ///       calling this function with no events is fine).
-///@param  time_now Simulation time when this readout is occuring
+///@param time_now Simulation time when this readout is occuring
+///@throw out_of_range If there are no events, or if col or row is outside the allowed range
 void PixelMatrix::deleteEvent(uint64_t time_now)
 {
   if(getNumEvents() > 0) {
@@ -69,6 +70,12 @@ void PixelMatrix::deleteEvent(uint64_t time_now)
     mColumnBuffsPixelsLeft.pop_front();
     mColumnBuffs.pop();
   }
+#ifdef EXCEPTION_CHECKS
+  // Out of range exception check
+  else {
+    throw std::out_of_range("No events");
+  }
+#endif  
 }
 
 
