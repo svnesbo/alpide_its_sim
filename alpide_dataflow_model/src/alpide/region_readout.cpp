@@ -89,7 +89,13 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
   case RO_FSM::IDLE:
     s_frame_readout_done_out = !s_frame_readout_start_in;
 
-    if(s_frame_readout_start_in) {
+    // Stay in this state and flush region fifo when in data overrun mode
+    if(s_readout_abort_in) {
+      flushRegionFifo();
+      s_region_matrix_empty_debug = false;
+      s_rru_readout_state = RO_FSM::IDLE;      
+    }
+    else if(s_frame_readout_start_in) {
       s_region_matrix_empty_debug = region_matrix_empty = mPixelMatrix->regionEmpty(mRegionId);
 
       // Start readout if this region has hits, otherwise just output region trailer
@@ -99,7 +105,8 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
       } else { 
         s_rru_readout_state = RO_FSM::REGION_TRAILER;
       }
-    } else {
+    }
+    else {
       s_region_matrix_empty_debug = false;
       s_rru_readout_state = RO_FSM::IDLE;
     }
@@ -311,6 +318,18 @@ bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
   }
 
   return region_matrix_empty;
+}
+
+
+///@brief Flush the region fifo. Used in data overrun mode. The function assumes that
+///       the fifo can be flushed in one clock cycle.
+void RegionReadoutUnit::flushRegionFifo(void)
+{
+  AlpideDataWord data;
+  
+  while(s_region_fifo.used() > 0) {
+    s_region_fifo.nb_get(data);
+  }
 }
 
 

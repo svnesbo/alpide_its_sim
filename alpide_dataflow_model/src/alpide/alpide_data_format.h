@@ -244,8 +244,24 @@ public:
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
   }
-  AlpideChipTrailer(FrameStartFifoWord& frame_start,
-                    FrameEndFifoWord& frame_end) {
+  AlpideChipTrailer(FrameStartFifoWord frame_start,
+                    FrameEndFifoWord frame_end,
+                    bool fatal_state,
+                    bool readout_abort) {
+    // Special combinations of the readout flags are observed in
+    // data overrun mode (ie. readout abort is set), and in fatal mode.
+    if(fatal_state) {
+      frame_start.busy_violation = true;
+      frame_end.flushed_incomplete = true;
+      frame_end.strobe_extended = true;
+      frame_end.busy_transition = false;
+    } else if(readout_abort) {
+      frame_start.busy_violation = true;
+      frame_end.flushed_incomplete = true;
+      frame_end.strobe_extended = false;
+      frame_end.busy_transition = false;
+    }
+      
     data[2] = DW_CHIP_TRAILER
       | (frame_start.busy_violation ? READOUT_FLAGS_BUSY_VIOLATION : 0)
       | (frame_end.flushed_incomplete ? READOUT_FLAGS_FLUSHED_INCOMPLETE : 0)

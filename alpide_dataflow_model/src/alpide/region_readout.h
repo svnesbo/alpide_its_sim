@@ -137,6 +137,7 @@ private:
 
 private:
   bool readoutNextPixel(PixelMatrix& matrix);
+  void flushRegionFifo(void);
   
 public:
   RegionReadoutUnit(sc_core::sc_module_name name, PixelMatrix* matrix,

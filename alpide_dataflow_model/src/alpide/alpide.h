@@ -88,8 +88,6 @@ public:
 private:
   tlm::tlm_fifo<FrameStartFifoWord> s_frame_start_fifo;
   tlm::tlm_fifo<FrameEndFifoWord> s_frame_end_fifo;
-  //sc_fifo<FrameStartFifoWord> s_frame_start_fifo;
-  //sc_fifo<FrameEndFifoWord> s_frame_end_fifo;
 
   FrameEndFifoWord mNextFrameEndWord;
 

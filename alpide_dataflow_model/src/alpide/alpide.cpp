@@ -123,6 +123,11 @@ void Alpide::strobeInput(void)
   if(s_strobe_n_in.read() == false && mStrobeActive == false) {   // Strobe falling edge - start of frame/event, strobe is active low
     mStrobeActive = true;
 
+    ///@todo What should I do in data overrun mode (when readout_abort is set)?
+    ///      Should I still accept events? I need the frame end word to be added, for the normal
+    ///      transmission of CHIP HEADER/TRAILER words. This is currently done by the frameReadout()
+    ///      method, which requires there to be events in the MEB.
+    ///@todo Should rejected triggers count be increased in data overrun mode?
     if(mContinuousMode) {
       if(getNumEvents() == 3) {
         // Reject events if all MEBs are full in continuous
@@ -274,8 +279,12 @@ void Alpide::frameReadout(void)
     // Inhibit done signal the cycle we are giving out the start signal
     s_frame_readout_done_all = getFrameReadoutDone() && !s_frame_readout_start;    
 
-
-    if(s_frame_readout_done_all) {
+    // Go straigth to REGION_READOUT_DONE in data overrun mode,
+    // so that we can clear the multi event buffers.
+    if(s_readout_abort) {
+      s_fromu_readout_state = REGION_READOUT_DONE;
+      s_flushed_incomplete = false;
+    } else if(s_frame_readout_done_all) {
       mNextFrameEndWord.flushed_incomplete = s_flushed_incomplete;
 
       ///@todo Strobe extended not implemented yet

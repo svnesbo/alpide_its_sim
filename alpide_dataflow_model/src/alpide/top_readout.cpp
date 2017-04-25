@@ -59,8 +59,11 @@ bool TopReadoutUnit::getAllRegionsEmpty(void)
 ///@image html TRU_state_machine.png
 void TopReadoutUnit::topRegionReadoutProcess(void)
 {
-  int readout_flags;
   AlpideDataWord data_out;
+
+  // Busy violation bit is included in frame start word
+  // The bits in the frame end word are all false in busy violation
+  const FrameEndFifoWord busyv_frame_end_word = {false, false, false};  
 
   unsigned int current_region;
   bool no_regions_valid = !getNextRegion(current_region);
@@ -157,12 +160,12 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 
     s_frame_start_fifo_output->nb_get(mCurrentFrameStartWord);
     
-    // Busy violation bit is included in frame start word
-    ///@todo Special busy violation frame end word? I'm just sending some old
-    ///      frame word here??
-    data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
+    data_out = AlpideChipTrailer(mCurrentFrameStartWord,
+                                 busyv_frame_end_word,
+                                 s_fatal_state_in,
+                                 s_readout_abort_in);    
+    
     s_dmu_fifo_input->nb_write(data_out);
-
     s_tru_state = IDLE;
     break;
       
@@ -210,22 +213,12 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       // "Pop" the frame from the frame FIFO
       s_frame_start_fifo_output->nb_get(mCurrentFrameStartWord);
       s_frame_end_fifo_output->nb_get(mCurrentFrameEndWord);
-
-      // Special combinations of the readout flags are observed in
-      // data overrun mode (ie. readout abort is set), and in fatal mode.
-      if(s_fatal_state_in) {
-        mCurrentFrameStartWord.busy_violation = true;
-        mCurrentFrameEndWord.flushed_incomplete = true;
-        mCurrentFrameEndWord.strobe_extended = true;
-        mCurrentFrameEndWord.busy_transition = false;
-      } else if(s_readout_abort_in) {
-        mCurrentFrameStartWord.busy_violation = true;
-        mCurrentFrameEndWord.flushed_incomplete = true;
-        mCurrentFrameEndWord.strobe_extended = false;
-        mCurrentFrameEndWord.busy_transition = false;
-      }
       
-      data_out = AlpideChipTrailer(mCurrentFrameStartWord, mCurrentFrameEndWord);
+      data_out = AlpideChipTrailer(mCurrentFrameStartWord,
+                                   mCurrentFrameEndWord,
+                                   s_fatal_state_in,
+                                   s_readout_abort_in);
+      
       s_dmu_fifo_input->nb_write(data_out);
       
       s_tru_state = IDLE;
