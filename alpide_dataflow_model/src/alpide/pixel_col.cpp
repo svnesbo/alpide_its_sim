@@ -7,6 +7,21 @@
 
 #include "pixel_col.h"
 #include <stdexcept>
+#include <iostream>
+
+
+///@brief Constructor for pixel data based on region number, priority encoder number in region,
+///       and pixel address in priority encoder. This is how the data are specified when they
+///       are transmitted as data long/short words.
+///@param region Region number
+///@param pri_enc Priority encoder number in region (ie. double column number in region).
+///@param addr Prioritized address in priority encoder
+PixelData::PixelData(int region, int pri_enc, int addr)
+{
+  mRow = addr >> 1;
+  mCol = ((addr&1) ^ (mRow&1)); // LSB of column
+  mCol = (region << 5) | (pri_enc << 1) | mCol;
+}
 
 
 bool PixelData::operator==(const PixelData& rhs) const
@@ -68,6 +83,12 @@ void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 }
 
 
+///@brief Clear (flush) contents of double column 
+void PixelDoubleColumn::clear(void) {
+  pixelColumn.clear();
+}
+
+
 ///@brief Read out the next pixel from this double column, and erase it from the MEB.
 ///        Pixels are read out in an order corresponding to that of the priority encoder
 ///        in the Alpide chip.
@@ -95,7 +116,7 @@ PixelData PixelDoubleColumn::readPixel(void) {
 bool PixelDoubleColumn::inspectPixel(unsigned int col_num, unsigned int row_num) {
   bool retval = false;
 
-#ifdef EXCEPTION_CHECK
+#ifdef EXCEPTION_CHECKS
   // Out of range exception check
   if(row_num >= N_PIXEL_ROWS) {
     throw std::out_of_range ("row_num");

@@ -1,8 +1,10 @@
 [alpide]
-matrix_readout_period_ns=50
+clustering_enable=true
+dmu_fifo_size=64
+matrix_readout_speed_fast=true
 pixel_shaping_active_time_ns=6000
-pixel_shaping_dead_time_ns=500
-region_fifo_size=256
+pixel_shaping_dead_time_ns=200
+region_fifo_size=128
 region_size=32
 
 [data_output]
@@ -14,18 +16,18 @@ write_vcd_clock=false
 average_event_rate_ns=10000
 bunch_crossing_rate_ns=25
 hit_density_min_bias_per_cm2=19
-hit_multiplicity_distribution_file=multipl_dist_fit.txt
+hit_multiplicity_distribution_file=multipl_dist_raw_bins.txt
 hit_multiplicity_distribution_type=discrete
 hit_multiplicity_gauss_avg=2000
 hit_multiplicity_gauss_stddev=350
-strobe_active_length_ns=4800
+strobe_active_length_ns=100
 strobe_inactive_length_ns=200
 trigger_delay_ns=1000
-trigger_filter_enable=true
-trigger_filter_time_ns=2000
+trigger_filter_enable=false
+trigger_filter_time_ns=1000
 
 [simulation]
 continuous_mode=false
 n_chips=1
-n_events=10000
+n_events=1000
 random_seed=0

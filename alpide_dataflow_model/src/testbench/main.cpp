@@ -9,13 +9,33 @@
 #include "../event/event_generator.h"
 #include "../alpide/alpide.h"
 #include "stimuli.h"
+
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
+#pragma GCC diagnostic pop
+
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include <set>
 #include <iostream>
 #include <chrono>
 #include <ctime>
 #include <QDir>
+#include <unistd.h>
+#include <signal.h>
+
+volatile bool g_terminate_program = false;
+
+
+///@brief Callback function for CTRL+C (SIGINT) signal, used for exiting the simulation
+/// nicely and not lose data if the user presses CTRL+C on the command line.
+void signal_callback_handler(int signum)
+{
+  std::cout << std::endl << "Caught signal " << signum << ", terminating simulation." << std::endl;
+
+  g_terminate_program = true;
+}
 
 
 ///@brief Create output directory "$PWD/sim_output/Run <timestamp>".
@@ -58,6 +78,9 @@ int sc_main(int argc, char** argv)
   // Create output data directory
   std::string output_dir_str = create_output_dir(simulation_settings);
 
+  // Register a signal and signal handler, so that we exit the simulation nicely
+  // and not lose data if the user presses CTRL+C on the command line
+  signal(SIGINT, signal_callback_handler);  
   
   // Setup SystemC simulation
   Stimuli stimuli("stimuli", simulation_settings, output_dir_str);
@@ -68,13 +91,7 @@ int sc_main(int argc, char** argv)
   // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
   sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true);
 
-  int matrix_readout_period = simulation_settings->value("alpide/matrix_readout_period_ns").toInt();
-  sc_clock clock_matrix_readout("clock_matrix_readout",
-                                matrix_readout_period,
-                                0.5, 2, true);
-
   stimuli.clock(clock_40MHz);
-  stimuli.matrix_readout_clock(clock_matrix_readout);
 
   // Open VCD file
   if(simulation_settings->value("data_output/write_vcd").toBool() == true) {
@@ -87,7 +104,6 @@ int sc_main(int argc, char** argv)
       ///@todo Add a warning here if user tries to simulate over 1000 events with this option enabled,
       ///      because it will consume 100s of megabytes
       sc_trace(wf, clock_40MHz, "clock");
-      sc_trace(wf, clock_matrix_readout, "clock_matrix_readout");
     }
   }
 

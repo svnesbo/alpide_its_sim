@@ -11,7 +11,13 @@
  */
 
 #include "trigger_event.h"
+
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
+#pragma GCC diagnostic pop
+
 #include <sstream>
 #include <fstream>
 
@@ -66,21 +72,18 @@ void TriggerEvent::feedHitsToChip(PixelMatrix &matrix) const
   if(mEventFilteredFlag == false && mHitSet.size() > 0) {
     int64_t time_now = sc_time_stamp().value();
 
-    // Only feed the event to the Alpide chip if it allowed us to start a new event
-    if(matrix.newEvent(time_now)) {
 #ifdef DEBUG_OUTPUT
-      std::cout << "@ " << sc_time_stamp() << ": TriggerEvent: feeding trigger event number: ";
-      std::cout << mEventId << " to chip." << std::endl;
+    std::cout << "@ " << sc_time_stamp() << ": TriggerEvent: feeding trigger event number: ";
+    std::cout << mEventId << " to chip." << std::endl;
 #endif
     
-      for(auto it = mHitSet.begin(); it != mHitSet.end(); it++)
-        matrix.setPixel(it->getCol(), it->getRow());
-    }
+    for(auto it = mHitSet.begin(); it != mHitSet.end(); it++)
+      matrix.setPixel(it->getCol(), it->getRow());
   }
 }
 
 
-///@todo Revisit this function, since I have changed this class a lot...
+///@todo Note in use.. Revisit this function, since I have changed this class a lot...
 ///@brief Write this event to file, in XML format.
 ///       The filename will be: "path/event<mEventId>.xml"
 ///@param path Path to store file in. 

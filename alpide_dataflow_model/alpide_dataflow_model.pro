@@ -20,9 +20,12 @@ QMAKE_CFLAGS += -O2
 
 # Input
 HEADERS += src/alpide/alpide_constants.h \
+           src/alpide/alpide_data_format.h \
            src/alpide/alpide.h \
            src/alpide/pixel_col.h \
            src/alpide/pixel_matrix.h \
+           src/alpide/region_readout.h \
+           src/alpide/top_readout.h \
            src/event/trigger_event.h \
            src/event/event_generator.h \
            src/event/hit.h \
@@ -31,6 +34,8 @@ HEADERS += src/alpide/alpide_constants.h \
 SOURCES += src/alpide/alpide.cpp \
            src/alpide/pixel_col.cpp \
            src/alpide/pixel_matrix.cpp \
+           src/alpide/region_readout.cpp \
+           src/alpide/top_readout.cpp \
            src/event/trigger_event.cpp \
            src/event/event_generator.cpp \
            src/event/hit.cpp \

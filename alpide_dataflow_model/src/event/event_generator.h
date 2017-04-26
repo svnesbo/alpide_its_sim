@@ -9,7 +9,13 @@
 #define EVENT_GENERATOR_H
 
 #include "trigger_event.h"
+
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
+#pragma GCC diagnostic pop
+
 #include <QSettings>
 #include <queue>
 #include <deque>
@@ -83,6 +89,8 @@ private:
   /// Will not be updated if trigger was filtered out.
   int64_t mLastTriggerEventStartTimeNs = 0;
   int64_t mLastTriggerEventEndTimeNs = 0;
+
+  bool mStrobeActive = false;
 
   /// Start time of next trigger event (start time recorded on STROBE rising edge).
   /// Event actually created and hits assigned to it on STROBE falling edge.
