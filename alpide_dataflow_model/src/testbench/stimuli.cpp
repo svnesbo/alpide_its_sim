@@ -84,6 +84,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
 
   int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
   int dmu_fifo_size = settings->value("alpide/dmu_fifo_size").toInt();
+  int dtu_delay = settings->value("alpide/dtu_delay").toInt();
   bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
   bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
   
@@ -96,6 +97,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
                                  i,
                                  region_fifo_size,
                                  dmu_fifo_size,
+                                 dtu_delay,
                                  enable_clustering,
                                  mContinuousMode,
                                  matrix_readout_speed);

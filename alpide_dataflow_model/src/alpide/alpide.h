@@ -42,9 +42,12 @@ public:
   
   sc_out<sc_uint<24>> s_serial_data_output;
   
-  ///@todo Should these signals be private maybe?
+private:
+  sc_signal<sc_uint<8>> s_fromu_readout_state;
+
   ///@brief Number of events stored in the chip at any given time
   sc_signal<sc_uint<8>> s_event_buffers_used_debug;
+  
   sc_signal<sc_uint<8>> s_frame_start_fifo_size_debug;
   sc_signal<sc_uint<8>> s_frame_end_fifo_size_debug;
 
@@ -75,14 +78,21 @@ public:
   
   
   sc_fifo<AlpideDataWord> s_dmu_fifo;
+
+  ///@brief FIFO used to represent the encoding delay in the DTU
+  sc_fifo<AlpideDataWord> s_dtu_delay_fifo;
+
+  sc_signal<sc_uint<24>> s_serial_data_dtu_input;  
   
   sc_signal<sc_uint<8> > s_dmu_fifo_size;
-  sc_signal<bool> s_chip_ready_internal;
+  sc_signal<bool> s_chip_ready_internal;  
 
-private:
   tlm::tlm_fifo<FrameStartFifoWord> s_frame_start_fifo;
   tlm::tlm_fifo<FrameEndFifoWord> s_frame_end_fifo;
 
+  std::vector<RegionReadoutUnit*> mRRUs;
+  TopReadoutUnit* mTRU;
+  
   FrameEndFifoWord mNextFrameEndWord;
 
   enum FROMU_readout_state_t {
@@ -91,8 +101,6 @@ private:
     WAIT_FOR_REGION_READOUT = 2,
     REGION_READOUT_DONE = 3
   };
-
-  sc_signal<sc_uint<8>> s_fromu_readout_state;  
     
 private:
   int mChipId;
@@ -114,10 +122,6 @@ private:
   ///       the 3rd one is filled. This variable counts up in that case.
   uint64_t mTriggerEventsFlushed = 0;  
 
-  std::vector<RegionReadoutUnit*> mRRUs;
-  TopReadoutUnit* mTRU;
-
-
   void mainProcess(void);  
   void strobeInput(void);
   void frameReadout(void); // FROMU    
@@ -127,8 +131,8 @@ private:
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-         int dmu_fifo_size, bool enable_clustering, bool continuous_mode,
-         bool matrix_readout_speed);
+         int dmu_fifo_size, int dtu_delay_cycles, bool enable_clustering,
+         bool continuous_mode, bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
   uint64_t getTriggerEventsAcceptedCount(void) const {return mTriggerEventsAccepted;}
