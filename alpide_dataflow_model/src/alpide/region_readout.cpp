@@ -13,10 +13,12 @@
 
 SC_HAS_PROCESS(RegionReadoutUnit);
 ///@brief Constructor for RegionReadoutUnit class
-///@param name SystemC module name
-///@param region_num The region number that this RRU is assigned to
-///@param fifo_size  Size limit on the RRU's FIFO. 0 for no limit.
-///@param cluster_enable Enable/disable clustering and use of DATA LONG data words
+///@param[in] name SystemC module name
+///@param[in] matrix Reference to pixel matrix
+///@param[in] region_num The region number that this RRU is assigned to
+///@param[in] fifo_size  Size limit on the RRU's FIFO. 0 for no limit.
+///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
+///@param[in] cluster_enable Enable/disable clustering and use of DATA LONG data words
 RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
                                      PixelMatrix* matrix,
                                      unsigned int region_num,
@@ -254,7 +256,8 @@ void RegionReadoutUnit::regionHeaderFSM(void)
 ///       send DATA SHORT words. See the flowchart for a better explanation of
 ///       how this function works.
 ///@image html RRU_pixel_readout.png
-///@param matrix Reference to pixel matrix
+///@image latex RRU_pixel_readout.png "Flowchart for pixel readout and clustering in readoutNextPixel()"
+///@param[in] matrix Reference to pixel matrix
 ///@return False if matrix is empty and no pixel was read out
 bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
 {
@@ -339,8 +342,8 @@ void RegionReadoutUnit::flushRegionFifo(void)
 
 
 ///@brief Add SystemC signals to log in VCD trace file.
-///@param wf Pointer to VCD trace file object
-///@param name_prefix Name prefix to be added to all the trace names
+///@param[in,out] wf Pointer to VCD trace file object
+///@param[in] name_prefix Name prefix to be added to all the trace names
 void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
 {
   std::stringstream ss;

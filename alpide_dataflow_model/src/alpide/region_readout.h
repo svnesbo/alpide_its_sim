@@ -6,6 +6,10 @@
  *
  */
 
+
+///@defgroup region_readout Region Readout
+///@ingroup alpide
+///@{
 #ifndef REGION_READOUT_H
 #define REGION_READOUT_H
 
@@ -59,9 +63,6 @@ namespace HEADER_FSM {
 class RegionReadoutUnit : sc_core::sc_module
 {
 public:
-  ///@defgroup SystemC ports
-  ///@{
-  
   ///@brief 40MHz LHC clock
   sc_in_clk s_system_clk_in;
   
@@ -83,7 +84,7 @@ public:
   sc_out<bool> s_region_fifo_empty_out;
   sc_out<bool> s_region_valid_out;
   sc_out<AlpideDataWord> s_region_data_out;
-  ///@}
+
 private:  
   sc_signal<sc_uint<8>> s_rru_readout_state;
   sc_signal<sc_uint<8>> s_rru_valid_state;
@@ -151,5 +152,5 @@ public:
 };
 
 
-
 #endif
+///@}

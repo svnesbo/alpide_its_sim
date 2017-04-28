@@ -7,8 +7,13 @@
  *         Pixel matrix class comprises all the pixel regions, which allows to
  *         interface in terms of absolute coordinates with the pixel matrix.
  *         Special version for the Alpide Dataflow SystemC model.
+ *
  */
 
+
+///@defgroup pixel_stuff Pixel Matrix, Columns, and Priority Encoder
+///@ingroup alpide
+///@{
 #ifndef PIXEL_MATRIX_H
 #define PIXEL_MATRIX_H
 
@@ -67,3 +72,4 @@ public:
 
 
 #endif
+///@}

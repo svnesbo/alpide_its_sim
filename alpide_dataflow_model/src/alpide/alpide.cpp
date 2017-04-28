@@ -14,12 +14,13 @@
 
 SC_HAS_PROCESS(Alpide);
 ///@brief Constructor for Alpide.
-///@param name    SystemC module name
-///@param chip_id Desired chip id
-///@param region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
-///@param dmu_fifo_size Depth of DMU (Data Management Unit) FIFO.
-///@param enable_clustering Enable clustering and use of DATA LONG words
-///@param continuous_mode Enable continuous mode (triggered mode if false)
+///@param[in] name    SystemC module name
+///@param[in] chip_id Desired chip id
+///@param[in] region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
+///@param[in] dmu_fifo_size Depth of DMU (Data Management Unit) FIFO.
+///@param[in] enable_clustering Enable clustering and use of DATA LONG words
+///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
+///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
                int dmu_fifo_size, bool enable_clustering, bool continuous_mode,
                bool matrix_readout_speed)
@@ -374,8 +375,8 @@ void Alpide::updateBusyStatus(void)
 
 
 ///@brief Add SystemC signals to log in VCD trace file.
-///@param wf Pointer to VCD trace file object
-///@param name_prefix Name prefix to be added to all the trace names
+///@param[in,out] wf Pointer to VCD trace file object
+///@param[in] name_prefix Name prefix to be added to all the trace names
 void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 {
   std::stringstream ss;

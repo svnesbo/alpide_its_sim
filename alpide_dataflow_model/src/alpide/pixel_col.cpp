@@ -13,9 +13,9 @@
 ///@brief Constructor for pixel data based on region number, priority encoder number in region,
 ///       and pixel address in priority encoder. This is how the data are specified when they
 ///       are transmitted as data long/short words.
-///@param region Region number
-///@param pri_enc Priority encoder number in region (ie. double column number in region).
-///@param addr Prioritized address in priority encoder
+///@param[in] region Region number
+///@param[in] pri_enc Priority encoder number in region (ie. double column number in region).
+///@param[in] addr Prioritized address in priority encoder
 PixelData::PixelData(int region, int pri_enc, int addr)
 {
   mRow = addr >> 1;
@@ -67,8 +67,8 @@ bool PixelData::operator<=(const PixelData& rhs) const
   
 
 ///@brief Set a pixel in a pixel double column object.
-///@param col_num column number of pixel, must be 0 or 1.
-///@param row_num row number of pixel, must be in the range 0 to N_PIXEL_ROWS-1
+///@param[in] col_num column number of pixel, must be 0 or 1.
+///@param[in] row_num row number of pixel, must be in the range 0 to N_PIXEL_ROWS-1
 ///@throws std::out_of_range if col_num or row_num is not in the specified range.
 void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 {
@@ -90,8 +90,8 @@ void PixelDoubleColumn::clear(void) {
 
 
 ///@brief Read out the next pixel from this double column, and erase it from the MEB.
-///        Pixels are read out in an order corresponding to that of the priority encoder
-///        in the Alpide chip.
+///       Pixels are read out in an order corresponding to that of the priority encoder
+///       in the Alpide chip.
 ///@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
 ///        (PixelData object with coords = (-1,-1)).
 PixelData PixelDoubleColumn::readPixel(void) {
@@ -109,8 +109,8 @@ PixelData PixelDoubleColumn::readPixel(void) {
 
 ///@brief Check if there is a hit or not for the pixel specified by col_num and row_num,
 ///       without deleting the pixel from the MEB.
-///@param col_num column number of pixel, must be 0 or 1.
-///@param row_num row number of pixel, must be in the range 0 to N_PIXEL_ROWS-1
+///@param[in] col_num column number of pixel, must be 0 or 1.
+///@param[in] row_num row number of pixel, must be in the range 0 to N_PIXEL_ROWS-1
 ///@return True if there is a hit, false if not.
 ///@throws std::out_of_range if col_num or row_num is not in the specified range.
 bool PixelDoubleColumn::inspectPixel(unsigned int col_num, unsigned int row_num) {

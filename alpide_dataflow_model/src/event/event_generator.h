@@ -5,6 +5,8 @@
  * @brief  A simple event generator for Alpide SystemC simulation model.
  */
 
+///@defgroup event_generation Event Generation
+///@{
 #ifndef EVENT_GENERATOR_H
 #define EVENT_GENERATOR_H
 
@@ -178,5 +180,5 @@ private:
 };
 
 
-
 #endif
+///@}

@@ -19,16 +19,17 @@ Hit::Hit()
 }
 
 
-///@brief Constructor that calculates active start and end times based on current simulation time, and
-///       dead times and active times.
-///@param col Column number.
-///@param row Row number.
-///@param time_now_ns Time (in nanoseconds) when this hit occured (ie. current simulation time).
-///@param dead_time_ns Dead time (in nanoseconds) before the hit "becomes active". This is equivalent to the
-///       time it takes for the analog signal to go above the threshold after a hit.
-///@param active_time_ns Specifies (in nanoseconds) how long the hit stays active (ie. pixel is triggered)
-///       after the dead time has passed. This is equivalent to the time the analog pulse into the
-///       discriminator/comparator is over threshold.
+///@brief Constructor that calculates active start and end times based on current simulation time,
+///       and dead times and active times.
+///@param[in] col Column number.
+///@param[in] row Row number.
+///@param[in] time_now_ns Time (in nanoseconds) when this hit occured (ie. current simulation time).
+///@param[in] dead_time_ns Dead time (in nanoseconds) before the hit "becomes active".
+///           This is equivalent to the time it takes for the analog signal to go above
+///           the threshold after a hit.
+///@param[in] active_time_ns Specifies (in nanoseconds) how long the hit stays active (ie. pixel is
+///           triggered) after the dead time has passed. This is equivalent to the amount time the
+///           analog pulse into the discriminator/comparator is over threshold.
 Hit::Hit(int col, int row, int64_t time_now_ns, int dead_time_ns, int active_time_ns)
   : PixelData(col, row)
 {
@@ -38,11 +39,11 @@ Hit::Hit(int col, int row, int64_t time_now_ns, int dead_time_ns, int active_tim
 
 
 ///@brief Constructor that takes active start and end times directly.
-///@param col Column number.
-///@param row Row number.
-///@param time_active_start_ns Absolute simulation time (in nanoseconds) for when the hit becomes active, which
+///@param[in] col Column number.
+///@param[in] row Row number.
+///@param[in] time_active_start_ns Absolute simulation time (in nanoseconds) for when the hit becomes active, which
 ///       is equivalent to the analog signal going above the threshold after a hit.
-///@param time_active_end_ns Absolute simulation time (in nanoseconds) for when the hit stops being active, which
+///@param[in] time_active_end_ns Absolute simulation time (in nanoseconds) for when the hit stops being active, which
 ///       is equivalent to when the analog signal goes below the threshold again after having been active.
 Hit::Hit(int col, int row, int64_t time_active_start_ns, int64_t time_active_end_ns)
   : PixelData(col, row)

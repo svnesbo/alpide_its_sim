@@ -5,9 +5,11 @@
  * @brief  Header file for Alpide class.
  */
 
+
+///@defgroup alpide Alpide SystemC Model
+///@{
 #ifndef ALPIDE_H
 #define ALPIDE_H
-
 
 #include "alpide_data_format.h"
 #include "pixel_matrix.h"
@@ -31,9 +33,6 @@
 class Alpide : sc_core::sc_module, public PixelMatrix
 {
 public:
-  ///@defgroup SystemC ports
-  ///@{
-  
   ///@brief 40MHz LHC clock
   sc_in_clk s_system_clk_in;
   sc_in<bool> s_strobe_n_in;
@@ -42,12 +41,8 @@ public:
   sc_out<bool> s_chip_ready_out;
   
   sc_out<sc_uint<24>> s_serial_data_output;
-  ///@}
   
   ///@todo Should these signals be private maybe?
-  ///@defgroup SystemC signals
-  ///@{
-
   ///@brief Number of events stored in the chip at any given time
   sc_signal<sc_uint<8>> s_event_buffers_used_debug;
   sc_signal<sc_uint<8>> s_frame_start_fifo_size_debug;
@@ -83,7 +78,6 @@ public:
   
   sc_signal<sc_uint<8> > s_dmu_fifo_size;
   sc_signal<bool> s_chip_ready_internal;
-  ///@}
 
 private:
   tlm::tlm_fifo<FrameStartFifoWord> s_frame_start_fifo;
@@ -143,3 +137,4 @@ public:
 
 
 #endif
+///@}

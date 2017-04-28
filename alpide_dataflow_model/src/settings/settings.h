@@ -8,6 +8,9 @@
  *         be used as default values or for generating the settings file if it is missing.
  */
 
+
+///@defgroup settings Settings
+///@{
 #ifndef _SETTINGS_H
 #define _SETTINGS_H
 
@@ -53,3 +56,4 @@ void setDefaultSimSettings(QSettings *readoutSimSettings);
 
 
 #endif
+///@}

@@ -10,6 +10,9 @@
 
 
 SC_HAS_PROCESS(TopReadoutUnit);
+///@brief Constructor for TopReadoutUnit
+///@param[in] name SystemC module name
+///@param[in] chip_id Chip ID number
 TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id)
   : sc_core::sc_module(name)
   , mChipId(chip_id)
@@ -22,7 +25,7 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
 
 
 ///@brief Find the first valid region, and return its region id.
-///@param region_out Reference to an integer that will hold the region id.
+///@param[out] region_out Reference to an integer that will hold the region id.
 ///@return True if a valid region was found.
 bool TopReadoutUnit::getNextRegion(unsigned int& region_out)
 {
@@ -235,8 +238,8 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 
 
 ///@brief Add SystemC signals to log in VCD trace file.
-///@param wf Pointer to VCD trace file object
-///@param name_prefix Name prefix to be added to all the trace names
+///@param[in,out] wf Pointer to VCD trace file object
+///@param[in] name_prefix Name prefix to be added to all the trace names
 void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
 {
   std::stringstream ss;

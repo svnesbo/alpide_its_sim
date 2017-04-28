@@ -7,6 +7,9 @@
  */
 
 
+///@defgroup data_parser Alpide Data Parser
+///@ingroup alpide
+///@{
 #ifndef ALPIDE_DATA_PARSER_H
 #define ALPIDE_DATA_PARSER_H
 
@@ -117,8 +120,5 @@ public:
 };
 
 
-  
-
-
-
 #endif
+///@}
