@@ -14,19 +14,22 @@
 
 SC_HAS_PROCESS(Alpide);
 ///@brief Constructor for Alpide.
-///@param name    SystemC module name
-///@param chip_id Desired chip id
-///@param region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
-///@param dmu_fifo_size Depth of DMU (Data Management Unit) FIFO.
-///@param enable_clustering Enable clustering and use of DATA LONG words
-///@param continuous_mode Enable continuous mode (triggered mode if false)
+///@param[in] name    SystemC module name
+///@param[in] chip_id Desired chip id
+///@param[in] region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
+///@param[in] dmu_fifo_size Depth of DMU (Data Management Unit) FIFO.
+///@param[in] dtu_delay_cycles Number of clock cycle delays associated with Data Transfer Unit (DTU)
+///@param[in] enable_clustering Enable clustering and use of DATA LONG words
+///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
+///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               int dmu_fifo_size, bool enable_clustering, bool continuous_mode,
-               bool matrix_readout_speed)
+               int dmu_fifo_size, int dtu_delay_cycles, bool enable_clustering,
+               bool continuous_mode, bool matrix_readout_speed)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
   , s_chip_ready_out("chip_ready_out")
   , s_dmu_fifo(dmu_fifo_size)
+  , s_dtu_delay_fifo(dtu_delay_cycles+1)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
 {
@@ -89,8 +92,11 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   mTRU->s_frame_end_fifo_output(s_frame_end_fifo);
   mTRU->s_dmu_fifo_input(s_dmu_fifo);  
   
-  // SC_METHOD(strobeProcess);
-  // sensitive << s_strobe_n_in;
+  // Initialize DTU delay FIFO with comma words
+  AlpideDataWord dw = AlpideComma();
+  while(s_dtu_delay_fifo.num_free() > 0)
+    s_dtu_delay_fifo.nb_write(dw);
+  
 
   SC_METHOD(mainProcess);
   sensitive_pos << s_system_clk_in;
@@ -320,23 +326,45 @@ void Alpide::frameReadout(void)
 }
 
 
-///@brief Read out DMU FIFOs and output data on "serial" line.
+///@brief Read out data from Data Management Unit (DMU) FIFO, feed data through
+///       Data Transfer Unit (DTU) FIFO, and output data on "serial" line.
+///       Data is not actually serialized here, it is transmitted as 24-bit words.
+///
+///       DMU FIFO --> DTU FIFO --> Data output
+/// 
+///       The Data Transfer Unit (DTU), which normally serializes data, is here represented with
+///       a dummy FIFO to implement a delay element. The DTU Delay FIFO will always be filled, and
+///       should be configured to have a size equivalent to the delay in terms of number of clock
+///       cycles that the DTU in the Alpide chip adds to data transmission.
+///
 ///       Should be called one time per clock cycle.
-///@todo Implement more advanced data transmission method.
+///@todo  There needs to be a Busy FIFO, and this method needs to pick words from either
+///       that FIFO or from the DMU FIFO.
 void Alpide::dataTransmission(void)
 {
-  AlpideDataWord dw = AlpideComma();
+  AlpideDataWord dw_dtu = AlpideComma();
 
   s_dmu_fifo_size = s_dmu_fifo.num_available();
 
+  // DTU FIFO should always be filled,
+  // but in case it is not we will output a comma instead
+  if(s_dtu_delay_fifo.nb_read(dw_dtu) == false) {
+    dw_dtu = AlpideComma();
+  }
+  
+  sc_uint<24> data_out = dw_dtu.data[2] << 16 | dw_dtu.data[1] << 8 | dw_dtu.data[0];
+  s_serial_data_output = data_out;
+
+  AlpideDataWord dw_dmu = AlpideComma();
+  
   // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
-  if(s_dmu_fifo.nb_read(dw) == false) {
-    dw = AlpideComma();
-//    dw = AlpideIdle();
+  if(s_dmu_fifo.nb_read(dw_dmu) == false) {
+    dw_dmu = AlpideComma();
   }
 
-  sc_uint<24> data = dw.data[2] << 16 | dw.data[1] << 8 | dw.data[0];
-  s_serial_data_output = data;  
+  s_dtu_delay_fifo.nb_write(dw_dmu);
+  sc_uint<24> data_dtu_input = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
+  s_serial_data_dtu_input = data_dtu_input;
 }
 
 
@@ -374,8 +402,8 @@ void Alpide::updateBusyStatus(void)
 
 
 ///@brief Add SystemC signals to log in VCD trace file.
-///@param wf Pointer to VCD trace file object
-///@param name_prefix Name prefix to be added to all the trace names
+///@param[in,out] wf Pointer to VCD trace file object
+///@param[in] name_prefix Name prefix to be added to all the trace names
 void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 {
   std::stringstream ss;
@@ -408,7 +436,8 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, alpide_name_prefix, "dmu_fifo_size", s_dmu_fifo_size);
 
 //  addTrace(wf, alpide_name_prefix, "frame_start_fifo", s_frame_start_fifo);
-//  addTrace(wf, alpide_name_prefix, "frame_end_fifo", s_frame_end_fifo);  
+//  addTrace(wf, alpide_name_prefix, "frame_end_fifo", s_frame_end_fifo);
+  addTrace(wf, alpide_name_prefix, "serial_data_dtu_input", s_serial_data_dtu_input);
 
   mTRU->addTraces(wf, alpide_name_prefix);
   

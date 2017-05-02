@@ -26,12 +26,12 @@ const TriggerEvent NoTriggerEvent(0, 0, -1, -1);
 
 
 ///@brief Standard constructor
-///@param event_start_time_ns Start time of trigger event (time when strobe was asserted)
-///@param event_end_time_ns End time of trigger event (time when strobe was deasserted)
-///@param chip_id Chip ID
-///@param event_id Event ID
-///@param filter_event Flag that indicates whether this trigger should be filtered or not
-///                    (when trigger filtering is enabled, and trigger came too close to last event)
+///@param[in] event_start_time_ns Start time of trigger event (time when strobe was asserted)
+///@param[in] event_end_time_ns End time of trigger event (time when strobe was deasserted)
+///@param[in] chip_id Chip ID
+///@param[in] event_id Event ID
+///@param[in] filter_event Flag that indicates whether this trigger should be filtered or not
+///           (when trigger filtering is enabled, and trigger came too close to last event)
 TriggerEvent::TriggerEvent(int64_t event_start_time_ns, int64_t event_end_time_ns,
                            int chip_id, int event_id, bool filter_event)
 {
@@ -65,7 +65,7 @@ void TriggerEvent::addHit(const Hit& h)
 ///       If the trigger filter flag is set, or if there are no hits in the event,
 ///       nothing will be sent to the chip, and a new event/MEB will not be created
 ///       in the Alpide chip / pixel matrix object.
-///@param matrix Pixel matrix for the chip
+///@param[out] matrix Pixel matrix for the chip
 void TriggerEvent::feedHitsToChip(PixelMatrix &matrix) const
 {
   // Only feed this event to the chip if it has not been filtered out and if it's not empty
@@ -86,7 +86,7 @@ void TriggerEvent::feedHitsToChip(PixelMatrix &matrix) const
 ///@todo Note in use.. Revisit this function, since I have changed this class a lot...
 ///@brief Write this event to file, in XML format.
 ///       The filename will be: "path/event<mEventId>.xml"
-///@param path Path to store file in. 
+///@param[in] path Path to store file in. 
 void TriggerEvent::writeToFile(const std::string path)
 {
   // Create XML file and header for this event, name eventX.xml, where X is event number

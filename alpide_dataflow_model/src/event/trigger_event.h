@@ -11,6 +11,9 @@
  * @todo   Use SystemC time data type instead of int64_t?
  */
 
+
+///@addtogroup event_generation
+///@{
 #ifndef TRIGGER_EVENT_H
 #define TRIGGER_EVENT_H
 
@@ -64,4 +67,6 @@ public:
   bool getEventFilteredFlag(void) const {return mEventFilteredFlag;}
 };
 
+
 #endif
+///@}

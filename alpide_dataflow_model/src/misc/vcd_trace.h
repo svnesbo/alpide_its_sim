@@ -6,6 +6,9 @@
  *
  */
 
+
+///@defgroup misc Miscellaneous functions
+///@{
 #ifndef VCD_TRACE_H
 #define VCD_TRACE_H
 
@@ -32,4 +35,6 @@ template<class T> static inline void addTrace(sc_trace_file *wf, std::string nam
   sc_trace(wf, signal, str_signal_full_path_name);
 }
 
+
 #endif
+///@}

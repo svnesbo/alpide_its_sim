@@ -4,6 +4,8 @@
  * @date   March 6, 2017
  * @brief  Classes for parsing serial data from Alpide chip, 
  *         and building/reconstructing events/frames from the data
+ * @todo   Move this class to a separate directory/module.
+ *         Don't mix it with the Alpide simulation model.
  */
 
 #include "../misc/vcd_trace.h"
@@ -14,7 +16,7 @@
 
 
 ///@brief Look for a pixel hit in this event frame
-///@param pixel Reference to PixelData object
+///@param[in] pixel Reference to PixelData object
 ///@return True if pixel is in event frame, false if not.
 bool AlpideEventFrame::pixelHitInEvent(PixelData& pixel) const
 {
@@ -56,7 +58,7 @@ void AlpideEventBuilder::popEvent(void)
 ///       2) If this is data that belongs to the existing and most recent frame, hit data is added
 ///          to that frame.
 ///       3) If these are just idle words etc., nothing is done with them.
-///@param dw AlpideDataWord input to parse.
+///@param[in] dw AlpideDataWord input to parse.
 void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
 {
   AlpideDataParsed data_parsed = parseDataWord(dw);
@@ -167,7 +169,7 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
 ///@brief Parse 3-byte Alpide data words the, and increase counters for the different types of
 ///       data words. Note: the function only discovers what type of data word it is, it does
 ///       nothing with the data word's parameters
-///@param dw AlpideDataWord input to parse.
+///@param[in] dw AlpideDataWord input to parse.
 ///@return AlpideDataParsed object with parsed data word type filled in for each byte
 AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 {
@@ -242,14 +244,14 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 }
 
 
-///@brief Use this to parse the last 1-2 (least significant) bytes of a 24-bit Alpide data word,
+///@brief Use this to parse the last 1-2 (least significant) bytes of a 24-bit Alpide data word, 
 ///       for words which are known to not utilize these bytes, e.g.:
 ///       Data long uses all 3 bytes - don't use this function
 ///       Data short uses first 2 bytes - use this function for the last byte
 ///       Region header uses the first byte - use this function for the last two bytes
 ///       The function will return either IDLE, BUSY_ON, BUSY_OFF, or UNKNOWN for these bytes.
 ///       It will also increase counters for the corresponding words.
-///@param data One of the "additional" bytes in a data word to parse
+///@param[in] data One of the "additional" bytes in a data word to parse
 ///@return Data word type for "additional" byte provided in data argument
 AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
 {
@@ -299,9 +301,9 @@ void AlpideDataParser::parserInputProcess(void)
 }
 
 
-///@brief Add SystemC signals to log in VCD trace file.
-///@param wf Pointer to VCD trace file object
-///@param name_prefix Name prefix to be added to all the trace names
+///@brief      Add SystemC signals to log in VCD trace file.
+///@param[in,out] wf Pointer to VCD trace file object
+///@param[in]  name_prefix Name prefix to be added to all the trace names
 void AlpideDataParser::addTraces(sc_trace_file *wf, std::string name_prefix) const
 {
   std::stringstream ss;

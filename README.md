@@ -1,11 +1,12 @@
+# Getting started - Building and running the code {#readme}
+
 A simple Dataflow SystemC Model of ITS and the Alpide chip
 
-
-### Getting started - building the project
+## Building the project
 
 Building the project requires GCC with C++11 support (included from version 4.8.x I think). 
 
-#### Required Libraries
+### Required Libraries
 - Requires qmake and boost libraries. On ubuntu, they can be installed with:
 
 - qmake:
@@ -25,7 +26,7 @@ Can be downloaded from http://accellera.org/downloads/standards/systemc
 The code has been tested and developed with version 2.3.1 of SystemC. Refer to SystemC documentation for build/install instructions.
 
 
-#### Environment
+### Environment
 
 The project's makefile expects to find the path to the base directory of the SystemC installation in $SYSTEMC_HOME.
 It may also be necessary to add the path to the SystemC libraries to $LD_LIBRARY_PATH. Adding something like this to $HOME/.profile should do (for version 2.3.1):
@@ -36,13 +37,17 @@ export SYSTEMC_HOME=/path/to/systemc-2.3.1
 
 
 
-#### Compiling the code
+### Compiling the code
+
 ```
 cd alpide_dataflow_model
 make
 ```
 
-### To run:
+## Running the code:
+
+To run the code:
+
 ```
 ./alpide_dataflow_model
 ```
@@ -50,14 +55,14 @@ make
 
 The program requires a settings.txt file with simulation settings. If it does not exist, running the program generates a settings.txt file with default settings. This file can be edited and the simulation rerun to use those settings. The settings.txt file will not be overwritten.
 
-Simulation results will be saved in sim_output/Run <timestamp>/
+Simulation results will be saved in sim_output/Run {timestamp}/
 
 
-Simulation output is stored in alpide_dataflow_model/sim_output/<timestamp>/
+Simulation output is stored in alpide_dataflow_model/sim_output/{timestamp}/
 
-### To process simulation data:
+## To process simulation data:
 ```
-cd alpide_dataflow_model/sim_output/<timestamp>/
+cd alpide_dataflow_model/sim_output/{timestamp}/
 root -b -q -l '../../process/process_event_data.C+("physics_events_data.csv")'
 ```
 

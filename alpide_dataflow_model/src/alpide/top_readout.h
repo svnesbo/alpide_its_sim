@@ -5,6 +5,9 @@
  * @brief  Class for implementing the Top Readout Unit (TRU) in the Alpide chip.
  */
 
+
+///@addtogroup alpide
+///@{
 #ifndef TOP_READOUT_H
 #define TOP_READOUT_H
 
@@ -33,9 +36,6 @@
 class TopReadoutUnit : sc_core::sc_module
 {
 public:
-  ///@defgroup SystemC ports
-  ///@{
-
   ///@brief Alpide chip clock (typically 40MHz)
   sc_in_clk s_clk_in; 
   
@@ -56,11 +56,8 @@ public:
   
   ///@brief Output from TRU
   sc_port<sc_fifo_out_if<AlpideDataWord>> s_dmu_fifo_input;
-  ///@}
 
 private:
-  ///@defgroup SystemC internal signals
-  ///@{
   sc_signal<sc_uint<8> > s_tru_state;
   sc_signal<sc_uint<8> > s_previous_region;
 
@@ -69,7 +66,6 @@ private:
 
   ///@brief Signal copy of no_regions_valid variable, 1 cycle delayed  
   sc_signal<bool> s_no_regions_valid_debug;
-  ///@}  
 
   // Standard C++ members
   unsigned int mChipId;
@@ -97,5 +93,5 @@ public:
 };
 
 
-
 #endif
+///@}

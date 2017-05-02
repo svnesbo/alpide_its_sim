@@ -5,6 +5,10 @@
  * @brief  Definitions for data format used in Alpide chip.
  */
 
+
+///@defgroup data_format Alpide Data Format
+///@ingroup alpide
+///@{
 #ifndef ALPIDE_DATA_FORMAT_H
 #define ALPIDE_DATA_FORMAT_H
 
@@ -20,20 +24,20 @@
 
 using std::uint8_t;
 
-///@defgroup Alpide data format definitions
-///@{
-///
+
 /// Alpide Data format and valid data words (from Alpide manual)
-/// IDLE                 1111 1111
-/// CHIP HEADER          1010<chip id[3:0]><BUNCH COUNTER FOR FRAME[10:3]>
-/// CHIP TRAILER         1011<readout flags[3:0]>
-/// CHIP EMPTY FRAME     1110<chip id[3:0]><BUNCH COUNTER FOR FRAME[10:3]>
-/// REGION HEADER        110<region id[4:0]>
-/// DATA SHORT           01<encoder id[3:0]><addr[9:0]>
-/// DATA LONG            00<encoder id[3:0]><addr[9:0]> 0 <hit map[6:0]> 1111 0001 1111
-/// BUSY ON              1111 0001
-/// BUSY OFF             1111 0000
-/// COMMA                1011 1100 (but using 1111 1110 to avoid confusion with CHIP TRAILER).
+/// Data word             | Header bits | Parameter bits
+/// --------------------- | ----------- | --------------
+/// IDLE                  | 1111 1111   | None
+/// CHIP HEADER           | 1010        | <chip id[3:0]><BUNCH COUNTER FOR FRAME[10:3]>
+/// CHIP TRAILER          | 1011        | <readout flags[3:0]> 
+/// CHIP EMPTY FRAME      | 1110        | <chip id[3:0]><BUNCH COUNTER FOR FRAME[10:3]> 
+/// REGION HEADER         | 110         | <region id[4:0]> 
+/// DATA SHORT            | 01          | <encoder id[3:0]><addr[9:0]> 
+/// DATA LONG             | 00          | <encoder id[3:0]><addr[9:0]> 0 <hit map[6:0]> 1111 0001 1111 
+/// BUSY ON               | 1111 0001   | None 
+/// BUSY OFF              | 1111 0000   | None 
+/// COMMA                 | 1011 1100   | Note: 1111 1110 used instead in this code
 
 
 /// Alpide data words, used to initialize the 24-bit FIFOs in the Alpide chip.
@@ -54,6 +58,7 @@ const uint8_t DW_BUSY_OFF           = 0b11110000;
 
 /// This is not the correct COMMA word, but using this value instead makes this
 /// simulation model a bit simpler because the word cannot be confused with CHIP TRAILER
+/// 1111 1110 used to avoid confusion with CHIP TRAILER).
 const uint8_t DW_COMMA              = 0b11111110;
 
 const uint8_t READOUT_FLAGS_BUSY_VIOLATION     = 0b00001000;
@@ -72,7 +77,6 @@ const uint8_t MASK_REGION_HEADER = 0b11100000;
 
 /// Mask for data short/long words
 const uint8_t MASK_DATA = 0b11000000;
-///@}  
 
 
 /// Data word stored in FRAME START FIFO
@@ -371,4 +375,6 @@ public:
   }
 };
 
+
 #endif
+///@}

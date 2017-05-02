@@ -7,9 +7,11 @@
  * Detailed description of file.
  */
 
+
+///@addtogroup pixel_stuff
+///@{
 #ifndef PIXEL_COL_H
 #define PIXEL_COL_H
-
 
 #include "alpide_constants.h"
 #include <set>
@@ -75,6 +77,7 @@ const PixelData NoPixelHit(-1,-1);
    out in increasing order (starting with index 0), and the PixelComparer type implements
    the actual prioritization of the pixels in the set.
    @image html regions-columns-indexes.png
+   @image latex regions-columns-indexes.png "Overview of how regions and columns are indexed, and how pixels are indexed in double columns, in the Alpide chip."
 */
 class PixelPriorityEncoder 
 {
@@ -124,3 +127,4 @@ public:
 
 
 #endif
+///@}

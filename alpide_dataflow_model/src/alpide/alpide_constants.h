@@ -6,6 +6,10 @@
  *         such as pixel matrix width and heigh, fifo depths, etc.
  */
 
+
+///@defgroup alpide_constants Alpide Constants
+///@ingroup alpide
+///@{
 #ifndef ALPIDE_CONSTANTS_H
 #define ALPIDE_CONSTANTS_H
 
@@ -28,4 +32,6 @@
 #define CHIP_WIDTH_CM 3
 #define CHIP_HEIGHT_CM 1.5
 
+
 #endif
+///@}

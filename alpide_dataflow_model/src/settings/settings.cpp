@@ -18,8 +18,9 @@
 ///       they will be initialized with default values.
 ///       If no filename is specified, the default settings.txt file is used in the
 ///       current directory.
-///@param fileName File to open, relative to current directory. Defaults to settings.txt if not supplied.
-///@return Pointer to QSettings object initialized with all settings, either from settings file or 
+///@param[in] fileName File to open, relative to current directory.
+///           Defaults to settings.txt if not supplied.
+///@return Pointer to QSettings object initialized with all settings, either from settings file or
 ///        with default settings if any settings were missing.
 QSettings *getSimSettings(const char *fileName) {
   QString fileNameFullPath = QDir::currentPath() + "/" + fileName;
@@ -39,7 +40,7 @@ QSettings *getSimSettings(const char *fileName) {
 
 
 ///@brief Set default settings for each setting that is missing in the QSettings object.
-///@param readoutSimSettings Pointer to QSettings object.
+///@param[in,out] readoutSimSettings Pointer to QSettings object.
 void setDefaultSimSettings(QSettings *readoutSimSettings) {
   QMap<QString, QString> defaultSettings;
 
@@ -69,7 +70,8 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
 
   defaultSettings["alpide/clustering_enable"] = DEFAULT_ALPIDE_CLUSTERING_ENABLE;
   defaultSettings["alpide/region_fifo_size"] = DEFAULT_ALPIDE_REGION_FIFO_SIZE;
-  defaultSettings["alpide/dmu_fifo_size"] = DEFAULT_ALPIDE_DMU_FIFO_SIZE;  
+  defaultSettings["alpide/dmu_fifo_size"] = DEFAULT_ALPIDE_DMU_FIFO_SIZE;
+  defaultSettings["alpide/dtu_delay"] = DEFAULT_ALPIDE_DTU_DELAY;
   defaultSettings["alpide/region_size"] = DEFAULT_ALPIDE_REGION_SIZE;
   defaultSettings["alpide/pixel_shaping_dead_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_DEAD_TIME_NS;
   defaultSettings["alpide/pixel_shaping_active_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_ACTIVE_TIME_NS;

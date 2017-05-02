@@ -8,6 +8,9 @@
  *         threshold).
  */
 
+
+///@addtogroup event_generation
+///@{
 #ifndef HIT_H
 #define HIT_H
 
@@ -61,3 +64,4 @@ public:
 
 
 #endif
+///@}

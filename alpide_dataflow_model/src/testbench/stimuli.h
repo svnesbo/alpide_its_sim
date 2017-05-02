@@ -5,6 +5,9 @@
  * @brief  Header file for stimuli function for Alpide Dataflow SystemC model
  */
 
+
+///@defgroup testbench Main Alpide Simulation Testbench
+///@{
 #ifndef STIMULI_H
 #define STIMULI_H
 
@@ -48,3 +51,4 @@ public:
 
 
 #endif
+///@}

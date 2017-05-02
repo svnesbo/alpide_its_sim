@@ -28,10 +28,10 @@ using boost::random::discrete_distribution;
 
 
 SC_HAS_PROCESS(EventGenerator);
-///@brief Constructor for EventGenerator with gaussian multiplicity distribution.
-///@param name SystemC module name
-///@param settings QSettings object with simulation settings.
-///@param output_path Directory path to store simulation output data in
+///@brief Constructor for EventGenerator
+///@param[in] name SystemC module name
+///@param[in] settings QSettings object with simulation settings.
+///@param[in] output_path Directory path to store simulation output data in
 EventGenerator::EventGenerator(sc_core::sc_module_name name,
                                const QSettings* settings,
                                std::string output_path)
@@ -289,8 +289,8 @@ void EventGenerator::removeOldestEvent(void)
 ///       In the above example, an entry for the X-value of 2 with probability (Y) 0.0 will be inserted to the
 ///       vector by this function.
 ///
-///@param filename Relative or absolute path and filename to open
-///@param dist_vector Reference to vector to store the distribution in
+///@param[in] filename Relative or absolute path and filename to open
+///@param[out] dist_vector Reference to vector to store the distribution in
 ///@throw runtime_error If the file can not be opened
 ///@throw domain_error If a negative x-value (hits) or y-value (probability) is encountered in the file
 void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const
@@ -331,10 +331,9 @@ void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vec
 
 ///@brief Scale the x axis of a discrete distribution,
 ///       so that the distribution gets a new mean value.
-///@param dist_vector Distribution to scale. The original distribution in
-///                   this vector will be overwritten and replaced with
-///                   the new, scaled, distribution.
-///@param new_mean_value The desired mean value of the new distribution.
+///@param[in,out] dist_vector Distribution to scale. The original distribution in
+///               this vector will be overwritten and replaced with the new, scaled, distribution.
+///@param[in] new_mean_value The desired mean value of the new distribution.
 ///@throw runtime_error If dist_vector is empty, a runtime_error is thrown.
 void EventGenerator::scaleDiscreteDistribution(std::vector<double> &dist_vector, double new_mean_value)
 {
@@ -598,9 +597,9 @@ void EventGenerator::removeInactiveHits(void)
 
 ///@brief Create a new trigger event at the given start time. It checks if trigger event
 ///       should be filtered or not, and updates trigger ID count. 
-///@param event_start Start time of trigger event (time when strobe signal went high).
-///@param event_end End time of trigger event (time when strobe signal went low again).
-///@param chip_id Chip ID to generate event for
+///@param[in] event_start Start time of trigger event (time when strobe signal went high).
+///@param[in] event_end End time of trigger event (time when strobe signal went low again).
+///@param[in] chip_id Chip ID to generate event for
 ///@return Pointer to new TriggerEvent object that was allocated on the stack.
 ///        Caller must remember to delete it when done in order to free memory.
 TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start, int64_t event_end, int chip_id)
@@ -643,7 +642,7 @@ TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start, int6
 
 ///@brief Iterate through the hit queue corresponding to the chip_id associated with
 ///       the event referenced by e, and add the active hits to it.
-///@param e Event to add hits to.
+///@param[in,out] e Event to add hits to.
 void EventGenerator::addHitsToTriggerEvent(TriggerEvent& e)
 {
   int chip_id = e.getChipId();
