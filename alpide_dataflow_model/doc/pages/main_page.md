@@ -9,7 +9,7 @@ The simulation model aims to be a fairly accurate model of the Alpide chip's rea
 
 Instructions from the README on how to build, use and run the code can be found here:
 
-- @subpage building_and_running
+[README.md]:(@ref readme)
 
 ## Codying style
 
