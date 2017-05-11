@@ -29,6 +29,7 @@ int sc_main(int argc, char** argv)
   int rand_x, rand_y;    
   int chip_id = 0;
   int event_id = 0;
+  int dtu_delay_cycles = 10;
   bool continuous_mode = false;
   bool enable_clustering = true;
   bool matrix_readout_speed = true;
@@ -50,6 +51,7 @@ int sc_main(int argc, char** argv)
                 0,
                 128,
                 64,
+                dtu_delay_cycles,
                 enable_clustering,
                 continuous_mode,
                 matrix_readout_speed);

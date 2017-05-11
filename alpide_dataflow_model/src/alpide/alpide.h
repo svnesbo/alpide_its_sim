@@ -76,13 +76,18 @@ private:
   sc_signal<bool> s_busy_violation;
   sc_signal<bool> s_busy_status;
   
-  
+
+  /// Data is transferred in the following order:
+  /// TRU --> s_dmu_fifo --+---> s_dtu_delay_fifo --> s_serial_data_output
+  ///                      |
+  ///                      +---> s_serial_data_dtu_input_debug
   sc_fifo<AlpideDataWord> s_dmu_fifo;
 
+  sc_signal<sc_uint<24>> s_serial_data_dtu_input_debug;
+  
   ///@brief FIFO used to represent the encoding delay in the DTU
-  sc_fifo<AlpideDataWord> s_dtu_delay_fifo;
+  sc_fifo<AlpideDataWord> s_dtu_delay_fifo;  
 
-  sc_signal<sc_uint<24>> s_serial_data_dtu_input;  
   
   sc_signal<sc_uint<8> > s_dmu_fifo_size;
   sc_signal<bool> s_chip_ready_internal;  
@@ -105,6 +110,7 @@ private:
 private:
   int mChipId;
   bool mEnableReadoutTraces;
+  bool mEnableDtuDelay;
   bool mStrobeActive;
   uint16_t mBunchCounter;
   

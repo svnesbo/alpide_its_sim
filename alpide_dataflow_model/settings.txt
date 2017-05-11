@@ -1,6 +1,7 @@
 [alpide]
 clustering_enable=true
 dmu_fifo_size=64
+dtu_delay=10
 matrix_readout_speed_fast=true
 pixel_shaping_active_time_ns=6000
 pixel_shaping_dead_time_ns=200

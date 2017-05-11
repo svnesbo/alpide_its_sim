@@ -34,6 +34,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
 {
   mChipId = chip_id;
+  mEnableDtuDelay = dtu_delay_cycles > 0;
 
   s_event_buffers_used_debug = 0;
   s_total_number_of_hits = 0;
@@ -344,27 +345,42 @@ void Alpide::dataTransmission(void)
 {
   AlpideDataWord dw_dtu = AlpideComma();
 
-  s_dmu_fifo_size = s_dmu_fifo.num_available();
+  if(mEnableDtuDelay) {
+    s_dmu_fifo_size = s_dmu_fifo.num_available();
 
-  // DTU FIFO should always be filled,
-  // but in case it is not we will output a comma instead
-  if(s_dtu_delay_fifo.nb_read(dw_dtu) == false) {
-    dw_dtu = AlpideComma();
-  }
+    // DTU FIFO should always be filled,
+    // but in case it is not we will output a comma instead
+    if(s_dtu_delay_fifo.nb_read(dw_dtu) == false) {
+      dw_dtu = AlpideComma();
+    }
   
-  sc_uint<24> data_out = dw_dtu.data[2] << 16 | dw_dtu.data[1] << 8 | dw_dtu.data[0];
-  s_serial_data_output = data_out;
+    sc_uint<24> data_out = dw_dtu.data[2] << 16 | dw_dtu.data[1] << 8 | dw_dtu.data[0];
+    s_serial_data_output = data_out;
 
-  AlpideDataWord dw_dmu = AlpideComma();
+    AlpideDataWord dw_dmu = AlpideComma();
   
-  // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
-  if(s_dmu_fifo.nb_read(dw_dmu) == false) {
-    dw_dmu = AlpideComma();
-  }
+    // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
+    if(s_dmu_fifo.nb_read(dw_dmu) == false) {
+      dw_dmu = AlpideComma();
+    }
 
-  s_dtu_delay_fifo.nb_write(dw_dmu);
-  sc_uint<24> data_dtu_input = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
-  s_serial_data_dtu_input = data_dtu_input;
+    s_dtu_delay_fifo.nb_write(dw_dmu);
+    sc_uint<24> data_dtu_input = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
+    s_serial_data_dtu_input_debug = data_dtu_input;
+  }
+  // With dtu_delay_cycles = 0 the dtu delay fifo is only 1 word deep, and you get into this mode
+  // where it is full, empty, full, and you lose every 2nd word.. so we just bypass that
+  // delay fifo in this event..
+  else { 
+    AlpideDataWord dw_dmu = AlpideComma();
+    // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
+    if(s_dmu_fifo.nb_read(dw_dmu) == false) {
+      dw_dmu = AlpideComma();
+    }
+    sc_uint<24> data_out = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
+    s_serial_data_dtu_input_debug = data_out;
+    s_serial_data_output = data_out;    
+  }
 }
 
 
@@ -437,7 +453,7 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 
 //  addTrace(wf, alpide_name_prefix, "frame_start_fifo", s_frame_start_fifo);
 //  addTrace(wf, alpide_name_prefix, "frame_end_fifo", s_frame_end_fifo);
-  addTrace(wf, alpide_name_prefix, "serial_data_dtu_input", s_serial_data_dtu_input);
+  addTrace(wf, alpide_name_prefix, "serial_data_dtu_input_debug", s_serial_data_dtu_input_debug);
 
   mTRU->addTraces(wf, alpide_name_prefix);
   

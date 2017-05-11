@@ -777,6 +777,9 @@ INPUT += src/misc
 INPUT += src/settings
 INPUT += src/testbench
 INPUT +=  doc/pages/main_page.md
+INPUT +=  doc/pages/overview.md
+INPUT +=  doc/pages/sim_settings.md
+INPUT +=  doc/pages/sim_data_output.md
 INPUT +=  ../README.md
 
 # This tag can be used to specify the character encoding of the source files

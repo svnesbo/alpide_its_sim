@@ -83,12 +83,12 @@ private:
     CHIP_TRAILER = 7
   };
 
+  void topRegionReadoutProcess(void);  
   bool getNextRegion(unsigned int& region_out);
   bool getAllRegionsEmpty(void);
   
 public:
   TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);
-  void topRegionReadoutProcess(void);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 
