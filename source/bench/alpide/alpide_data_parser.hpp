@@ -2,7 +2,7 @@
  * @file   alpide_data_parser.h
  * @author Simon Voigt Nesbo
  * @date   March 3, 2017
- * @brief  Classes for parsing serial data from Alpide chip, 
+ * @brief  Classes for parsing serial data from Alpide chip,
  *         and building/reconstructing events/frames from the data
  */
 
@@ -13,8 +13,8 @@
 #ifndef ALPIDE_DATA_PARSER_H
 #define ALPIDE_DATA_PARSER_H
 
-#include "alpide_data_format.h"
-#include "../event/trigger_event.h"
+#include "alpide_data_format.hpp"
+#include "../event/trigger_event.hpp"
 #include <vector>
 
 // Ignore warnings about use of auto_ptr in SystemC library
@@ -52,9 +52,9 @@ struct AlpideDataParsed {
 
 class AlpideEventFrame {
 private:
-  std::set<PixelData> mPixelDataSet;  
+  std::set<PixelData> mPixelDataSet;
   bool mFrameCompleted;
-  
+
 public:
   AlpideEventFrame() : mFrameCompleted(false) {}
   bool pixelHitInEvent(PixelData& pixel) const;
@@ -62,7 +62,7 @@ public:
   bool getFrameCompleted(void) {return mFrameCompleted;}
   unsigned int getEventSize(void) const {return mPixelDataSet.size();}
   void addPixelHit(const PixelData& pixel) {
-    mPixelDataSet.insert(pixel);    
+    mPixelDataSet.insert(pixel);
   }
   std::set<PixelData>::const_iterator getPixelSetIterator(void) const {
     return mPixelDataSet.cbegin();
@@ -92,7 +92,7 @@ private:
   long mChipTrailerCount;
   long mChipEmptyFrameCount;
   long mUnknownDataWordCount;
-  
+
 public:
   unsigned int getNumEvents(void) const;
   const AlpideEventFrame* getNextEvent(void) const;
@@ -113,7 +113,7 @@ public:
 
 private:
   void parserInputProcess(void);
-  
+
 public:
   AlpideDataParser(sc_core::sc_module_name name);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;

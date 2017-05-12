@@ -10,7 +10,7 @@
  */
 
 #include <iostream>
-#include "pixel_matrix.h"
+#include "pixel_matrix.hpp"
 
 ///@brief PixelMatrix Constructor
 ///@param[in] continuous_mode True: continuous mode, false: triggered mode
@@ -48,9 +48,9 @@ void PixelMatrix::flushOldestEvent(void)
     for(auto it = oldest_event_buffer.begin(); it != oldest_event_buffer.end(); it++) {
       it->clear();
     }
-    
+
     oldest_event_buffer_hits_remaining = 0;
-  }  
+  }
 }
 
 
@@ -66,7 +66,7 @@ void PixelMatrix::deleteEvent(uint64_t time_now)
     unsigned int MEB_size = mColumnBuffs.size();
     mMEBHistogram[MEB_size] += time_now - mMEBHistoLastUpdateTime;
     mMEBHistoLastUpdateTime = time_now;
-      
+
     mColumnBuffsPixelsLeft.pop_front();
     mColumnBuffs.pop();
   }
@@ -75,7 +75,7 @@ void PixelMatrix::deleteEvent(uint64_t time_now)
   else {
     throw std::out_of_range("No events");
   }
-#endif  
+#endif
 }
 
 
@@ -128,7 +128,7 @@ bool PixelMatrix::regionEmpty(int start_double_col, int stop_double_col) {
     throw std::out_of_range("stop_double_col >= start_double_col");
   }
 #endif
-  
+
   // Do we have any stored events?
   if(mColumnBuffs.empty() == false) {
     std::vector<PixelDoubleColumn>& oldest_event_buffer = mColumnBuffs.front();
@@ -194,7 +194,7 @@ PixelData PixelMatrix::readPixel(uint64_t time_now, int start_double_col, int st
     throw std::out_of_range("stop_double_col >= start_double_col");
   }
 #endif
-  
+
   // Do we have any stored events?
   if(mColumnBuffs.empty() == false) {
     std::vector<PixelDoubleColumn>& oldest_event_buffer = mColumnBuffs.front();
@@ -209,7 +209,7 @@ PixelData PixelMatrix::readPixel(uint64_t time_now, int start_double_col, int st
         // pixel_retval.mCol is either 0 or 1 (values in double column), correct to take the
         // double column number into account
         pixel_retval.setCol(2*i + pixel_retval.getCol());
-      
+
         oldest_event_buffer_hits_remaining--;
         break;
       }
@@ -263,7 +263,7 @@ int PixelMatrix::getHitsRemainingInOldestEvent(void)
 int PixelMatrix::getHitTotalAllEvents(void)
 {
   int hit_sum = 0;
-  
+
   if(mColumnBuffs.empty() == false) {
     for(std::list<int>::iterator it = mColumnBuffsPixelsLeft.begin(); it != mColumnBuffsPixelsLeft.end(); it++) {
       hit_sum += *it;

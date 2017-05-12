@@ -13,14 +13,14 @@
 #ifndef PIXEL_COL_H
 #define PIXEL_COL_H
 
-#include "alpide_constants.h"
+#include "alpide_constants.hpp"
 #include <set>
 #include <ostream>
 
 
 /**
    @brief A struct that indicates a hit in a region, at the pixel identified by the col and row
-   variables. For each hit an object of this type will be inserted into the std::set container 
+   variables. For each hit an object of this type will be inserted into the std::set container
    in regionDataVector. For the pixels that don't have hits there will not be an object of this
    type inserted.
    Column should be 0 or 1. Row can be any value from 0 to N_PIXEL_ROWS-1.
@@ -54,7 +54,7 @@ public:
 
   ///@brief Get the priority encoder that this pixel (column) belongs to,
   ///       within the column's region. Hardcoded for 16 double columns per region
-  ///@return Priority encoder number. 
+  ///@return Priority encoder number.
   unsigned int getPriEncNumInRegion(void) const {return (mCol>>1) & 0x0F;}
 };
 
@@ -68,7 +68,7 @@ const PixelData NoPixelHit(-1,-1);
    - Left: 512 rows x 1024 columns of pixels, divided into 32 regions
    - Middle: 32 columns (16 double columns) x 512 rows in a region
    - Right: Index/numbering/address of pixels within a double column, and the
-   priority encoder between the columns. The priority encoder starts with the pixel 
+   priority encoder between the columns. The priority encoder starts with the pixel
    that has the lowest address, and prioritizes them in increasing order.
 
    The regionDataVector, which is declared as @b std::vector<std::set<PixelData, PixelComparer> @b > @b regionDataVector;
@@ -79,7 +79,7 @@ const PixelData NoPixelHit(-1,-1);
    @image html regions-columns-indexes.png
    @image latex regions-columns-indexes.png "Overview of how regions and columns are indexed, and how pixels are indexed in double columns, in the Alpide chip."
 */
-class PixelPriorityEncoder 
+class PixelPriorityEncoder
 {
 public:
   /**
@@ -98,7 +98,7 @@ public:
       if(leftIn.mRow < rightIn.mRow)
         return true;
       else if(leftIn.mRow > rightIn.mRow)
-        return false;      
+        return false;
       else { /* leftIn.mRow == rightIn.mRow */
         // Even row
         if((leftIn.mRow % 2) == 0)

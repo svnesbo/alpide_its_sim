@@ -17,7 +17,7 @@
 #ifndef PIXEL_MATRIX_H
 #define PIXEL_MATRIX_H
 
-#include "pixel_col.h"
+#include "pixel_col.hpp"
 #include <vector>
 #include <queue>
 #include <list>

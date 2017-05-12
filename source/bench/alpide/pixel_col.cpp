@@ -5,7 +5,7 @@
  * @brief  Source file for pixel column, double column, and priority encoder classes
  */
 
-#include "pixel_col.h"
+#include "pixel_col.hpp"
 #include <stdexcept>
 #include <iostream>
 
@@ -33,7 +33,7 @@ bool PixelData::operator==(const PixelData& rhs) const
 bool PixelData::operator>(const PixelData& rhs) const
 {
   bool retval = false;
-  
+
   if(mCol < rhs.mCol)
     retval = false;
   else if(mCol > rhs.mCol)
@@ -63,8 +63,8 @@ bool PixelData::operator>=(const PixelData& rhs) const
 bool PixelData::operator<=(const PixelData& rhs) const
 {
   return !(*this > rhs);
-}    
-  
+}
+
 
 ///@brief Set a pixel in a pixel double column object.
 ///@param[in] col_num column number of pixel, must be 0 or 1.
@@ -78,12 +78,12 @@ void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
   } else if(col_num >= 2) {
     throw std::out_of_range ("col_num");
   }
-#endif    
+#endif
   pixelColumn.insert(PixelData(col_num, row_num));
 }
 
 
-///@brief Clear (flush) contents of double column 
+///@brief Clear (flush) contents of double column
 void PixelDoubleColumn::clear(void) {
   pixelColumn.clear();
 }
@@ -97,7 +97,7 @@ void PixelDoubleColumn::clear(void) {
 PixelData PixelDoubleColumn::readPixel(void) {
   if(pixelColumn.size() == 0)
     return NoPixelHit;
-    
+
   // Read out the next (prioritized) pixel
   PixelData pixel = *pixelColumn.begin();
 

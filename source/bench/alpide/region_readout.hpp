@@ -13,8 +13,8 @@
 #ifndef REGION_READOUT_H
 #define REGION_READOUT_H
 
-#include "alpide_data_format.h"
-#include "pixel_matrix.h"
+#include "alpide_data_format.hpp"
+#include "pixel_matrix.hpp"
 #include <cstdint>
 
 // Ignore warnings about use of auto_ptr in SystemC library
@@ -65,19 +65,19 @@ class RegionReadoutUnit : sc_core::sc_module
 public:
   ///@brief 40MHz LHC clock
   sc_in_clk s_system_clk_in;
-  
+
   /// This signal comes from FROMU, on deassertion of trigger, and indicates that start of
   /// readout from current pixel matrix event buffer to region FIFO can start
   sc_in<bool> s_frame_readout_start_in;
 
   sc_in<bool> s_readout_abort_in;
-  
+
   /// This comes from TRU, when reaodut of next frame from region FIFO to TRU FIFO should start
   sc_in<bool> s_region_event_start_in;
 
   /// This comes from TRU, when reaodut of next frame from region FIFO to TRU FIFO should start
   sc_in<bool> s_region_event_pop_in;
-  
+
   sc_in<bool> s_region_data_read_in;
 
   sc_out<bool> s_frame_readout_done_out;
@@ -85,7 +85,7 @@ public:
   sc_out<bool> s_region_valid_out;
   sc_out<AlpideDataWord> s_region_data_out;
 
-private:  
+private:
   sc_signal<sc_uint<8>> s_rru_readout_state;
   sc_signal<sc_uint<8>> s_rru_valid_state;
   sc_signal<sc_uint<1>> s_rru_header_state;
@@ -93,14 +93,14 @@ private:
 
   /// Delayed one clock cycle compared to when it is used..
   sc_signal<bool> s_region_matrix_empty_debug;
-  
+
   sc_signal<sc_uint<2> > s_matrix_readout_delay_counter;
 
   tlm::tlm_fifo<AlpideDataWord> s_region_fifo;
   sc_signal<sc_uint<8> > s_region_fifo_size;
 
   AlpideRegionHeader mRegionHeader;
-  
+
 private:
   /// The region handled by this RRU
   unsigned int mRegionId;
@@ -139,16 +139,16 @@ private:
 private:
   bool readoutNextPixel(PixelMatrix& matrix);
   void flushRegionFifo(void);
-  
+
 public:
   RegionReadoutUnit(sc_core::sc_module_name name, PixelMatrix* matrix,
                     unsigned int region_num, unsigned int fifo_size,
                     bool matrix_readout_speed, bool cluster_enable);
   void regionReadoutProcess(void);
-  void regionMatrixReadoutFSM(void);  
+  void regionMatrixReadoutFSM(void);
   void regionValidFSM(void);
   void regionHeaderFSM(void);
-  void addTraces(sc_trace_file *wf, std::string name_prefix) const;  
+  void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 
 

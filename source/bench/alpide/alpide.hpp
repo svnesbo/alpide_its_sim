@@ -11,10 +11,10 @@
 #ifndef ALPIDE_H
 #define ALPIDE_H
 
-#include "alpide_data_format.h"
-#include "pixel_matrix.h"
-#include "region_readout.h"
-#include "top_readout.h"
+#include "alpide_data_format.hpp"
+#include "pixel_matrix.hpp"
+#include "region_readout.hpp"
+#include "top_readout.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -27,7 +27,7 @@
 #include <string>
 
 
-/// Alpide main class. Currently it only implements the MEBs, 
+/// Alpide main class. Currently it only implements the MEBs,
 /// no RRU FIFOs, and no TRU FIFO. It will be used to run some initial
 /// estimations for probability of MEB overflow (busy).
 class Alpide : sc_core::sc_module, public PixelMatrix
@@ -39,15 +39,15 @@ public:
 
   ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
   sc_out<bool> s_chip_ready_out;
-  
+
   sc_out<sc_uint<24>> s_serial_data_output;
-  
+
 private:
   sc_signal<sc_uint<8>> s_fromu_readout_state;
 
   ///@brief Number of events stored in the chip at any given time
   sc_signal<sc_uint<8>> s_event_buffers_used_debug;
-  
+
   sc_signal<sc_uint<8>> s_frame_start_fifo_size_debug;
   sc_signal<sc_uint<8>> s_frame_end_fifo_size_debug;
 
@@ -60,7 +60,7 @@ private:
   sc_signal<bool> s_region_fifo_empty[N_REGIONS];
   sc_signal<bool> s_region_valid[N_REGIONS];
   sc_signal<bool> s_region_data_read[N_REGIONS];
-  sc_signal<bool> s_region_event_start;  
+  sc_signal<bool> s_region_event_start;
   sc_signal<bool> s_region_event_pop;
   sc_signal<AlpideDataWord> s_region_data[N_REGIONS];
 
@@ -69,13 +69,13 @@ private:
   sc_signal<bool> s_frame_readout_done[N_REGIONS];
   sc_signal<bool> s_frame_readout_done_all;
   sc_signal<bool> s_frame_fifo_busy;
-  sc_signal<bool> s_multi_event_buffers_busy;  
+  sc_signal<bool> s_multi_event_buffers_busy;
   sc_signal<bool> s_fatal_state;
   sc_signal<bool> s_readout_abort;
-  sc_signal<bool> s_flushed_incomplete;  
+  sc_signal<bool> s_flushed_incomplete;
   sc_signal<bool> s_busy_violation;
   sc_signal<bool> s_busy_status;
-  
+
 
   /// Data is transferred in the following order:
   /// TRU --> s_dmu_fifo --+---> s_dtu_delay_fifo --> s_serial_data_output
@@ -84,20 +84,20 @@ private:
   sc_fifo<AlpideDataWord> s_dmu_fifo;
 
   sc_signal<sc_uint<24>> s_serial_data_dtu_input_debug;
-  
-  ///@brief FIFO used to represent the encoding delay in the DTU
-  sc_fifo<AlpideDataWord> s_dtu_delay_fifo;  
 
-  
+  ///@brief FIFO used to represent the encoding delay in the DTU
+  sc_fifo<AlpideDataWord> s_dtu_delay_fifo;
+
+
   sc_signal<sc_uint<8> > s_dmu_fifo_size;
-  sc_signal<bool> s_chip_ready_internal;  
+  sc_signal<bool> s_chip_ready_internal;
 
   tlm::tlm_fifo<FrameStartFifoWord> s_frame_start_fifo;
   tlm::tlm_fifo<FrameEndFifoWord> s_frame_end_fifo;
 
   std::vector<RegionReadoutUnit*> mRRUs;
   TopReadoutUnit* mTRU;
-  
+
   FrameEndFifoWord mNextFrameEndWord;
 
   enum FROMU_readout_state_t {
@@ -106,14 +106,14 @@ private:
     WAIT_FOR_REGION_READOUT = 2,
     REGION_READOUT_DONE = 3
   };
-    
+
 private:
   int mChipId;
   bool mEnableReadoutTraces;
   bool mEnableDtuDelay;
   bool mStrobeActive;
   uint16_t mBunchCounter;
-  
+
   ///@brief Number of (trigger) events that are accepted into an MEB by the chip
   uint64_t mTriggerEventsAccepted = 0;
 
@@ -126,11 +126,11 @@ private:
   ///       The Alpide chip will try to guarantee that there is a free MEB slice in continuous mode.
   ///       It does this by deleting the oldest MEB slice (even if it has not been read out) when
   ///       the 3rd one is filled. This variable counts up in that case.
-  uint64_t mTriggerEventsFlushed = 0;  
+  uint64_t mTriggerEventsFlushed = 0;
 
-  void mainProcess(void);  
+  void mainProcess(void);
   void strobeInput(void);
-  void frameReadout(void); // FROMU    
+  void frameReadout(void); // FROMU
   void dataTransmission(void);
   bool getFrameReadoutDone(void);
   void updateBusyStatus(void);
@@ -142,7 +142,7 @@ public:
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
   uint64_t getTriggerEventsAcceptedCount(void) const {return mTriggerEventsAccepted;}
-  uint64_t getTriggerEventsRejectedCount(void) const {return mTriggerEventsRejected;}  
+  uint64_t getTriggerEventsRejectedCount(void) const {return mTriggerEventsRejected;}
 };
 
 

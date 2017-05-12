@@ -2,14 +2,14 @@
  * @file   alpide_data_parser.h
  * @author Simon Voigt Nesbo
  * @date   March 6, 2017
- * @brief  Classes for parsing serial data from Alpide chip, 
+ * @brief  Classes for parsing serial data from Alpide chip,
  *         and building/reconstructing events/frames from the data
  * @todo   Move this class to a separate directory/module.
  *         Don't mix it with the Alpide simulation model.
  */
 
-#include "../misc/vcd_trace.h"
-#include "alpide_data_parser.h"
+#include "../misc/vcd_trace.hpp"
+#include "alpide_data_parser.hpp"
 #include <cstddef>
 #include <iostream>
 #include <bitset>
@@ -71,26 +71,26 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     std::cout << "Got ALPIDE_CHIP_HEADER1: " << data_bits << std::endl;
     mEvents.push_back(AlpideEventFrame());
     break;
-    
+
   case ALPIDE_CHIP_TRAILER:
-    std::cout << "Got ALPIDE_CHIP_TRAILER: " << data_bits << std::endl;    
+    std::cout << "Got ALPIDE_CHIP_TRAILER: " << data_bits << std::endl;
     if(!mEvents.empty())
       mEvents.back().setFrameCompleted(true);
     break;
-    
+
   case ALPIDE_CHIP_EMPTY_FRAME1:
-    std::cout << "Got ALPIDE_CHIP_EMPTY_FRAME1: " << data_bits << std::endl;    
+    std::cout << "Got ALPIDE_CHIP_EMPTY_FRAME1: " << data_bits << std::endl;
     // Create an empty event frame
     mEvents.push_back(AlpideEventFrame());
     mEvents.back().setFrameCompleted(true);
     break;
-    
+
   case ALPIDE_REGION_HEADER:
-    std::cout << "Got ALPIDE_REGION_HEADER: " << data_bits << std::endl;    
+    std::cout << "Got ALPIDE_REGION_HEADER: " << data_bits << std::endl;
     mCurrentRegion = dw.data[2] & 0b00011111;
     std::cout << "\tCurrent region: " << mCurrentRegion << std::endl;
     break;
-    
+
   case ALPIDE_DATA_SHORT1:
     std::cout << "Got ALPIDE_DATA_SHORT1: " << data_bits << std::endl;
     if(!mEvents.empty()) {
@@ -101,12 +101,12 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
       std::cout << "\t" << "addr: " << addr << std::endl;
     }
     break;
-    
+
   case ALPIDE_DATA_LONG1:
     std::cout << "Got ALPIDE_DATA_LONG1: " << data_bits << std::endl;
     if(!mEvents.empty()) {
       uint8_t pri_enc_id = (dw.data[2] >> 2) & 0x0F;
-      uint16_t addr = ((dw.data[2] & 0x03) << 8) | dw.data[1];      
+      uint16_t addr = ((dw.data[2] & 0x03) << 8) | dw.data[1];
       uint8_t hitmap = dw.data[0] & 0x7F;
       std::bitset<7> hitmap_bits(hitmap);
 
@@ -125,21 +125,21 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
       }
     }
     break;
-    
+
   case ALPIDE_IDLE:
-    std::cout << "Got ALPIDE_IDLE: " << data_bits << std::endl;    
+    std::cout << "Got ALPIDE_IDLE: " << data_bits << std::endl;
     break;
-    
+
   case ALPIDE_BUSY_ON:
-    std::cout << "Got ALPIDE_BUSY_ON: " << data_bits << std::endl;    
+    std::cout << "Got ALPIDE_BUSY_ON: " << data_bits << std::endl;
     ///@todo Busy on here
     break;
-    
+
   case ALPIDE_BUSY_OFF:
-    std::cout << "Got ALPIDE_BUSY_OFF: " << data_bits << std::endl;    
+    std::cout << "Got ALPIDE_BUSY_OFF: " << data_bits << std::endl;
     ///@todo Busy off here
     break;
-    
+
   case ALPIDE_UNKNOWN:
     std::cout << "Got ALPIDE_UNKNOWN: " << data_bits << std::endl;
     std::cout << "Byte 2: " << std::hex << static_cast<unsigned>(dw.data[2]) << std::endl;
@@ -150,15 +150,15 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     break;
 
   case ALPIDE_COMMA:
-    std::cout << "Got ALPIDE_COMMA: " << data_bits << std::endl;    
-    break;    
+    std::cout << "Got ALPIDE_COMMA: " << data_bits << std::endl;
+    break;
 
   case ALPIDE_DATA_SHORT2:
   case ALPIDE_DATA_LONG2:
   case ALPIDE_DATA_LONG3:
   case ALPIDE_CHIP_HEADER2:
   case ALPIDE_CHIP_EMPTY_FRAME2:
-    std::cout << "Got ALPIDE_SOMETHING.., which I shouldn't be receiving here..: " << data_bits << std::endl;    
+    std::cout << "Got ALPIDE_SOMETHING.., which I shouldn't be receiving here..: " << data_bits << std::endl;
     // These should never occur in data_parsed.byte[2].
     // They are here to get rid off compiler warnings :)
     break;
@@ -174,7 +174,7 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
 AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 {
   AlpideDataParsed data_parsed;
-  
+
   // Parse most significant byte - Check all options...
   uint8_t data_word_check = dw.data[2] & MASK_DATA;
   uint8_t chip_word_check = dw.data[2] & MASK_CHIP;
@@ -186,7 +186,7 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
     mDataLongCount++;
     data_parsed.data[2] = ALPIDE_DATA_LONG1;
     data_parsed.data[1] = ALPIDE_DATA_LONG2;
-    data_parsed.data[0] = ALPIDE_DATA_LONG3;    
+    data_parsed.data[0] = ALPIDE_DATA_LONG3;
   } else if(data_word_check == DW_DATA_SHORT) {
     mDataShortCount++;
     data_parsed.data[2] = ALPIDE_DATA_SHORT1;
@@ -200,51 +200,51 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
   } else if(chip_word_check == DW_CHIP_TRAILER) {
     mChipTrailerCount++;
     data_parsed.data[2] = ALPIDE_CHIP_TRAILER;
-    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
-    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);        
+    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
+    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(chip_word_check == DW_CHIP_EMPTY_FRAME) {
-    mChipEmptyFrameCount++;    
+    mChipEmptyFrameCount++;
     data_parsed.data[2] = ALPIDE_CHIP_EMPTY_FRAME1;
     data_parsed.data[1] = ALPIDE_CHIP_EMPTY_FRAME2;
-    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);    
+    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(region_word_check == DW_REGION_HEADER) {
-    mRegionHeaderCount++;    
+    mRegionHeaderCount++;
     data_parsed.data[2] = ALPIDE_REGION_HEADER;
-    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
-    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);            
+    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
+    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_IDLE) {
     mIdleCount++;
-    mIdleByteCount++;    
+    mIdleByteCount++;
     data_parsed.data[2] = ALPIDE_IDLE;
-    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
-    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);                
+    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
+    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_BUSY_ON) {
-    mBusyOnCount++;    
+    mBusyOnCount++;
     data_parsed.data[2] = ALPIDE_BUSY_ON;
-    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
-    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);                    
+    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
+    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_BUSY_OFF) {
-    mBusyOffCount++;    
+    mBusyOffCount++;
     data_parsed.data[2] = ALPIDE_BUSY_OFF;
-    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
-    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);                        
+    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
+    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_COMMA) {
     mCommaCount++;
     data_parsed.data[2] = ALPIDE_COMMA;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
-    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);                        
+    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else {
-    mUnknownDataWordCount++;    
+    mUnknownDataWordCount++;
     data_parsed.data[2] = ALPIDE_UNKNOWN;
-    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);            
-    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);                            
+    data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
+    data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   }
 
   return data_parsed;
 }
 
 
-///@brief Use this to parse the last 1-2 (least significant) bytes of a 24-bit Alpide data word, 
+///@brief Use this to parse the last 1-2 (least significant) bytes of a 24-bit Alpide data word,
 ///       for words which are known to not utilize these bytes, e.g.:
 ///       Data long uses all 3 bytes - don't use this function
 ///       Data short uses first 2 bytes - use this function for the last byte
@@ -263,11 +263,11 @@ AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
     mBusyOnCount++;
     return ALPIDE_BUSY_ON;
   } else if(data == DW_BUSY_OFF) {
-    std::cout << "Got BUSY_OFF" << std::endl;    
+    std::cout << "Got BUSY_OFF" << std::endl;
     mBusyOffCount++;
     return ALPIDE_BUSY_OFF;
   } else if(data == DW_COMMA) {
-    std::cout << "Got COMMA" << std::endl;    
+    std::cout << "Got COMMA" << std::endl;
     mCommaCount++;
     return ALPIDE_COMMA;
   } else {
@@ -282,7 +282,7 @@ AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name)
   : sc_core::sc_module(name)
 {
   SC_METHOD(parserInputProcess);
-  sensitive_pos << s_clk_in;  
+  sensitive_pos << s_clk_in;
 }
 
 
@@ -295,8 +295,8 @@ void AlpideDataParser::parserInputProcess(void)
 
   dw.data[0] = s_serial_data_in.read().range(7, 0);
   dw.data[1] = s_serial_data_in.read().range(15,8);
-  dw.data[2] = s_serial_data_in.read().range(23,16);    
-    
+  dw.data[2] = s_serial_data_in.read().range(23,16);
+
   inputDataWord(dw);
 }
 

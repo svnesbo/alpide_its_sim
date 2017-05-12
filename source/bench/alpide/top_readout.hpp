@@ -11,9 +11,9 @@
 #ifndef TOP_READOUT_H
 #define TOP_READOUT_H
 
-#include "region_readout.h"
-#include "alpide_constants.h"
-#include "alpide_data_format.h"
+#include "region_readout.hpp"
+#include "alpide_constants.hpp"
+#include "alpide_data_format.hpp"
 #include <string>
 
 // Ignore warnings about use of auto_ptr in SystemC library
@@ -37,10 +37,10 @@ class TopReadoutUnit : sc_core::sc_module
 {
 public:
   ///@brief Alpide chip clock (typically 40MHz)
-  sc_in_clk s_clk_in; 
-  
+  sc_in_clk s_clk_in;
+
   sc_in<bool> s_readout_abort_in;
-  sc_in<bool> s_fatal_state_in;  
+  sc_in<bool> s_fatal_state_in;
   sc_in<bool> s_region_fifo_empty_in[N_REGIONS];
   sc_in<bool> s_region_valid_in[N_REGIONS];
   sc_in<AlpideDataWord> s_region_data_in[N_REGIONS];
@@ -48,12 +48,12 @@ public:
   sc_out<bool> s_region_event_pop_out;
   sc_out<bool> s_region_event_start_out;
   sc_out<bool> s_region_data_read_out[N_REGIONS];
-  
+
   // Outputs from the FIFO, not outputs from the TRU module/class
   sc_port<tlm::tlm_nonblocking_get_peek_if<FrameStartFifoWord>> s_frame_start_fifo_output;
   sc_port<tlm::tlm_nonblocking_get_peek_if<FrameEndFifoWord>> s_frame_end_fifo_output;
-  
-  
+
+
   ///@brief Output from TRU
   sc_port<sc_fifo_out_if<AlpideDataWord>> s_dmu_fifo_input;
 
@@ -64,29 +64,29 @@ private:
   ///@brief Signal copy of all_regions_empty variable, 1 cycle delayed
   sc_signal<bool> s_all_regions_empty_debug;
 
-  ///@brief Signal copy of no_regions_valid variable, 1 cycle delayed  
+  ///@brief Signal copy of no_regions_valid variable, 1 cycle delayed
   sc_signal<bool> s_no_regions_valid_debug;
 
   // Standard C++ members
   unsigned int mChipId;
   FrameStartFifoWord mCurrentFrameStartWord;
-  FrameEndFifoWord mCurrentFrameEndWord;  
+  FrameEndFifoWord mCurrentFrameEndWord;
 
   enum TRU_state_t {
     EMPTY = 0,
     IDLE = 1,
     WAIT_REGION_DATA = 2,
-    CHIP_HEADER = 3,    
+    CHIP_HEADER = 3,
     BUSY_VIOLATION = 4,
     REGION_DATA = 5,
     WAIT = 6,
     CHIP_TRAILER = 7
   };
 
-  void topRegionReadoutProcess(void);  
+  void topRegionReadoutProcess(void);
   bool getNextRegion(unsigned int& region_out);
   bool getAllRegionsEmpty(void);
-  
+
 public:
   TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
