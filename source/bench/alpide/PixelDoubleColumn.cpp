@@ -5,7 +5,7 @@
  * @brief  Source file for pixel column, double column, and priority encoder classes
  */
 
-#include "pixel_col.hpp"
+#include "PixelDoubleColumn.hpp"
 #include <stdexcept>
 #include <iostream>
 

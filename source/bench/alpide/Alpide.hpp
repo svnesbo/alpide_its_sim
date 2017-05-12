@@ -11,10 +11,10 @@
 #ifndef ALPIDE_H
 #define ALPIDE_H
 
-#include "alpide_data_format.hpp"
-#include "pixel_matrix.hpp"
-#include "region_readout.hpp"
-#include "top_readout.hpp"
+#include "AlpideDataWord.hpp"
+#include "PixelMatrix.hpp"
+#include "RegionReadoutUnit.hpp"
+#include "TopReadoutUnit.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push

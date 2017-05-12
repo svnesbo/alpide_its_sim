@@ -5,7 +5,7 @@
  * @brief  Source file for Alpide class.
  */
 
-#include "alpide.hpp"
+#include "Alpide.hpp"
 #include "alpide_constants.hpp"
 #include "../misc/vcd_trace.hpp"
 #include <string>

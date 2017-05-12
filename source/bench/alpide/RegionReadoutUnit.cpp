@@ -7,7 +7,7 @@
  */
 
 #include <iostream>
-#include "region_readout.hpp"
+#include "RegionReadoutUnit.hpp"
 #include "../misc/vcd_trace.hpp"
 
 

@@ -13,8 +13,8 @@
 #ifndef REGION_READOUT_H
 #define REGION_READOUT_H
 
-#include "alpide_data_format.hpp"
-#include "pixel_matrix.hpp"
+#include "AlpideDataWord.hpp"
+#include "PixelMatrix.hpp"
 #include <cstdint>
 
 // Ignore warnings about use of auto_ptr in SystemC library

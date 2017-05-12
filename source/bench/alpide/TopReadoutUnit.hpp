@@ -11,9 +11,9 @@
 #ifndef TOP_READOUT_H
 #define TOP_READOUT_H
 
-#include "region_readout.hpp"
+#include "RegionReadoutUnit.hpp"
+#include "AlpideDataWord.hpp"
 #include "alpide_constants.hpp"
-#include "alpide_data_format.hpp"
 #include <string>
 
 // Ignore warnings about use of auto_ptr in SystemC library

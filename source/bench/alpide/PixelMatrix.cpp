@@ -10,7 +10,7 @@
  */
 
 #include <iostream>
-#include "pixel_matrix.hpp"
+#include "PixelMatrix.hpp"
 
 ///@brief PixelMatrix Constructor
 ///@param[in] continuous_mode True: continuous mode, false: triggered mode

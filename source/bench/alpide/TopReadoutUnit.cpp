@@ -5,7 +5,7 @@
  * @brief  Class for implementing the Top Readout Unit (TRU) in the Alpide chip.
  */
 
-#include "top_readout.hpp"
+#include "TopReadoutUnit.hpp"
 #include "../misc/vcd_trace.hpp"
 
 

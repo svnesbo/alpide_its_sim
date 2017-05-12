@@ -9,7 +9,7 @@
  */
 
 #include "../misc/vcd_trace.hpp"
-#include "alpide_data_parser.hpp"
+#include "AlpideDataParser.hpp"
 #include <cstddef>
 #include <iostream>
 #include <bitset>

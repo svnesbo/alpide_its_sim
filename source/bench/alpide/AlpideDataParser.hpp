@@ -13,7 +13,7 @@
 #ifndef ALPIDE_DATA_PARSER_H
 #define ALPIDE_DATA_PARSER_H
 
-#include "alpide_data_format.hpp"
+#include "AlpideDataWord.hpp"
 #include "../event/trigger_event.hpp"
 #include <vector>
 
