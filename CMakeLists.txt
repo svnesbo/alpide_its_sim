@@ -9,3 +9,5 @@ set(MODEL_SOURCES
   source/bench/alpide/TopReadoutUnit.cpp
 
   )
+
+add_sources(${MODEL_SOURCES})
