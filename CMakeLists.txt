@@ -1,11 +1,11 @@
 set(MODEL_SOURCES
   ${MODEL_SOURCES}
 
-  source/bench/alpide/Alpide.cpp
-    source/bench/alpide/PixelDoubleColumn.cpp
-  source/bench/alpide/PixelMatrix.cpp
-  source/bench/alpide/RegionReadoutUnit.cpp
-  source/bench/alpide/TopReadoutUnit.cpp
+  source/bench/Alpide/Alpide.cpp
+  source/bench/Alpide/PixelDoubleColumn.cpp
+  source/bench/Alpide/PixelMatrix.cpp
+  source/bench/Alpide/RegionReadoutUnit.cpp
+  source/bench/Alpide/TopReadoutUnit.cpp
 
   )
 
