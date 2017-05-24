@@ -1,15 +1,15 @@
 # Getting started - Building and running the code {#readme}
 
-A simple Dataflow SystemC Model of ITS and the Alpide chip
+A simple Dataflow SystemC Model of ITS and the Alpide chip. This repo includes the SystemC Alpide module located in source/bench/Alpide, and a standalone simulation program for the Alpide module located in software/alpide_dataflow_sim.
 
-## Building the project
+## Building the simulation program
 
-Building the project requires GCC with C++11 support (included from version 4.8.x I think). 
+Building the project requires GCC with C++11 support (included from version 4.8), and CMake is used for building.
 
 ### Required Libraries
-- Requires qmake and boost libraries. On ubuntu, they can be installed with:
+- Requires Qt5, boost libraries, and obviously SystemC. On ubuntu, they can be installed with:
 
-- qmake:
+- Qt5:
 ```
 sudo apt-get install qt5-default
 ```
@@ -26,43 +26,41 @@ Can be downloaded from http://accellera.org/downloads/standards/systemc
 The code has been tested and developed with version 2.3.1 of SystemC. Refer to SystemC documentation for build/install instructions.
 
 
-### Environment
-
-The project's makefile expects to find the path to the base directory of the SystemC installation in $SYSTEMC_HOME.
-It may also be necessary to add the path to the SystemC libraries to $LD_LIBRARY_PATH. Adding something like this to $HOME/.profile should do (for version 2.3.1):
-```
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/systemc-2.3.1/lib-linux64/
-export SYSTEMC_HOME=/path/to/systemc-2.3.1
-```
-
-
-
 ### Compiling the code
 
 ```
-cd alpide_dataflow_model
+mkdir software/alpide_dataflow_sim/build
+cd software/alpide_dataflow_sim/build
+cmake ..
 make
+```
+
+### To compile documentation
+Requires doxygen. From the build directory:
+
+```
+make doc
 ```
 
 ## Running the code:
 
-To run the code:
+The program expects to find settings files etc in <current working directory>/config, and should preferably be run from the simulation project's top directory:
 
 ```
-./alpide_dataflow_model
+cd software/alpide_dataflow_sim/
+bin/alpide_dataflow_model
 ```
-
 
 The program requires a settings.txt file with simulation settings. If it does not exist, running the program generates a settings.txt file with default settings. This file can be edited and the simulation rerun to use those settings. The settings.txt file will not be overwritten.
 
 Simulation results will be saved in sim_output/Run {timestamp}/
 
 
-Simulation output is stored in alpide_dataflow_model/sim_output/{timestamp}/
-
 ## To process simulation data:
-```
-cd alpide_dataflow_model/sim_output/{timestamp}/
-root -b -q -l '../../process/process_event_data.C+("physics_events_data.csv")'
-```
 
+Analysis of simulation data is currently limited to a simple script which plots distributions of multiplicity and event rates for the events that were generated during the simulation.
+
+```
+cd sim_output/Run {timestamp}/
+root -b -q -l '../../analysis/process_event_data.C+("physics_events_data.csv")'
+```
