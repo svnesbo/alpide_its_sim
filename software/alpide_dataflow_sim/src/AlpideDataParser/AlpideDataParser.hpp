@@ -13,8 +13,8 @@
 #ifndef ALPIDE_DATA_PARSER_H
 #define ALPIDE_DATA_PARSER_H
 
-#include "../Alpide/AlpideDataWord.hpp"
-#include "../event/trigger_event.hpp"
+#include "Alpide/AlpideDataWord.hpp"
+#include "../event/trigger_event.h"
 #include <vector>
 
 // Ignore warnings about use of auto_ptr in SystemC library

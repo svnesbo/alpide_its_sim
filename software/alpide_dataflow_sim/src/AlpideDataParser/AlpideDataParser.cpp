@@ -8,7 +8,7 @@
  *         Don't mix it with the Alpide simulation model.
  */
 
-#include "../Alpide/misc/vcd_trace.hpp"
+#include "misc/vcd_trace.hpp"
 #include "AlpideDataParser.hpp"
 #include <cstddef>
 #include <iostream>

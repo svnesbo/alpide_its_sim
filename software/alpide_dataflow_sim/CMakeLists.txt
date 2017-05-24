@@ -69,9 +69,8 @@ add_sources(
   src/event/trigger_event.cpp
   src/settings/settings.cpp
   src/stimuli/stimuli.cpp
+  src/main.cpp
   )
-
-add_sources(src/main.cpp)
 
 add_executable(alpide_dataflow_sim  ${SRCS})
 target_link_libraries(alpide_dataflow_sim ${SystemC_LIBRARIES} pthread boost_random Qt5Core)
@@ -88,3 +87,7 @@ if(DOXYGEN_FOUND)
     COMMENT "Generating API documentation with Doxygen" VERBATIM
     )
 endif(DOXYGEN_FOUND)
+
+
+enable_testing()
+add_subdirectory(src/unit_tests/)

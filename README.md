@@ -42,7 +42,20 @@ Requires doxygen. From the build directory:
 make doc
 ```
 
-## Running the code:
+
+### Running unit tests
+3 tests will be compiled in the build directory:
+* alpide_test - Tests the whole Alpide SystemC with random input data, parses output from the model and verifies that all the correct pixel hits were sent out
+* pixel_matrix_test - Test of PixelMatrix class
+* pixel_col_test - Test of PixelDoubleColumn class - verifies that pixel priority encoder has the desired prioritization, etc.
+
+To compile and run the unit tests:
+
+```
+make check
+```
+
+## Running the simulation:
 
 The program expects to find settings files etc in <current working directory>/config, and should preferably be run from the simulation project's top directory:
 

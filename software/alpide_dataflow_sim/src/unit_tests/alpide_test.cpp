@@ -14,8 +14,8 @@
  *         6) Verifies that the parser has received the event and that the hits are the same
  */
 
-#include "alpide/alpide.h"
-#include "alpide/alpide_data_parser.h"
+#include "Alpide/Alpide.hpp"
+#include "../AlpideDataParser/AlpideDataParser.hpp"
 #include <boost/random/random_device.hpp>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
@@ -33,6 +33,7 @@ int sc_main(int argc, char** argv)
   bool continuous_mode = false;
   bool enable_clustering = true;
   bool matrix_readout_speed = true;
+  bool test_passed = true;
 
   // Set up random number generators
   boost::random::mt19937 rand_gen;
@@ -101,6 +102,7 @@ int sc_main(int argc, char** argv)
     std::cout << "  Ok" << std::endl;
   } else {
     std::cout << "  Not ok. Chip not ready." << std::endl;
+    test_passed = false;
     return -1;
   }
 
@@ -146,11 +148,13 @@ int sc_main(int argc, char** argv)
   } else {
     std::cout << "Error: Alpide parser contains " << parser.getNumEvents();
     std::cout << " events, should have 1." << std::endl;
+    test_passed = false;
   }
 
   const AlpideEventFrame* event = parser.getNextEvent();
   if(event == nullptr) {
     std::cout << "Error: parser returned null pointer for next event." << std::endl;
+    test_passed = false;
     return -1;
   }
 
@@ -161,6 +165,7 @@ int sc_main(int argc, char** argv)
     std::cout << "Error: Alpide parser event size is " << event->getEventSize();
     std::cout << ", should equal input hit vector size which is " << hit_vector.size();
     std::cout << "." << std::endl;
+    test_passed = false;
   }
 
   std::cout << "Checking that the event contains all the hits that were generated, and nothing more." << std::endl;
@@ -168,6 +173,7 @@ int sc_main(int argc, char** argv)
     if(event->pixelHitInEvent(hit_vector.back()) == false) {
       std::cout << "Error: missing pixel " << hit_vector.back().getCol() << ":";
       std::cout << hit_vector.back().getRow() << " in Alpide parser event." << std::endl;
+      test_passed = false;
     } else {
       std::cout << "Success: Pixel " << hit_vector.back().getCol() << ":";
       std::cout << hit_vector.back().getRow() << " found in Alpide parser event." << std::endl;
@@ -190,4 +196,12 @@ int sc_main(int argc, char** argv)
 
   ///@todo Create more advanced tests of Alpide chip here.. test that clusters are generated
   ///      correctly, that data is read out sufficiently fast, etc.
+
+  if(test_passed == true) {
+    std::cout << "All tests passed. " << std::endl;
+    return 0;
+  } else {
+    std::cout << "One or more tests failed." << std::endl;
+    return -1;
+  }
 }
