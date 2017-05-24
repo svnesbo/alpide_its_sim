@@ -1,0 +1,15 @@
+Since I haven't bothered to create a Makefile yet, here is an example of how to compile and run the pixel_col unit test:
+
+Compile the unit test with:
+g++ -std=c++11 pixel_col_test.cpp pixel_col.cpp -o pixel_col_test -lboost_unit_test_framework -DEXCEPTION_CHECKS
+
+g++ -std=c++11 pixel_matrix_test.cpp ../alpide/pixel_matrix.cpp ../alpide/pixel_col.cpp -o pixel_matrix_test -lboost_unit_test_framework -DEXCEPTION_CHECKS
+
+Run with:
+./pixel_col_test
+
+For extra output:
+./pixel_col_test --log_level=message --report_level=detailed
+
+More options are available with:
+./pixel_col_test --help

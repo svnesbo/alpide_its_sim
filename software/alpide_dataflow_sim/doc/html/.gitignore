@@ -1,0 +1,9 @@
+# .gitignore sample 
+###################
+
+# Ignore all files in this dir, so all the doxygen
+# stuff doesn't clutter commits.
+*
+
+# ... except for this one.
+!.gitignore

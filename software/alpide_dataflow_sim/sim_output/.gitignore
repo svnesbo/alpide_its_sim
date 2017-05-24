@@ -1,0 +1,9 @@
+# .gitignore sample 
+###################
+
+# Ignore all files in this dir
+# stuff doesn't clutter commits.
+*
+
+# ... except for this one.
+!.gitignore
