@@ -38,6 +38,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   : sc_core::sc_module(name)
 {
   mOutputPath = output_path;
+  mRandomHitGeneration = settings->value("event/random_hit_generation").toBool();
   mBunchCrossingRateNs = settings->value("event/bunch_crossing_rate_ns").toInt();
   mAverageEventRateNs = settings->value("event/average_event_rate_ns").toInt();
   mRandomSeed = settings->value("simulation/random_seed").toInt();
@@ -59,45 +60,53 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   mEventQueue.resize(mNumChips);
   mHitQueue.resize(mNumChips);
 
-  // Instantiate event generator object with the desired hit multiplicity distribution
-  QString multipl_dist_type = settings->value("event/hit_multiplicity_distribution_type").toString();
-  if(multipl_dist_type == "gauss") {
-    mHitMultiplicityGaussAverage = settings->value("event/hit_multiplicity_gauss_avg").toInt();
-    mHitMultiplicityGaussDeviation = settings->value("event/hit_multiplicity_gauss_stddev").toInt();
+  if(mRandomHitGeneration) {
+    // Instantiate event generator object with the desired hit multiplicity distribution
+    QString multipl_dist_type = settings->value("event/hit_multiplicity_distribution_type").toString();
+    if(multipl_dist_type == "gauss") {
+      mHitMultiplicityGaussAverage = settings->value("event/hit_multiplicity_gauss_avg").toInt();
+      mHitMultiplicityGaussDeviation = settings->value("event/hit_multiplicity_gauss_stddev").toInt();
 
-    mRandHitMultiplicityGauss = new normal_distribution<double>(mHitMultiplicityGaussAverage,
-                                                                             mHitMultiplicityGaussDeviation);
+      mRandHitMultiplicityGauss = new normal_distribution<double>(mHitMultiplicityGaussAverage,
+                                                                  mHitMultiplicityGaussDeviation);
 
-    // Discrete distribution is not used in this case
+      // Discrete distribution is not used in this case
+      mRandHitMultiplicityDiscrete = nullptr;
+    }
+    else if(multipl_dist_type == "discrete") {
+      QString multipl_dist_file = settings->value("event/hit_multiplicity_distribution_file").toString();
+
+      // Read multiplicity distribution from file,
+      // and initialize boost::random discrete distribution with data
+      std::vector<double> mult_dist;
+      std::string dist_file = multipl_dist_file.toStdString();
+      readDiscreteDistributionFile(dist_file.c_str(), mult_dist);
+
+      // Calculate the average number of hits in an event,
+      // assuming that all chips here are on the same layer.
+      double hits_per_cm2 = settings->value("event/hit_density_min_bias_per_cm2").toDouble();
+      double alpide_chip_area = CHIP_WIDTH_CM*CHIP_HEIGHT_CM;
+      double its_layer_area = mNumChips * alpide_chip_area;
+      double avg_hits_per_event =  hits_per_cm2 * its_layer_area;
+
+      std::cout << "hits_per_cm2: " << hits_per_cm2;
+      std::cout << "\talpide_chip_area: " << alpide_chip_area;
+      std::cout << "\tits_layer_area: " << its_layer_area;
+      std::cout << "\tavg_hits_per_event: " << avg_hits_per_event << std::endl;
+      std::cout << "Number of bins in distribution before scaling: " << mult_dist.size() << std::endl;
+      scaleDiscreteDistribution(mult_dist, avg_hits_per_event);
+      std::cout << "Number of bins in distribution after scaling: " << mult_dist.size() << std::endl;
+
+      mRandHitMultiplicityDiscrete = new discrete_distribution<>(mult_dist.begin(), mult_dist.end());
+
+      // Gaussian distribution is not used in this case
+      mRandHitMultiplicityGauss = nullptr;
+    }
+  } else {
+
+
+    // Discrete and gaussion hit distributions are not used in this case
     mRandHitMultiplicityDiscrete = nullptr;
-  }
-  else if(multipl_dist_type == "discrete") {
-    QString multipl_dist_file = settings->value("event/hit_multiplicity_distribution_file").toString();
-
-    // Read multiplicity distribution from file,
-    // and initialize boost::random discrete distribution with data
-    std::vector<double> mult_dist;
-    std::string dist_file = multipl_dist_file.toStdString();
-    readDiscreteDistributionFile(dist_file.c_str(), mult_dist);
-
-    // Calculate the average number of hits in an event,
-    // assuming that all chips here are on the same layer.
-    double hits_per_cm2 = settings->value("event/hit_density_min_bias_per_cm2").toDouble();
-    double alpide_chip_area = CHIP_WIDTH_CM*CHIP_HEIGHT_CM;
-    double its_layer_area = mNumChips * alpide_chip_area;
-    double avg_hits_per_event =  hits_per_cm2 * its_layer_area;
-
-    std::cout << "hits_per_cm2: " << hits_per_cm2;
-    std::cout << "\talpide_chip_area: " << alpide_chip_area;
-    std::cout << "\tits_layer_area: " << its_layer_area;
-    std::cout << "\tavg_hits_per_event: " << avg_hits_per_event << std::endl;
-    std::cout << "Number of bins in distribution before scaling: " << mult_dist.size() << std::endl;
-    scaleDiscreteDistribution(mult_dist, avg_hits_per_event);
-    std::cout << "Number of bins in distribution after scaling: " << mult_dist.size() << std::endl;
-
-    mRandHitMultiplicityDiscrete = new discrete_distribution<>(mult_dist.begin(), mult_dist.end());
-
-    // Gaussian distribution is not used in this case
     mRandHitMultiplicityGauss = nullptr;
   }
 
@@ -488,47 +497,71 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
   mLastPhysicsEventTimeNs += t_delta;
   mPhysicsEventCount++;
 
-  // Generate a random number of hits for this event
-  int n_hits = getRandomMultiplicity();
+
+  if(mRandomHitGeneration == true) {
+    // Generate a random number of hits for this event
+    int n_hits = getRandomMultiplicity();
 
 
-  // Generate hits here
-  for(int i = 0; i < n_hits; i++) {
-    int rand_chip_id = (*mRandHitChipID)(mRandHitGen);
-    int rand_x1 = (*mRandHitChipX)(mRandHitGen);
-    int rand_y1 = (*mRandHitChipY)(mRandHitGen);
-    int rand_x2, rand_y2;
+    // Generate hits here
+    for(int i = 0; i < n_hits; i++) {
+      int rand_chip_id = (*mRandHitChipID)(mRandHitGen);
+      int rand_x1 = (*mRandHitChipX)(mRandHitGen);
+      int rand_y1 = (*mRandHitChipY)(mRandHitGen);
+      int rand_x2, rand_y2;
 
-    chip_trace_hit_counts[rand_chip_id]++;
+      chip_trace_hit_counts[rand_chip_id]++;
 
-    ///@todo Account larger/bigger clusters here (when implemented)
-    chip_pixel_hit_counts[rand_chip_id] += 4;
+      ///@todo Account larger/bigger clusters here (when implemented)
+      chip_pixel_hit_counts[rand_chip_id] += 4;
 
-    // Very simple and silly method for making 2x2 pixel cluster
-    // Makes sure that we don't get pixels below row/col 0, and not above
-    // row 511 or above column 1023
-    if(rand_x1 < N_PIXEL_COLS/2) {
-      rand_x2 = rand_x1+1;
-    } else {
-      rand_x2 = rand_x1-1;
+      // Very simple and silly method for making 2x2 pixel cluster
+      // Makes sure that we don't get pixels below row/col 0, and not above
+      // row 511 or above column 1023
+      if(rand_x1 < N_PIXEL_COLS/2) {
+        rand_x2 = rand_x1+1;
+      } else {
+        rand_x2 = rand_x1-1;
+      }
+
+      if(rand_y1 < N_PIXEL_ROWS/2) {
+        rand_y2 = rand_y1+1;
+      } else {
+        rand_y2 = rand_y1-1;
+      }
+
+      // Create hit objects directly at the back of the deque,
+      // without a copy or move taking place.
+      mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+                                           mPixelDeadTime, mPixelActiveTime);
+      mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+                                           mPixelDeadTime, mPixelActiveTime);
+      mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+                                           mPixelDeadTime, mPixelActiveTime);
+      mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+                                           mPixelDeadTime, mPixelActiveTime);
     }
+  } else { // No random hits, use MC generated events
+    const EventDigits* digits = mMonteCarloEvents.getNextEvent();
 
-    if(rand_y1 < N_PIXEL_ROWS/2) {
-      rand_y2 = rand_y1+1;
-    } else {
-      rand_y2 = rand_y1-1;
+    auto digit_it = digits->getDigitsIterator();
+    auto digit_end_it = digits->getDigitsEndIterator();
+
+    while(digit_it != digit_end_it) {
+      const int &chip_id = digit_it->first;
+      const PixelData &pix = digit_it->second;
+
+      mHitQueue[chip_id].emplace_back(pix.getCol(), pix.getRow(),
+                                      mLastPhysicsEventTimeNs,
+                                      mPixelDeadTime,
+                                      mPixelActiveTime);
+
+      // Update statistics. We only get pixel digits from MC events,
+      // no traces, so only this counter is used.
+      chip_pixel_hit_counts[rand_chip_id]++;
+
+      digit_it++;
     }
-
-    // Create hit objects directly at the back of the deque,
-    // without a copy or move taking place.
-    mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y1, mLastPhysicsEventTimeNs,
-                                         mPixelDeadTime, mPixelActiveTime);
-    mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y2, mLastPhysicsEventTimeNs,
-                                         mPixelDeadTime, mPixelActiveTime);
-    mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y1, mLastPhysicsEventTimeNs,
-                                         mPixelDeadTime, mPixelActiveTime);
-    mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y2, mLastPhysicsEventTimeNs,
-                                         mPixelDeadTime, mPixelActiveTime);
   }
 
   // Write event rate and multiplicity numbers to CSV file

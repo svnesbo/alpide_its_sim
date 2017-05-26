@@ -67,13 +67,80 @@
 #include "EventXML.hpp"
 
 
+EventXML::EventXML(bool random_event_order = true, int random_seed = 0)
+  : mRandomEventOrder(random_event_order)
+  , mRandomSeed(random_seed)
+  , mEventCount(0)
+  , mEventCountChanged(true)
+{
+  if(mRandomSeed == 0) {
+    boost::random::random_device r;
+
+    std::cout << "Boost random_device entropy: " << r.entropy() << std::endl;
+
+    unsigned int random_seed = r();
+    mRandEventIdGen.seed(random_seed);
+    std::cout << "Random event ID generator random seed: " << random_seed << std::endl;
+  } else {
+    mRandEventIdGen.seed(mRandomSeed);
+  }
+
+  mRandEventIdDist = nullptr;
+}
+
+
+EventXML::~EventXML()
+{
+  delete mRandEventIdDist;
+  delete mRandEventIdGen;
+}
+
+
+const EventDigits* EventXML::getNextEvent(void)
+{
+  EventDigits* event = nullptr;
+  int next_event_index;
+
+  if(mEvents.empty() == false) {
+    if(mRandomEventOrder) {
+      if(mEventCountChanged)
+        udpateEventIdDistribution();
+
+      // Generate random event here
+      next_event_index = (*mRandEventIdDist)(mRandEventIdGen);
+    } else { // Sequential event order if not random
+      mPreviousEvent++;
+      mPreviousEvent = mPreviousEvent % mEvents.size();
+      next_event_index = mPreviousEvent;
+    }
+
+    event = mEvents[next_event_index];
+  }
+
+  return event;
+}
+
+
+///@brief When number of events has changed, update the uniform random distribution used to
+///       pick event ID, so that the new event IDs are included in the distribution.
+void EventXML::updateEventIdDistribution(void)
+{
+  if(mRandEventIdDist != nullptr)
+    delete mRandEventIdDist;
+
+  mRandEventIdDist = new uniform_int_distribution<int>(0, mEvents.size()-1);
+
+  mEventCountChanged = false;
+}
+
+
 ///@brief Find an XML DOM node element in a list of elements, where the elements have an id attribute
 ///@param[in] list XML DOM node element list
 ///@param[in] id Id of element to look for
 ///@param[out] element_out Reference to QDomElement object, which is used as an output to store
 ///            the element that was found
 ///@return True if element with desired ID was found, false if not.
-bool findXMLElementInListById(const QDomNodeElement& list, int id, QDomElement& element_out)
+bool EventXML::findXMLElementInListById(const QDomNodeElement& list, int id, QDomElement& element_out)
 {
   // Search for element in list
   for(int i = 0; i < list.size(); i++) {
@@ -88,7 +155,7 @@ bool findXMLElementInListById(const QDomNodeElement& list, int id, QDomElement& 
 
 
 ///@todo Accept a triggerEvent object or something here????
-readEventXML(QString event_filename)
+void EventXML::readEventXML(QString event_filename)
 {
   QDomDocument xml_dom_document;
   QFile event_file(event_filename);
@@ -149,9 +216,9 @@ readEventXML(QString event_filename)
 ///@param[out] chip_element_out Reference to a QDomElement object, which is used as an output and
 ///            set to the chip element in the XML DOM object (if it was found).
 ///@return True if chip was found, false if not.
-bool locateChipInEventXML(const detectorPosition& chip_position,
-                          const QDomElement& event_xml_dom_root,
-                          QDomElement& chip_element_out)
+bool EventXML::locateChipInEventXML(const detectorPosition& chip_position,
+                                    const QDomElement& event_xml_dom_root,
+                                    QDomElement& chip_element_out)
 {
   // Search for layer in XML file
   QDomNodeList layer_list = event_xml_dom_root.elementsByTagName("lay");

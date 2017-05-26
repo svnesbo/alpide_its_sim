@@ -81,8 +81,6 @@ private:
   int mNumEventsInMemoryAllowed = 0;
 
   /// Total number of physics and event frames generated.
-  int mPhysicsEventCount = 0;
-  int mEventFrameIdCount = 0;
 
   /// Time of the last physics event that was generated.
   int64_t mLastPhysicsEventTimeNs = 0;
@@ -125,6 +123,8 @@ private:
 
   int mRandomSeed;
 
+  EventXML mMonteCarloEvents;
+
   boost::random::mt19937 mRandHitGen;
   boost::random::mt19937 mRandHitMultiplicityGen;
   boost::random::mt19937 mRandEventTimeGen;
@@ -140,6 +140,7 @@ private:
   /// Exponential distribution used for time between events
   boost::random::exponential_distribution<double> *mRandEventTime;
 
+  bool mRandomHitGeneration;
   int mHitMultiplicityGaussAverage;
   int mHitMultiplicityGaussDeviation;
 
