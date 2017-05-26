@@ -114,19 +114,19 @@ private:
   bool mStrobeActive;
   uint16_t mBunchCounter;
 
-  ///@brief Number of (trigger) events that are accepted into an MEB by the chip
-  uint64_t mTriggerEventsAccepted = 0;
+  ///@brief Number of triggers (event frames) that are accepted into an MEB by the chip
+  uint64_t mEventFramesAccepted = 0;
 
   ///@brief Triggered mode: If 3 MEBs are already full, the chip will not accept more events
   ///                       until one of those 3 MEBs have been read out. This variable is counted
   ///                       up for each event that is not accepted.
-  uint64_t mTriggerEventsRejected = 0;
+  uint64_t mEventFramesRejected = 0;
 
   ///@brief Continuous mode only.
   ///       The Alpide chip will try to guarantee that there is a free MEB slice in continuous mode.
   ///       It does this by deleting the oldest MEB slice (even if it has not been read out) when
   ///       the 3rd one is filled. This variable counts up in that case.
-  uint64_t mTriggerEventsFlushed = 0;
+  uint64_t mEventFramesFlushed = 0;
 
   void mainProcess(void);
   void strobeInput(void);
@@ -141,8 +141,8 @@ public:
          bool continuous_mode, bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
-  uint64_t getTriggerEventsAcceptedCount(void) const {return mTriggerEventsAccepted;}
-  uint64_t getTriggerEventsRejectedCount(void) const {return mTriggerEventsRejected;}
+  uint64_t getEventFramesAcceptedCount(void) const {return mEventFramesAccepted;}
+  uint64_t getEventFramesRejectedCount(void) const {return mEventFramesRejected;}
 };
 
 

@@ -1,5 +1,5 @@
 /**
- * @file   settings.cpp
+ * @file   Settings.cpp
  * @author Simon Voigt Nesbo <svn@hib.no>
  * @date   November 3, 2016
  * @brief  Source file for simulation settings file.
@@ -8,7 +8,7 @@
  *         default settings if the settings file, or certain settings, are missing.
  */
 
-#include "settings.hpp"
+#include "Settings.hpp"
 #include <QStringList>
 
 

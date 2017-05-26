@@ -1,11 +1,11 @@
 /**
- * @file   event_generator.cpp
+ * @file   EventGenerator.cpp
  * @author Simon Voigt Nesbo
  * @date   December 22, 2016
  * @details A simple event generator for Alpide SystemC simulation model.
  */
 
-#include "event_generator.h"
+#include "EventGenerator.hpp"
 #include "Alpide/alpide_constants.hpp"
 #include <boost/current_function.hpp>
 #include <boost/random/random_device.hpp>
@@ -124,13 +124,13 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       mPhysicsEventsCSVFile << ";chip_" << i << "_pixel_hits";
     mPhysicsEventsCSVFile << std::endl;
 
-    std::string trigger_events_csv_filename = mOutputPath + std::string("/trigger_events_data.csv");
-    mTriggerEventsCSVFile.open(trigger_events_csv_filename);
-    mTriggerEventsCSVFile << "time";
-    mTriggerEventsCSVFile << ";filtered";
+    std::string event_frames_csv_filename = mOutputPath + std::string("/event_frames_data.csv");
+    mEventFramesCSVFile.open(event_frames_csv_filename);
+    mEventFramesCSVFile << "time";
+    mEventFramesCSVFile << ";filtered";
     for(int i = 0; i < mNumChips; i++)
-      mTriggerEventsCSVFile << ";chip_" << i << "_pixel_hits";
-    mTriggerEventsCSVFile << std::endl;
+      mEventFramesCSVFile << ";chip_" << i << "_pixel_hits";
+    mEventFramesCSVFile << std::endl;
   }
 
 
@@ -139,7 +139,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   //////////////////////////////////////////////////////////////////////////////
   SC_CTHREAD(physicsEventProcess, s_clk_in.pos());
 
-  SC_METHOD(triggerEventProcess);
+  SC_METHOD(eventFrameProcess);
   sensitive << s_strobe_in;
 }
 
@@ -157,8 +157,8 @@ EventGenerator::~EventGenerator()
 
   if(mPhysicsEventsCSVFile.is_open())
     mPhysicsEventsCSVFile.close();
-  if(mTriggerEventsCSVFile.is_open())
-    mTriggerEventsCSVFile.close();
+  if(mEventFramesCSVFile.is_open())
+    mEventFramesCSVFile.close();
 }
 
 
@@ -179,23 +179,23 @@ void EventGenerator::eventMemoryCountLimiter(void)
 ///@brief Get a reference to the next event (if there is one). Note: this function
 ///       will keep returning the same event until it has been removed by removeOldestEvent().
 ///@return Reference to next event. If there are no events,
-///        then a reference to NoTriggerEvent (with event id = -1) is returned.
-const TriggerEvent& EventGenerator::getNextTriggerEvent(void)
+///        then a reference to NoEventFrame (with event id = -1) is returned.
+const EventFrame& EventGenerator::getNextEventFrame(void)
 {
   // Start where we left off
-  int chip_id = mNextTriggerEventChipId;
+  int chip_id = mNextEventFrameChipId;
 
-  // Find first available TriggerEvent and return it
+  // Find first available EventFrame and return it
   while(chip_id < mNumChips) {
     if(mEventQueue[chip_id].size() > 0) {
       return *(mEventQueue[chip_id].front());
     }
 
     chip_id++;
-    mNextTriggerEventChipId = chip_id;
+    mNextEventFrameChipId = chip_id;
   }
 
-  return NoTriggerEvent;
+  return NoEventFrame;
 }
 
 
@@ -251,13 +251,13 @@ void EventGenerator::initRandomNumGenerator(void)
 void EventGenerator::removeOldestEvent(void)
 {
   // Start where we left off
-  int chip_id = mNextTriggerEventChipId;
+  int chip_id = mNextEventFrameChipId;
 
   // chip_id in range?
   if(chip_id < mNumChips) {
     // Event left to remove for this chip?
     if(mEventQueue[chip_id].size() > 0) {
-      TriggerEvent *oldest_event = mEventQueue[chip_id].front();
+      EventFrame *oldest_event = mEventQueue[chip_id].front();
       mEventQueue[chip_id].pop();
 
       if(mWriteEventsToDisk)
@@ -556,8 +556,8 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
 ///@brief Remove old hits.
 ///       Start at the front of the hit queue, and pop (remove)
 ///       hits from the front while the hits are no longer active at current simulation time,
-///       and older than the oldest trigger event (so we don't delete hits that may be
-///       still be used in a trigger event that hasn't been processed yet).
+///       and older than the oldest event frame (so we don't delete hits that may be
+///       still be used in a event frame that hasn't been processed yet).
 void EventGenerator::removeInactiveHits(void)
 {
   int64_t time_now = sc_time_stamp().value();
@@ -574,7 +574,7 @@ void EventGenerator::removeInactiveHits(void)
       if(mHitQueue[chip_id].size() > 0) {
         // Check if oldest hit should be removed..
         if(mHitQueue[chip_id].front().isActive(time_now) == false &&
-           mHitQueue[chip_id].front().getActiveTimeEnd() < mLastTriggerEventEndTimeNs)
+           mHitQueue[chip_id].front().getActiveTimeEnd() < mLastEventFrameEndTimeNs)
         {
           mHitQueue[chip_id].pop_front();
           i++;
@@ -596,42 +596,42 @@ void EventGenerator::removeInactiveHits(void)
 }
 
 
-///@brief Create a new trigger event at the given start time. It checks if trigger event
-///       should be filtered or not, and updates trigger ID count.
-///@param[in] event_start Start time of trigger event (time when strobe signal went high).
-///@param[in] event_end End time of trigger event (time when strobe signal went low again).
+///@brief Create a new event frame at the given start time. It checks if the trigger and
+///       associated event frame should be filtered or not, and updates trigger ID count.
+///@param[in] event_start Start time of event frame (time when strobe signal went high).
+///@param[in] event_end End time of event frame (time when strobe signal went low again).
 ///@param[in] chip_id Chip ID to generate event for
-///@return Pointer to new TriggerEvent object that was allocated on the stack.
+///@return Pointer to new EventFrame object that was allocated on the stack.
 ///        Caller must remember to delete it when done in order to free memory.
-TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start, int64_t event_end, int chip_id)
+EventFrame* EventGenerator::generateNextEventFrame(int64_t event_start, int64_t event_end, int chip_id)
 {
   ///@todo Should I check distance between start time of two triggers?
   ///      Or the distance in time between the end of the first trigger and the
   ///      start of the next trigger?
-  int64_t time_since_last_trigger = event_start - mLastTriggerEventStartTimeNs;
+  int64_t time_since_last_trigger = event_start - mLastEventFrameStartTimeNs;
 
   // If event/trigger filtering is enabled, and this event/trigger came
   // too close to the previous one we filter it out.
   bool filter_event = mTriggerFilteringEnabled ? (time_since_last_trigger < mTriggerFilterTimeNs) : false;
 
-  // But don't filter the first trigger event
-  if(mTriggerEventIdCount == 0)
+  // But don't filter the first event frame
+  if(mEventFrameIdCount == 0)
     filter_event = false;
 
-  int event_id = mTriggerEventIdCount;
-  TriggerEvent* e = new TriggerEvent(event_start, event_end, chip_id, event_id, filter_event);
+  int event_id = mEventFrameIdCount;
+  EventFrame* e = new EventFrame(event_start, event_end, chip_id, event_id, filter_event);
 
   // Only add hits to the event if it is not being filtered
   if(e->getEventFilteredFlag() == false) {
-    addHitsToTriggerEvent(*e);
+    addHitsToEventFrame(*e);
   }
 
   #ifdef DEBUG_OUTPUT
   print_function_timestamp();
-  std::cout << "\tTrigger event number: " << mTriggerEventIdCount << std::endl;
+  std::cout << "\tEvent frame number: " << mEventFrameIdCount << std::endl;
   std::cout << "\ttime_since_last_trigger: " << time_since_last_trigger << std::endl;
   std::cout << "\tevent_start: " << event_start << std::endl;
-  std::cout << "\tmLastTriggerEventStartTimeNs: " << mLastTriggerEventStartTimeNs << std::endl;
+  std::cout << "\tmLastEventFrameStartTimeNs: " << mLastEventFrameStartTimeNs << std::endl;
   std::cout << "\tmTriggerFilterTimeNs: " << mTriggerFilterTimeNs << std::endl;
   std::cout << "\tFiltered: " << (filter_event ? "true" : "false") << std::endl;
   #endif
@@ -644,7 +644,7 @@ TriggerEvent* EventGenerator::generateNextTriggerEvent(int64_t event_start, int6
 ///@brief Iterate through the hit queue corresponding to the chip_id associated with
 ///       the event referenced by e, and add the active hits to it.
 ///@param[in,out] e Event to add hits to.
-void EventGenerator::addHitsToTriggerEvent(TriggerEvent& e)
+void EventGenerator::addHitsToEventFrame(EventFrame& e)
 {
   int chip_id = e.getChipId();
 
@@ -699,8 +699,8 @@ void EventGenerator::physicsEventProcess(void)
 
 ///@brief SystemC controlled method. It should be sensitive to the strobe signal,
 ///       (both rising and falling edge) and is responsible for creating the
-///       triggerEvent objects after a STROBE pulse.
-void EventGenerator::triggerEventProcess(void)
+///       EventFrame objects after a STROBE pulse.
+void EventGenerator::eventFrameProcess(void)
 {
   int64_t time_now = sc_time_stamp().value();
   bool triggers_filtered = false;
@@ -712,9 +712,9 @@ void EventGenerator::triggerEventProcess(void)
   // Falling edge - active low strobe
   if(s_strobe_in.read() == false) {
     // Save the current simulation time when the strobe was asserted.
-    // We will create the triggerEvent object when it is deasserted, and need to
+    // We will create the EventFrame object when it is deasserted, and need to
     // remember the start time.
-    mNextTriggerEventStartTimeNs = time_now;
+    mNextEventFrameStartTimeNs = time_now;
 
     // Make sure this process doesn't trigger the first time on the wrong strobe edge..
     mStrobeActive = true;
@@ -722,49 +722,49 @@ void EventGenerator::triggerEventProcess(void)
     mStrobeActive = false;
 
     for(int chip_id = 0; chip_id < mNumChips; chip_id++) {
-      TriggerEvent* next_trigger_event = generateNextTriggerEvent(mNextTriggerEventStartTimeNs,
+      EventFrame* next_event_frame = generateNextEventFrame(mNextEventFrameStartTimeNs,
                                                                   time_now,
                                                                   chip_id);
 
-      mEventQueue[chip_id].push(next_trigger_event);
+      mEventQueue[chip_id].push(next_event_frame);
 
-      // Post an event notification that a new trigger event/frame is ready
-      E_trigger_event_available->notify(SC_ZERO_TIME);
+      // Post an event notification that a new EventFrame is ready
+      E_event_frame_available->notify(SC_ZERO_TIME);
 
       // Write number of pixel hits in event to CSV file
       if(mCreateCSVFile) {
         // Write time column and filtered column only one time
         if(chip_id == 0) {
-          mTriggerEventsCSVFile << time_now << ";";
-          mTriggerEventsCSVFile << (next_trigger_event->getEventFilteredFlag() ? "true" : "false");
+          mEventFramesCSVFile << time_now << ";";
+          mEventFramesCSVFile << (next_event_frame->getEventFilteredFlag() ? "true" : "false");
         }
 
-        mTriggerEventsCSVFile << ";" << next_trigger_event->getEventSize();
+        mEventFramesCSVFile << ";" << next_event_frame->getEventSize();
 
         if(chip_id == mNumChips-1)
-          mTriggerEventsCSVFile << std::endl;
+          mEventFramesCSVFile << std::endl;
       }
 
-      // Doesn't matter if this is set every time during the loop, all trigger events
+      // Doesn't matter if this is set every time during the loop, all event frames
       // with the same ID will have the trigger filtered flag set to the same value
-      triggers_filtered = next_trigger_event->getEventFilteredFlag();
+      triggers_filtered = next_event_frame->getEventFilteredFlag();
 
       #ifdef DEBUG_OUTPUT
-      std::cout << "\tTrigger event queue size: " << mEventQueue.size() << std::endl;
+      std::cout << "\tEvent frame queue size: " << mEventQueue.size() << std::endl;
       #endif
     }
 
-    // Don't update last event time if the trigger event(s) were filtered out
+    // Don't update last event time if the event frame(s) were filtered out
     if(triggers_filtered == false) {
-      mLastTriggerEventStartTimeNs = mNextTriggerEventStartTimeNs;
-      mLastTriggerEventEndTimeNs = time_now;
+      mLastEventFrameStartTimeNs = mNextEventFrameStartTimeNs;
+      mLastEventFrameEndTimeNs = time_now;
     }
-    mTriggerEventIdCount++;
-    mNextTriggerEventChipId = 0;
+    mEventFrameIdCount++;
+    mNextEventFrameChipId = 0;
 
     #ifdef DEBUG_OUTPUT
-    std::cout << "\tTrigger start time: " << mLastTriggerEventStartTimeNs << " ns. " << std::endl;
-    std::cout << "\tEnd time: " << mLastTriggerEventEndTimeNs << " ns." << std::endl;
+    std::cout << "\tTrigger start time: " << mLastEventFrameStartTimeNs << " ns. " << std::endl;
+    std::cout << "\tEnd time: " << mLastEventFrameEndTimeNs << " ns." << std::endl;
     #endif
   }
 }

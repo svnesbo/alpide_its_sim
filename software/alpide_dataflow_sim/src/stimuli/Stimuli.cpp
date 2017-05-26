@@ -1,11 +1,11 @@
 /**
- * @file   stimuli.cpp
+ * @file   Stimuli.cpp
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Source file for stimuli function for Alpide Dataflow SystemC model
  */
 
-#include "stimuli.h"
+#include "Stimuli.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -64,21 +64,21 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   , s_strobe_n("strobe_n", false)
 {
   mOutputPath = output_path;
-  
+
   // Initialize variables for Stimuli object
   mNumEvents = settings->value("simulation/n_events").toInt();
   mNumChips = settings->value("simulation/n_chips").toInt();
   mContinuousMode = settings->value("simulation/continuous_mode").toBool();
   mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toInt();
   mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();
-  mTriggerDelayNs = settings->value("event/trigger_delay_ns").toInt();  
+  mTriggerDelayNs = settings->value("event/trigger_delay_ns").toInt();
 
   // Instantiate event generator object
   mEvents = new EventGenerator("event_gen", settings, mOutputPath);
 
   // Connect SystemC signals to EventGenerator
-  mEvents->s_clk_in(clock);  
-  mEvents->E_trigger_event_available(E_trigger_event_available);
+  mEvents->s_clk_in(clock);
+  mEvents->E_event_frame_available(E_event_frame_available);
   mEvents->s_strobe_in(s_strobe_n);
   mEvents->s_physics_event_out(s_physics_event);
 
@@ -87,7 +87,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   int dtu_delay = settings->value("alpide/dtu_delay").toInt();
   bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
   bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
-  
+
   // Instantiate and connect signals to Alpide
   mAlpideChips.resize(mNumChips);
   for(int i = 0; i < mNumChips; i++) {
@@ -101,7 +101,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
                                  enable_clustering,
                                  mContinuousMode,
                                  matrix_readout_speed);
-    
+
     mAlpideChips[i]->s_system_clk_in(clock);
     mAlpideChips[i]->s_strobe_n_in(s_strobe_n);
     mAlpideChips[i]->s_chip_ready_out(s_chip_ready[i]);
@@ -109,11 +109,11 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   }
 
   s_physics_event = false;
-  
+
   SC_CTHREAD(stimuliMainProcess, clock.pos());
-  
+
   SC_METHOD(stimuliEventProcess);
-  sensitive << E_trigger_event_available;
+  sensitive << E_event_frame_available;
 }
 
 
@@ -123,18 +123,18 @@ void Stimuli::stimuliMainProcess(void)
 {
   std::list<int> t_delta_history;
   const int t_delta_averaging_num = 50;
-  
+
   int time_ns = 0;
 
   std::cout << "Staring simulation of " << mNumEvents << " events." << std::endl;
-  
+
   while(simulation_done == false && g_terminate_program == false) {
     // Generate strobe pulses for as long as we have more events to simulate
-    if(mEvents->getTriggerEventCount() < mNumEvents) {
-      if((mEvents->getTriggerEventCount() % 100) == 0) {
+    if(mEvents->getEventFrameCount() < mNumEvents) {
+      if((mEvents->getEventFrameCount() % 100) == 0) {
         int64_t time_now = sc_time_stamp().value();
         std::cout << "@ " << time_now << " ns: \tGenerating strobe/event number ";
-        std::cout << mEvents->getTriggerEventCount() << std::endl;
+        std::cout << mEvents->getEventFrameCount() << std::endl;
       }
 
       if(mContinuousMode == true) {
@@ -145,11 +145,11 @@ void Stimuli::stimuliMainProcess(void)
         wait(mStrobeInactiveNs, SC_NS);
       } else {
         wait(s_physics_event.value_changed_event());
-        
+
         if(s_physics_event.read() == true) {
           wait(mTriggerDelayNs, SC_NS);
           s_strobe_n.write(false);
-        
+
           wait(mStrobeActiveNs, SC_NS);
           s_strobe_n.write(true);
 
@@ -162,11 +162,11 @@ void Stimuli::stimuliMainProcess(void)
     // have been read out from the Alpide MEBs.
     else {
       int events_left = 0;
-      
+
       // Check if the Alpide chips still have events to read out
       for(int i = 0; i < mNumChips; i++)
         events_left += mAlpideChips[i]->getNumEvents();
-          
+
       if(events_left == 0) {
         std::cout << "Finished generating all events, and Alpide chip is done emptying MEBs.\n";
         simulation_done = true;
@@ -180,19 +180,19 @@ void Stimuli::stimuliMainProcess(void)
 }
 
 
-///@brief SystemC controlled method. Waits for EventGenerator to notify the E_trigger_event_available
-///       notification queue that a new trigger event is available.
-///       When a trigger event is available it is fed to the Alpide chip(s).
+///@brief SystemC controlled method. Waits for EventGenerator to notify the E_event_frame_available
+///       notification queue that a new event frame is available.
+///       When a event frame is available it is fed to the Alpide chip(s).
 void Stimuli::stimuliEventProcess(void)
 {
   ///@todo Check if there are actually events?
   ///Throw an error if we get notification but there are not events?
-  
+
   // In a separate block because reference e is invalidated by popNextEvent().
   {
-    const TriggerEvent& e = mEvents->getNextTriggerEvent();
+    const EventFrame& e = mEvents->getNextEventFrame();
 
-    // Don't process if we received NoTriggerEvent
+    // Don't process if we received NoEventFrame
     if(e.getEventId() != -1) {
       int chip_id = e.getChipId();
 
@@ -206,7 +206,7 @@ void Stimuli::stimuliEventProcess(void)
       std::cout << "Hits remaining in oldest event in chip: " << mAlpideChips[chip_id]->getHitsRemainingInOldestEvent();
       std::cout << "  Hits in total (all events): " << mAlpideChips[chip_id]->getHitTotalAllEvents() << std::endl;
       #endif
-    
+
       // Remove the oldest event once we are done processing it..
       mEvents->removeOldestEvent();
     }
@@ -229,7 +229,7 @@ void Stimuli::addTraces(sc_trace_file *wf) const
 
 
 ///@brief Write simulation data to file. Histograms for MEB usage from the Alpide chips,
-///       and trigger event statistics (number of accepted/rejected) in the chips are recorded here
+///       and event frame statistics (number of accepted/rejected) in the chips are recorded here
 void Stimuli::writeDataToFile(void) const
 {
   std::vector<std::map<unsigned int, std::uint64_t> > alpide_histos;
@@ -242,14 +242,14 @@ void Stimuli::writeDataToFile(void) const
     std::cerr << "Error opening CSV file for histograms: " << csv_filename << std::endl;
     return;
   }
-  
+
   csv_file << "Multi Event Buffers in use";
-  
-  // Get histograms from chip objects, and finish writing CSV header 
+
+  // Get histograms from chip objects, and finish writing CSV header
   for(auto it = mAlpideChips.begin(); it != mAlpideChips.end(); it++) {
     int chip_id = (*it)->getChipId();
     csv_file << ";Chip ID " << chip_id;
-    
+
     alpide_histos.push_back((*it)->getMEBHisto());
 
     // Check and possibly update the biggest MEB size (key) found in the histograms
@@ -265,10 +265,10 @@ void Stimuli::writeDataToFile(void) const
   for(unsigned int MEB_size = 0; MEB_size <= all_histos_biggest_key; MEB_size++) {
     csv_file << std::endl;
     csv_file << MEB_size;
-    
+
     for(unsigned int i = 0; i < alpide_histos.size(); i++) {
       csv_file << ";";
-      
+
       auto histo_it = alpide_histos[i].find(MEB_size);
 
       // Write value if it was found in histogram
@@ -279,15 +279,15 @@ void Stimuli::writeDataToFile(void) const
     }
   }
 
-  
-  std::string trigger_stats_filename = mOutputPath + std::string("/trigger_events_stats.csv");
-  ofstream trigger_stats_file(trigger_stats_filename);
 
-  trigger_stats_file << "Chip ID; Accepted trigger events; Rejected trigger events" << std::endl;
+  std::string event_frame_stats_filename = mOutputPath + std::string("/event_frame_stats.csv");
+  ofstream event_frame_stats_file(event_frame_stats_filename);
+
+  event_frame_stats_file << "Chip ID; Accepted event frames; Rejected event frames" << std::endl;
   for(auto it = mAlpideChips.begin(); it != mAlpideChips.end(); it++) {
-    trigger_stats_file << (*it)->getChipId() << ";";
-    trigger_stats_file << (*it)->getTriggerEventsAcceptedCount() << ";";
-    trigger_stats_file << (*it)->getTriggerEventsRejectedCount() << std::endl;
+    event_frame_stats_file << (*it)->getChipId() << ";";
+    event_frame_stats_file << (*it)->getEventFramesAcceptedCount() << ";";
+    event_frame_stats_file << (*it)->getEventFramesRejectedCount() << std::endl;
   }
 
 
@@ -299,6 +299,6 @@ void Stimuli::writeDataToFile(void) const
     return;
   }
 
-  info_file << "Number of \"trigger events\"/strobes requested: " << mNumEvents << std::endl;
-  info_file << "Number of \"trigger events\"/strobes simulated: " << mEvents->getTriggerEventCount() << std::endl;    
+  info_file << "Number of \"event frames\"/strobes requested: " << mNumEvents << std::endl;
+  info_file << "Number of \"event frames\"/strobes simulated: " << mEvents->getEventFrameCount() << std::endl;
 }

@@ -6,10 +6,10 @@
  */
 
 
-#include "settings/settings.hpp"
-#include "event/event_generator.h"
+#include "settings/Settings.hpp"
+#include "event/EventGenerator.hpp"
 #include "Alpide/Alpide.hpp"
-#include "stimuli/stimuli.h"
+#include "stimuli/Stimuli.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push

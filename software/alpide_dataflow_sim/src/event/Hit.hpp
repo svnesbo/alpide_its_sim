@@ -1,5 +1,5 @@
 /**
- * @file   hit.h
+ * @file   Hit.hpp
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Header file for PixelData and Hit classes. These classes hold the coordinates for a discrete hit
@@ -11,8 +11,8 @@
 
 ///@addtogroup event_generation
 ///@{
-#ifndef HIT_H
-#define HIT_H
+#ifndef HIT_HPP
+#define HIT_HPP
 
 ///@todo Move PixelData class to its own file? Currently in pixel_col.h
 #include "Alpide/PixelDoubleColumn.hpp"

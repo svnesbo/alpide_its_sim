@@ -1,5 +1,5 @@
 /**
- * @file   event_generator.h
+ * @file   EventGenerator.hpp
  * @author Simon Voigt Nesbo
  * @date   December 22, 2016
  * @brief  A simple event generator for Alpide SystemC simulation model.
@@ -7,10 +7,10 @@
 
 ///@defgroup event_generation Event Generation
 ///@{
-#ifndef EVENT_GENERATOR_H
-#define EVENT_GENERATOR_H
+#ifndef EVENT_GENERATOR_HPP
+#define EVENT_GENERATOR_HPP
 
-#include "trigger_event.h"
+#include "EventFrame.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -48,27 +48,27 @@ using std::int64_t;
 ///         more advanced random distribution in the future).
 class EventGenerator : sc_core::sc_module
 {
-public: // SystemC signals  
+public: // SystemC signals
   sc_in<bool> s_strobe_in;
   sc_in_clk s_clk_in;
-  sc_event_queue_port E_trigger_event_available;
+  sc_event_queue_port E_event_frame_available;
 
   /// Active for one clock pulse every time we have a "physics event".
   /// Not really used for anything, just to indicate physics events in waveforms
   sc_out<bool> s_physics_event_out;
 
 private:
-  /// This is the trigger event queue (ie. the hits that
+  /// This is the event frame queue (ie. the hits that
   /// occur between a strobe, which are fed to the Alpide chips).
   /// Each Alpide chip has its own queue (corresponding to an index in the vector).
-  std::vector<std::queue<TriggerEvent*> > mEventQueue;
-  
+  std::vector<std::queue<EventFrame*> > mEventQueue;
+
   /// New hits will be push at the back, and old (expired) hits popped at the front.
   /// We need to be able to iterate over the queue, so a normal std::queue would not work.
   /// And deque seems faster than a list for our purpose:
   /// http://stackoverflow.com/questions/14574831/stddeque-or-stdlist
   /// But that should probably be tested :)
-  /// Each Alpide chip has its own queue (corresponding to an index in the vector).  
+  /// Each Alpide chip has its own queue (corresponding to an index in the vector).
   std::vector<std::deque<Hit> > mHitQueue;
 
   int mNumChips;
@@ -80,49 +80,49 @@ private:
   /// Number of events to keep in memory at a time. 0 = infinite.
   int mNumEventsInMemoryAllowed = 0;
 
-  /// Total number of physics and trigger events generated.
+  /// Total number of physics and event frames generated.
   int mPhysicsEventCount = 0;
-  int mTriggerEventIdCount = 0;
+  int mEventFrameIdCount = 0;
 
   /// Time of the last physics event that was generated.
   int64_t mLastPhysicsEventTimeNs = 0;
 
-  /// Time of the last trigger event that was generated (time of last strobe)
+  /// Time of the last event frame that was generated (time of last strobe)
   /// Will not be updated if trigger was filtered out.
-  int64_t mLastTriggerEventStartTimeNs = 0;
-  int64_t mLastTriggerEventEndTimeNs = 0;
+  int64_t mLastEventFrameStartTimeNs = 0;
+  int64_t mLastEventFrameEndTimeNs = 0;
 
   bool mStrobeActive = false;
 
-  /// Start time of next trigger event (start time recorded on STROBE rising edge).
+  /// Start time of next event frame (start time recorded on STROBE rising edge).
   /// Event actually created and hits assigned to it on STROBE falling edge.
-  int64_t mNextTriggerEventStartTimeNs = 0;
+  int64_t mNextEventFrameStartTimeNs = 0;
 
-  /// Used by getNextTriggerEvent() so it doesn't have to start iterating from the
+  /// Used by getNextEventFrame() so it doesn't have to start iterating from the
   /// beginning of the event queue vector each time it is called.
   /// Also used by removeOldestEvent().
-  int mNextTriggerEventChipId = 0;
+  int mNextEventFrameChipId = 0;
 
   int mPixelDeadTime;
   int mPixelActiveTime;
-  
+
   /// Minimum time between two triggers/events. Triggers/events that come sooner than this will
   /// be filtered out (but their hits will still be stored).
   int mTriggerFilterTimeNs;
   bool mTriggerFilteringEnabled = false;
-  
+
   bool mContinuousMode = false;
 
   ///@todo This is currently used.. remove or update code that uses it..
   std::string mDataPath = "data";
-  
+
   std::string mOutputPath;
   bool mWriteEventsToDisk = false;
 
   bool mCreateCSVFile = true;
   std::ofstream mPhysicsEventsCSVFile;
-  std::ofstream mTriggerEventsCSVFile;
-  
+  std::ofstream mEventFramesCSVFile;
+
   int mRandomSeed;
 
   boost::random::mt19937 mRandHitGen;
@@ -153,7 +153,7 @@ public:
   ~EventGenerator();
   void generateNextEvent();
   void generateNextEvents(int n_events);
-  const TriggerEvent& getNextTriggerEvent(void);
+  const EventFrame& getNextEventFrame(void);
   void setBunchCrossingRate(int rate_ns);
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
@@ -164,18 +164,18 @@ public:
   int getTriggerFilterTime(void) const {return mTriggerFilterTimeNs;}
   int getEventsInMem(void) const {return mEventQueue.size();}
   int getPhysicsEventCount(void) const {return mPhysicsEventCount;}
-  int getTriggerEventCount(void) const {return mTriggerEventIdCount;}
+  int getEventFrameCount(void) const {return mEventFrameIdCount;}
   void removeOldestEvent(void);
   void physicsEventProcess(void);
-  void triggerEventProcess(void);
-  
+  void eventFrameProcess(void);
+
 private:
-  TriggerEvent* generateNextTriggerEvent(int64_t event_start, int64_t event_end, int chip_id);
+  EventFrame* generateNextEventFrame(int64_t event_start, int64_t event_end, int chip_id);
   int64_t generateNextPhysicsEvent(void);
   void readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const;
   void scaleDiscreteDistribution(std::vector<double> &dist_vector, double new_mean_value);
   unsigned int getRandomMultiplicity(void);
-  void addHitsToTriggerEvent(TriggerEvent& e);
+  void addHitsToEventFrame(EventFrame& e);
   void removeInactiveHits(void);
 };
 

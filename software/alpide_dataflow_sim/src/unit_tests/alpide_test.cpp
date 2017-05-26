@@ -112,8 +112,8 @@ int sc_main(int argc, char** argv)
 
   int64_t time_now = sc_time_stamp().value();
 
-  // Create a trigger event object
-  TriggerEvent e(time_now, time_now+1000, chip_id, event_id++);
+  // Create an event frame object
+  EventFrame e(time_now, time_now+1000, chip_id, event_id++);
 
   // Create 100 random hits
   for(int i = 0; i < 100; i++) {
@@ -125,11 +125,11 @@ int sc_main(int argc, char** argv)
     // Store hits in vector - used later to check against data from serial output
     hit_vector.emplace_back(rand_x, rand_y, time_now, time_now+1000);
 
-    // Store hit in trigger event object
+    // Store hit in event frame object
     e.addHit(hit_vector.back());
   }
 
-  // Feed trigger event to Alpide
+  // Feed event frame to Alpide
   e.feedHitsToChip(alpide);
 
   // Set strobe inactive again to indicate that the chip can start working

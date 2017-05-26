@@ -1,9 +1,11 @@
 /**
- * @file   trigger_event.h
+ * @file   EventFrame.hpp
  * @author Simon Voigt Nesbo
  * @date   January 2, 2017
- * @brief  Trigger event class for Alpide SystemC simulation model.
- *         This class holds all the pixel hits for a trigger event for the whole detector.
+ * @brief  Physics event frame object for Alpide SystemC simulation model.
+ *         This class holds all the pixel hits for an event frame denoted by a strobing interval,
+ *         which might include hits from none up to several physics event, for one chip in
+ *         the detector.
  *         The philosophy behind this class is that the shaping etc. is performed by this
  *         class and the EventGenerator class, and that the pixel hits here can be fed
  *         directly to the Alpide chip at the given time.
@@ -14,10 +16,10 @@
 
 ///@addtogroup event_generation
 ///@{
-#ifndef TRIGGER_EVENT_H
-#define TRIGGER_EVENT_H
+#ifndef EVENT_FRAME_H
+#define EVENT_FRAME_H
 
-#include "hit.h"
+#include "Hit.hpp"
 #include "Alpide/PixelMatrix.hpp"
 #include <string>
 #include <set>
@@ -26,13 +28,13 @@
 ///@todo Change all int64_t to sc_time?
 using std::int64_t;
 
-class TriggerEvent;
+class EventFrame;
 
-///@brief A TriggerEvent that equals NoTriggerEvent is returned by some of the EventGenerator's
-///       functions which return a reference to an event, when there is no TriggerEvent to return.
-extern const TriggerEvent NoTriggerEvent;
+///@brief A EventFrame that equals NoEventFrame is returned by some of the EventGenerator's
+///       functions which return a reference to an event, when there is no EventFrame to return.
+extern const EventFrame NoEventFrame;
 
-class TriggerEvent {
+class EventFrame {
 private:
   ///@brief Absolute start time of event
   int64_t mEventStartTimeNs;
@@ -52,9 +54,9 @@ private:
   bool mEventFilteredFlag;
 
 public:
-  TriggerEvent(int64_t event_start_time_ns, int64_t event_end_time_ns,
+  EventFrame(int64_t event_start_time_ns, int64_t event_end_time_ns,
                int chip_id, int event_id, bool filter_event = false);
-  TriggerEvent(const TriggerEvent& e);
+  EventFrame(const EventFrame& e);
   void addHit(const Hit& h);
   void feedHitsToChip(PixelMatrix &matrix) const;
   void writeToFile(const std::string path = "");

@@ -1,14 +1,14 @@
 /**
- * @file   hit.h
+ * @file   Hit.cpp
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Source file for PixelData and Hit classes. These classes hold the coordinates for a discrete hit
- *         in the Alpide chip, along with information about when the hit is active (equivalent to when the 
+ *         in the Alpide chip, along with information about when the hit is active (equivalent to when the
  *         analog pulse out of the amplifier and shaping stage in the analog front end goes above the
  *         threshold).
  */
 
-#include "hit.h"
+#include "Hit.hpp"
 
 
 Hit::Hit()
@@ -49,7 +49,7 @@ Hit::Hit(int col, int row, int64_t time_active_start_ns, int64_t time_active_end
   : PixelData(col, row)
   , mActiveTimeStartNs(time_active_start_ns)
   , mActiveTimeEndNs(time_active_end_ns)
-      
+
 {
 }
 
@@ -61,7 +61,7 @@ Hit::Hit(const Hit& h)
 {
 }
 
-  
+
 bool Hit::operator==(const Hit& rhs) const
 {
   const PixelData& pixel_lhs = dynamic_cast<const PixelData&>(*this);
@@ -73,7 +73,7 @@ bool Hit::operator==(const Hit& rhs) const
 bool Hit::operator>(const Hit& rhs) const
 {
   const PixelData& pixel_lhs = dynamic_cast<const PixelData&>(*this);
-  const PixelData& pixel_rhs = dynamic_cast<const PixelData&>(rhs);  
+  const PixelData& pixel_rhs = dynamic_cast<const PixelData&>(rhs);
 
   return pixel_lhs > pixel_rhs;
 }
@@ -91,8 +91,8 @@ bool Hit::operator>=(const Hit& rhs) const
 bool Hit::operator<=(const Hit& rhs) const
 {
   return !(*this > rhs);
-}    
-  
+}
+
 Hit& Hit::operator=(const Hit& rhs)
 {
   setCol(rhs.getCol());

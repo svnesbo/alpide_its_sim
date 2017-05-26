@@ -64,11 +64,11 @@ include_directories(
   )
 
 add_sources(
-  src/event/event_generator.cpp
-  src/event/hit.cpp
-  src/event/trigger_event.cpp
-  src/settings/settings.cpp
-  src/stimuli/stimuli.cpp
+  src/event/EventGenerator.cpp
+  src/event/Hit.cpp
+  src/event/EventFrame.cpp
+  src/settings/Settings.cpp
+  src/stimuli/Stimuli.cpp
   src/main.cpp
   )
 

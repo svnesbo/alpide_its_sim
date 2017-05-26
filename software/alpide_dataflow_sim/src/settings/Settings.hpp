@@ -1,5 +1,5 @@
 /**
- * @file   settings.hpp
+ * @file   Settings.hpp
  * @author Simon Voigt Nesbo <svn@hib.no>
  * @date   November 3, 2016
  * @brief  Header file for simulation settings file handling.

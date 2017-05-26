@@ -134,11 +134,11 @@ void Alpide::strobeInput(void)
     ///      Should I still accept events? I need the frame end word to be added, for the normal
     ///      transmission of CHIP HEADER/TRAILER words. This is currently done by the frameReadout()
     ///      method, which requires there to be events in the MEB.
-    ///@todo Should rejected triggers count be increased in data overrun mode?
+    ///@todo Should rejected event frame count be increased in data overrun mode?
     if(mContinuousMode) {
       if(getNumEvents() == 3) {
         // Reject events if all MEBs are full in continuous
-        mTriggerEventsRejected++;
+        mEventFramesRejected++;
         s_busy_violation = true;
         //s_flushed_incomplete = false;
         s_chip_ready_internal = false;
@@ -147,8 +147,8 @@ void Alpide::strobeInput(void)
         flushOldestEvent();
         newEvent(time_now);
 
-        mTriggerEventsFlushed++;
-        mTriggerEventsAccepted++;
+        mEventFramesFlushed++;
+        mEventFramesAccepted++;
         s_busy_violation = false;
         s_flushed_incomplete = true;
         s_chip_ready_internal = true;
@@ -156,7 +156,7 @@ void Alpide::strobeInput(void)
         // Normal operation in continuous, with at least 2 free buffers
         newEvent(time_now);
 
-        mTriggerEventsAccepted++;
+        mEventFramesAccepted++;
         s_busy_violation = false;
         s_flushed_incomplete = false;
         s_chip_ready_internal = true;
@@ -167,11 +167,11 @@ void Alpide::strobeInput(void)
 
       if(getNumEvents() == 3) {
         s_chip_ready_internal = false;
-        mTriggerEventsRejected++;
+        mEventFramesRejected++;
         s_busy_violation = true;
       } else {
         newEvent(time_now);
-        mTriggerEventsAccepted++;
+        mEventFramesAccepted++;
         s_chip_ready_internal = true;
         s_busy_violation = false;
       }
