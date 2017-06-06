@@ -9,6 +9,10 @@
 #define EVENT_XML_H
 
 #include <QString>
+#include <QtXml/QtXml>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+#include "Hit.hpp"
 
 struct detectorPosition {
   int layer_id;
@@ -28,14 +32,18 @@ public:
     mHitDigits.push_back(std::pair<int, PixelData>(chip_id, PixelData(col, row)));
   }
 //  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsIterator(void) const {
-  auto getDigitsIterator(void) const {
+  auto getDigitsIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
+  {
     return mHitDigits.begin();
   }
 //  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsEndIterator(void) const {
-  auto getDigitsEndIterator(void) const {
+  auto getDigitsEndIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
+  {
     return mHitDigits.end();
   }
-}
+
+  size_t size(void) const {return mHitDigits.size();}
+};
 
 
 class EventXML {
@@ -44,17 +52,16 @@ class EventXML {
 
   std::vector<EventDigits*> mEvents;
 
+  bool mRandomEventOrder;
+  int mRandomSeed;
   int mEventCount;
   int mPreviousEvent;
-  int mRandomSeed;
-  bool mRandomEventOrder;
-
   bool mEventCountChanged;
 
   boost::random::mt19937 mRandEventIdGen;
   boost::random::uniform_int_distribution<int> *mRandEventIdDist;
 
-  bool findXMLElementInListById(const QDomNodeElement& list, int id, QDomElement& element_out);
+  bool findXMLElementInListById(const QDomNodeList& list, int id, QDomElement& element_out);
   bool locateChipInEventXML(const detectorPosition& chip_position,
                             const QDomElement& event_xml_dom_root,
                             QDomElement& chip_element_out);
@@ -62,7 +69,9 @@ class EventXML {
 
 public:
   EventXML(bool random_event_order = true, int random_seed = 0);
-  void readEventXML(QString event_filename);
+  ~EventXML();
+  void readEventXML(const QString& path, const QStringList& event_filenames);
+  void readEventXML(const QString& event_filename);
   const EventDigits* getNextEvent(void);
 };
 

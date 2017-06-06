@@ -11,6 +11,7 @@
 #define EVENT_GENERATOR_HPP
 
 #include "EventFrame.hpp"
+#include "EventXML.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -81,6 +82,8 @@ private:
   int mNumEventsInMemoryAllowed = 0;
 
   /// Total number of physics and event frames generated.
+  int mPhysicsEventCount = 0;
+  int mEventFrameIdCount = 0;
 
   /// Time of the last physics event that was generated.
   int64_t mLastPhysicsEventTimeNs = 0;

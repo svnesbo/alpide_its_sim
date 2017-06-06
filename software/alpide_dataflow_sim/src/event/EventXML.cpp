@@ -64,10 +64,14 @@
 ///   corresponding layer/stave/chip.
 ///@}
 
+#include <iostream>
+#include <boost/random/random_device.hpp>
 #include "EventXML.hpp"
 
+using boost::random::uniform_int_distribution;
 
-EventXML::EventXML(bool random_event_order = true, int random_seed = 0)
+
+EventXML::EventXML(bool random_event_order, int random_seed)
   : mRandomEventOrder(random_event_order)
   , mRandomSeed(random_seed)
   , mEventCount(0)
@@ -86,13 +90,26 @@ EventXML::EventXML(bool random_event_order = true, int random_seed = 0)
   }
 
   mRandEventIdDist = nullptr;
+
+
+  ///@todo Temporary - only for testing until we have real detector geometry in place..
+  //mDetectorPositionList[0] = {0, 0, 0, 4};
+  for(unsigned int chip_id = 0; chip_id < 108; chip_id++) {
+    int stave_id = chip_id/9;
+    int module_id = 0;
+    int module_chip_id = chip_id%12;
+
+    mDetectorPositionList[chip_id] = {0, stave_id, module_id, module_chip_id};
+  }
 }
 
 
 EventXML::~EventXML()
 {
+  for(unsigned int i = 0; i < mEvents.size(); i++)
+    delete mEvents[i];
+
   delete mRandEventIdDist;
-  delete mRandEventIdGen;
 }
 
 
@@ -104,7 +121,7 @@ const EventDigits* EventXML::getNextEvent(void)
   if(mEvents.empty() == false) {
     if(mRandomEventOrder) {
       if(mEventCountChanged)
-        udpateEventIdDistribution();
+        updateEventIdDistribution();
 
       // Generate random event here
       next_event_index = (*mRandEventIdDist)(mRandEventIdGen);
@@ -115,6 +132,8 @@ const EventDigits* EventXML::getNextEvent(void)
     }
 
     event = mEvents[next_event_index];
+
+    std::cout << "XML Event number: " << next_event_index << std::endl;
   }
 
   return event;
@@ -134,13 +153,14 @@ void EventXML::updateEventIdDistribution(void)
 }
 
 
-///@brief Find an XML DOM node element in a list of elements, where the elements have an id attribute
+///@brief Find an XML DOM node element in a list of elements, with the requested ID.
+///       This assumes that all the elements have an id attribute.
 ///@param[in] list XML DOM node element list
 ///@param[in] id Id of element to look for
 ///@param[out] element_out Reference to QDomElement object, which is used as an output to store
 ///            the element that was found
 ///@return True if element with desired ID was found, false if not.
-bool EventXML::findXMLElementInListById(const QDomNodeElement& list, int id, QDomElement& element_out)
+bool EventXML::findXMLElementInListById(const QDomNodeList& list, int id, QDomElement& element_out)
 {
   // Search for element in list
   for(int i = 0; i < list.size(); i++) {
@@ -154,12 +174,26 @@ bool EventXML::findXMLElementInListById(const QDomNodeElement& list, int id, QDo
 }
 
 
+///@brief Read a list of .xml input files
+///@param path Path of directory that holds .xml files
+///@param event_filenames QStringList of .xml files
+void EventXML::readEventXML(const QString& path, const QStringList& event_filenames)
+{
+  for(int i = 0; i < event_filenames.size(); i++)
+    readEventXML(path + QString("/") + event_filenames.at(i));
+}
+
+
 ///@todo Accept a triggerEvent object or something here????
-void EventXML::readEventXML(QString event_filename)
+///@brief Read a monte carlo event from an XML file
+///@param event_filename File name and path of .xml file
+void EventXML::readEventXML(const QString& event_filename)
 {
   QDomDocument xml_dom_document;
   QFile event_file(event_filename);
   QString qdom_error_msg;
+
+  EventDigits* event = new EventDigits();
 
 
   if (!event_file.open(QIODevice::ReadOnly))
@@ -176,21 +210,31 @@ void EventXML::readEventXML(QString event_filename)
     ///@todo Error handling...
   }
 
-  QDomElement xml_dom_root_element = domDocument.documentElement();
+  QDomElement xml_dom_root_element = xml_dom_document.documentElement();
 
-  for(auto it = mChipList; it != mChipList.end(); it++) {
-    int chip_id = *it;
+  for(auto it = mDetectorPositionList.begin(); it != mDetectorPositionList.end(); it++) {
+    int chip_id = it->first;
 
     const detectorPosition& chip_position = mDetectorPositionList[chip_id];
 
-    QDomElement chip_element;
+    std::cout << "Looking for chip ID: " << chip_id << std::endl;
+    std::cout << "Layer: " << chip_position.layer_id;
+    std::cout << "  Stave: " << chip_position.stave_id;
+    std::cout << "  Module: " << chip_position.module_id;
+    std::cout << "  Local chip ID: " << chip_position.stave_chip_id;
+    std::cout << std::endl;
 
-    if(locateChipInEventXML(chip_position, layer_list, chip_element)) {
+    QDomElement chip_element; // Chip element is stored here by locateChipInEventXML().
+
+    if(locateChipInEventXML(chip_position, xml_dom_root_element, chip_element)) {
       // Chip was found, copy hits for this chip to triggerEvent object or something??
+      std::cout << "Chip found in XML event.." << std::endl;
 
       // Digit nodes use the <dig> tag
       QDomNodeList digit_node_list = chip_element.elementsByTagName("dig");
-      int digit_count = domDigList.size();
+      int digit_count = digit_node_list.size();
+
+      std::cout << "Number of hits for this chip: " << digit_count << std::endl;
 
       for(int digit_it = 0; digit_it < digit_count; digit_it++)
       {
@@ -202,10 +246,12 @@ void EventXML::readEventXML(QString event_filename)
         int col = digit_entry.at(0).toInt();
         int row = digit_entry.at(1).toInt();
 
-        mChipMapHitList[chip_id].addDigit(col, row);
+        event->addHit(chip_id, col, row);
       }
     }
   }
+
+  mEvents.push_back(event);
 }
 
 
@@ -227,6 +273,7 @@ bool EventXML::locateChipInEventXML(const detectorPosition& chip_position,
   if(findXMLElementInListById(layer_list, chip_position.layer_id, layer_element) == false)
     return false;
 
+  std::cout << "Layer " << chip_position.layer_id << " found.." << std::endl;
 
   // Search for stave in the layer element in the XML file
   QDomNodeList stave_list = layer_element.elementsByTagName("sta");
@@ -235,21 +282,25 @@ bool EventXML::locateChipInEventXML(const detectorPosition& chip_position,
   if(findXMLElementInListById(stave_list, chip_position.stave_id, stave_element) == false)
     return false;
 
+  std::cout << "Stave " << chip_position.stave_id << " found.." << std::endl;
 
   // Search for module in the layer element in the XML file
-  QDomNodeList module_list = stave_element.elementsByTagName("sta");
+  QDomNodeList module_list = stave_element.elementsByTagName("mod");
   QDomElement module_element;
 
   if(findXMLElementInListById(module_list, chip_position.module_id, module_element) == false)
     return false;
 
+  std::cout << "Module " << chip_position.module_id << " found.." << std::endl;
 
   // Search for chip in the layer element in the XML file
-  QDomNodeList chip_list = module_element.elementsByTagName("sta");
+  QDomNodeList chip_list = module_element.elementsByTagName("chip");
   QDomElement chip_element;
 
-  if(findXMLElementInListById(chip_list, chip_position.chip_id, chip_element) == false)
+  if(findXMLElementInListById(chip_list, chip_position.stave_chip_id, chip_element) == false)
     return false;
+
+  std::cout << "Chip " << chip_position.stave_chip_id << " found.." << std::endl;
 
   chip_element_out = chip_element;
   return true;

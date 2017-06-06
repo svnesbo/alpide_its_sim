@@ -21,6 +21,7 @@ hit_multiplicity_distribution_file=config/multipl_dist_raw_bins.txt
 hit_multiplicity_distribution_type=discrete
 hit_multiplicity_gauss_avg=2000
 hit_multiplicity_gauss_stddev=350
+random_hit_generation=false
 strobe_active_length_ns=4800
 strobe_inactive_length_ns=200
 trigger_delay_ns=100

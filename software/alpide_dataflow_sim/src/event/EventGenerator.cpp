@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <cmath>
 #include <map>
+#include <QDir>
 
 
 using boost::random::uniform_int_distribution;
@@ -103,7 +104,14 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       mRandHitMultiplicityGauss = nullptr;
     }
   } else {
+    QDir monte_carlo_event_dir("config/monte_carlo_events/");
+    QStringList name_filters;
 
+    name_filters << "*.xml";
+
+    QStringList MC_xml_files = monte_carlo_event_dir.entryList(name_filters);
+
+    mMonteCarloEvents.readEventXML("config/monte_carlo_events/", MC_xml_files);
 
     // Discrete and gaussion hit distributions are not used in this case
     mRandHitMultiplicityDiscrete = nullptr;
@@ -470,6 +478,7 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 int64_t EventGenerator::generateNextPhysicsEvent(void)
 {
   int64_t t_delta, t_delta_cycles;
+  int n_hits = 0;
 
   // Initialize array to 0. http://stackoverflow.com/a/2204380/6444574
   int *chip_trace_hit_counts = new int[mNumChips]();
@@ -500,7 +509,7 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
 
   if(mRandomHitGeneration == true) {
     // Generate a random number of hits for this event
-    int n_hits = getRandomMultiplicity();
+    n_hits = getRandomMultiplicity();
 
 
     // Generate hits here
@@ -544,6 +553,11 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
   } else { // No random hits, use MC generated events
     const EventDigits* digits = mMonteCarloEvents.getNextEvent();
 
+    if(digits == nullptr)
+      throw std::runtime_error("EventDigits::getNextEvent() returned no new Monte Carlo event.");
+
+    n_hits += digits->size();
+
     auto digit_it = digits->getDigitsIterator();
     auto digit_end_it = digits->getDigitsEndIterator();
 
@@ -551,15 +565,21 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
       const int &chip_id = digit_it->first;
       const PixelData &pix = digit_it->second;
 
-      mHitQueue[chip_id].emplace_back(pix.getCol(), pix.getRow(),
-                                      mLastPhysicsEventTimeNs,
-                                      mPixelDeadTime,
-                                      mPixelActiveTime);
+      if(chip_id == 5) {
+        // mHitQueue[chip_id].emplace_back(pix.getCol(), pix.getRow(),
+        //                                 mLastPhysicsEventTimeNs,
+        //                                 mPixelDeadTime,
+        //                                 mPixelActiveTime);
 
-      // Update statistics. We only get pixel digits from MC events,
-      // no traces, so only this counter is used.
-      chip_pixel_hit_counts[rand_chip_id]++;
+        mHitQueue[0].emplace_back(pix.getCol(), pix.getRow(),
+                                  mLastPhysicsEventTimeNs,
+                                  mPixelDeadTime,
+                                  mPixelActiveTime);
 
+        // Update statistics. We only get pixel digits from MC events,
+        // no traces, so only this counter is used.
+        chip_pixel_hit_counts[chip_id]++;
+      }
       digit_it++;
     }
   }

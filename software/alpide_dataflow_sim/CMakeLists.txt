@@ -67,6 +67,7 @@ add_sources(
   src/event/EventGenerator.cpp
   src/event/Hit.cpp
   src/event/EventFrame.cpp
+  src/event/EventXML.cpp
   src/settings/Settings.cpp
   src/stimuli/Stimuli.cpp
   src/main.cpp
@@ -75,7 +76,7 @@ add_sources(
 add_executable(alpide_dataflow_sim  ${SRCS})
 target_link_libraries(alpide_dataflow_sim ${SystemC_LIBRARIES} pthread boost_random Qt5Core)
 set_target_properties(alpide_dataflow_sim PROPERTIES LINKER_LANGUAGE CXX)
-qt5_use_modules(alpide_dataflow_sim Core)
+qt5_use_modules(alpide_dataflow_sim Core Xml)
 
 # add a target to generate API documentation with Doxygen
 find_package(Doxygen)
