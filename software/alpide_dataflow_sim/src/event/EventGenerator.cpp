@@ -104,14 +104,14 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       mRandHitMultiplicityGauss = nullptr;
     }
   } else {
-    QDir monte_carlo_event_dir("config/monte_carlo_events/");
+    QDir monte_carlo_event_dir("config/monte_carlo_events/PbPb/");
     QStringList name_filters;
 
     name_filters << "*.xml";
 
     QStringList MC_xml_files = monte_carlo_event_dir.entryList(name_filters);
 
-    mMonteCarloEvents.readEventXML("config/monte_carlo_events/", MC_xml_files);
+    mMonteCarloEvents.readEventXML("config/monte_carlo_events/PbPb/", MC_xml_files);
 
     // Discrete and gaussion hit distributions are not used in this case
     mRandHitMultiplicityDiscrete = nullptr;
