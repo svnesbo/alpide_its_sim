@@ -12,6 +12,7 @@
 #define ALPIDE_H
 
 #include "AlpideDataWord.hpp"
+#include <AlpideInterface.hpp>
 #include "PixelMatrix.hpp"
 #include "RegionReadoutUnit.hpp"
 #include "TopReadoutUnit.hpp"
@@ -35,7 +36,13 @@ class Alpide : sc_core::sc_module, public PixelMatrix
 public:
   ///@brief 40MHz LHC clock
   sc_in_clk s_system_clk_in;
-  sc_in<bool> s_strobe_n_in;
+
+
+  ///@todo Get rid off this trigger input event? Use the control socket instead?
+  sc_event E_trigger_in;
+
+  ControlTargetSocket s_control_input;
+  DataInitiatorSocket s_data_output;
 
   ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
   sc_out<bool> s_chip_ready_out;
@@ -91,6 +98,7 @@ private:
 
   sc_signal<sc_uint<8> > s_dmu_fifo_size;
   sc_signal<bool> s_chip_ready_internal;
+  sc_in<bool> s_strobe_n;
 
   tlm::tlm_fifo<FrameStartFifoWord> s_frame_start_fifo;
   tlm::tlm_fifo<FrameEndFifoWord> s_frame_end_fifo;
@@ -113,6 +121,7 @@ private:
   bool mEnableDtuDelay;
   bool mStrobeActive;
   uint16_t mBunchCounter;
+  uint16_t mStrobeLengthCycles;
 
   ///@brief Number of triggers (event frames) that are accepted into an MEB by the chip
   uint64_t mEventFramesAccepted = 0;
@@ -131,14 +140,16 @@ private:
   void mainProcess(void);
   void strobeInput(void);
   void frameReadout(void); // FROMU
+  void trigger(void);
   void dataTransmission(void);
+  void processCommand(ControlRequestPayload const &request);
   bool getFrameReadoutDone(void);
   void updateBusyStatus(void);
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-         int dmu_fifo_size, int dtu_delay_cycles, bool enable_clustering,
-         bool continuous_mode, bool matrix_readout_speed);
+         int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_cycles,
+         bool enable_clustering, bool continuous_mode, bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
   uint64_t getEventFramesAcceptedCount(void) const {return mEventFramesAccepted;}

@@ -23,13 +23,14 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
 ///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               int dmu_fifo_size, int dtu_delay_cycles, bool enable_clustering,
-               bool continuous_mode, bool matrix_readout_speed)
+               int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_cycles,
+               bool enable_clustering, bool continuous_mode, bool matrix_readout_speed)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
   , s_chip_ready_out("chip_ready_out")
   , s_dmu_fifo(dmu_fifo_size)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
+  , mStrobeLengthCycles(strobe_length_cycles)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
 {
@@ -48,6 +49,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   s_busy_status = false;
   s_readout_abort = false;
   s_chip_ready_internal = false;
+  s_strobe_n = true;
 
   mStrobeActive = false;
 
@@ -98,9 +100,14 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   while(s_dtu_delay_fifo.num_free() > 0)
     s_dtu_delay_fifo.nb_write(dw);
 
+  s_control_input.register_transport(std::bind(&SingleChip::processCommand,
+                                               this, std::placeholders::_1));
 
   SC_METHOD(mainProcess);
   sensitive_pos << s_system_clk_in;
+
+  SC_METHOD(triggerMethod);
+  sensitive << E_trigger_in;
 }
 
 
@@ -118,6 +125,40 @@ void Alpide::mainProcess(void)
 }
 
 
+void Alpide::processCommand(ControlRequestPayload const &request) {
+  if (request.opcode == 0x55) {
+    SC_REPORT_INFO_VERB(name(), "Received Trigger", sc_core::SC_DEBUG);
+    trigger();
+  } else {
+    SC_REPORT_ERROR(name(), "Invalid opcode received");
+  }
+  // do nothing
+  return {};
+}
+
+
+///@brief Called on trigger input - initiates strobing intervals
+void Alpide::trigger(void)
+{
+  if(mStrobeActive == true) {
+    ///@todo Implement strobe extension here?
+/*
+    if(mStrobeExtensionEnable == true) {
+      // Extend strobe here
+    } else
+*/
+    {
+      // Reject next event frame
+      mEventFramesRejected++;
+      s_chip_ready_internal = false;
+    }
+  } else {
+    // Set strobe active
+    s_strobe_n = false;
+  }
+}
+
+
 ///@brief This function handles the strobe input to the Alpide class object.
 ///       Controls creation of new Multi Event Buffers (MEBs). Together with the frameReadout function, this
 ///       process essentially does the same as the FROMU (Frame Read Out Management Unit) in the Alpide chip.
@@ -127,7 +168,7 @@ void Alpide::strobeInput(void)
 {
   int64_t time_now = sc_time_stamp().value();
 
-  if(s_strobe_n_in.read() == false && mStrobeActive == false) {   // Strobe falling edge - start of frame/event, strobe is active low
+  if(s_strobe_n.read() == false && mStrobeActive == false) {   // Strobe falling edge - start of frame/event, strobe is active low
     mStrobeActive = true;
 
     ///@todo What should I do in data overrun mode (when readout_abort is set)?
@@ -179,7 +220,7 @@ void Alpide::strobeInput(void)
   }
   // Strobe rising edge - end of frame/event
   // Make sure we can't trigger first on the wrong end of strobe by checking chip_ready signal
-  else if(s_strobe_n_in.read() == true && mStrobeActive == true) {
+  else if(s_strobe_n.read() == true && mStrobeActive == true) {
     s_chip_ready_internal = false;
     mStrobeActive = false;
 
