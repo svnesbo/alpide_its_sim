@@ -16,6 +16,14 @@
 
 namespace ITS {
 
+  struct layerConfig {
+    unsigned int num_staves;
+  };
+
+  struct detectorConfig {
+    layerConfig layer[NUM_LAYERS];
+  };
+
   struct detectorPosition {
     unsigned int layer_id;
     unsigned int stave_id;
@@ -34,20 +42,22 @@ namespace ITS {
 
   private:
 
-    std::map<unsigned int, std::weak_ptr<Alpide>> mChips;
+    std::map<unsigned int, std::weak_ptr<Alpide>> mChipMap;
     std::map<unsigned int, std::unique_ptr<ReadoutUnit>> mReadoutUnits;
 
-    std::vector<std::unique_ptr<InnerBarrelStave>>  layer0;
-    std::vector<std::unique_ptr<InnerBarrelStave>>  layer1;
-    std::vector<std::unique_ptr<InnerBarrelStave>>  layer2;
-    std::vector<std::unique_ptr<MiddleBarrelStave>> layer3;
-    std::vector<std::unique_ptr<MiddleBarrelStave>> layer4;
-    std::vector<std::unique_ptr<OuterBarrelStave>>  layer5;
-    std::vector<std::unique_ptr<OuterBarrelStave>>  layer6;
+    std::vector<std::unique_ptr<StaveInterface>>  layers[N_LAYERS]
+    // std::vector<std::unique_ptr<InnerBarrelStave>>  layer0;
+    // std::vector<std::unique_ptr<InnerBarrelStave>>  layer1;
+    // std::vector<std::unique_ptr<InnerBarrelStave>>  layer2;
+    // std::vector<std::unique_ptr<MiddleBarrelStave>> layer3;
+    // std::vector<std::unique_ptr<MiddleBarrelStave>> layer4;
+    // std::vector<std::unique_ptr<OuterBarrelStave>>  layer5;
+    // std::vector<std::unique_ptr<OuterBarrelStave>>  layer6;
 
   public:
-    ITSDetector(sc_core::sc_module_name name);
-    physicsEventFrameInput(const EventFrame& e);
+    ITSDetector(sc_core::sc_module_name name, const detectorConfig& config);
+    void ITSDetector::verifyDetectorConfig(const detectorConfig& config) const;
+    void physicsEventFrameInput(const EventFrame& e);
     setPixel(unsigned int chip_id, unsigned int row, unsigned int col);
     setPixel(const detectorPosition& pos);
   };

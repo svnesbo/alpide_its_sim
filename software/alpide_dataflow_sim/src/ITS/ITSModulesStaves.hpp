@@ -17,6 +17,20 @@ namespace ITS {
     LinkInterface(sc_core::sc_module_name const &name = 0) : sc_module(name) {}
   };
 
+  struct StaveInterface : public LinkInterface {
+    StaveInterface(sc_core::sc_module_name const &name = 0) : LinkInterface(name) {}
+    virtual std::vector<std::weak_ptr<Alpide>> getChips(void) = 0;
+    virtual void setPixel(const detectorPosition& pos) = 0;
+    void physicsEventFrameInput(const EventFrame& e, const detectorPosition& pos);
+
+    unsigned int getStaveId(void) const { return mStaveId; }
+    unsigned int getLayerId(void) const { return mLayerId; }
+
+  private:
+    unsigned int mLayerId;
+    unsigned int mStaveId;
+  };
+
 
   template <int N_chips, int N_ctrl_links, int N_data_links>
   struct Module : public LinkInterface<N_ctrl_links, N_data_links> {
@@ -35,10 +49,14 @@ namespace ITS {
   struct InnerBarrelStave : public Module<CHIPS_PER_IB_STAVE,
                                           CTRL_LINKS_PER_IB_STAVE,
                                           DATA_LINKS_PER_IB_STAVE>
+                          , public StaveInterface
   {
-    InnerBarrelModule(sc_core::sc_module_name const &name = 0) : Module(name) {}
+    InnerBarrelStave(sc_core::sc_module_name const &name = 0,
+                     unsigned int layer_id, unsigned int stave_id) : Module(name) {}
 
   private:
+    unsigned int mLayerId;
+    unsigned int mStaveId;
     //ControlResponsePayload processCommand(ControlRequestPayload const &request);
   };
 
