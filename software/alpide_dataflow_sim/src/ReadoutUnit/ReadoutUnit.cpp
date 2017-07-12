@@ -18,8 +18,9 @@
 
 //Do I need SC_HAS_PROCESS if I only use SC_METHOD??
 //SC_HAS_PROCESS(ReadoutUnit);
-ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name)
+ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name, unsigned int id)
   : sc_core::sc_module(name)
+  , mID(id)
 {
   SC_METHOD(triggerInputMethod);
   sensitive << E_trigger_in;

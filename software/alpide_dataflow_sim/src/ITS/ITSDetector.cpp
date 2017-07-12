@@ -53,34 +53,110 @@ void ITSDetector::verifyDetectorConfig(const detectorConfig& config) const
 ///       and create the chip map of chip id vs alpide chip object instance.
 void ITSDetector::buildDetector(const detectorConfig& config)
 {
+  // Reserve space for all chips, even if they are not used (not allocated),
+  // because we access/index them by index in the vectors, and vector access is O(1).
+  mChipVector.resize(CHIP_COUNT_TOTAL);
+
   for(int i = 0; i < N_LAYERS; i++) {
     for(int j = 0; j < config.layer[i].num_staves; j++) {
-      std::string name = "Layer " + std::to_string(i) + ", stave " + std::to_string(j);
+      std::string coords_str = std::to_string(i) + ":" + std::to_string(j);;
+      std::string ru_name = "RU_" + coords_str;
 
-      if(i < 3)
-        layers.emplace_back(new InnerBarrelStave(name, i, j));
-      else if(i >= 3 && i < 5)
-        layers.emplace_back(new MiddleBarrelStave(name, i, j));
-      else
-        layers.emplace_back(new OuterBarrelStave(name, i, j));
+      mReadoutUnits[i].emplace_back(new ReadoutUnit(ru_name, i, j));
+      if(j > 0) {
+        ///@todo Connect busy chain of mReadoutUnits[i][j] to mReadoutUnits[i][j-1] here
+      }
+
+      if(j == config.layer[i].num_staves-1) {
+        ///@todo Connect busy chain of mReadoutUnits[i][j] to mReadoutUnits[i][0] here
+      }
+
+      mReadoutUnits[i][j]->s_system_clk_in(s_system_clk_in);
+
+
+      if(i < 3) {
+        std::string stave_name = "IB_stave_" + coords_str;
+        mLayers[i].emplace_back(new InnerBarrelStave(name, i, j));
+      } else if(i >= 3 && i < 5) {
+        std::string stave_name = "MB_stave_" + coords_str;
+        mLayers[i].emplace_back(new MiddleBarrelStave(name, i, j));
+      } else {
+        std::string stave_name = "OB_stave_" + coords_str;
+        mLayers[i].emplace_back(new OuterBarrelStave(name, i, j));
+      }
+
+      ///@todo Connect signals from mReadoutUnits[i][j] to mLayers[]
+
 
       // Get a vector of pointer to the Alpide chips created by the new stave,
       // and add them to a map of chip id vs Alpide chip object.
-      auto new_chips = layers.back()->getChips();
+      auto new_chips = mLayers[i].back()->getChips();
       for(auto chip_it = new_chips.begin(); chip_it != new_chips.end(); chip_it++) {
+        unsigned int chip_id = *chip_it->getChipId();
         // Don't allow more than one instance of the same Chip ID
-        if(mChipMap.find(*chip_it->getChipId()) != mChipMap.end()) {
+        if(mChipVector[chip_id]) {
           std::string error_msg = "Chip with ID ";
-          error_msg += std::to_string(*chip_it->getChipId());
+          error_msg += std::to_string(chip_id);
           error_msg += " created more than once..";
 
           throw std::runtime_error(error_msg);
         }
 
-        mChipMap[*chip_it->getChipId()] = *chip_it;
-      }
+        mChipVector[chip_id] = *chip_it;
 
-      ///@todo Create ReadoutUnit here. Connect ReadoutUnit to other ReadoutUnits.
+        // Connect the control and data links to the readout unit
+        ///@todo I'm gonna need a signal between these two I think...
+        mReadoutUnits[i][j]->s_alpide_data_input(mChipVector[chip_id]->s_data_output);
+        mReadoutUnits[i][j]->s_alpide_control_output(mChipVector[chip_id]->s_control_input);
+      }
     }
   }
+}
+
+
+///@brief "Feed" an EventFrame to an Alpide chip, assuming that the chip exists
+///       in the detector configuration and that the chip is ready to receive the event.
+///       The event is ignored if not.
+///@param e EventFrame (collection of hits) to give to the chip
+void ITSDetector::physicsEventFrameInput(const EventFrame& e)
+{
+  unsigned int chip_id = e.getChipId();
+
+  // Does the chip exist in our detector/simulation configuration?
+  if(mChipVector[chip_id]) {
+    if(mChipVector[chip_id]->s_chip_ready) {
+      e.feedHitsToChip(mChipVector[chip_id]);
+    }
+  }
+}
+
+
+///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
+///       detector configuration).
+///@param chip_id Chip ID of Alpide chip
+///@param col Column in Alpide chip pixel matrix
+///@param row Row in Alpide chip pixel matrix
+void ITSDetector::setPixel(unsigned int chip_id, unsigned int col, unsigned int row)
+{
+  // Does the chip exist in our detector/simulation configuration?
+  if(mChipVector[chip_id]) {
+    ///@todo Check if chip is ready?
+    //if(mChipVector[chip_id]->s_chip_ready) {
+    //}
+
+    mChipVector[chip_id]->setPixel(col, row);
+  }
+}
+
+
+///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
+///       detector configuration).
+///@param pos Position of Alpide chip in detector
+///@param col Column in Alpide chip pixel matrix
+///@param row Row in Alpide chip pixel matrix
+void ITSDetector::setPixel(const detectorPosition& pos, unsigned int col, unsigned int row)
+{
+  unsigned int chip_id = detector_position_to_chip_id(pos);
+
+  setPixel(chip_id, col, row);
 }

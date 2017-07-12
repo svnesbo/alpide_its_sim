@@ -19,7 +19,7 @@ namespace ITS {
 
   struct StaveInterface : public LinkInterface {
     StaveInterface(sc_core::sc_module_name const &name = 0) : LinkInterface(name) {}
-    virtual std::vector<std::weak_ptr<Alpide>> getChips(void) = 0;
+    virtual std::vector<std::shared_ptr<Alpide>> getChips(void) = 0;
     virtual void setPixel(const detectorPosition& pos) = 0;
     void physicsEventFrameInput(const EventFrame& e, const detectorPosition& pos);
 
@@ -37,7 +37,7 @@ namespace ITS {
     Module(sc_core::sc_module_name const &name = 0) : LinkInterface(name) {}
 
   private:
-    std::array<std::unique_ptr<Alpide>, N_chips> mChips;
+    std::array<std::shared_ptr<Alpide>, N_chips> mChips;
   };
 
 

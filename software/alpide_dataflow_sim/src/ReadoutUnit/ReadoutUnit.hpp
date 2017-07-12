@@ -9,15 +9,23 @@
  *
  */
 
+#ifndef READOUT_UNIT_HPP
+#define READOUT_UNIT_HPP
+
+
 #include "BusyLinkWord.hpp"
 #include <Alpide/AlpideInterface.hpp>
 
-template<int N> ReadoutUnit : public sc_core::sc_module {
+
+#define NUM_ALPIDE_DATA_LINKS 28
+
+
+ReadoutUnit : public sc_core::sc_module {
 public:
   sc_in_clk s_system_clk_in;
 
   ControlTargetSocket s_alpide_control_output;
-  std::array<DataInitiatorSocket, N> s_alpide_data_input;
+  std::array<DataInitiatorSocket, NUM_ALPIDE_DATA_LINKS> s_alpide_data_input;
 
   /*
     The stimuli (or stave?) class will have to instantiate the FIFOs between the RUs:
@@ -39,10 +47,12 @@ public:
   sc_event E_trigger_filtered_out;
 
   ///@todo Make this a vector/array somehow, to cater for many chips..
-  sc_in<sc_uint<24>> s_serial_data_input[N];
+  sc_in<sc_uint<24>> s_serial_data_input[NUM_ALPIDE_DATA_LINKS];
 
 private:
+  unsigned int mID;
   sc_time mLastTriggerTime;
+
   void triggerInputMethod(void);
   void mainMethod(void);
   //  void dataInputMethod(void);
@@ -52,7 +62,10 @@ private:
   void evaluateBusyStatus();
 
 public:
-  ReadoutUnit(sc_core::sc_module_name name);
+  ReadoutUnit(sc_core::sc_module_name name, unsigned int id);
   ~ReadoutUnit();
   void end_of_elaboration();
 };
+
+
+#endif

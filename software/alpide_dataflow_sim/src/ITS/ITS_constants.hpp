@@ -38,6 +38,18 @@ namespace ITS {
                                                 42,
                                                 48};
 
+  static const unsigned int STAVE_COUNT_TOTAL =
+    STAVES_PER_LAYER[0] +
+    STAVES_PER_LAYER[1] +
+    STAVES_PER_LAYER[2] +
+    STAVES_PER_LAYER[3] +
+    STAVES_PER_LAYER[4] +
+    STAVES_PER_LAYER[5] +
+    STAVES_PER_LAYER[6];
+
+
+  static const unsigned int READOUT_UNIT_COUNT = STAVE_COUNT_TOTAL;
+
 
   static const unsigned int MODULES_PER_STAVE_IN_LAYER = {1,
                                                           1,
@@ -109,6 +121,16 @@ namespace ITS {
     CHIPS_PER_LAYER[4]+
     CHIPS_PER_LAYER[5]
   };
+
+
+  static const unsigned int CHIP_COUNT_TOTAL =
+    CHIPS_PER_LAYER[0] +
+    CHIPS_PER_LAYER[1] +
+    CHIPS_PER_LAYER[2] +
+    CHIPS_PER_LAYER[3] +
+    CHIPS_PER_LAYER[4] +
+    CHIPS_PER_LAYER[5] +
+    CHIPS_PER_LAYER[6];
 
 
   static const unsigned int DATA_LINKS_PER_LAYER = {
