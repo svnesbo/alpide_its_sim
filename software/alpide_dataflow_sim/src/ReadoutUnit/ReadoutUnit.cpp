@@ -44,9 +44,6 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name, unsigned int id,
   SC_METHOD(triggerInputMethod);
   sensitive << E_trigger_in;
 
-  SC_METHOD(mainMethod);
-  sensitive_pos << s_system_clk_in;
-
   SC_METHOD(busyChainMethod);
   sensitive << s_busy_fifo_in.data_written_event();
 
@@ -156,51 +153,3 @@ void ReadoutUnit::busyChainMethod(void)
     s_busy_fifo_out->nb_write(busy_word);
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-
-
-
-
-///@brief Main SystemC method for Readout Unit, sensitive to system clock (40MHz).
-void ReadoutUnit::mainMethod(void)
-{
-  processInputData();
-  evaluateBusyStatus();
-
-  ///@todo Implement data parser here..
-
-  // 1. Parse data
-  // 2. Check for busy Alpide chips
-  // 3. Update local busy map of this RU's Alpide chips
-  // 4. Send out updated busy status/map if it changed
-}
-
-
-///@brief SystemC method, sensitive to system clock (40MHz).
-///       Continuously parses data from all Alpide chips, looks for changes in busy
-///       status, updates local busy map, and notifies other readout units of changes
-///       to the busy status.
-void ReadoutUnit::dataInputMethod(void)
-{
-  ///@todo Implement data parser here..
-
-  // 1. Parse data
-  // 2. Check for busy Alpide chips
-  // 3. Update local busy map of this RU's Alpide chips
-  // 4. Send out updated busy status/map if it changed
-}
-
-
-*/

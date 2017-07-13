@@ -74,12 +74,8 @@ private:
 
   void evaluateBusyStatusMethod(void);
   void triggerInputMethod(void);
-  void mainMethod(void);
-  //  void dataInputMethod(void);
-  //  void busyChainMethod(void);
-
+  void busyChainMethod(void);
   void processInputData(void);
-
 
 public:
   ReadoutUnit(sc_core::sc_module_name name, unsigned int id);
