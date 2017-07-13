@@ -32,16 +32,14 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name, unsigned int id,
   , mInnerBarrelMode(inner_barrel)
 {
   mDataLinkParsers.resize(links_in_use);
+  mAlpideLinkBusySignals.resize(links_in_use);
 
   for(int i = 0; i < links_in_use; i++) {
     mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", false);
     mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
     mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
-    mDataLinkParsers[i]->s_link_busy_out(
-      ///@todo Assign to a signal i ReadoutUnit here...
-      );
+    mDataLinkParsers[i]->s_link_busy_out(mAlpideLinkBusySignals[i]);
   }
-
 
   SC_METHOD(triggerInputMethod);
   sensitive << E_trigger_in;
@@ -49,8 +47,13 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name, unsigned int id,
   SC_METHOD(mainMethod);
   sensitive_pos << s_system_clk_in;
 
-  //SC_METHOD(dataInputMethod);
-  //sensitive_pos << s_system_clk_in;
+  SC_METHOD(busyChainMethod);
+  sensitive << s_busy_fifo_in.data_written_event();
+
+  SC_METHOD(evaluateBusyStatusMethod);
+  for(int i = 0; i < mDataLinkBusySignals.size(); i++) {
+    sensitive << mAlpideLinkBusySignals[i].
+  }
 }
 
 
@@ -91,12 +94,12 @@ void ReadoutUnit::triggerInputMethod(void)
 ///@brief SystemC method, sensitive to changes on any of the busy signals
 ///       from the AlpideDataParsers. Counts number of busy links to evaluate
 ///       local busy status.
-void ReadoutUnit::evaluateBusyStatus(void)
+void ReadoutUnit::evaluateBusyStatusMethod(void)
 {
   unsigned int busy_link_count = 0;
 
-  for(int i = 0; i < mDataLinkParsers.size(); i++) {
-    if(mDataLinkParsers[i]->s_link_busy_out.read())
+  for(int i = 0; i < mAlpideLinkBusySignals.size(); i++) {
+    if(mAlpideLinkBusySignals[i].read())
       busy_link_count++;
   }
 
@@ -108,7 +111,13 @@ void ReadoutUnit::evaluateBusyStatus(void)
     else
       mLocalBusyStatus = false;
 
-    ///@todo Do something here to send out a new package on the busy daisy chain
+    sc_time time_now = sc_time_stamp().value();
+    std::shared_ptr<BusyLinkWord> busy_word = new(BusyCountUpdate(mID,
+                                                                  time_now,
+                                                                  mBusyLinkCount,
+                                                                  mLocalBusyStatus));
+
+    s_busy_fifo_out->nb_write(busy_word);
   }
 }
 
@@ -119,7 +128,33 @@ void ReadoutUnit::busyChainMethod(void)
 {
   ///@todo Pass on busy event here, unless the busy event originated from this readout unit.
   ///@todo How can I implement a payload with these events? Maybe Matthias' structure is suitable for this?
-  E_busy_chain_queue_out->notify(SC_ZERO_TIME);
+
+  std::shared_ptr<BusyLinkWord> busy_word;
+  s_busy_fifo_in->nb_read(busy_word);
+
+  if(busy_word) {
+
+    // Ignore (and discard) busy words that originated from this readout unit
+    // (ie. it has made the roundtrip through the busy chain)
+    if(busy_word->mOriginAddress != mID) {
+      std::shared_ptr<BusyCountUpdate> busy_count_word_ptr;
+      std::shared_ptr<BusyGlobalStatusUpdate> busy_global_word_ptr;
+
+      busy_count_word = std::dynamic_pointer_cast<BusyCountUpdate>(busy_word);
+      busy_global_word = std::dynamic_pointer_cast<BusyGlobalStatusUpdate>(busy_word);
+
+      // Find out what kind of busy word we're dealing with, and process it
+      if(busy_count_word) {
+        ///@todo What should we do with busy count updates from other RU's?
+        /// Do something smart here..
+      } else if (busy_global_word) {
+        mGlobalBusyStatus = busy_global_word->mGlobalBusyStatus;
+      }
+    }
+
+    // Pass the busy word down the daisy chain link
+    s_busy_fifo_out->nb_write(busy_word);
+  }
 }
 
 

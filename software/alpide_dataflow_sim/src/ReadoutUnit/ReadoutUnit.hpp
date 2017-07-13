@@ -12,8 +12,15 @@
 #ifndef READOUT_UNIT_HPP
 #define READOUT_UNIT_HPP
 
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <systemc.h>
+#pragma GCC diagnostic pop
+
 #include <vector>
 #include <memory>
+
 #include "BusyLinkWord.hpp"
 #include <Alpide/AlpideInterface.hpp>
 #include "AlpideDataParser/AlpideDataParser.hpp"
@@ -42,8 +49,8 @@ public:
     And so on..
   */
 
-  sc_port<sc_fifo_out_if<BusyLinkWord>> s_busy_fifo_in;
-  sc_port<sc_fifo_in_if<BusyLinkWord>> s_busy_fifo_out;
+  sc_port<sc_fifo_out_if<std::shared_ptr<BusyLinkWord>>> s_busy_fifo_in;
+  sc_port<sc_fifo_in_if<std::shared_ptr<BusyLinkWord>>> s_busy_fifo_out;
 
   sc_event E_trigger_in;
   sc_event E_trigger_filtered_out;
@@ -57,18 +64,22 @@ private:
   unsigned int mBusyLinkCount;
   unsigned int mBusyLinkThreshold;
   bool mLocalBusyStatus;
+  bool mGlobalBusyStatus;
   bool mInnerBarrelMode;
+  bool mBusyDaisyChainMaster;
   sc_time mLastTriggerTime;
 
   std::vector<std::shared_ptr<AlpideDataParser>> mDataLinkParsers;
+  std::vector<sc_signal<sc_bool>> mAlpideLinkBusySignals;
 
+  void evaluateBusyStatusMethod(void);
   void triggerInputMethod(void);
   void mainMethod(void);
   //  void dataInputMethod(void);
   //  void busyChainMethod(void);
 
   void processInputData(void);
-  void evaluateBusyStatus(void);
+
 
 public:
   ReadoutUnit(sc_core::sc_module_name name, unsigned int id);

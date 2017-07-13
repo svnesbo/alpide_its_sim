@@ -14,47 +14,44 @@
 #pragma GCC diagnostic pop
 
 
-const int BW_BUSY_COUNT_UPDATE          = 0;
-const int BW_BUSY_GLOBAL_STATUS_UPDATE  = 1;
-
 struct BusyLinkWord {
   int mOriginAddress;
-  sc_time mTimestamp;
+  int mTimeStamp;
 
-  BusyLinkWord(int address, sc_time timestamp)
+  BusyLinkWord(int address, int timestamp)
     : mOriginAddress(address)
     , mTimeStamp(timestamp)
-    {}
+  {}
 
-  virtual int getBusyWordType(void) = 0;
+  virtual ~BusyLinkWord() = 0;
 };
+
+BusyLinkWord::~BusyLinkWord()
+{
+}
 
 
 struct BusyCountUpdate : BusyLinkWord {
   int mLinkBusyCount;
   bool mLocalBusyStatus;
 
-  BusyCountUpdate(int address, sc_time timestamp, int busy_link_count, bool local_busy)
+  BusyCountUpdate(int address, int timestamp, int busy_link_count, bool local_busy)
     : BusyLinkWord(address, timestamp)
     , mLinkBusyCount(busy_link_count)
-    , mLocalBusy(local_busy)
-    {}
+    , mLocalBusyStatus(local_busy)
+  {}
 
-  int getBusyWordType(void) {
-    return BW_BUSY_COUNT_UPDATE;
-  }
+  ~BusyCountUpdate() {}
 };
 
 
 struct BusyGlobalStatusUpdate : BusyLinkWord {
   bool mGlobalBusyStatus;
 
-  BusyLinkStatusUpdate(int address, sc_time timestamp, bool busy_status)
+  BusyGlobalStatusUpdate(int address, int timestamp, bool busy_status)
     : BusyLinkWord(address, timestamp)
     , mGlobalBusyStatus(busy_status)
-    {}
+  {}
 
-  int getBusyWordType(void) {
-    return BW_BUSY_GLOBAL_STATUS_UPDATE;
-  }
-}
+  ~BusyGlobalStatusUpdate() {}
+};
