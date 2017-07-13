@@ -17,11 +17,32 @@
 ///      Use AlpideDataParser? Implement quick parsing of busy words, and generation of busy map.
 
 //Do I need SC_HAS_PROCESS if I only use SC_METHOD??
-//SC_HAS_PROCESS(ReadoutUnit);
-ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name, unsigned int id)
+SC_HAS_PROCESS(ReadoutUnit);
+///@brief Constructor for ReadoutUnit
+///@param name SystemC module name
+///@param id ID of ReadoutUnit (same as stave ID, numbered continuously from
+///       inner to outer barrels)
+///@param links_in_use Number of Alpide data links in connected for this readout unit
+///@param inner_barrel Set to true if RU is connected to inner barrel stave
+ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name, unsigned int id,
+                         unsigned int links_in_use, bool inner_barrel)
   : sc_core::sc_module(name)
   , mID(id)
+  , mActiveLinks(links_in_use)
+  , mInnerBarrelMode(inner_barrel)
 {
+  mDataLinkParsers.resize(links_in_use);
+
+  for(int i = 0; i < links_in_use; i++) {
+    mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", false);
+    mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
+    mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
+    mDataLinkParsers[i]->s_link_busy_out(
+      ///@todo Assign to a signal i ReadoutUnit here...
+      );
+  }
+
+
   SC_METHOD(triggerInputMethod);
   sensitive << E_trigger_in;
 
@@ -58,8 +79,62 @@ void ReadoutUnit::triggerInputMethod(void)
     ///@todo Add a delay here corresponding to delay for sending/decoding triggers
     ///      on Alpide slow control link?
     //E_trigger_filtered_out.notify(mAlpideTriggerDelay, SC_NS);
+
+    ///@todo Add some logic here (and delay?) so that we only request the event frames
+    ///      once the Alpide chips are ready to accept a new event frame, and only
+    ///      for the chips that are actually ready.
+    E_request_event_frame.notify()
   }
 }
+
+
+///@brief SystemC method, sensitive to changes on any of the busy signals
+///       from the AlpideDataParsers. Counts number of busy links to evaluate
+///       local busy status.
+void ReadoutUnit::evaluateBusyStatus(void)
+{
+  unsigned int busy_link_count = 0;
+
+  for(int i = 0; i < mDataLinkParsers.size(); i++) {
+    if(mDataLinkParsers[i]->s_link_busy_out.read())
+      busy_link_count++;
+  }
+
+  if(busy_link_count != mBusyLinkCount) {
+    mBusyLinkCount = busy_link_count;
+
+    if(mBusyLinkCount > mBusyLinkThreshold)
+      mLocalBusyStatus = true;
+    else
+      mLocalBusyStatus = false;
+
+    ///@todo Do something here to send out a new package on the busy daisy chain
+  }
+}
+
+
+///@brief SystemC method, sensitive to busy chain input event. Sends busy updates further down
+///       the chain, unless they originated from this readout unit.
+void ReadoutUnit::busyChainMethod(void)
+{
+  ///@todo Pass on busy event here, unless the busy event originated from this readout unit.
+  ///@todo How can I implement a payload with these events? Maybe Matthias' structure is suitable for this?
+  E_busy_chain_queue_out->notify(SC_ZERO_TIME);
+}
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
 
 
 
@@ -93,11 +168,4 @@ void ReadoutUnit::dataInputMethod(void)
 }
 
 
-///@brief SystemC method, sensitive to busy chain input event. Sends busy updates further down
-///       the chain, unless they originated from this readout unit.
-void ReadoutUnit::busyChainMethod(void)
-{
-  ///@todo Pass on busy event here, unless the busy event originated from this readout unit.
-  ///@todo How can I implement a payload with these events? Maybe Matthias' structure is suitable for this?
-  E_busy_chain_queue_out->notify(SC_ZERO_TIME);
-}
+*/

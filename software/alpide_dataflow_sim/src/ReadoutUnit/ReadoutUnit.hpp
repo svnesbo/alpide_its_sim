@@ -12,9 +12,11 @@
 #ifndef READOUT_UNIT_HPP
 #define READOUT_UNIT_HPP
 
-
+#include <vector>
+#include <memory>
 #include "BusyLinkWord.hpp"
 #include <Alpide/AlpideInterface.hpp>
+#include "AlpideDataParser/AlpideDataParser.hpp"
 
 
 #define NUM_ALPIDE_DATA_LINKS 28
@@ -51,15 +53,22 @@ public:
 
 private:
   unsigned int mID;
+  unsigned int mActiveLinks;
+  unsigned int mBusyLinkCount;
+  unsigned int mBusyLinkThreshold;
+  bool mLocalBusyStatus;
+  bool mInnerBarrelMode;
   sc_time mLastTriggerTime;
+
+  std::vector<std::shared_ptr<AlpideDataParser>> mDataLinkParsers;
 
   void triggerInputMethod(void);
   void mainMethod(void);
   //  void dataInputMethod(void);
   //  void busyChainMethod(void);
 
-  void processInputData();
-  void evaluateBusyStatus();
+  void processInputData(void);
+  void evaluateBusyStatus(void);
 
 public:
   ReadoutUnit(sc_core::sc_module_name name, unsigned int id);

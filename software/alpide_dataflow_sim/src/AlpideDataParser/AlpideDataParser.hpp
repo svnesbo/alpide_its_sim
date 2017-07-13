@@ -4,6 +4,8 @@
  * @date   March 3, 2017
  * @brief  Classes for parsing serial data from Alpide chip,
  *         and building/reconstructing events/frames from the data
+ *         A busy signal indicates if the parser detected BUSY ON/OFF words,
+ *         which makes the parser useful for readout unit simulations.
  */
 
 
@@ -79,6 +81,9 @@ private:
 
   unsigned int mCurrentRegion = 0;
 
+  bool mBusyStatus;
+  bool mBusyStatusChanged;
+
   // Counters for statistics
   long mCommaCount;
   long mIdleCount;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
@@ -110,12 +115,13 @@ public:
   // SystemC signals
   sc_in<sc_uint<24> > s_serial_data_in;
   sc_in_clk s_clk_in;
+  sc_export<sc_signal<bool>> s_link_busy_out;
 
 private:
   void parserInputProcess(void);
 
 public:
-  AlpideDataParser(sc_core::sc_module_name name);
+  AlpideDataParser(sc_core::sc_module_name name, bool save_events = true);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 

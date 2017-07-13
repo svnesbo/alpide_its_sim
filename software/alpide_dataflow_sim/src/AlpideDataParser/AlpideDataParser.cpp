@@ -3,9 +3,9 @@
  * @author Simon Voigt Nesbo
  * @date   March 6, 2017
  * @brief  Classes for parsing serial data from Alpide chip,
- *         and building/reconstructing events/frames from the data
- * @todo   Move this class to a separate directory/module.
- *         Don't mix it with the Alpide simulation model.
+ *         and building/reconstructing events/frames from the data.
+ *         A busy signal indicates if the parser detected BUSY ON/OFF words,
+ *         which makes the parser useful for readout unit simulations.
  */
 
 #include "misc/vcd_trace.hpp"
@@ -59,11 +59,13 @@ void AlpideEventBuilder::popEvent(void)
 ///          to that frame.
 ///       3) If these are just idle words etc., nothing is done with them.
 ///@param[in] dw AlpideDataWord input to parse.
-void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
+bool AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
 {
   AlpideDataParsed data_parsed = parseDataWord(dw);
   unsigned long data = (dw.data[2] << 16) | (dw.data[1] << 8) | dw.data[0];
   std::bitset<24> data_bits(data);
+
+  mBusyStatusChanged = false;
 
   // Create new frame/event?
   switch(data_parsed.data[2]) {
@@ -162,6 +164,21 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     // These should never occur in data_parsed.byte[2].
     // They are here to get rid off compiler warnings :)
     break;
+  }
+
+  // Check/update link busy status
+  if(data_parsed.data[2] == BUSY_ON ||
+     data_parsed.data[1] == BUSY_ON ||
+     data_parsed.data[0] == BUSY_ON)
+  {
+    mBusyStatus = true;
+    mBusyStatusChanged = true;
+  } else if(data_parsed.data[2] == BUSY_OFF ||
+            data_parsed.data[1] == BUSY_OFF ||
+            data_parsed.data[0] == BUSY_OFF)
+  {
+    mBusyStatus = false;
+    mBusyStatusChanged = true;
   }
 }
 
@@ -278,7 +295,11 @@ AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
 
 
 SC_HAS_PROCESS(AlpideDataParser);
-AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name)
+///@brief Data parser constructor
+///@param name SystemC module name
+///@param save_events Specify if the parser should store events in memory,
+///            or just discard them.
+AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name, bool save_events)
   : sc_core::sc_module(name)
 {
   SC_METHOD(parserInputProcess);
@@ -289,6 +310,7 @@ AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name)
 ///@brief Matrix readout SystemC method. Expects a 3-byte word input on each clock edge.
 ///       The 3-byte data word is passed to the underlying base class for processing and
 ///       event frame generation.
+///       A busy signal indicates if the parser has detected BUSY ON/OFF words.
 void AlpideDataParser::parserInputProcess(void)
 {
   AlpideDataWord dw;
@@ -298,6 +320,11 @@ void AlpideDataParser::parserInputProcess(void)
   dw.data[2] = s_serial_data_in.read().range(23,16);
 
   inputDataWord(dw);
+
+  if(mBusyStatusChanged) {
+    ///@todo Do something smart here? Implement a notification/event maybe?
+    s_link_busy_out.write(mBusyStatus);
+  }
 }
 
 
