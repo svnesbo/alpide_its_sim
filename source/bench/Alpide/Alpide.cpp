@@ -103,19 +103,32 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   s_control_input.register_transport(std::bind(&SingleChip::processCommand,
                                                this, std::placeholders::_1));
 
-  SC_METHOD(mainProcess);
+  SC_METHOD(mainMethod);
   sensitive_pos << s_system_clk_in;
 
   SC_METHOD(triggerMethod);
-  sensitive << E_trigger_in;
+  sensitive << E_trigger;
+
+  SC_METHOD(strobeDurationMethod);
+  sensitive << E_strobe_interval_done;
+
+  SC_METHOD(strobeAndFramingMethod);
+  sensitive << s_strobe_n.value_changed();
+
+}
+
+
+void Alpide::newEvent(uint64_t event_time)
+{
+  PixelMatrix::newEvent(event_time);
+  E_request_event_frame_out.notify();
 }
 
 
 ///@brief Data transmission SystemC method. Currently runs on 40MHz clock.
 ///@todo Implement more advanced data transmission method.
-void Alpide::mainProcess(void)
+void Alpide::mainMethod(void)
 {
-  strobeInput();
   frameReadout();
   dataTransmission();
   updateBusyStatus();
@@ -128,7 +141,7 @@ void Alpide::mainProcess(void)
 void Alpide::processCommand(ControlRequestPayload const &request) {
   if (request.opcode == 0x55) {
     SC_REPORT_INFO_VERB(name(), "Received Trigger", sc_core::SC_DEBUG);
-    trigger();
+    E_trigger.notify();
   } else {
     SC_REPORT_ERROR(name(), "Invalid opcode received");
   }
@@ -138,33 +151,46 @@ void Alpide::processCommand(ControlRequestPayload const &request) {
 
 
 ///@brief Called on trigger input - initiates strobing intervals
-void Alpide::trigger(void)
+///       All triggers have to be supplied externally to the Alpide module.
+///       There is not automatic trigger/strobe synthesizer implemented here.
+void Alpide::triggerMethod(void)
 {
-  if(mStrobeActive == true) {
-    ///@todo Implement strobe extension here?
-/*
-    if(mStrobeExtensionEnable == true) {
-      // Extend strobe here
-    } else
-*/
-    {
-      // Reject next event frame
-      mEventFramesRejected++;
-      s_chip_ready_internal = false;
-    }
-  } else {
-    // Set strobe active
+  sc_time time_now;
+
+  if(s_strobe_n.read() == true) {
+    // Strobe not active - start new interval
     s_strobe_n = false;
+    E_strobe_interval_done.notify(mStrobeInterval);
+  } else if(s_strobe_n.read() == false) {
+    // Strobe already active
+    if(mStrobeExtensionEnable) {
+      E_strobe_interval_done.cancel();
+
+      // If an E_strobe_interval_done event already happened the same cycle, then
+      // strobeDurationMethod() could have written false to s_strobe_n already, but it would not
+      // have updated yet, so make sure it stays active (false/low).
+      s_strobe_n = false;
+      E_strobe_interval_done.notify(mStrobeInterval);
+    } else {
+      mEventFramesRejected++;
+    }
   }
 }
 
 
-///@brief This function handles the strobe input to the Alpide class object.
-///       Controls creation of new Multi Event Buffers (MEBs). Together with the frameReadout function, this
-///       process essentially does the same as the FROMU (Frame Read Out Management Unit) in the Alpide chip.
+void Alpide::strobeDurationMethod(void)
+{
+  s_strobe_n = false;
+}
+
+
+///@brief This SystemC method handles framing of events according to the strobe intervals.
+///       Controls creation of new Multi Event Buffers (MEBs). Together with the frameReadout
+///       function, this process essentially does the same as the FROMU (Frame Read Out Management
+///       Unit) in the Alpide chip.
 ///       Note: it is assumed that STROBE is synchronous to the clock.
 ///       It will not be "dangerous" if it is not, but it will deviate from the real chip implementation.
-void Alpide::strobeInput(void)
+void Alpide::strobeAndFramingMethod(void)
 {
   int64_t time_now = sc_time_stamp().value();
 

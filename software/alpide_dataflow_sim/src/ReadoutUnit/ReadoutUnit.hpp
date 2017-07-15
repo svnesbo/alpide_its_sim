@@ -63,6 +63,7 @@ private:
   unsigned int mActiveLinks;
   unsigned int mBusyLinkCount;
   unsigned int mBusyLinkThreshold;
+  unsigned int mReadoutUnitTriggerDelay;
   bool mLocalBusyStatus;
   bool mGlobalBusyStatus;
   bool mInnerBarrelMode;

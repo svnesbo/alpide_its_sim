@@ -30,6 +30,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name, unsigned int id,
   , mID(id)
   , mActiveLinks(links_in_use)
   , mInnerBarrelMode(inner_barrel)
+  , mReadoutUnitTriggerDelay(0)
 {
   mDataLinkParsers.resize(links_in_use);
   mAlpideLinkBusySignals.resize(links_in_use);
@@ -74,16 +75,7 @@ void ReadoutUnit::triggerInputMethod(void)
     ///@todo If detector is busy.. hold back on triggers here...
 
     mLastTriggerTime = time_now;
-    E_trigger_filtered_out.notify(SC_ZERO_TIME);
-
-    ///@todo Add a delay here corresponding to delay for sending/decoding triggers
-    ///      on Alpide slow control link?
-    //E_trigger_filtered_out.notify(mAlpideTriggerDelay, SC_NS);
-
-    ///@todo Add some logic here (and delay?) so that we only request the event frames
-    ///      once the Alpide chips are ready to accept a new event frame, and only
-    ///      for the chips that are actually ready.
-    E_request_event_frame.notify()
+    E_trigger_filtered_out.notify(mReadoutUnitTriggerDelay, SC_NS);
   }
 }
 

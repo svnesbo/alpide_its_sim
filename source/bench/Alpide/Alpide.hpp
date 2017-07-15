@@ -37,9 +37,7 @@ public:
   ///@brief 40MHz LHC clock
   sc_in_clk s_system_clk_in;
 
-
-  ///@todo Get rid off this trigger input event? Use the control socket instead?
-  sc_event E_trigger_in;
+  sc_event E_request_event_frame_out;
 
   ControlTargetSocket s_control_input;
   DataInitiatorSocket s_data_output;
@@ -98,7 +96,10 @@ private:
 
   sc_signal<sc_uint<8> > s_dmu_fifo_size;
   sc_signal<bool> s_chip_ready_internal;
-  sc_in<bool> s_strobe_n;
+  sc_signal<bool> s_strobe_n;
+
+  sc_event E_trigger;
+  sc_event E_strobe_interval_done;
 
   tlm::tlm_fifo<FrameStartFifoWord> s_frame_start_fifo;
   tlm::tlm_fifo<FrameEndFifoWord> s_frame_end_fifo;
@@ -137,14 +138,17 @@ private:
   ///       the 3rd one is filled. This variable counts up in that case.
   uint64_t mEventFramesFlushed = 0;
 
-  void mainProcess(void);
-  void strobeInput(void);
+  void newEvent(uint64_t event_time);
+  void mainMethod(void);
+  void triggerMethod(void);
+  void strobeDurationMethod(void);
+  void strobeAndFramingMethod(void);
+
   void frameReadout(void); // FROMU
-  void trigger(void);
   void dataTransmission(void);
-  void processCommand(ControlRequestPayload const &request);
-  bool getFrameReadoutDone(void);
   void updateBusyStatus(void);
+  bool getFrameReadoutDone(void);
+  void processCommand(ControlRequestPayload const &request);
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,

@@ -56,7 +56,7 @@ protected:
   ///      have access to setPixel()..
 public:
   PixelMatrix(bool continuous_mode);
-  void newEvent(uint64_t event_time);
+  virtual void newEvent(uint64_t event_time);
   void deleteEvent(uint64_t event_time);
   void flushOldestEvent(void);
   void setPixel(unsigned int col, unsigned int row);
