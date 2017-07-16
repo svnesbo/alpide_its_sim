@@ -100,8 +100,11 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   while(s_dtu_delay_fifo.num_free() > 0)
     s_dtu_delay_fifo.nb_write(dw);
 
-  s_control_input.register_transport(std::bind(&SingleChip::processCommand,
+  s_control_input.register_transport(std::bind(&Alpide::processCommand,
                                                this, std::placeholders::_1));
+
+  s_event_frame_input.register_transport(std::bind(&Alpide::processEventFrame,
+                                                   this, std::placeholders::_1));
 
   SC_METHOD(mainMethod);
   sensitive_pos << s_system_clk_in;
@@ -121,7 +124,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 void Alpide::newEvent(uint64_t event_time)
 {
   PixelMatrix::newEvent(event_time);
-  E_request_event_frame_out.notify();
+  s_event_frame_request_output->transport(mChipId);
 }
 
 
@@ -138,7 +141,8 @@ void Alpide::mainMethod(void)
 }
 
 
-void Alpide::processCommand(ControlRequestPayload const &request) {
+void Alpide::processCommand(ControlRequestPayload const &request)
+{
   if (request.opcode == 0x55) {
     SC_REPORT_INFO_VERB(name(), "Received Trigger", sc_core::SC_DEBUG);
     E_trigger.notify();
@@ -147,6 +151,13 @@ void Alpide::processCommand(ControlRequestPayload const &request) {
   }
   // do nothing
   return {};
+}
+
+
+void Alpide::processEventFrame(EventFrameResponsePayload const &event_reponse)
+{
+  ///@todo Check that chip id is correct?
+  event_reponse.feedHitsToChip(*this);
 }
 
 
@@ -411,6 +422,7 @@ void Alpide::frameReadout(void)
 void Alpide::dataTransmission(void)
 {
   AlpideDataWord dw_dtu = AlpideComma();
+  sc_uint<24> data_out;
 
   if(mEnableDtuDelay) {
     s_dmu_fifo_size = s_dmu_fifo.num_available();
@@ -421,7 +433,7 @@ void Alpide::dataTransmission(void)
       dw_dtu = AlpideComma();
     }
 
-    sc_uint<24> data_out = dw_dtu.data[2] << 16 | dw_dtu.data[1] << 8 | dw_dtu.data[0];
+    data_out = dw_dtu.data[2] << 16 | dw_dtu.data[1] << 8 | dw_dtu.data[0];
     s_serial_data_output = data_out;
 
     AlpideDataWord dw_dmu = AlpideComma();
@@ -444,10 +456,13 @@ void Alpide::dataTransmission(void)
     if(s_dmu_fifo.nb_read(dw_dmu) == false) {
       dw_dmu = AlpideComma();
     }
-    sc_uint<24> data_out = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
+    data_out = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
     s_serial_data_dtu_input_debug = data_out;
     s_serial_data_output = data_out;
   }
+
+  // Data initiator socket output
+  s_data_output.put(data_out);
 }
 
 

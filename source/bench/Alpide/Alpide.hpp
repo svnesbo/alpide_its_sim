@@ -37,10 +37,11 @@ public:
   ///@brief 40MHz LHC clock
   sc_in_clk s_system_clk_in;
 
-  sc_event E_request_event_frame_out;
-
   ControlTargetSocket s_control_input;
   DataInitiatorSocket s_data_output;
+
+  EventFrameTargetSocket s_event_frame_input;
+  DataInitiatorSocket s_event_frame_request_output;
 
   ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
   sc_out<bool> s_chip_ready_out;
@@ -149,6 +150,7 @@ private:
   void updateBusyStatus(void);
   bool getFrameReadoutDone(void);
   void processCommand(ControlRequestPayload const &request);
+  void processEventFrame(EventFrameResponsePayload const &event_reponse);
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,

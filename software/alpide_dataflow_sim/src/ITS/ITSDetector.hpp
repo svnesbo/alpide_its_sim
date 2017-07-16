@@ -57,6 +57,8 @@ namespace ITS {
     void buildDetector(const detectorConfig& config);
     void verifyDetectorConfig(const detectorConfig& config) const;
 
+    void eventFrameRequestMethod(void);
+
   public:
     ITSDetector(sc_core::sc_module_name name, const detectorConfig& config);
     void physicsEventFrameInput(const EventFrame& e);

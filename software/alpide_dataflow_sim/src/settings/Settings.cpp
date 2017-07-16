@@ -50,7 +50,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["data_output/write_vcd_clock"] = DEFAULT_DATA_OUTPUT_WRITE_VCD_CLOCK;
   defaultSettings["data_output/write_event_csv"] = DEFAULT_DATA_OUTPUT_WRITE_EVENT_CSV;
 
-  defaultSettings["simulation/n_chips"] = DEFAULT_SIMULATION_N_CHIPS;
+  defaultSettings["simulation/single_chip"] = DEFAULT_SIMULATION_SINGLE_CHIP;
   defaultSettings["simulation/n_events"] = DEFAULT_SIMULATION_N_EVENTS;
   defaultSettings["simulation/continuous_mode"] = DEFAULT_SIMULATION_CONTINUOUS_MODE;
   defaultSettings["simulation/random_seed"] = DEFAULT_SIMULATION_RANDOM_SEED;
@@ -80,6 +80,13 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["alpide/pixel_shaping_active_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_ACTIVE_TIME_NS;
   defaultSettings["alpide/matrix_readout_speed_fast"] = DEFAULT_ALPIDE_MATRIX_READOUT_SPEED_FAST;
 
+  defaultSettings["its/layer0_num_staves"] = DEFAULT_ITS_LAYER0_NUM_STAVES;
+  defaultSettings["its/layer1_num_staves"] = DEFAULT_ITS_LAYER1_NUM_STAVES;
+  defaultSettings["its/layer2_num_staves"] = DEFAULT_ITS_LAYER2_NUM_STAVES;
+  defaultSettings["its/layer3_num_staves"] = DEFAULT_ITS_LAYER3_NUM_STAVES;
+  defaultSettings["its/layer4_num_staves"] = DEFAULT_ITS_LAYER4_NUM_STAVES;
+  defaultSettings["its/layer5_num_staves"] = DEFAULT_ITS_LAYER5_NUM_STAVES;
+  defaultSettings["its/layer6_num_staves"] = DEFAULT_ITS_LAYER6_NUM_STAVES;
 
   QStringList simSettingsKeys = readoutSimSettings->allKeys();
 

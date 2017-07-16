@@ -10,8 +10,8 @@
 
 
 class CTP  : sc_core::sc_module {
-  sc_event_queue E_physics_event_in;
-  sc_event_queue_port E_trigger_delayed_out;
+  sc_event E_physics_event_in;
+  sc_event E_trigger_delayed_out;
 
 private:
   /// Total trigger delay, including wire delay to Readout Unit.

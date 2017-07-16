@@ -27,6 +27,9 @@ public:
   sc_event_queue E_event_frame_available;
 
 private:
+  sc_event E_physics_event;
+  sc_event E_CTP_trigger;
+
   EventGenerator *mEvents;
   std::vector<Alpide*> mAlpideChips;
   const QSettings* mSettings;

@@ -67,7 +67,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
 
   // Initialize variables for Stimuli object
   mNumEvents = settings->value("simulation/n_events").toInt();
-  mNumChips = settings->value("simulation/n_chips").toInt();
+  mSingleChipSimulation = settings->value("simulation/single_chips").toBool();
   mContinuousMode = settings->value("simulation/continuous_mode").toBool();
   mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toInt();
   mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();
@@ -75,6 +75,28 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
 
   // Instantiate event generator object
   mEvents = new EventGenerator("event_gen", settings, mOutputPath);
+
+  if(mSingleChipSimulation) {
+    ///@todo Implement single chip simulation
+  } else {
+    detectorConfig config;
+    config.layer[0].num_stave = settings->value("its/layer0_num_staves").toInt();
+    config.layer[1].num_stave = settings->value("its/layer1_num_staves").toInt();
+    config.layer[2].num_stave = settings->value("its/layer2_num_staves").toInt();
+    config.layer[3].num_stave = settings->value("its/layer3_num_staves").toInt();
+    config.layer[4].num_stave = settings->value("its/layer4_num_staves").toInt();
+    config.layer[5].num_stave = settings->value("its/layer5_num_staves").toInt();
+    config.layer[6].num_stave = settings->value("its/layer6_num_staves").toInt();
+
+    mITS = new ITSDetector("ITS", config);
+    mITS->s_system_clk_in(clock);
+    mITS->E_trigger_in(E_CTP_trigger);
+
+    mCTP = new CTP("CTP");
+    mCTP->E_physics_event_in(E_physics_event);
+    mCTP->E_trigger_delayed_out(E_CTP_trigger);
+  }
+
 
   // Connect SystemC signals to EventGenerator
   mEvents->s_clk_in(clock);
@@ -136,6 +158,18 @@ void Stimuli::stimuliMainProcess(void)
         std::cout << "@ " << time_now << " ns: \tGenerating strobe/event number ";
         std::cout << mEvents->getEventFrameCount() << std::endl;
       }
+
+
+      /// TODO
+      /// 1. Get rid off strobe stuff from here and event generator
+      ///    Feed physics event directly to CTP, and pass CTP trigger directly to detector
+      /// 2. Make all processes into methods?
+      /// 3. Implement event requests in ITS detector, in Stimuli class, and in EventGenerator
+      ///    On demand event generation in EventGenerator..
+      /// 4. SystemC events with my EventFrame as payload?
+
+
+
 
       if(mContinuousMode == true) {
         s_strobe_n.write(false);

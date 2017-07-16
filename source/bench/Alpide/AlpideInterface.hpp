@@ -24,37 +24,52 @@
 
 #include <cstdint>
 #include <vector>
+#include <memory>
 
 #include <systemc>
 #include <tlm>
 
 #include <common/Interfaces.hpp>
+#include <event/EventFrame.hpp>
 
 namespace Alpide {
-struct ControlRequestPayload {
-  uint8_t opcode;
-  uint8_t chipId;
-  uint16_t address;
-  uint16_t data;
-};
+  struct ControlRequestPayload {
+    uint8_t opcode;
+    uint8_t chipId;
+    uint16_t address;
+    uint16_t data;
+  };
 
-struct ControlResponsePayload {
-  uint8_t chipId;
-  uint16_t data;
-};
+  struct ControlResponsePayload {
+    uint8_t chipId;
+    uint16_t data;
+  };
 
-struct DataPayload {
-  std::vector<uint8_t> data;
-};
+  struct EventFrameRequestPayload {
+    uint32_t chipId;
+  };
 
-using ControlInitiatorSocket = sc_core::sc_port<
+  struct EventFrameResponsePayload {
+    std::shared_ptr<EventFrame> event;
+  };
+
+  struct DataPayload {
+    std::vector<uint8_t> data;
+  };
+
+  using ControlInitiatorSocket = sc_core::sc_port<
     tlm::tlm_transport_if<ControlRequestPayload, ControlResponsePayload> >;
-using ControlTargetSocket =
+  using ControlTargetSocket =
     transport_target_socket<ControlRequestPayload, ControlResponsePayload>;
 
-using DataInitiatorSocket =
+  using EventFrameInitiatorSocket = sc_core::sc_port<
+    tlm::tlm_transport_if<EventFrameRequestPayload, EventFrameResponsePayload> >;
+  using EventFrameTargetSocket =
+    transport_target_socket<EventFrameRequestPayload, EventFrameResponsePayload>;
+
+  using DataInitiatorSocket =
     sc_core::sc_port<tlm::tlm_blocking_put_if<DataPayload> >;
-using DataTargetSocket = put_if_target_socket<DataPayload>;
-using DataTargetExport =
+  using DataTargetSocket = put_if_target_socket<DataPayload>;
+  using DataTargetExport =
     sc_core::sc_export<tlm::tlm_blocking_put_if<DataPayload> >;
 }
