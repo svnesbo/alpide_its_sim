@@ -155,8 +155,8 @@ public:
                  const QSettings* settings,
                  std::string output_path);
   ~EventGenerator();
-  void generateNextEvent();
-  void generateNextEvents(int n_events);
+  std::shared_ptr<EventFrame> generateNextEventFrame(uint64_t event_start,
+                                                     uint64_t event_end,int chip_id);
   const EventFrame& getNextEventFrame(void);
   void setBunchCrossingRate(int rate_ns);
   void setRandomSeed(int seed);
@@ -170,12 +170,12 @@ public:
   int getPhysicsEventCount(void) const {return mPhysicsEventCount;}
   int getEventFrameCount(void) const {return mEventFrameIdCount;}
   void removeOldestEvent(void);
-  void physicsEventProcess(void);
-  void eventFrameProcess(void);
+  void physicsEventMethod(void);
+  //void eventFrameProcess(void);
 
 private:
-  EventFrame* generateNextEventFrame(int64_t event_start, int64_t event_end, int chip_id);
-  int64_t generateNextPhysicsEvent(void);
+
+  uint64_t generateNextPhysicsEvent(void);
   void readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const;
   void scaleDiscreteDistribution(std::vector<double> &dist_vector, double new_mean_value);
   unsigned int getRandomMultiplicity(void);

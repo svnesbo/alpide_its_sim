@@ -132,7 +132,8 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
 
   s_physics_event = false;
 
-  SC_CTHREAD(stimuliMainProcess, clock.pos());
+  SC_METHOD(stimuliMainMethod);
+  sensitive << E_physics_event;
 
   SC_METHOD(stimuliEventProcess);
   sensitive << E_event_frame_available;

@@ -40,8 +40,7 @@ public:
   ControlTargetSocket s_control_input;
   DataInitiatorSocket s_data_output;
 
-  EventFrameTargetSocket s_event_frame_input;
-  DataInitiatorSocket s_event_frame_request_output;
+  EventFrameRequestInitiatorSocket socket_event_frame_request_out;
 
   ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
   sc_out<bool> s_chip_ready_out;

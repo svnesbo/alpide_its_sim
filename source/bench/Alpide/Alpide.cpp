@@ -124,7 +124,9 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 void Alpide::newEvent(uint64_t event_time)
 {
   PixelMatrix::newEvent(event_time);
-  s_event_frame_request_output->transport(mChipId);
+  // Set chip ready signal here??
+
+  ///@todo Send out a request on socket_event_frame_request_out here
 }
 
 
@@ -154,6 +156,8 @@ void Alpide::processCommand(ControlRequestPayload const &request)
 }
 
 
+///@todo Do this here (ITSDetector sends reponse with event frame), OR,
+///      let ITSDetector do this directly?
 void Alpide::processEventFrame(EventFrameResponsePayload const &event_reponse)
 {
   ///@todo Check that chip id is correct?

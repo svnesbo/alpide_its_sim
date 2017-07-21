@@ -50,6 +50,7 @@ namespace Alpide {
   };
 
   struct EventFrameResponsePayload {
+    uint32_t chipId;
     std::shared_ptr<EventFrame> event;
   };
 
@@ -62,9 +63,9 @@ namespace Alpide {
   using ControlTargetSocket =
     transport_target_socket<ControlRequestPayload, ControlResponsePayload>;
 
-  using EventFrameInitiatorSocket = sc_core::sc_port<
+  using EventFrameRequestInitiatorSocket = sc_core::sc_port<
     tlm::tlm_transport_if<EventFrameRequestPayload, EventFrameResponsePayload> >;
-  using EventFrameTargetSocket =
+  using EventFrameRequestTargetSocket =
     transport_target_socket<EventFrameRequestPayload, EventFrameResponsePayload>;
 
   using DataInitiatorSocket =

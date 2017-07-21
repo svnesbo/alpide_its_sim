@@ -154,10 +154,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   //////////////////////////////////////////////////////////////////////////////
   // SystemC declarations / connections / etc.
   //////////////////////////////////////////////////////////////////////////////
-  SC_CTHREAD(physicsEventProcess, s_clk_in.pos());
-
-  SC_METHOD(eventFrameProcess);
-  sensitive << s_strobe_in;
+  SC_METHOD(physicsEventMethod);
 }
 
 
@@ -475,7 +472,7 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 ///       2) Generate hits for the next event, and put them on the hit queue
 ///       3) Update counters etc.
 ///@return The number of clock cycles until this event will actually occur
-int64_t EventGenerator::generateNextPhysicsEvent(void)
+int64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 {
   int64_t t_delta, t_delta_cycles;
   int n_hits = 0;
@@ -484,26 +481,7 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
   int *chip_trace_hit_counts = new int[mNumChips]();
   int *chip_pixel_hit_counts = new int[mNumChips]();
 
-  // Generate random (exponential distributed) interval till next event/interaction
-  // The exponential distribution only works with double float, that's why it is rounded
-  // to nearest clock cycle. Which is okay, because events in LHC should be synchronous
-  // with bunch crossing clock anyway?
-  // Add 1 because otherwise we risk getting events with 0 t_delta, which obviously is not
-  // physically possible, and also SystemC doesn't allow wait() for 0 clock cycles.
-  t_delta_cycles = std::round((*mRandEventTime)(mRandEventTimeGen)) + 1;
-  t_delta = t_delta_cycles * mBunchCrossingRateNs;
-
-  if((mPhysicsEventCount % 100) == 0) {
-    //print_function_timestamp();
-    int64_t time_now = sc_time_stamp().value();
-    std::cout << "@ " << time_now << " ns: ";
-    std::cout << "\tPhysics event number: " << mPhysicsEventCount;
-    std::cout << "\tt_delta: " << t_delta;
-    std::cout << "\tt_delta_cycles: " << t_delta_cycles;
-    std::cout << "\tmLastPhysicsEventTimeNs: " << mLastPhysicsEventTimeNs << std::endl;
-  }
-
-  mLastPhysicsEventTimeNs += t_delta;
+  mLastPhysicsEventTimeNs = time_now;
   mPhysicsEventCount++;
 
 
@@ -584,6 +562,26 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
     }
   }
 
+
+  // Generate random (exponential distributed) interval till next event/interaction
+  // The exponential distribution only works with double float, that's why it is rounded
+  // to nearest clock cycle. Which is okay, because events in LHC should be synchronous
+  // with bunch crossing clock anyway?
+  // Add 1 because otherwise we risk getting events with 0 t_delta, which obviously is not
+  // physically possible, and also SystemC doesn't allow wait() for 0 clock cycles.
+  t_delta_cycles = std::round((*mRandEventTime)(mRandEventTimeGen)) + 1;
+  t_delta = t_delta_cycles * mBunchCrossingRateNs;
+
+  if((mPhysicsEventCount % 100) == 0) {
+    //print_function_timestamp();
+    std::cout << "@ " << time_now << " ns: ";
+    std::cout << "\tPhysics event number: " << mPhysicsEventCount;
+    std::cout << "\tt_delta: " << t_delta;
+    std::cout << "\tt_delta_cycles: " << t_delta_cycles;
+    std::cout << "\tmLastPhysicsEventTimeNs: " << mLastPhysicsEventTimeNs << std::endl;
+  }
+
+
   // Write event rate and multiplicity numbers to CSV file
   if(mCreateCSVFile) {
     mPhysicsEventsCSVFile << t_delta << ";" << n_hits;
@@ -602,7 +600,7 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
   ///@todo Remove?
   //eventMemoryCountLimiter();
 
-  return t_delta_cycles;
+  return t_delta;
 }
 
 
@@ -647,6 +645,127 @@ void EventGenerator::removeInactiveHits(void)
   std::cout << /*"\tQueue size (now): " << mHitQueue[chip_id].size() <<*/ "\t" << i << " hits removed" << std::endl;
   #endif
 }
+
+
+///@brief Create a new event frame for the desired time interval and chip_id.
+///@param[in] event_start Start time of event frame (time when strobe signal went high).
+///@param[in] event_end End time of event frame (time when strobe signal went low again).
+///@param[in] chip_id Chip ID to generate event for
+///@return Pointer to new EventFrame object that was allocated on the stack.
+std::shared_ptr<EventFrame>
+EventGenerator::generateNextEventFrame(int64_t event_start, int64_t event_end, int chip_id)
+{
+  int event_id = mEventFrameIdCount;
+  EventFrame* e = new EventFrame(event_start, event_end, chip_id, event_id, false);
+
+  addHitsToEventFrame(*e);
+
+
+  #ifdef DEBUG_OUTPUT
+  print_function_timestamp();
+  std::cout << "\tEvent frame number: " << mEventFrameIdCount << std::endl;
+  std::cout << "\ttime_since_last_trigger: " << time_since_last_trigger << std::endl;
+  std::cout << "\tevent_start: " << event_start << std::endl;
+  std::cout << "\tmLastEventFrameStartTimeNs: " << mLastEventFrameStartTimeNs << std::endl;
+  std::cout << "\tmTriggerFilterTimeNs: " << mTriggerFilterTimeNs << std::endl;
+  std::cout << "\tFiltered: " << (filter_event ? "true" : "false") << std::endl;
+  #endif
+
+
+  return e;
+}
+
+
+
+///@brief Iterate through the hit queue corresponding to the chip_id associated with
+///       the event referenced by e, and add the active hits to it.
+///@param[in,out] e Event to add hits to.
+void EventGenerator::addHitsToEventFrame(EventFrame& e)
+{
+  int chip_id = e.getChipId();
+
+  for(auto it = mHitQueue[chip_id].begin(); it != mHitQueue[chip_id].end(); it++) {
+    // All the hits are ordered in time in the hit queue.
+    // If this hit is not active, it could be that:
+    // 1) We haven't reached the newer hits which would be active for this event yet
+    // 2) We have gone through the hits that are active for this event, and have now
+    //    reached hits that are "too new" (event queue size is larger than 0 then)
+    if(it->isActive(e.getEventStartTime(), e.getEventEndTime())) {
+      e.addHit(*it);
+    } else if (e.getEventSize() > 0) {
+      // Case 2. There won't be any more hits now, so we can break.
+      /// @todo Is this check worth it performance wise, or is it better to just iterate
+      ///       through the whole list?
+      break;
+    }
+  }
+}
+
+
+///@brief SystemC controlled method
+///       1) Creating new physics events (hits)
+///       2) Deleting old inactive hits
+void EventGenerator::physicsEventMethod(void)
+{
+  removeInactiveHits();
+
+  uint64_t t_delta = generateNextPhysicsEvent();
+
+  E_physics_event.notify();
+
+  next_trigger(t_delta, SC_NS);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ///@brief Create a new event frame at the given start time. It checks if the trigger and

@@ -46,7 +46,7 @@ private:
 
 public:
   Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string output_path);
-  void stimuliMainProcess(void);
+  void stimuliMainMethod(void);
   void stimuliEventProcess(void);
   void addTraces(sc_trace_file *wf) const;
   void writeDataToFile(void) const;
