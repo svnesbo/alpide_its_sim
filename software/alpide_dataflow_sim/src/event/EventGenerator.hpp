@@ -50,27 +50,14 @@ using std::int64_t;
 class EventGenerator : sc_core::sc_module
 {
 public: // SystemC signals
-  sc_in<bool> s_strobe_in;
-  sc_in_clk s_clk_in;
-  sc_event_queue_port E_event_frame_available;
+  sc_event E_physics_event;
 
   /// Active for one clock pulse every time we have a "physics event".
   /// Not really used for anything, just to indicate physics events in waveforms
   sc_out<bool> s_physics_event_out;
 
 private:
-  /// This is the event frame queue (ie. the hits that
-  /// occur between a strobe, which are fed to the Alpide chips).
-  /// Each Alpide chip has its own queue (corresponding to an index in the vector).
-  std::vector<std::queue<EventFrame*> > mEventQueue;
-
-  /// New hits will be push at the back, and old (expired) hits popped at the front.
-  /// We need to be able to iterate over the queue, so a normal std::queue would not work.
-  /// And deque seems faster than a list for our purpose:
-  /// http://stackoverflow.com/questions/14574831/stddeque-or-stdlist
-  /// But that should probably be tested :)
-  /// Each Alpide chip has its own queue (corresponding to an index in the vector).
-  std::vector<std::deque<Hit> > mHitQueue;
+  std::vector<Hit> mHitVector;
 
   int mNumChips;
 
@@ -78,39 +65,14 @@ private:
 
   int mAverageEventRateNs;
 
-  /// Number of events to keep in memory at a time. 0 = infinite.
-  int mNumEventsInMemoryAllowed = 0;
-
   /// Total number of physics and event frames generated.
   int mPhysicsEventCount = 0;
-  int mEventFrameIdCount = 0;
 
   /// Time of the last physics event that was generated.
   int64_t mLastPhysicsEventTimeNs = 0;
 
-  /// Time of the last event frame that was generated (time of last strobe)
-  /// Will not be updated if trigger was filtered out.
-  int64_t mLastEventFrameStartTimeNs = 0;
-  int64_t mLastEventFrameEndTimeNs = 0;
-
-  bool mStrobeActive = false;
-
-  /// Start time of next event frame (start time recorded on STROBE rising edge).
-  /// Event actually created and hits assigned to it on STROBE falling edge.
-  int64_t mNextEventFrameStartTimeNs = 0;
-
-  /// Used by getNextEventFrame() so it doesn't have to start iterating from the
-  /// beginning of the event queue vector each time it is called.
-  /// Also used by removeOldestEvent().
-  int mNextEventFrameChipId = 0;
-
   int mPixelDeadTime;
   int mPixelActiveTime;
-
-  /// Minimum time between two triggers/events. Triggers/events that come sooner than this will
-  /// be filtered out (but their hits will still be stored).
-  int mTriggerFilterTimeNs;
-  bool mTriggerFilteringEnabled = false;
 
   bool mContinuousMode = false;
 
@@ -128,6 +90,10 @@ private:
 
   EventXML mMonteCarloEvents;
 
+  bool mRandomHitGeneration;
+  int mHitMultiplicityGaussAverage;
+  int mHitMultiplicityGaussDeviation;
+
   boost::random::mt19937 mRandHitGen;
   boost::random::mt19937 mRandHitMultiplicityGen;
   boost::random::mt19937 mRandEventTimeGen;
@@ -143,20 +109,11 @@ private:
   /// Exponential distribution used for time between events
   boost::random::exponential_distribution<double> *mRandEventTime;
 
-  bool mRandomHitGeneration;
-  int mHitMultiplicityGaussAverage;
-  int mHitMultiplicityGaussDeviation;
-
-  void calculateAverageCrossingRate(void);
-  void eventMemoryCountLimiter(void);
-
 public:
   EventGenerator(sc_core::sc_module_name name,
                  const QSettings* settings,
                  std::string output_path);
   ~EventGenerator();
-  std::shared_ptr<EventFrame> generateNextEventFrame(uint64_t event_start,
-                                                     uint64_t event_end,int chip_id);
   const EventFrame& getNextEventFrame(void);
   void setBunchCrossingRate(int rate_ns);
   void setRandomSeed(int seed);
@@ -164,23 +121,18 @@ public:
   void setPath(const std::string& path) {mDataPath = path;}
   void enableWriteToDisk(void) {mWriteEventsToDisk = true;}
   void disableWriteToDisk(void) {mWriteEventsToDisk = false;}
-  void setNumEventsInMemAllowed(int n);
-  int getTriggerFilterTime(void) const {return mTriggerFilterTimeNs;}
-  int getEventsInMem(void) const {return mEventQueue.size();}
   int getPhysicsEventCount(void) const {return mPhysicsEventCount;}
-  int getEventFrameCount(void) const {return mEventFrameIdCount;}
-  void removeOldestEvent(void);
   void physicsEventMethod(void);
-  //void eventFrameProcess(void);
 
 private:
-
   uint64_t generateNextPhysicsEvent(void);
-  void readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const;
-  void scaleDiscreteDistribution(std::vector<double> &dist_vector, double new_mean_value);
+  void readDiscreteDistributionFile(const char* filename,
+                                    std::vector<double> &dist_vector) const;
+  void scaleDiscreteDistribution(std::vector<double> &dist_vector,
+                                 double new_mean_value);
   unsigned int getRandomMultiplicity(void);
-  void addHitsToEventFrame(EventFrame& e);
-  void removeInactiveHits(void);
+  void calculateAverageCrossingRate(void);
+  void eventMemoryCountLimiter(void);
 };
 
 

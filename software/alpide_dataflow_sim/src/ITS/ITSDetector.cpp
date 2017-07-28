@@ -114,23 +114,6 @@ void ITSDetector::buildDetector(const detectorConfig& config)
 }
 
 
-///@brief "Feed" an EventFrame to an Alpide chip, assuming that the chip exists
-///       in the detector configuration and that the chip is ready to receive the event.
-///       The event is ignored if not.
-///@param e EventFrame (collection of hits) to give to the chip
-void ITSDetector::physicsEventFrameInput(const EventFrame& e)
-{
-  unsigned int chip_id = e.getChipId();
-
-  // Does the chip exist in our detector/simulation configuration?
-  if(mChipVector[chip_id]) {
-    if(mChipVector[chip_id]->s_chip_ready) {
-      e.feedHitsToChip(mChipVector[chip_id]);
-    }
-  }
-}
-
-
 ///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
 ///       detector configuration).
 ///@param chip_id Chip ID of Alpide chip

@@ -20,11 +20,9 @@
 class Stimuli : public sc_core::sc_module {
 public:
   sc_in_clk clock;
-  sc_signal<bool> s_strobe_n;
   sc_signal<bool> s_physics_event;
   sc_signal<bool > s_chip_ready[100]; // TODO: Replace with vector or something to support more chips
   sc_signal<sc_uint<24> > s_alpide_serial_data[100]; // TODO: Replace with vector or something to support more chips
-  sc_event_queue E_event_frame_available;
 
 private:
   sc_event E_physics_event;

@@ -155,15 +155,6 @@ void Alpide::processCommand(ControlRequestPayload const &request)
 }
 
 
-///@todo Do this here (ITSDetector sends reponse with event frame), OR,
-///      let ITSDetector do this directly?
-void Alpide::processEventFrame(EventFrameResponsePayload const &event_reponse)
-{
-  ///@todo Check that chip id is correct?
-  event_reponse.feedHitsToChip(*this);
-}
-
-
 ///@brief Called on trigger input - initiates strobing intervals
 ///       All triggers have to be supplied externally to the Alpide module.
 ///       There is not automatic trigger/strobe synthesizer implemented here.

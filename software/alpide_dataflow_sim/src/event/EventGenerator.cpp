@@ -176,40 +176,13 @@ EventGenerator::~EventGenerator()
 }
 
 
-///@brief Limit the number of events stored in memory, as specified by mNumEventsInMemoryAllowed.
-///       The oldest events will be removed to bring the count below the threshold. If mWriteEventsToDisk is
-///       true, then the events that are removed will be written to disk.
-void EventGenerator::eventMemoryCountLimiter(void)
-{
-  // If mNumEventsInMemoryAllowed == 0, then an infinite (limited by memory) amount of events are allowed.
-  if((getEventsInMem() > mNumEventsInMemoryAllowed) &&
-     (mNumEventsInMemoryAllowed > 0))
-  {
-    removeOldestEvent();
-  }
-}
-
-
 ///@brief Get a reference to the next event (if there is one). Note: this function
 ///       will keep returning the same event until it has been removed by removeOldestEvent().
 ///@return Reference to next event. If there are no events,
 ///        then a reference to NoEventFrame (with event id = -1) is returned.
-const EventFrame& EventGenerator::getNextEventFrame(void)
+const std::vector& EventGenerator::getNextPhysicsEvent(void)
 {
-  // Start where we left off
-  int chip_id = mNextEventFrameChipId;
-
-  // Find first available EventFrame and return it
-  while(chip_id < mNumChips) {
-    if(mEventQueue[chip_id].size() > 0) {
-      return *(mEventQueue[chip_id].front());
-    }
-
-    chip_id++;
-    mNextEventFrameChipId = chip_id;
-  }
-
-  return NoEventFrame;
+  return mHitVector;
 }
 
 
@@ -256,29 +229,6 @@ void EventGenerator::initRandomNumGenerator(void)
     mRandHitGen.seed(mRandomSeed);
     mRandHitMultiplicityGen.seed(mRandomSeed);
     mRandEventTimeGen.seed(mRandomSeed);
-  }
-}
-
-
-///@brief Remove the oldest event from the event queue
-///       (if there are any events in the queue, otherwise do nothing).
-void EventGenerator::removeOldestEvent(void)
-{
-  // Start where we left off
-  int chip_id = mNextEventFrameChipId;
-
-  // chip_id in range?
-  if(chip_id < mNumChips) {
-    // Event left to remove for this chip?
-    if(mEventQueue[chip_id].size() > 0) {
-      EventFrame *oldest_event = mEventQueue[chip_id].front();
-      mEventQueue[chip_id].pop();
-
-      if(mWriteEventsToDisk)
-        oldest_event->writeToFile(mDataPath);
-
-      delete oldest_event;
-    }
   }
 }
 
@@ -604,111 +554,11 @@ int64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 }
 
 
-///@brief Remove old hits.
-///       Start at the front of the hit queue, and pop (remove)
-///       hits from the front while the hits are no longer active at current simulation time,
-///       and older than the oldest event frame (so we don't delete hits that may be
-///       still be used in a event frame that hasn't been processed yet).
-void EventGenerator::removeInactiveHits(void)
-{
-  int64_t time_now = sc_time_stamp().value();
-  bool done = false;
-  int i = 0;
-
-  #ifdef DEBUG_OUTPUT
-  print_function_timestamp();
-  std::cout << "\tQueue size (before): " << mHitQueue.size() << std::endl;
-  #endif
-
-  for(int chip_id = 0; chip_id < mNumChips; chip_id++) {
-    do {
-      if(mHitQueue[chip_id].size() > 0) {
-        // Check if oldest hit should be removed..
-        if(mHitQueue[chip_id].front().isActive(time_now) == false &&
-           mHitQueue[chip_id].front().getActiveTimeEnd() < mLastEventFrameEndTimeNs)
-        {
-          mHitQueue[chip_id].pop_front();
-          i++;
-          done = false;
-        } else {
-          done = true; // Done if oldest hit is still active
-        }
-      } else {
-        done = true; // Done if queue size is zero
-      }
-    } while(done == false);
-  }
-
-
-  #ifdef DEBUG_OUTPUT
-  ///@todo Fix this..
-  std::cout << /*"\tQueue size (now): " << mHitQueue[chip_id].size() <<*/ "\t" << i << " hits removed" << std::endl;
-  #endif
-}
-
-
-///@brief Create a new event frame for the desired time interval and chip_id.
-///@param[in] event_start Start time of event frame (time when strobe signal went high).
-///@param[in] event_end End time of event frame (time when strobe signal went low again).
-///@param[in] chip_id Chip ID to generate event for
-///@return Pointer to new EventFrame object that was allocated on the stack.
-std::shared_ptr<EventFrame>
-EventGenerator::generateNextEventFrame(int64_t event_start, int64_t event_end, int chip_id)
-{
-  int event_id = mEventFrameIdCount;
-  EventFrame* e = new EventFrame(event_start, event_end, chip_id, event_id, false);
-
-  addHitsToEventFrame(*e);
-
-
-  #ifdef DEBUG_OUTPUT
-  print_function_timestamp();
-  std::cout << "\tEvent frame number: " << mEventFrameIdCount << std::endl;
-  std::cout << "\ttime_since_last_trigger: " << time_since_last_trigger << std::endl;
-  std::cout << "\tevent_start: " << event_start << std::endl;
-  std::cout << "\tmLastEventFrameStartTimeNs: " << mLastEventFrameStartTimeNs << std::endl;
-  std::cout << "\tmTriggerFilterTimeNs: " << mTriggerFilterTimeNs << std::endl;
-  std::cout << "\tFiltered: " << (filter_event ? "true" : "false") << std::endl;
-  #endif
-
-
-  return e;
-}
-
-
-
-///@brief Iterate through the hit queue corresponding to the chip_id associated with
-///       the event referenced by e, and add the active hits to it.
-///@param[in,out] e Event to add hits to.
-void EventGenerator::addHitsToEventFrame(EventFrame& e)
-{
-  int chip_id = e.getChipId();
-
-  for(auto it = mHitQueue[chip_id].begin(); it != mHitQueue[chip_id].end(); it++) {
-    // All the hits are ordered in time in the hit queue.
-    // If this hit is not active, it could be that:
-    // 1) We haven't reached the newer hits which would be active for this event yet
-    // 2) We have gone through the hits that are active for this event, and have now
-    //    reached hits that are "too new" (event queue size is larger than 0 then)
-    if(it->isActive(e.getEventStartTime(), e.getEventEndTime())) {
-      e.addHit(*it);
-    } else if (e.getEventSize() > 0) {
-      // Case 2. There won't be any more hits now, so we can break.
-      /// @todo Is this check worth it performance wise, or is it better to just iterate
-      ///       through the whole list?
-      break;
-    }
-  }
-}
-
-
 ///@brief SystemC controlled method
 ///       1) Creating new physics events (hits)
 ///       2) Deleting old inactive hits
 void EventGenerator::physicsEventMethod(void)
 {
-  removeInactiveHits();
-
   uint64_t t_delta = generateNextPhysicsEvent();
 
   E_physics_event.notify();
