@@ -67,13 +67,13 @@ void EventFrame::addHit(const Hit& h)
 ///       nothing will be sent to the chip, and a new event/MEB will not be created
 ///       in the Alpide chip / pixel matrix object.
 ///@param[out] matrix Pixel matrix for the chip
-void EventFrame::feedHitsToChip(PixelMatrix &matrix) const
+void EventFrame::feedHitsToPixelMatrix(PixelMatrix &matrix) const
 {
   // Only feed this event to the chip if it has not been filtered out and if it's not empty
   if(mEventFilteredFlag == false && mHitSet.size() > 0) {
+#ifdef DEBUG_OUTPUT
     int64_t time_now = sc_time_stamp().value();
 
-#ifdef DEBUG_OUTPUT
     std::cout << "@ " << sc_time_stamp() << ": EventFrame: feeding trigger event number: ";
     std::cout << mEventId << " to chip." << std::endl;
 #endif

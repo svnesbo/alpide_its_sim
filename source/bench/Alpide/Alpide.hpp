@@ -31,7 +31,7 @@
 /// Alpide main class. Currently it only implements the MEBs,
 /// no RRU FIFOs, and no TRU FIFO. It will be used to run some initial
 /// estimations for probability of MEB overflow (busy).
-class Alpide : sc_core::sc_module, public PixelMatrix
+class Alpide : sc_core::sc_module, public PixelMatrix, public PixelFrontEnd
 {
 public:
   ///@brief 40MHz LHC clock
@@ -123,6 +123,7 @@ private:
   bool mStrobeActive;
   uint16_t mBunchCounter;
   uint16_t mStrobeLengthCycles;
+  uint64_t mStrobeStartTime;
 
   ///@brief Number of triggers (event frames) that are accepted into an MEB by the chip
   uint64_t mEventFramesAccepted = 0;

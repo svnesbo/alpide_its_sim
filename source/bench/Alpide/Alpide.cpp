@@ -37,6 +37,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   mChipId = chip_id;
   mEnableDtuDelay = dtu_delay_cycles > 0;
 
+
   s_event_buffers_used_debug = 0;
   s_total_number_of_hits = 0;
   s_oldest_event_number_of_hits = 0;
@@ -125,8 +126,6 @@ void Alpide::newEvent(uint64_t event_time)
 {
   PixelMatrix::newEvent(event_time);
   // Set chip ready signal here??
-
-  ///@todo Send out a request on socket_event_frame_request_out here
 }
 
 
@@ -211,6 +210,10 @@ void Alpide::strobeAndFramingMethod(void)
 
   if(s_strobe_n.read() == false && mStrobeActive == false) {   // Strobe falling edge - start of frame/event, strobe is active low
     mStrobeActive = true;
+    mStrobeStartTime = time_now;
+
+    // Remove "expired" hits from hit list in the pixel front end
+    removeInactiveHits(time_now);
 
     ///@todo What should I do in data overrun mode (when readout_abort is set)?
     ///      Should I still accept events? I need the frame end word to be added, for the normal
@@ -219,7 +222,8 @@ void Alpide::strobeAndFramingMethod(void)
     ///@todo Should rejected event frame count be increased in data overrun mode?
     if(mContinuousMode) {
       if(getNumEvents() == 3) {
-        // Reject events if all MEBs are full in continuous
+        // Reject events if all MEBs are full in continuous.
+        // And yes, this can happen! Also in the real chip..
         mEventFramesRejected++;
         s_busy_violation = true;
         //s_flushed_incomplete = false;
@@ -262,6 +266,11 @@ void Alpide::strobeAndFramingMethod(void)
   // Strobe rising edge - end of frame/event
   // Make sure we can't trigger first on the wrong end of strobe by checking chip_ready signal
   else if(s_strobe_n.read() == true && mStrobeActive == true) {
+    // Latch event/pixels if chip was ready, ie. there was a free MEB for this strobe
+    if(s_chip_ready_internal) {
+      getEventFrame(mStrobeStartTime, time_now).feedHitsToPixelMatrix(*this);
+    }
+
     s_chip_ready_internal = false;
     mStrobeActive = false;
 

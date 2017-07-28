@@ -58,7 +58,7 @@ public:
                int chip_id, int event_id, bool filter_event = false);
   EventFrame(const EventFrame& e);
   void addHit(const Hit& h);
-  void feedHitsToChip(PixelMatrix &matrix) const;
+  void feedHitsToPixelMatrix(PixelMatrix &matrix) const;
   void writeToFile(const std::string path = "");
   void setEventFilteredFlag(bool value) {mEventFilteredFlag = value;}
   int getEventSize(void) const {return mHitSet.size();}
