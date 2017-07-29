@@ -151,7 +151,7 @@ void Alpide::processCommand(ControlRequestPayload const &request)
     SC_REPORT_ERROR(name(), "Invalid opcode received");
   }
   // do nothing
-  return {};
+  return;
 }
 
 

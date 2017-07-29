@@ -19,37 +19,7 @@
 
 extern volatile bool g_terminate_program;
 
-
-///@brief Takes a list of t_delta values (time between events) for the last events,
-///       calculates the average event rate over those events, and prints it to std::cout.
-///       The list must be maintained by the caller.
-///@todo  Update/fix/remove this function.. currently not used..
-void print_event_rate(const std::list<int>& t_delta_queue)
-{
-  long t_delta_sum = 0;
-  double t_delta_avg;
-  long event_rate;
-
-  if(t_delta_queue.size() == 0) {
-    event_rate = 0;
-  } else {
-    for(auto it = t_delta_queue.begin(); it != t_delta_queue.end(); it++) {
-      t_delta_sum += *it;
-    }
-
-    std::cout << "t_delta_sum: " << t_delta_sum << " ns" << std::endl;
-    t_delta_avg = t_delta_sum/t_delta_queue.size();
-    std::cout << "t_delta_avg: " << t_delta_avg << " ns" << std::endl;
-
-    t_delta_avg /= 1.0E9;
-
-    std::cout << "t_delta_avg: " << t_delta_avg << " s" << std::endl;
-
-    event_rate = 1/t_delta_avg;
-  }
-
-  std::cout << "Average event rate: " << event_rate << "Hz" << std::endl;;
-}
+void print_event_rate(const std::list<int>& t_delta_queue);
 
 
 SC_HAS_PROCESS(Stimuli);
@@ -74,10 +44,23 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   mTriggerDelayNs = settings->value("event/trigger_delay_ns").toInt();
 
   // Instantiate event generator object
-  mEvents = new EventGenerator("event_gen", settings, mOutputPath);
+  mEventGen = new EventGenerator("event_gen", settings, mOutputPath);
 
   if(mSingleChipSimulation) {
     ///@todo Implement single chip simulation
+    // mAlpideChip = new Alpide("alpide",
+    //                          i,
+    //                          region_fifo_size,
+    //                          dmu_fifo_size,
+    //                          dtu_delay,
+    //                          enable_clustering,
+    //                          mContinuousMode,
+    //                          matrix_readout_speed);
+
+    // mAlpideChips->s_system_clk_in(clock);
+    // mAlpideChips->s_strobe_n_in(s_strobe_n);
+    // mAlpideChips->s_chip_ready_out(s_chip_ready[i]);
+    // mAlpideChips->s_serial_data_output(s_alpide_serial_data[i]);
   } else {
     detectorConfig config;
     config.layer[0].num_stave = settings->value("its/layer0_num_staves").toInt();
@@ -91,18 +74,17 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     mITS = new ITSDetector("ITS", config);
     mITS->s_system_clk_in(clock);
     mITS->E_trigger_in(E_CTP_trigger);
+    mITS->s_detector_busy_out(s_its_busy);
 
     mCTP = new CTP("CTP");
-    mCTP->E_physics_event_in(E_physics_event);
+    mCTP->E_physics_trigger_in(E_physics_trigger);
     mCTP->E_trigger_delayed_out(E_CTP_trigger);
   }
 
 
   // Connect SystemC signals to EventGenerator
-  mEvents->s_clk_in(clock);
-  mEvents->E_event_frame_available(E_event_frame_available);
-  mEvents->s_strobe_in(s_strobe_n);
-  mEvents->s_physics_event_out(s_physics_event);
+  mEventGen->E_event_frame_available(E_event_frame_available);
+  mEventGen->s_physics_event_out(s_physics_event);
 
   int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
   int dmu_fifo_size = settings->value("alpide/dmu_fifo_size").toInt();
@@ -110,141 +92,57 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
   bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
 
-  // Instantiate and connect signals to Alpide
-  mAlpideChips.resize(mNumChips);
-  for(int i = 0; i < mNumChips; i++) {
-    std::stringstream chip_name;
-    chip_name << "alpide_" << i;
-    mAlpideChips[i] = new Alpide(chip_name.str().c_str(),
-                                 i,
-                                 region_fifo_size,
-                                 dmu_fifo_size,
-                                 dtu_delay,
-                                 enable_clustering,
-                                 mContinuousMode,
-                                 matrix_readout_speed);
-
-    mAlpideChips[i]->s_system_clk_in(clock);
-    mAlpideChips[i]->s_strobe_n_in(s_strobe_n);
-    mAlpideChips[i]->s_chip_ready_out(s_chip_ready[i]);
-    mAlpideChips[i]->s_serial_data_output(s_alpide_serial_data[i]);
-  }
-
   s_physics_event = false;
 
   SC_METHOD(stimuliMainMethod);
   sensitive << E_physics_event;
 
-  SC_METHOD(stimuliEventProcess);
-  sensitive << E_event_frame_available;
+  SC_METHOD(physicsEventSignalMethod);
+  sensitive << E_physics_event;
 }
 
 
-///@brief Main control of simulation stimuli, which mainly involves controlling the
-///       strobe signal and stop the simulation after the desired number of events.
-void Stimuli::stimuliMainProcess(void)
+///@brief Main control of simulation stimuli
+void Stimuli::stimuliMainMethod(void)
 {
-  std::list<int> t_delta_history;
-  const int t_delta_averaging_num = 50;
-
-  int time_ns = 0;
-
-  std::cout << "Staring simulation of " << mNumEvents << " events." << std::endl;
-
-  while(simulation_done == false && g_terminate_program == false) {
-    // Generate strobe pulses for as long as we have more events to simulate
-    if(mEvents->getEventFrameCount() < mNumEvents) {
-      if((mEvents->getEventFrameCount() % 100) == 0) {
-        int64_t time_now = sc_time_stamp().value();
-        std::cout << "@ " << time_now << " ns: \tGenerating strobe/event number ";
-        std::cout << mEvents->getEventFrameCount() << std::endl;
-      }
-
-
-      /// TODO
-      /// 1. Get rid off strobe stuff from here and event generator
-      ///    Feed physics event directly to CTP, and pass CTP trigger directly to detector
-      /// 2. Make all processes into methods?
-      /// 3. Implement event requests in ITS detector, in Stimuli class, and in EventGenerator
-      ///    On demand event generation in EventGenerator..
-      /// 4. SystemC events with my EventFrame as payload?
-
-
-
-
-      if(mContinuousMode == true) {
-        s_strobe_n.write(false);
-        wait(mStrobeActiveNs, SC_NS);
-
-        s_strobe_n.write(true);
-        wait(mStrobeInactiveNs, SC_NS);
-      } else {
-        wait(s_physics_event.value_changed_event());
-
-        if(s_physics_event.read() == true) {
-          wait(mTriggerDelayNs, SC_NS);
-          s_strobe_n.write(false);
-
-          wait(mStrobeActiveNs, SC_NS);
-          s_strobe_n.write(true);
-
-          wait(mStrobeInactiveNs, SC_NS);
-        }
-      }
-    }
-
-    // After all strobes have been generated, allow simulation to run until all events
-    // have been read out from the Alpide MEBs.
-    else {
-      int events_left = 0;
-
-      // Check if the Alpide chips still have events to read out
-      for(int i = 0; i < mNumChips; i++)
-        events_left += mAlpideChips[i]->getNumEvents();
-
-      if(events_left == 0) {
-        std::cout << "Finished generating all events, and Alpide chip is done emptying MEBs.\n";
-        simulation_done = true;
-      } else {
-        wait();
-      }
-    }
+  if(simulation_done == false && g_terminate_program == false) {
+    sc_core::sc_stop();
+    writeDataToFile();
   }
-  sc_core::sc_stop();
-  writeDataToFile();
+  else if(mEventGen->getPhysicsEventCount() < mNumEvents) {
+    if((mEventGen->getPhysicsEventCount() % 100) == 0) {
+      int64_t time_now = sc_time_stamp().value();
+      std::cout << "@ " << time_now << " ns: \tPhysics event number ";
+      std::cout << mEventGen->getPhysicsEventCount() << std::endl;
+    }
+
+    PhysicsEvent& event = mEventGen->getPhysicsEvent();
+    event.feedToDetector(mITS);
+
+    // Notify CTP that there was a physics event
+    E_physics_trigger.notify();
+    next_trigger(E_physics_event);
+  }
+  else {
+    // After all strobes have been generated, or upon CTRL+C, allow simulation
+    // to run for another X us to allow readout of data remaining in MEBs, FIFOs etc.
+    next_trigger(10, SC_US);
+    simulation_done = true;
+  }
 }
 
 
-///@brief SystemC controlled method. Waits for EventGenerator to notify the E_event_frame_available
-///       notification queue that a new event frame is available.
-///       When a event frame is available it is fed to the Alpide chip(s).
-void Stimuli::stimuliEventProcess(void)
+///@brief This SystemC method just toggles the s_physics_event for a clock cycle
+///       signal every time we get an E_physics_event from the event generator,
+///       so that we can have a signal for this that we can add to the trace file.
+void Stimuli::physicsEventSignalMethod(void)
 {
-  ///@todo Check if there are actually events?
-  ///Throw an error if we get notification but there are not events?
-
-  // In a separate block because reference e is invalidated by popNextEvent().
-  {
-    const EventFrame& e = mEvents->getNextEventFrame();
-
-    // Don't process if we received NoEventFrame
-    if(e.getEventId() != -1) {
-      int chip_id = e.getChipId();
-
-      // Only give events to chips that are ready - discard the event if not
-      if(s_chip_ready[chip_id]) {
-        e.feedHitsToChip(*mAlpideChips[chip_id]);
-      }
-
-      #ifdef DEBUG_OUTPUT
-      std::cout << "Number of events in chip: " << mAlpideChips[chip_id]->getNumEvents() << std::endl;
-      std::cout << "Hits remaining in oldest event in chip: " << mAlpideChips[chip_id]->getHitsRemainingInOldestEvent();
-      std::cout << "  Hits in total (all events): " << mAlpideChips[chip_id]->getHitTotalAllEvents() << std::endl;
-      #endif
-
-      // Remove the oldest event once we are done processing it..
-      mEvents->removeOldestEvent();
-    }
+  if(s_physics_event.read() == true) {
+    s_physics_event.write(false);
+    next_trigger(E_physics_event);
+  } else {
+    s_physics_event.write(true);
+    next_trigger(25,SC_NS);
   }
 }
 
@@ -334,6 +232,38 @@ void Stimuli::writeDataToFile(void) const
     return;
   }
 
-  info_file << "Number of \"event frames\"/strobes requested: " << mNumEvents << std::endl;
-  info_file << "Number of \"event frames\"/strobes simulated: " << mEvents->getEventFrameCount() << std::endl;
+  info_file << "Number of physics events requested: " << mNumEvents << std::endl;
+  info_file << "Number of physics events simulated: " << mEventGen->getPhysiscsEventCount() << std::endl;
+}
+
+
+///@brief Takes a list of t_delta values (time between events) for the last events,
+///       calculates the average event rate over those events, and prints it to std::cout.
+///       The list must be maintained by the caller.
+///@todo  Update/fix/remove this function.. currently not used..
+void print_event_rate(const std::list<int>& t_delta_queue)
+{
+  long t_delta_sum = 0;
+  double t_delta_avg;
+  long event_rate;
+
+  if(t_delta_queue.size() == 0) {
+    event_rate = 0;
+  } else {
+    for(auto it = t_delta_queue.begin(); it != t_delta_queue.end(); it++) {
+      t_delta_sum += *it;
+    }
+
+    std::cout << "t_delta_sum: " << t_delta_sum << " ns" << std::endl;
+    t_delta_avg = t_delta_sum/t_delta_queue.size();
+    std::cout << "t_delta_avg: " << t_delta_avg << " ns" << std::endl;
+
+    t_delta_avg /= 1.0E9;
+
+    std::cout << "t_delta_avg: " << t_delta_avg << " s" << std::endl;
+
+    event_rate = 1/t_delta_avg;
+  }
+
+  std::cout << "Average event rate: " << event_rate << "Hz" << std::endl;;
 }

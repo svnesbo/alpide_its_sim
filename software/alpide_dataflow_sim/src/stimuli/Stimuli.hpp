@@ -21,14 +21,14 @@ class Stimuli : public sc_core::sc_module {
 public:
   sc_in_clk clock;
   sc_signal<bool> s_physics_event;
-  sc_signal<bool > s_chip_ready[100]; // TODO: Replace with vector or something to support more chips
-  sc_signal<sc_uint<24> > s_alpide_serial_data[100]; // TODO: Replace with vector or something to support more chips
+  sc_signal<bool> s_its_busy;
 
 private:
-  sc_event E_physics_event;
-  sc_event E_CTP_trigger;
+  sc_event E_physics_event;   // Event Gen to Stim class
+  sc_event E_physics_trigger; // Stim class to CTP
+  sc_event E_CTP_trigger;     // CTP to detector/chip
 
-  EventGenerator *mEvents;
+  EventGenerator *mEventGen;
   std::vector<Alpide*> mAlpideChips;
   const QSettings* mSettings;
   std::string mOutputPath;
@@ -45,6 +45,7 @@ private:
 public:
   Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string output_path);
   void stimuliMainMethod(void);
+  void physicsEventSignalMethod(void);
   void stimuliEventProcess(void);
   void addTraces(sc_trace_file *wf) const;
   void writeDataToFile(void) const;

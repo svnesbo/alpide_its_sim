@@ -52,10 +52,6 @@ class EventGenerator : sc_core::sc_module
 public: // SystemC signals
   sc_event E_physics_event;
 
-  /// Active for one clock pulse every time we have a "physics event".
-  /// Not really used for anything, just to indicate physics events in waveforms
-  sc_out<bool> s_physics_event_out;
-
 private:
   std::vector<Hit> mHitVector;
 

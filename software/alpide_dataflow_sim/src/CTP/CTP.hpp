@@ -10,7 +10,7 @@
 
 
 class CTP  : sc_core::sc_module {
-  sc_event E_physics_event_in;
+  sc_event E_physics_trigger_in;
   sc_event E_trigger_delayed_out;
 
 private:
