@@ -144,6 +144,7 @@ private:
   boost::random::exponential_distribution<double> *mRandEventTime;
 
   bool mRandomHitGeneration;
+  double mMultDistScale;
   int mHitMultiplicityGaussAverage;
   int mHitMultiplicityGaussDeviation;
 
@@ -177,7 +178,7 @@ private:
   EventFrame* generateNextEventFrame(int64_t event_start, int64_t event_end, int chip_id);
   int64_t generateNextPhysicsEvent(void);
   void readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const;
-  void scaleDiscreteDistribution(std::vector<double> &dist_vector, double new_mean_value);
+  double normalizeDiscreteDistribution(std::vector<double> &dist_vector);
   unsigned int getRandomMultiplicity(void);
   void addHitsToEventFrame(EventFrame& e);
   void removeInactiveHits(void);
