@@ -37,7 +37,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
 
   // Initialize variables for Stimuli object
   mNumEvents = settings->value("simulation/n_events").toInt();
-  mSingleChipSimulation = settings->value("simulation/single_chips").toBool();
+  mSingleChipSimulation = settings->value("simulation/single_chip").toBool();
   mContinuousMode = settings->value("simulation/continuous_mode").toBool();
   mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toInt();
   mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();
