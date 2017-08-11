@@ -33,7 +33,7 @@ ReadoutUnit : public sc_core::sc_module {
 public:
   sc_in_clk s_system_clk_in;
 
-  ControlTargetSocket s_alpide_control_output;
+  ControlInitiatorSocket s_alpide_control_output;
   std::array<DataInitiatorSocket, NUM_ALPIDE_DATA_LINKS> s_alpide_data_input;
 
   /*
@@ -53,7 +53,6 @@ public:
   sc_port<sc_fifo_in_if<std::shared_ptr<BusyLinkWord>>> s_busy_fifo_out;
 
   sc_event E_trigger_in;
-  sc_event E_trigger_filtered_out;
 
   ///@todo Make this a vector/array somehow, to cater for many chips..
   sc_in<sc_uint<24>> s_serial_data_input[NUM_ALPIDE_DATA_LINKS];
@@ -72,6 +71,8 @@ private:
 
   std::vector<std::shared_ptr<AlpideDataParser>> mDataLinkParsers;
   std::vector<sc_signal<sc_bool>> mAlpideLinkBusySignals;
+
+  void sendTrigger(void);
 
   void evaluateBusyStatusMethod(void);
   void triggerInputMethod(void);

@@ -64,6 +64,19 @@ void ReadoutUnit::end_of_elaboration(void)
 }
 
 
+///@brief Send triggers to the Alpide using the control socket interface
+///       Shamelessly stolen from alpideControl.cpp in Matthias Bonora's
+///       SystemC simulations for the Readout Unit.
+void ReadoutUnit::sendTrigger(void)
+{
+  uint8_t opcode = 0x55; // Trigger
+
+  std::string msg = "Send Trigger at: " + sc_core::sc_time_stamp().to_string();
+  SC_REPORT_INFO_VERB(name(),msg.c_str(),sc_core::SC_DEBUG);
+  s_alpide_control_output->transport({ opcode });
+}
+
+
 ///@brief Process trigger input events.
 void ReadoutUnit::triggerInputMethod(void)
 {
@@ -75,7 +88,7 @@ void ReadoutUnit::triggerInputMethod(void)
     ///@todo If detector is busy.. hold back on triggers here...
 
     mLastTriggerTime = time_now;
-    E_trigger_filtered_out.notify(mReadoutUnitTriggerDelay, SC_NS);
+    sendTrigger();
   }
 }
 
