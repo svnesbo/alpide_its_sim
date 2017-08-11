@@ -24,7 +24,9 @@ public:
   sc_signal<bool> s_its_busy;
 
 private:
-  sc_event E_physics_event;   // Event Gen to Stim class
+  ///@todo Remove?
+  //  sc_event E_physics_event;   // Event Gen to Stim class
+
   sc_event E_physics_trigger; // Stim class to CTP
   sc_event E_CTP_trigger;     // CTP to detector/chip
 

@@ -81,11 +81,6 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     mCTP->E_trigger_delayed_out(E_CTP_trigger);
   }
 
-
-  // Connect SystemC signals to EventGenerator
-  mEventGen->E_event_frame_available(E_event_frame_available);
-  mEventGen->s_physics_event_out(s_physics_event);
-
   int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
   int dmu_fifo_size = settings->value("alpide/dmu_fifo_size").toInt();
   int dtu_delay = settings->value("alpide/dtu_delay").toInt();
@@ -95,10 +90,13 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   s_physics_event = false;
 
   SC_METHOD(stimuliMainMethod);
-  sensitive << E_physics_event;
+  sensitive << mEventGen->E_physics_event;
 
+
+  // This method just generates a (VCD traceable) SystemC signal
+  // that coincides with the physics event from the event generator
   SC_METHOD(physicsEventSignalMethod);
-  sensitive << E_physics_event;
+  sensitive << mEventGen->E_physics_event;
 }
 
 
