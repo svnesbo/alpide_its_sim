@@ -20,15 +20,23 @@
 SC_HAS_PROCESS(ReadoutUnit);
 ///@brief Constructor for ReadoutUnit
 ///@param name SystemC module name
-///@param id ID of ReadoutUnit (same as stave ID, numbered continuously from
-///       inner to outer barrels)
-///@param links_in_use Number of Alpide data links in connected for this readout unit
+///@param layer_id ID of layer that this RU belongs to
+///@param stave_id ID of the stave in the layer that this RU is connected to
+///@param n_ctrl_links Number of Alpide control links connected to this readout unit
+///@param n_data_links Number of Alpide data links connected to this readout unit
 ///@param inner_barrel Set to true if RU is connected to inner barrel stave
-ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name, unsigned int id,
-                         unsigned int links_in_use, bool inner_barrel)
+ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
+                         unsigned int layer_id,
+                         unsigned int stave_id,
+                         unsigned int n_ctrl_links,
+                         unsigned int n_data_links,
+                         bool inner_barrel)
   : sc_core::sc_module(name)
-  , mID(id)
-  , mActiveLinks(links_in_use)
+  , mLayerId(layer_id)
+  , mStaveId(stave_id)
+  , s_alpide_control_output(n_ctrl_links)
+  , s_alpide_data_input(n_data_links)
+  , s_serial_data_input(n_data_links)
   , mInnerBarrelMode(inner_barrel)
   , mReadoutUnitTriggerDelay(0)
 {

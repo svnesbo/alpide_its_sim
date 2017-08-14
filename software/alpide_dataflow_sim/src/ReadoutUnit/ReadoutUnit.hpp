@@ -33,8 +33,8 @@ ReadoutUnit : public sc_core::sc_module {
 public:
   sc_in_clk s_system_clk_in;
 
-  ControlInitiatorSocket s_alpide_control_output;
-  std::array<DataInitiatorSocket, NUM_ALPIDE_DATA_LINKS> s_alpide_data_input;
+  std::vector<ControlInitiatorSocket> s_alpide_control_output;
+  std::vector<DataTargetSocket> s_alpide_data_input;
 
   /*
     The stimuli (or stave?) class will have to instantiate the FIFOs between the RUs:
@@ -55,10 +55,11 @@ public:
   sc_event E_trigger_in;
 
   ///@todo Make this a vector/array somehow, to cater for many chips..
-  sc_in<sc_uint<24>> s_serial_data_input[NUM_ALPIDE_DATA_LINKS];
+  std::vector<sc_in<sc_uint<24>>> s_serial_data_input;
 
 private:
-  unsigned int mID;
+  unsigned int mLayerId;
+  unsigned int mStaveId;
   unsigned int mActiveLinks;
   unsigned int mBusyLinkCount;
   unsigned int mBusyLinkThreshold;
@@ -80,7 +81,12 @@ private:
   void processInputData(void);
 
 public:
-  ReadoutUnit(sc_core::sc_module_name name, unsigned int id);
+  ReadoutUnit(sc_core::sc_module_name name,
+              unsigned int layer_id,
+              unsigned int stave_id,
+              unsigned int n_ctrl_links,
+              unsigned int n_data_links,
+              bool inner_barrel);
   ~ReadoutUnit();
   void end_of_elaboration();
 };

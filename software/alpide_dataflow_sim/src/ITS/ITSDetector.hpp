@@ -52,6 +52,8 @@ namespace ITS {
     void buildDetector(const detectorConfig& config);
     void verifyDetectorConfig(const detectorConfig& config) const;
 
+    void triggerMethod(void);
+
   public:
     ITSDetector(sc_core::sc_module_name name, const detectorConfig& config);
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);
