@@ -104,9 +104,6 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   s_control_input.register_transport(std::bind(&Alpide::processCommand,
                                                this, std::placeholders::_1));
 
-  s_event_frame_input.register_transport(std::bind(&Alpide::processEventFrame,
-                                                   this, std::placeholders::_1));
-
   SC_METHOD(mainMethod);
   sensitive_pos << s_system_clk_in;
 
