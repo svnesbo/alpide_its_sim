@@ -4,14 +4,16 @@
  * @date   July 11, 2017
  * @brief  This file holds a collection of classes and structs that define modules,
  *         staves and barrels/layers in the ITS detector.
+ *         Much of this code is copy-paste from AlpideModule.hpp/cpp in
+ *         Matthias Bonora's WP10 RU SystemC simulation code.
  */
 
 #include <Alpide/AlpideInterface.hpp>
 
 namespace ITS {
   struct StaveInterface : public sc_module {
-    std::vector<ControlTargetSocket> control;
-    std::vector<DataInitiatorSocket> data;
+    std::vector<ControlTargetSocket> socket_control_in;
+    std::vector<DataInitiatorSocket> socket_data_out;
 
     StaveInterface(sc_core::sc_module_name const &name = 0,
                    unsigned int layer_id,
@@ -21,8 +23,8 @@ namespace ITS {
       : sc_module(name)
       , mLayerId(layer_id)
       , mStaveId(stave_id)
-      , control(n_ctrl_links)
-      , data(n_data_links)
+      , socket_control_in(n_ctrl_links)
+      , socket_data_out(n_data_links)
       {}
 
     //virtual std::vector<std::shared_ptr<Alpide>> getChips(void) = 0;
@@ -42,12 +44,16 @@ namespace ITS {
 
   struct InnerBarrelStave : public StaveInterface
   {
-    InnerBarrelStave(sc_core::sc_module_name const &name = 0,
-                     unsigned int layer_id, unsigned int stave_id)
+    InnerBarrelStave(sc_core::sc_module_name const &name,
+                     unsigned int layer_id,
+                     unsigned int stave_id)
       : StaveInterface(name, layer_id, stave_id, 1, 9) {}
 
   private:
+    ControlResponsePayload processCommand(ControlRequestPayload const &request);
+
     std::array<std::shared_ptr<Alpide>, 9> mChips;
+    std::array<ControlInitiatorSocket, 9> socket_control_out;
   };
 
 
@@ -70,7 +76,7 @@ namespace ITS {
   template <int N_HALF_MODULES>
   struct MBOBStave : public StaveInterface
   {
-    MBOBStave(sc_core::sc_module_name const &name = 0,
+    MBOBStave(sc_core::sc_module_name const &name,
               unsigned int layer_id, unsigned int stave_id)
       : StaveInterface(name, layer_id, stave_id, N_HALF_MODULES, N_HALF_MODULES) {}
 

@@ -69,11 +69,17 @@ void ITSDetector::buildDetector(const detectorConfig& config)
         std::string stave_name = "IB_stave_" + coords_str;
         mLayers[i].emplace_back(new InnerBarrelStave(name, i, j));
       } else if(i >= 3 && i < 5) {
+        throw std::runtime_error("Middle barrel staves not implemented yet..");
+        /*
         std::string stave_name = "MB_stave_" + coords_str;
         mLayers[i].emplace_back(new MiddleBarrelStave(name, i, j));
+        */
       } else {
+        throw std::runtime_error("Middle barrel staves not implemented yet..");
+        /*
         std::string stave_name = "OB_stave_" + coords_str;
         mLayers[i].emplace_back(new OuterBarrelStave(name, i, j));
+        */
       }
 
       auto stave = mLayers[i].back();
