@@ -37,7 +37,7 @@ private:
   std::set<Hit> mHitSet;
 
 public:
-  EventFrame(uint64_t event_start_time_ns, uint64_t event_end_time_ns, int event_id);
+  EventFrame(uint64_t event_start_time_ns, uint64_t event_end_time_ns, uint64_t event_id);
   EventFrame(const EventFrame& e);
   void addHit(const Hit& h);
   void feedHitsToPixelMatrix(PixelMatrix &matrix) const;

@@ -44,6 +44,8 @@ namespace ITS {
     ITSDetector(sc_core::sc_module_name name,
                 const detectorConfig& config,
                 unsigned int trigger_filter_time);
+    void pixelInput(const ITSPixelHit& h);
+    void pixelInput(unsigned int chip_id, const Hit& h);
     void setPixel(const ITSPixelHit& h);
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);
     void setPixel(const detectorPosition& pos, unsigned int row, unsigned int col);

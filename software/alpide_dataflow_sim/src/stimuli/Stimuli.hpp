@@ -14,7 +14,6 @@
 #include "Alpide/Alpide.hpp"
 #include "../event/EventGenerator.hpp"
 #include "../ITS/ITSDetector.hpp"
-#include "../CTP/CTP.hpp"
 #include <QSettings>
 #include <string>
 
@@ -34,7 +33,6 @@ private:
 
   EventGenerator *mEventGen;
   ITS::ITSDetector *mITS;
-  //CTP *mCTP;
 
   const QSettings* mSettings;
   std::string mOutputPath;

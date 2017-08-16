@@ -112,7 +112,7 @@ void Stimuli::stimuliMainMethod(void)
     // Get hits for this event, and "feed" them to the ITS detector
     auto event_hits = mEventGen->getLatestPhysicsEvent();
     for(auto it = event_hits.begin(); it != event_hits.end(); it++)
-      mITS->setPixel(*it);
+      mITS->pixelInput(*it);
 
     // Create an event for the next trigger, delayed by the
     // total/specified trigger delay (to account for cable/CTP delays etc.)

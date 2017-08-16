@@ -24,8 +24,9 @@
 ///@param[in] event_start_time_ns Start time of trigger event (time when strobe was asserted)
 ///@param[in] event_end_time_ns End time of trigger event (time when strobe was deasserted)
 ///@param[in] event_id Event ID
-EventFrame::EventFrame(int64_t event_start_time_ns, int64_t event_end_time_ns,
-                       int event_id)
+EventFrame::EventFrame(uint64_t event_start_time_ns,
+                       uint64_t event_end_time_ns,
+                       uint64_t event_id)
 {
   mEventStartTimeNs = event_start_time_ns;
   mEventEndTimeNs = event_end_time_ns;

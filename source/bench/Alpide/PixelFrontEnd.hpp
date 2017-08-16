@@ -5,6 +5,9 @@
  * @brief
  */
 
+#ifndef PIXEL_FRONT_END_HPP
+#define PIXEL_FRONT_END_HPP
+
 #include <deque>
 #include <vector>
 #include "EventFrame.hpp"
@@ -16,11 +19,13 @@ private:
 protected:
   EventFrame getEventFrame(uint64_t event_start,
                            uint64_t event_end,
-                           int event_id) const;
+                           uint64_t event_id) const;
 
 public:
   PixelFrontEnd();
-  void pixelInput(Hit& h);
-  void eventInput(EventFrame& event);
+  void pixelFrontEndInput(const Hit& h);
   void removeInactiveHits(uint64_t time_now);
 };
+
+
+#endif

@@ -146,6 +146,32 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 ///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
 ///       detector configuration).
 ///@param chip_id Chip ID of Alpide chip
+///@param h Pixel hit
+void ITSDetector::setPixel(unsigned int chip_id, const Hit& h)
+{
+  // Does the chip exist in our detector/simulation configuration?
+  if(mChipVector[chip_id]) {
+    mChipVector[chip_id]->pixelFrontEndInput(hit);
+  }
+}
+
+
+///@brief Input a pixel to the front end of one of the detector's
+///       Alpide chip's (if it exists in the detector configuration).
+///@param pos Position of Alpide chip in detector
+///@param col Column in Alpide chip pixel matrix
+///@param row Row in Alpide chip pixel matrix
+void ITSDetector::pixelInput(const ITSPixelHit& h)
+{
+  unsigned int chip_id = detector_position_to_chip_id(h.pos);
+
+  pixelInput(chip_id, h);
+}
+
+
+///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
+///       detector configuration).
+///@param chip_id Chip ID of Alpide chip
 ///@param col Column in Alpide chip pixel matrix
 ///@param row Row in Alpide chip pixel matrix
 void ITSDetector::setPixel(unsigned int chip_id, unsigned int col, unsigned int row)
