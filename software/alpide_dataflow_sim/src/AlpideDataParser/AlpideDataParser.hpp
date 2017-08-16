@@ -81,9 +81,6 @@ private:
 
   unsigned int mCurrentRegion = 0;
 
-  bool mBusyStatus;
-  bool mBusyStatusChanged;
-
   // Counters for statistics
   long mCommaCount;
   long mIdleCount;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
@@ -97,6 +94,10 @@ private:
   long mChipTrailerCount;
   long mChipEmptyFrameCount;
   long mUnknownDataWordCount;
+
+protected:
+  bool mBusyStatus;
+  bool mBusyStatusChanged;
 
 public:
   unsigned int getNumEvents(void) const;
@@ -118,6 +119,8 @@ public:
   sc_export<sc_signal<bool>> s_link_busy_out;
 
 private:
+  sc_signal<bool> s_link_busy;
+
   void parserInputProcess(void);
 
 public:

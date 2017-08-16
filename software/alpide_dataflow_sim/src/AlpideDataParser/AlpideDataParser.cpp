@@ -59,7 +59,7 @@ void AlpideEventBuilder::popEvent(void)
 ///          to that frame.
 ///       3) If these are just idle words etc., nothing is done with them.
 ///@param[in] dw AlpideDataWord input to parse.
-bool AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
+void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
 {
   AlpideDataParsed data_parsed = parseDataWord(dw);
   unsigned long data = (dw.data[2] << 16) | (dw.data[1] << 8) | dw.data[0];
@@ -167,15 +167,15 @@ bool AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
   }
 
   // Check/update link busy status
-  if(data_parsed.data[2] == BUSY_ON ||
-     data_parsed.data[1] == BUSY_ON ||
-     data_parsed.data[0] == BUSY_ON)
+  if(data_parsed.data[2] == ALPIDE_BUSY_ON ||
+     data_parsed.data[1] == ALPIDE_BUSY_ON ||
+     data_parsed.data[0] == ALPIDE_BUSY_ON)
   {
     mBusyStatus = true;
     mBusyStatusChanged = true;
-  } else if(data_parsed.data[2] == BUSY_OFF ||
-            data_parsed.data[1] == BUSY_OFF ||
-            data_parsed.data[0] == BUSY_OFF)
+  } else if(data_parsed.data[2] == ALPIDE_BUSY_OFF ||
+            data_parsed.data[1] == ALPIDE_BUSY_OFF ||
+            data_parsed.data[0] == ALPIDE_BUSY_OFF)
   {
     mBusyStatus = false;
     mBusyStatusChanged = true;
@@ -302,6 +302,8 @@ SC_HAS_PROCESS(AlpideDataParser);
 AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name, bool save_events)
   : sc_core::sc_module(name)
 {
+  s_link_busy_out(s_link_busy);
+
   SC_METHOD(parserInputProcess);
   sensitive_pos << s_clk_in;
 }
@@ -323,7 +325,7 @@ void AlpideDataParser::parserInputProcess(void)
 
   if(mBusyStatusChanged) {
     ///@todo Do something smart here? Implement a notification/event maybe?
-    s_link_busy_out.write(mBusyStatus);
+    s_link_busy.write(mBusyStatus);
   }
 }
 
