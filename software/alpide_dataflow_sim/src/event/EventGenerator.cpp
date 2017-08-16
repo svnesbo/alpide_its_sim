@@ -49,14 +49,6 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   mNumChips = settings->value("simulation/n_chips").toInt();
 
   mContinuousMode = settings->value("simulation/continuous_mode").toBool();
-  mTriggerFilterTimeNs = settings->value("event/trigger_filter_time_ns").toInt();
-
-  // Trigger filtering only allowed in triggered mode
-  if(mContinuousMode == false) {
-    mTriggerFilteringEnabled = settings->value("event/trigger_filter_enable").toBool();
-  } else {
-    mTriggerFilteringEnabled = false;
-  }
 
   mEventQueue.resize(mNumChips);
   mHitQueue.resize(mNumChips);

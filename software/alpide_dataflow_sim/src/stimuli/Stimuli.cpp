@@ -71,7 +71,9 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     config.layer[5].num_stave = settings->value("its/layer5_num_staves").toInt();
     config.layer[6].num_stave = settings->value("its/layer6_num_staves").toInt();
 
-    mITS = new ITSDetector("ITS", config);
+    unsigned int trigger_filter_time = settings->value("event/trigger_filter_time_ns").toInt();
+
+    mITS = new ITSDetector("ITS", config, trigger_filter_time);
     mITS->s_system_clk_in(clock);
     mITS->E_trigger_in(E_CTP_trigger);
     mITS->s_detector_busy_out(s_its_busy);

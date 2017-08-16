@@ -24,12 +24,15 @@ SC_HAS_PROCESS(ReadoutUnit);
 ///@param stave_id ID of the stave in the layer that this RU is connected to
 ///@param n_ctrl_links Number of Alpide control links connected to this readout unit
 ///@param n_data_links Number of Alpide data links connected to this readout unit
+///@param trigger_filter_time The Readout Unit will filter out triggers more closely
+///                           spaced than this time (specified in nano seconds)
 ///@param inner_barrel Set to true if RU is connected to inner barrel stave
 ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int layer_id,
                          unsigned int stave_id,
                          unsigned int n_ctrl_links,
                          unsigned int n_data_links,
+                         unsigned int trigger_filter_time,
                          bool inner_barrel)
   : sc_core::sc_module(name)
   , mLayerId(layer_id)
@@ -39,6 +42,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   , s_serial_data_input(n_data_links)
   , mInnerBarrelMode(inner_barrel)
   , mReadoutUnitTriggerDelay(0)
+  , mTriggerFilterTimeNs(trigger_filter_time)
 {
   mDataLinkParsers.resize(links_in_use);
   mAlpideLinkBusySignals.resize(links_in_use);

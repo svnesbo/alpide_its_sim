@@ -8,6 +8,7 @@
  *         Matthias Bonora's WP10 RU SystemC simulation code.
  */
 
+#include <Alpide/Alpide.hpp>
 #include <Alpide/AlpideInterface.hpp>
 
 namespace ITS {
@@ -15,16 +16,16 @@ namespace ITS {
     std::vector<ControlTargetSocket> socket_control_in;
     std::vector<DataInitiatorSocket> socket_data_out;
 
-    StaveInterface(sc_core::sc_module_name const &name = 0,
+    StaveInterface(sc_core::sc_module_name const &name,
                    unsigned int layer_id,
                    unsigned int stave_id,
                    unsigned int n_ctrl_links,
                    unsigned int n_data_links)
       : sc_module(name)
-      , mLayerId(layer_id)
-      , mStaveId(stave_id)
       , socket_control_in(n_ctrl_links)
       , socket_data_out(n_data_links)
+      , mLayerId(layer_id)
+      , mStaveId(stave_id)
       {}
 
     //virtual std::vector<std::shared_ptr<Alpide>> getChips(void) = 0;
@@ -33,8 +34,8 @@ namespace ITS {
 
     unsigned int getStaveId(void) const { return mStaveId; }
     unsigned int getLayerId(void) const { return mLayerId; }
-    unsigned int numCtrlLinks(void) const { return control.size(); }
-    unsigned int numDataLinks(void) const { return data.size(); }
+    unsigned int numCtrlLinks(void) const { return socket_control_in.size(); }
+    unsigned int numDataLinks(void) const { return socket_data_out.size(); }
 
   private:
     unsigned int mLayerId;
@@ -84,7 +85,7 @@ namespace ITS {
     std::array<std::unique_ptr<HalfModule>, N_HALF_MODULES> mHalfModules;
   };
 
-  typedef MiddleBarrelStave MBOBStave<16>;
-  typedef OuterBarrelStave MBOBStave<28>;
+  typedef MBOBStave<16> MiddleBarrelStave;
+  typedef MBOBStave<28> OuterBarrelStave;
 
 }

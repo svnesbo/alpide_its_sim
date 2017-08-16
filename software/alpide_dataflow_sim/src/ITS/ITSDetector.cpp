@@ -13,17 +13,17 @@
 
 //Do I need SC_HAS_PROCESS if I only use SC_METHOD??
 SC_HAS_PROCESS(ITSDetector);
-ITSDetector::ITSDetector(sc_core::sc_module_name name, const detectorConfig& config)
+///@param config Configuration of the ITS detector to simulate
+///              (ie. number of staves per layer to include in simulation)
+///@param trigger_filter_time Readout Units will filter out triggers more closely
+///                           spaced than this time (specified in nano seconds).
+ITSDetector::ITSDetector(sc_core::sc_module_name name,
+                         const detectorConfig& config,
+                         unsigned int trigger_filter_time)
   : sc_core::sc_module(name)
 {
-  ///@todo Construct ITS detector here.
-  // In the constructor, we should specify which layers, and how many staves (readout units)
-  // for each layer, that we want to include in the detector/simulation.
-  // We don't specify number of Alpide chips, we always construct full staves.
-  // Declare readout units and Alpide chips, and connect them together.
-
   verifyDetectorConfig(config);
-  buildDetector(config);
+  buildDetector(config, trigger_filter_time);
 
   SC_METHOD(triggerMethod);
   sensitive << E_trigger_in;
@@ -31,6 +31,8 @@ ITSDetector::ITSDetector(sc_core::sc_module_name name, const detectorConfig& con
 
 
 ///@brief Verify that detector configuration is valid. Exit brutally if not
+///@param config Configuration of the ITS detector to simulate
+///              (ie. number of staves per layer to include in simulation)
 ///@throw runtime_error If too many staves specified for a layer, or if a total
 ///       of zero staves for all layers were specified.
 void ITSDetector::verifyDetectorConfig(const detectorConfig& config) const
@@ -54,7 +56,12 @@ void ITSDetector::verifyDetectorConfig(const detectorConfig& config) const
 
 ///@brief Allocate memory and create the desired number of staves for each detector layer,
 ///       and create the chip map of chip id vs alpide chip object instance.
-void ITSDetector::buildDetector(const detectorConfig& config)
+///@param config Configuration of the ITS detector to simulate
+///              (ie. number of staves per layer to include in simulation)
+///@param trigger_filter_time Readout Units will filter out triggers more closely
+///                           spaced than this time (specified in nano seconds).
+void ITSDetector::buildDetector(const detectorConfig& config,
+                                unsigned int trigger_filter_time)
 {
   // Reserve space for all chips, even if they are not used (not allocated),
   // because we access/index them by index in the vectors, and vector access is O(1).

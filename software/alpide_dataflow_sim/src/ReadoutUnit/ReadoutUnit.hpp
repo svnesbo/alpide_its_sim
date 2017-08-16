@@ -29,7 +29,7 @@
 #define NUM_ALPIDE_DATA_LINKS 28
 
 
-ReadoutUnit : public sc_core::sc_module {
+class ReadoutUnit : public sc_core::sc_module {
 public:
   sc_in_clk s_system_clk_in;
 
@@ -64,6 +64,7 @@ private:
   unsigned int mBusyLinkCount;
   unsigned int mBusyLinkThreshold;
   unsigned int mReadoutUnitTriggerDelay;
+  unsigned int mTriggerFilterTimeNs;
   bool mLocalBusyStatus;
   bool mGlobalBusyStatus;
   bool mInnerBarrelMode;
@@ -71,7 +72,7 @@ private:
   sc_time mLastTriggerTime;
 
   std::vector<std::shared_ptr<AlpideDataParser>> mDataLinkParsers;
-  std::vector<sc_signal<sc_bool>> mAlpideLinkBusySignals;
+  std::vector<sc_signal<bool>> mAlpideLinkBusySignals;
 
   void sendTrigger(void);
 
@@ -86,6 +87,7 @@ public:
               unsigned int stave_id,
               unsigned int n_ctrl_links,
               unsigned int n_data_links,
+              unsigned int trigger_filter_time,
               bool inner_barrel);
   ~ReadoutUnit();
   void end_of_elaboration();

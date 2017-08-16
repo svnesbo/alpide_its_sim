@@ -39,7 +39,9 @@ namespace ITS {
     void triggerMethod(void);
 
   public:
-    ITSDetector(sc_core::sc_module_name name, const detectorConfig& config);
+    ITSDetector(sc_core::sc_module_name name,
+                const detectorConfig& config,
+                unsigned int trigger_filter_time);
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);
     void setPixel(const detectorPosition& pos, unsigned int row, unsigned int col);
   };
