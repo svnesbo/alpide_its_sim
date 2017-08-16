@@ -12,8 +12,10 @@
 
 
 #include "ITS_config.hpp"
+#include "ITSPixelHit.hpp"
 #include "ITSModulesStaves.hpp"
 #include "../ReadoutUnit/ReadoutUnit.hpp"
+#include <Alpide/Hit.hpp>
 
 namespace ITS {
 
@@ -42,6 +44,7 @@ namespace ITS {
     ITSDetector(sc_core::sc_module_name name,
                 const detectorConfig& config,
                 unsigned int trigger_filter_time);
+    void setPixel(const ITSPixelHit& h);
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);
     void setPixel(const detectorPosition& pos, unsigned int row, unsigned int col);
   };

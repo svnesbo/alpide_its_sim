@@ -174,6 +174,19 @@ void ITSDetector::setPixel(const detectorPosition& pos, unsigned int col, unsign
 }
 
 
+///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
+///       detector configuration).
+///@param h Pixel hit data
+void ITSDetector::setPixel(const ITSPixelHit& h)
+{
+  unsigned int chip_id = detector_position_to_chip_id(h.getPosition());
+  unsigned int col = h.getCol();
+  unsigned int row = h.getRow();
+
+  setPixel(chip_id, col, row);
+}
+
+
 ///@brief SystemC METHOD for distributing triggers to all readout units
 void ITSDetectyor::triggerMethod(void)
 {

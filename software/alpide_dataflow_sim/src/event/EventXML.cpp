@@ -95,9 +95,9 @@ EventXML::EventXML(bool random_event_order, int random_seed)
   ///@todo Temporary - only for testing until we have real detector geometry in place..
   //mDetectorPositionList[0] = {0, 0, 0, 4};
   for(unsigned int chip_id = 0; chip_id < 108; chip_id++) {
-    int stave_id = chip_id/9;
-    int module_id = 0;
-    int module_chip_id = chip_id%12;
+    unsigned int stave_id = chip_id/9;
+    unsigned int module_id = 0;
+    unsigned int module_chip_id = chip_id%12;
 
     mDetectorPositionList[chip_id] = {0, stave_id, module_id, module_chip_id};
   }

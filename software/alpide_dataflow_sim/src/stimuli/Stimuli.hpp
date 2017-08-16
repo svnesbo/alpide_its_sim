@@ -13,6 +13,8 @@
 
 #include "Alpide/Alpide.hpp"
 #include "../event/EventGenerator.hpp"
+#include "../ITS/ITSDetector.hpp"
+#include "../CTP/CTP.hpp"
 #include <QSettings>
 #include <string>
 
@@ -27,15 +29,18 @@ private:
   ///@todo Remove?
   //  sc_event E_physics_event;   // Event Gen to Stim class
 
-  sc_event E_physics_trigger; // Stim class to CTP
+  sc_event E_physics_trigger; // EventGenerator physics event to CTP
   sc_event E_CTP_trigger;     // CTP to detector/chip
 
   EventGenerator *mEventGen;
-  std::vector<Alpide*> mAlpideChips;
+  ITS::ITSDetector *mITS;
+  //CTP *mCTP;
+
   const QSettings* mSettings;
   std::string mOutputPath;
   bool simulation_done = false;
   bool mContinuousMode;
+  bool mSingleChipSimulation;
 
   ///@todo Make it a 64-bit int?
   int mNumEvents;

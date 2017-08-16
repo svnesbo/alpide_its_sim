@@ -168,7 +168,7 @@ EventGenerator::~EventGenerator()
 ///@brief Get a reference to the next event (if there is one). Note: this function
 ///       will keep returning the same event until it has been removed by removeOldestEvent().
 ///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
-const std::vector<Hit>& EventGenerator::getLatestPhysicsEvent(void) const
+const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestPhysicsEvent(void) const
 {
   return mHitVector;
 }
@@ -456,15 +456,18 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
         rand_y2 = rand_y1-1;
       }
 
+
+      ITS::detectorPosition pos = {0, 0, 0, 0};
+
       ///@todo Create hits for all chips properly here!!
-      mHitVector.emplace_back(rand_x1, rand_y1, mLastPhysicsEventTimeNs,
-                                           mPixelDeadTime, mPixelActiveTime);
-      mHitVector.emplace_back(rand_x1, rand_y2, mLastPhysicsEventTimeNs,
-                                           mPixelDeadTime, mPixelActiveTime);
-      mHitVector.emplace_back(rand_x2, rand_y1, mLastPhysicsEventTimeNs,
-                                           mPixelDeadTime, mPixelActiveTime);
-      mHitVector.emplace_back(rand_x2, rand_y2, mLastPhysicsEventTimeNs,
-                                           mPixelDeadTime, mPixelActiveTime);
+      mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+                              mPixelDeadTime, mPixelActiveTime);
+      mHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+                              mPixelDeadTime, mPixelActiveTime);
+      mHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+                              mPixelDeadTime, mPixelActiveTime);
+      mHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+                              mPixelDeadTime, mPixelActiveTime);
     }
   } else { // No random hits, use MC generated events
     const EventDigits* digits = mMonteCarloEvents.getNextEvent();
@@ -487,7 +490,9 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
         //                                 mPixelDeadTime,
         //                                 mPixelActiveTime);
 
-        mHitVector.emplace_back(pix.getCol(), pix.getRow(),
+        ITS::detectorPosition pos = {0, 0, 0, 0};
+
+        mHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
                                 mLastPhysicsEventTimeNs,
                                 mPixelDeadTime,
                                 mPixelActiveTime);

@@ -12,6 +12,7 @@
 
 #include "Alpide/EventFrame.hpp"
 #include "EventXML.hpp"
+#include "../ITS/ITSPixelHit.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -53,7 +54,7 @@ public: // SystemC signals
   sc_event E_physics_event;
 
 private:
-  std::vector<Hit> mHitVector;
+  std::vector<ITS::ITSPixelHit> mHitVector;
 
   int mNumChips;
 
@@ -111,7 +112,7 @@ public:
                  std::string output_path);
   ~EventGenerator();
   const EventFrame& getNextEventFrame(void);
-  const std::vector<Hit>& getLatestPhysicsEvent(void) const;
+  const std::vector<ITS::ITSPixelHit>& getLatestPhysicsEvent(void) const;
   void setBunchCrossingRate(int rate_ns);
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
