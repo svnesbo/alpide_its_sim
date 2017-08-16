@@ -10,7 +10,7 @@
 #ifndef EVENT_GENERATOR_HPP
 #define EVENT_GENERATOR_HPP
 
-#include "EventFrame.hpp"
+#include "Alpide/EventFrame.hpp"
 #include "EventXML.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library

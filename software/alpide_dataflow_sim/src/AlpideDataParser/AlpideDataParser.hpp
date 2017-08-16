@@ -16,7 +16,7 @@
 #define ALPIDE_DATA_PARSER_H
 
 #include "Alpide/AlpideDataWord.hpp"
-#include "../event/EventFrame.hpp"
+#include "Alpide/EventFrame.hpp"
 #include <vector>
 
 // Ignore warnings about use of auto_ptr in SystemC library

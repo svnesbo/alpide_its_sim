@@ -16,7 +16,7 @@ private:
 protected:
   EventFrame getEventFrame(uint64_t event_start,
                            uint64_t event_end,
-                           int event_id) const
+                           int event_id) const;
 
 public:
   PixelFrontEnd();

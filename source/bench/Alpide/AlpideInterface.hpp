@@ -26,13 +26,22 @@
 #include <vector>
 #include <memory>
 
-#include <systemc>
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <systemc.h>
+#pragma GCC diagnostic pop
+
+// Ignore warnings about functions with unused variables in TLM library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <tlm>
+#pragma GCC diagnostic pop
 
-#include <common/Interfaces.hpp>
-#include <event/EventFrame.hpp>
+#include "../common/Interfaces.hpp"
+#include "EventFrame.hpp"
 
-namespace Alpide {
+//namespace Alpide {
   struct ControlRequestPayload {
     uint8_t opcode;
     uint8_t chipId;
@@ -59,4 +68,4 @@ namespace Alpide {
   using DataTargetSocket = put_if_target_socket<DataPayload>;
   using DataTargetExport =
     sc_core::sc_export<tlm::tlm_blocking_put_if<DataPayload> >;
-}
+//}

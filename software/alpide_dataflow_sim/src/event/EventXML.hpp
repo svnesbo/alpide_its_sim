@@ -12,7 +12,7 @@
 #include <QtXml/QtXml>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
-#include "Hit.hpp"
+#include "Alpide/Hit.hpp"
 #include "../ITS/ITSDetector.hpp"
 
 class EventDigits {

@@ -11,27 +11,11 @@
 #define ITS_DETECTOR_HPP
 
 
-#include "ITS_constants.hpp"
+#include "ITS_config.hpp"
 #include "ITSModulesStaves.hpp"
-#include "ReadoutUnit/ReadoutUnit.hpp"
+#include "../ReadoutUnit/ReadoutUnit.hpp"
 
 namespace ITS {
-
-  struct layerConfig {
-    unsigned int num_staves;
-  };
-
-  struct detectorConfig {
-    layerConfig layer[NUM_LAYERS];
-  };
-
-  struct detectorPosition {
-    unsigned int layer_id;
-    unsigned int stave_id;
-    unsigned int module_id;
-    unsigned int stave_chip_id;
-  };
-
 
   class ITSDetector : public sc_core::sc_module {
   public:

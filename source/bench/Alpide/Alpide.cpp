@@ -19,20 +19,25 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
 ///@param[in] dmu_fifo_size Depth of DMU (Data Management Unit) FIFO.
 ///@param[in] dtu_delay_cycles Number of clock cycle delays associated with Data Transfer Unit (DTU)
+///@param[in] strobe_length_ns Strobe length (in nanoseconds)
+///@param[in] strobe_extension Enable/disable strobe extension
+///           (if new strobe received before the previous strobe interval ended)
 ///@param[in] enable_clustering Enable clustering and use of DATA LONG words
 ///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
 ///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_cycles,
-               bool enable_clustering, bool continuous_mode, bool matrix_readout_speed)
+               int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
+               bool strobe_extension, bool enable_clustering, bool continuous_mode,
+               bool matrix_readout_speed)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
   , s_chip_ready_out("chip_ready_out")
   , s_dmu_fifo(dmu_fifo_size)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
-  , mStrobeLengthCycles(strobe_length_cycles)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
+  , mStrobeExtensionEnable(strobe_extension)
+  , mStrobeLengthNs(strobe_length_ns)
 {
   mChipId = chip_id;
   mEnableDtuDelay = dtu_delay_cycles > 0;
@@ -114,7 +119,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   sensitive << E_strobe_interval_done;
 
   SC_METHOD(strobeAndFramingMethod);
-  sensitive << s_strobe_n.value_changed();
+  sensitive << s_strobe_n;
 
 }
 
@@ -139,7 +144,7 @@ void Alpide::mainMethod(void)
 }
 
 
-void Alpide::processCommand(ControlRequestPayload const &request)
+ControlResponsePayload Alpide::processCommand(ControlRequestPayload const &request)
 {
   if (request.opcode == 0x55) {
     SC_REPORT_INFO_VERB(name(), "Received Trigger", sc_core::SC_DEBUG);
@@ -148,7 +153,7 @@ void Alpide::processCommand(ControlRequestPayload const &request)
     SC_REPORT_ERROR(name(), "Invalid opcode received");
   }
   // do nothing
-  return;
+  return {};
 }
 
 
@@ -162,7 +167,7 @@ void Alpide::triggerMethod(void)
   if(s_strobe_n.read() == true) {
     // Strobe not active - start new interval
     s_strobe_n = false;
-    E_strobe_interval_done.notify(mStrobeInterval);
+    E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
   } else if(s_strobe_n.read() == false) {
     // Strobe already active
     if(mStrobeExtensionEnable) {
@@ -172,7 +177,7 @@ void Alpide::triggerMethod(void)
       // strobeDurationMethod() could have written false to s_strobe_n already, but it would not
       // have updated yet, so make sure it stays active (false/low).
       s_strobe_n = false;
-      E_strobe_interval_done.notify(mStrobeInterval);
+      E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
     } else {
       mEventFramesRejected++;
     }
@@ -256,7 +261,8 @@ void Alpide::strobeAndFramingMethod(void)
   else if(s_strobe_n.read() == true && mStrobeActive == true) {
     // Latch event/pixels if chip was ready, ie. there was a free MEB for this strobe
     if(s_chip_ready_internal) {
-      getEventFrame(mStrobeStartTime, time_now).feedHitsToPixelMatrix(*this);
+      this->getEventFrame(mStrobeStartTime, time_now, mEventIdCount).feedHitsToPixelMatrix(*this);
+      mEventIdCount++;
     }
 
     s_chip_ready_internal = false;
@@ -423,6 +429,7 @@ void Alpide::frameReadout(void)
 void Alpide::dataTransmission(void)
 {
   AlpideDataWord dw_dtu = AlpideComma();
+  AlpideDataWord dw_dmu = AlpideComma();
   sc_uint<24> data_out;
 
   if(mEnableDtuDelay) {
@@ -437,8 +444,6 @@ void Alpide::dataTransmission(void)
     data_out = dw_dtu.data[2] << 16 | dw_dtu.data[1] << 8 | dw_dtu.data[0];
     s_serial_data_output = data_out;
 
-    AlpideDataWord dw_dmu = AlpideComma();
-
     // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
     if(s_dmu_fifo.nb_read(dw_dmu) == false) {
       dw_dmu = AlpideComma();
@@ -452,7 +457,6 @@ void Alpide::dataTransmission(void)
   // where it is full, empty, full, and you lose every 2nd word.. so we just bypass that
   // delay fifo in this event..
   else {
-    AlpideDataWord dw_dmu = AlpideComma();
     // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
     if(s_dmu_fifo.nb_read(dw_dmu) == false) {
       dw_dmu = AlpideComma();
@@ -463,7 +467,11 @@ void Alpide::dataTransmission(void)
   }
 
   // Data initiator socket output
-  s_data_output.put(data_out);
+  DataPayload socket_dw;
+  socket_dw.data.push_back(dw_dmu.data[2]);
+  socket_dw.data.push_back(dw_dmu.data[1]);
+  socket_dw.data.push_back(dw_dmu.data[0]);
+  s_data_output->put(socket_dw);
 }
 
 

@@ -12,8 +12,9 @@
 #define ALPIDE_H
 
 #include "AlpideDataWord.hpp"
-#include <AlpideInterface.hpp>
+#include "AlpideInterface.hpp"
 #include "PixelMatrix.hpp"
+#include "PixelFrontEnd.hpp"
 #include "RegionReadoutUnit.hpp"
 #include "TopReadoutUnit.hpp"
 
@@ -119,8 +120,9 @@ private:
   bool mEnableReadoutTraces;
   bool mEnableDtuDelay;
   bool mStrobeActive;
+  bool mStrobeExtensionEnable;
   uint16_t mBunchCounter;
-  uint16_t mStrobeLengthCycles;
+  uint16_t mStrobeLengthNs;
   uint64_t mStrobeStartTime;
 
   ///@brief Number of triggers (event frames) that are accepted into an MEB by the chip
@@ -137,6 +139,8 @@ private:
   ///       the 3rd one is filled. This variable counts up in that case.
   uint64_t mEventFramesFlushed = 0;
 
+  uint64_t mEventIdCount = 0;
+
   void newEvent(uint64_t event_time);
   void mainMethod(void);
   void triggerMethod(void);
@@ -147,12 +151,13 @@ private:
   void dataTransmission(void);
   void updateBusyStatus(void);
   bool getFrameReadoutDone(void);
-  void processCommand(ControlRequestPayload const &request);
+  ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-         int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_cycles,
-         bool enable_clustering, bool continuous_mode, bool matrix_readout_speed);
+         int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
+         bool strobe_extension, bool enable_clustering, bool continuous_mode,
+         bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
   uint64_t getEventFramesAcceptedCount(void) const {return mEventFramesAccepted;}

@@ -23,7 +23,7 @@
 
 #include "BusyLinkWord.hpp"
 #include <Alpide/AlpideInterface.hpp>
-#include "AlpideDataParser/AlpideDataParser.hpp"
+#include "../AlpideDataParser/AlpideDataParser.hpp"
 
 
 #define NUM_ALPIDE_DATA_LINKS 28
