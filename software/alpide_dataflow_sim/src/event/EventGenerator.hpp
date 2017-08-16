@@ -111,6 +111,7 @@ public:
                  std::string output_path);
   ~EventGenerator();
   const EventFrame& getNextEventFrame(void);
+  const std::vector<Hit>& getLatestPhysicsEvent(void) const;
   void setBunchCrossingRate(int rate_ns);
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
@@ -121,7 +122,7 @@ public:
   void physicsEventMethod(void);
 
 private:
-  uint64_t generateNextPhysicsEvent(void);
+  uint64_t generateNextPhysicsEvent(uint64_t time_now);
   void readDiscreteDistributionFile(const char* filename,
                                     std::vector<double> &dist_vector) const;
   void scaleDiscreteDistribution(std::vector<double> &dist_vector,

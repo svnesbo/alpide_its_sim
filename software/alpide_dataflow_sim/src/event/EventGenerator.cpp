@@ -50,9 +50,6 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
   mContinuousMode = settings->value("simulation/continuous_mode").toBool();
 
-  mEventQueue.resize(mNumChips);
-  mHitQueue.resize(mNumChips);
-
   if(mRandomHitGeneration) {
     // Instantiate event generator object with the desired hit multiplicity distribution
     QString multipl_dist_type = settings->value("event/hit_multiplicity_distribution_type").toString();
@@ -170,9 +167,8 @@ EventGenerator::~EventGenerator()
 
 ///@brief Get a reference to the next event (if there is one). Note: this function
 ///       will keep returning the same event until it has been removed by removeOldestEvent().
-///@return Reference to next event. If there are no events,
-///        then a reference to NoEventFrame (with event id = -1) is returned.
-const std::vector& EventGenerator::getNextPhysicsEvent(void)
+///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
+const std::vector<Hit>& EventGenerator::getLatestPhysicsEvent(void) const
 {
   return mHitVector;
 }
@@ -414,7 +410,7 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 ///       2) Generate hits for the next event, and put them on the hit queue
 ///       3) Update counters etc.
 ///@return The number of clock cycles until this event will actually occur
-int64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
+uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 {
   int64_t t_delta, t_delta_cycles;
   int n_hits = 0;
@@ -426,6 +422,7 @@ int64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
   mLastPhysicsEventTimeNs = time_now;
   mPhysicsEventCount++;
 
+  mHitVector.clear();
 
   if(mRandomHitGeneration == true) {
     // Generate a random number of hits for this event
@@ -459,15 +456,14 @@ int64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
         rand_y2 = rand_y1-1;
       }
 
-      // Create hit objects directly at the back of the deque,
-      // without a copy or move taking place.
-      mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+      ///@todo Create hits for all chips properly here!!
+      mHitVector.emplace_back(rand_x1, rand_y1, mLastPhysicsEventTimeNs,
                                            mPixelDeadTime, mPixelActiveTime);
-      mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+      mHitVector.emplace_back(rand_x1, rand_y2, mLastPhysicsEventTimeNs,
                                            mPixelDeadTime, mPixelActiveTime);
-      mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+      mHitVector.emplace_back(rand_x2, rand_y1, mLastPhysicsEventTimeNs,
                                            mPixelDeadTime, mPixelActiveTime);
-      mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+      mHitVector.emplace_back(rand_x2, rand_y2, mLastPhysicsEventTimeNs,
                                            mPixelDeadTime, mPixelActiveTime);
     }
   } else { // No random hits, use MC generated events
@@ -486,15 +482,15 @@ int64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
       const PixelData &pix = digit_it->second;
 
       if(chip_id == 5) {
-        // mHitQueue[chip_id].emplace_back(pix.getCol(), pix.getRow(),
+        // mHitVector[chip_id].emplace_back(pix.getCol(), pix.getRow(),
         //                                 mLastPhysicsEventTimeNs,
         //                                 mPixelDeadTime,
         //                                 mPixelActiveTime);
 
-        mHitQueue[0].emplace_back(pix.getCol(), pix.getRow(),
-                                  mLastPhysicsEventTimeNs,
-                                  mPixelDeadTime,
-                                  mPixelActiveTime);
+        mHitVector.emplace_back(pix.getCol(), pix.getRow(),
+                                mLastPhysicsEventTimeNs,
+                                mPixelDeadTime,
+                                mPixelActiveTime);
 
         // Update statistics. We only get pixel digits from MC events,
         // no traces, so only this counter is used.
@@ -551,9 +547,8 @@ int64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 ///       2) Deleting old inactive hits
 void EventGenerator::physicsEventMethod(void)
 {
-  uint64_t t_delta = generateNextPhysicsEvent();
-
+  uint64_t time_now = sc_time_stamp().value();
+  uint64_t t_delta = generateNextPhysicsEvent(time_now);
   E_physics_event.notify();
-
   next_trigger(t_delta, SC_NS);
 }

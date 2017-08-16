@@ -65,7 +65,6 @@ include_directories(
 
 add_sources(
   src/event/EventGenerator.cpp
-  src/event/Hit.cpp
   src/event/EventXML.cpp
   src/settings/Settings.cpp
   src/stimuli/Stimuli.cpp
