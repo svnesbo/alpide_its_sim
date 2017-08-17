@@ -10,6 +10,8 @@
 #ifndef ITS_DETECTOR_HPP
 #define ITS_DETECTOR_HPP
 
+#include <vector>
+#include <memory>
 
 #include "ITS_config.hpp"
 #include "ITSPixelHit.hpp"
@@ -29,13 +31,13 @@ namespace ITS {
 
   private:
     std::vector<std::shared_ptr<Alpide>> mChipVector;
-    std::vector<std::unique_ptr<ReadoutUnit>> mReadoutUnits[N_LAYERS];
-    std::vector<std::unique_ptr<StaveInterface>> mLayers[N_LAYERS];
+    std::vector<std::shared_ptr<ReadoutUnit>> mReadoutUnits[N_LAYERS];
+    std::vector<std::shared_ptr<StaveInterface>> mLayers[N_LAYERS];
 
     std::vector<std::unique_ptr<sc_fifo<BusyLinkWord>>> s_readout_unit_fifos;
 
 
-    void buildDetector(const detectorConfig& config);
+    void buildDetector(const detectorConfig& config, unsigned int trigger_filter_time);
     void verifyDetectorConfig(const detectorConfig& config) const;
 
     void triggerMethod(void);

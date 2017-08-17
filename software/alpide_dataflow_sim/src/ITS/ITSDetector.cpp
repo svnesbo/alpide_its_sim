@@ -10,6 +10,7 @@
 
 #include "ITSDetector.hpp"
 
+using namespace ITS;
 
 //Do I need SC_HAS_PROCESS if I only use SC_METHOD??
 SC_HAS_PROCESS(ITSDetector);
@@ -39,9 +40,9 @@ void ITSDetector::verifyDetectorConfig(const detectorConfig& config) const
 {
   unsigned int num_staves_total = 0;
 
-  for(int i = 0; i < N_LAYERS; i++) {
+  for(unsigned int i = 0; i < N_LAYERS; i++) {
     if(config.layer[i].num_staves > STAVES_PER_LAYER[i]) {
-      std::string error_msg "Too many staves specified for layer " + std::to_string(i);
+      std::string error_msg = "Too many staves specified for layer " + std::to_string(i);
       throw std::runtime_error(error_msg);
     }
     num_staves_total += config.layer[i].num_staves;
@@ -65,27 +66,27 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 {
   // Reserve space for all chips, even if they are not used (not allocated),
   // because we access/index them by index in the vectors, and vector access is O(1).
-  mChipVector.resize(CHIP_COUNT_TOTAL, std::nullptr);
+  mChipVector.resize(CHIP_COUNT_TOTAL, nullptr);
 
-  for(int i = 0; i < N_LAYERS; i++) {
-    for(int j = 0; j < config.layer[i].num_staves; j++) {
+  for(unsigned int i = 0; i < N_LAYERS; i++) {
+    for(unsigned int j = 0; j < config.layer[i].num_staves; j++) {
       std::string coords_str = std::to_string(i) + ":" + std::to_string(j);;
       std::string ru_name = "RU_" + coords_str;
 
       if(i < 3) {
         std::string stave_name = "IB_stave_" + coords_str;
-        mLayers[i].emplace_back(new InnerBarrelStave(name, i, j));
+        mLayers[i].push_back(std::make_shared<InnerBarrelStave>(stave_name, i, j));
       } else if(i >= 3 && i < 5) {
         throw std::runtime_error("Middle barrel staves not implemented yet..");
         /*
         std::string stave_name = "MB_stave_" + coords_str;
-        mLayers[i].emplace_back(new MiddleBarrelStave(name, i, j));
+        mLayers[i].push_back(std::make_shared<MiddleBarrelStave>(stave_name, i, j));
         */
       } else {
         throw std::runtime_error("Middle barrel staves not implemented yet..");
         /*
         std::string stave_name = "OB_stave_" + coords_str;
-        mLayers[i].emplace_back(new OuterBarrelStave(name, i, j));
+        mLayers[i].push_back(std::make_shared<OuterBarrelStave>(stave_name, i, j));
         */
       }
 
@@ -93,12 +94,12 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
       bool inner_barrel_mode = (i < 3);
 
-      mReadoutUnits[i].emplace_back(new ReadoutUnit(ru_name,
-                                                    i,
-                                                    j,
-                                                    stave->numCtrlLinks(),
-                                                    stave->numDataLinks(),
-                                                    inner_barrel_mode));
+      mReadoutUnits[i].push_back(std::make_shared<ReadoutUnit>(ru_name,
+                                                               i,
+                                                               j,
+                                                               stave->numCtrlLinks(),
+                                                               stave->numDataLinks(),
+                                                               inner_barrel_mode));
 
       auto RU = mReadoutUnits[i].back();
 
@@ -112,12 +113,12 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
       RU->s_system_clk_in(s_system_clk_in);
 
-      for(int link_num = 0; link_num < stave->numCtrlLinks(); link_num++) {
-        RU->s_alpide_control_output[link_num].bind(stave->control[link_num]);
+      for(unsigned int link_num = 0; link_num < stave->numCtrlLinks(); link_num++) {
+        RU->s_alpide_control_output[link_num].bind(stave->socket_control_in[link_num]);
       }
 
-      for(int link_num = 0; link_num < stave->numDataLinks(); link_num++) {
-        stave->data[link_num].bind(RU->s_alpide_data_input[link_num]);
+      for(unsigned int link_num = 0; link_num < stave->numDataLinks(); link_num++) {
+        stave->socket_data_out[link_num].bind(RU->s_alpide_data_input[link_num]);
       }
 
 
@@ -126,9 +127,9 @@ void ITSDetector::buildDetector(const detectorConfig& config,
       auto new_chips = stave->getChips();
 
       for(auto chip_it = new_chips.begin(); chip_it != new_chips.end(); chip_it++) {
-        unsigned int chip_id = *chip_it->getChipId();
+        unsigned int chip_id = (*chip_it)->getChipId();
         // Don't allow more than one instance of the same Chip ID
-        if(mChipVector[chip_id] != std::nullptr) {
+        if(mChipVector[chip_id] != nullptr) {
           std::string error_msg = "Chip with ID ";
           error_msg += std::to_string(chip_id);
           error_msg += " created more than once..";
@@ -147,11 +148,11 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 ///       detector configuration).
 ///@param chip_id Chip ID of Alpide chip
 ///@param h Pixel hit
-void ITSDetector::setPixel(unsigned int chip_id, const Hit& h)
+void ITSDetector::pixelInput(unsigned int chip_id, const Hit& h)
 {
   // Does the chip exist in our detector/simulation configuration?
   if(mChipVector[chip_id]) {
-    mChipVector[chip_id]->pixelFrontEndInput(hit);
+    mChipVector[chip_id]->pixelFrontEndInput(h);
   }
 }
 
@@ -163,7 +164,7 @@ void ITSDetector::setPixel(unsigned int chip_id, const Hit& h)
 ///@param row Row in Alpide chip pixel matrix
 void ITSDetector::pixelInput(const ITSPixelHit& h)
 {
-  unsigned int chip_id = detector_position_to_chip_id(h.pos);
+  unsigned int chip_id = detector_position_to_chip_id(h.getPosition());
 
   pixelInput(chip_id, h);
 }
@@ -214,11 +215,11 @@ void ITSDetector::setPixel(const ITSPixelHit& h)
 
 
 ///@brief SystemC METHOD for distributing triggers to all readout units
-void ITSDetectyor::triggerMethod(void)
+void ITSDetector::triggerMethod(void)
 {
-  for(int i = 0; i < N_LAYERS; i++) {
+  for(unsigned int i = 0; i < N_LAYERS; i++) {
     for(auto RU = mReadoutUnits[i].begin(); RU != mReadoutUnits[i].end(); RU++) {
-      RU->E_trigger_in.notify();
+      (*RU)->E_trigger_in.notify();
     }
   }
 }

@@ -28,9 +28,8 @@ namespace ITS {
       , mStaveId(stave_id)
       {}
 
-    //virtual std::vector<std::shared_ptr<Alpide>> getChips(void) = 0;
-    virtual void setPixel(const detectorPosition& pos) = 0;
-    void physicsEventFrameInput(const EventFrame& e, const detectorPosition& pos);
+    virtual std::vector<std::shared_ptr<Alpide>> getChips(void) const = 0;
+    virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const = 0;
 
     unsigned int getStaveId(void) const { return mStaveId; }
     unsigned int getLayerId(void) const { return mLayerId; }
@@ -49,6 +48,16 @@ namespace ITS {
                      unsigned int layer_id,
                      unsigned int stave_id)
       : StaveInterface(name, layer_id, stave_id, 1, 9) {}
+
+    virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const
+      {
+
+      }
+
+    virtual std::vector<std::shared_ptr<Alpide>> getChips(void) const
+      {
+        return std::vector<std::shared_ptr<Alpide>>(0);
+      }
 
   private:
     ControlResponsePayload processCommand(ControlRequestPayload const &request);
@@ -80,6 +89,11 @@ namespace ITS {
     MBOBStave(sc_core::sc_module_name const &name,
               unsigned int layer_id, unsigned int stave_id)
       : StaveInterface(name, layer_id, stave_id, N_HALF_MODULES, N_HALF_MODULES) {}
+
+    virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const
+      {
+
+      }
 
   private:
     std::array<std::unique_ptr<HalfModule>, N_HALF_MODULES> mHalfModules;
