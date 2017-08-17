@@ -75,18 +75,18 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
       if(i < 3) {
         std::string stave_name = "IB_stave_" + coords_str;
-        mLayers[i].push_back(std::make_shared<InnerBarrelStave>(stave_name, i, j));
+        mLayers[i].push_back(std::make_shared<InnerBarrelStave>(stave_name.c_str(), i, j));
       } else if(i >= 3 && i < 5) {
         throw std::runtime_error("Middle barrel staves not implemented yet..");
         /*
         std::string stave_name = "MB_stave_" + coords_str;
-        mLayers[i].push_back(std::make_shared<MiddleBarrelStave>(stave_name, i, j));
+        mLayers[i].push_back(std::make_shared<MiddleBarrelStave>(stave_name.c_str(), i, j));
         */
       } else {
         throw std::runtime_error("Middle barrel staves not implemented yet..");
         /*
         std::string stave_name = "OB_stave_" + coords_str;
-        mLayers[i].push_back(std::make_shared<OuterBarrelStave>(stave_name, i, j));
+        mLayers[i].push_back(std::make_shared<OuterBarrelStave>(stave_name.c_str(), i, j));
         */
       }
 
@@ -94,11 +94,12 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
       bool inner_barrel_mode = (i < 3);
 
-      mReadoutUnits[i].push_back(std::make_shared<ReadoutUnit>(ru_name,
+      mReadoutUnits[i].push_back(std::make_shared<ReadoutUnit>(ru_name.c_str(),
                                                                i,
                                                                j,
                                                                stave->numCtrlLinks(),
                                                                stave->numDataLinks(),
+                                                               trigger_filter_time,
                                                                inner_barrel_mode));
 
       auto RU = mReadoutUnits[i].back();

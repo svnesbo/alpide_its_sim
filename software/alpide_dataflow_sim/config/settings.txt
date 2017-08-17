@@ -28,8 +28,18 @@ trigger_delay_ns=100
 trigger_filter_enable=true
 trigger_filter_time_ns=10000
 
+[its]
+layer0_num_staves=12
+layer1_num_staves=16
+layer2_num_staves=20
+layer3_num_staves=0
+layer4_num_staves=0
+layer5_num_staves=0
+layer6_num_staves=0
+
 [simulation]
 continuous_mode=false
 n_chips=1
-n_events=10000
+n_events=100
 random_seed=0
+single_chip=false

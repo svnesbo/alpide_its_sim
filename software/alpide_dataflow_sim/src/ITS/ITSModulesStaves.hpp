@@ -46,8 +46,7 @@ namespace ITS {
   {
     InnerBarrelStave(sc_core::sc_module_name const &name,
                      unsigned int layer_id,
-                     unsigned int stave_id)
-      : StaveInterface(name, layer_id, stave_id, 1, 9) {}
+                     unsigned int stave_id);
 
     virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const
       {
@@ -62,7 +61,7 @@ namespace ITS {
   private:
     ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
-    std::array<std::shared_ptr<Alpide>, 9> mChips;
+    std::vector<std::shared_ptr<Alpide>> mChips;
     std::array<ControlInitiatorSocket, 9> socket_control_out;
   };
 

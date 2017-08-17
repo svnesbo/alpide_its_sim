@@ -7,6 +7,9 @@
  *
  */
 
+#ifndef BUSY_LINK_WORD_HPP
+#define BUSY_LINK_WORD_HPP
+
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -18,20 +21,42 @@ struct BusyLinkWord {
   int mOriginAddress;
   int mTimeStamp;
 
+  BusyLinkWord()
+    : mOriginAddress(0)
+    , mTimeStamp(0)
+    {}
+
   BusyLinkWord(int address, int timestamp)
     : mOriginAddress(address)
     , mTimeStamp(timestamp)
-  {}
+    {}
 
-  virtual ~BusyLinkWord() = 0;
+  virtual std::string getString(void) const
+    {
+      return std::string("BUSY_LINK_WORD");
+    };
+
+  inline friend void sc_trace(sc_trace_file *tf, const BusyLinkWord& busy_word,
+                              const std::string& name ) {
+    sc_trace(tf, busy_word.mOriginAddress, name + ".OriginAddress");
+    sc_trace(tf, busy_word.mTimeStamp, name + ".TimeStamp");
+  }
+
+  ///@todo Overload this in derived classes....
+  inline friend std::ostream& operator<<(std::ostream& stream, const BusyLinkWord& busy_word) {
+    stream << std::hex << busy_word.mTimeStamp;
+    stream << ":";
+    stream << std::hex << busy_word.mOriginAddress;
+    return stream;
+  }
 };
 
-BusyLinkWord::~BusyLinkWord()
-{
-}
+// BusyLinkWord::~BusyLinkWord()
+// {
+// }
 
 
-struct BusyCountUpdate : BusyLinkWord {
+struct BusyCountUpdate : public BusyLinkWord {
   int mLinkBusyCount;
   bool mLocalBusyStatus;
 
@@ -41,11 +66,16 @@ struct BusyCountUpdate : BusyLinkWord {
     , mLocalBusyStatus(local_busy)
   {}
 
-  ~BusyCountUpdate() {}
+  virtual std::string getString(void) const
+    {
+      return std::string("BUSY_COUNT_UPDATE");
+    }
+
+//  ~BusyCountUpdate() {}
 };
 
 
-struct BusyGlobalStatusUpdate : BusyLinkWord {
+struct BusyGlobalStatusUpdate : public BusyLinkWord {
   bool mGlobalBusyStatus;
 
   BusyGlobalStatusUpdate(int address, int timestamp, bool busy_status)
@@ -53,5 +83,13 @@ struct BusyGlobalStatusUpdate : BusyLinkWord {
     , mGlobalBusyStatus(busy_status)
   {}
 
-  ~BusyGlobalStatusUpdate() {}
+  virtual std::string getString(void) const
+    {
+      return std::string("BUSY_GLOBAL_STATUS_UPDATE");
+    }
+
+//  ~BusyGlobalStatusUpdate() {}
 };
+
+
+#endif

@@ -49,8 +49,8 @@ public:
     And so on..
   */
 
-  sc_port<sc_fifo_out_if<std::shared_ptr<BusyLinkWord>>> s_busy_fifo_in;
-  sc_port<sc_fifo_in_if<std::shared_ptr<BusyLinkWord>>> s_busy_fifo_out;
+  sc_port<sc_fifo_in_if<std::shared_ptr<BusyLinkWord>>> s_busy_fifo_in;
+  sc_port<sc_fifo_out_if<std::shared_ptr<BusyLinkWord>>> s_busy_fifo_out;
 
   sc_event E_trigger_in;
 
@@ -58,6 +58,7 @@ public:
   std::vector<sc_in<sc_uint<24>>> s_serial_data_input;
 
 private:
+  unsigned int mId = 0;
   unsigned int mLayerId;
   unsigned int mStaveId;
   unsigned int mActiveLinks;
@@ -69,7 +70,7 @@ private:
   bool mGlobalBusyStatus;
   bool mInnerBarrelMode;
   bool mBusyDaisyChainMaster;
-  sc_time mLastTriggerTime;
+  uint64_t mLastTriggerTime;
 
   std::vector<std::shared_ptr<AlpideDataParser>> mDataLinkParsers;
   std::vector<sc_signal<bool>> mAlpideLinkBusySignals;
@@ -89,7 +90,6 @@ public:
               unsigned int n_data_links,
               unsigned int trigger_filter_time,
               bool inner_barrel);
-  ~ReadoutUnit();
   void end_of_elaboration();
 };
 

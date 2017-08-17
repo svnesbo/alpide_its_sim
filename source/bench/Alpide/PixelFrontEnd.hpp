@@ -22,7 +22,7 @@ protected:
                            uint64_t event_id) const;
 
 public:
-  PixelFrontEnd();
+  PixelFrontEnd() {}
   void pixelFrontEndInput(const Hit& h);
   void removeInactiveHits(uint64_t time_now);
 };

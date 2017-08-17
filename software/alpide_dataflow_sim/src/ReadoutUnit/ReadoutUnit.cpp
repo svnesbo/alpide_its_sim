@@ -35,19 +35,20 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int trigger_filter_time,
                          bool inner_barrel)
   : sc_core::sc_module(name)
-  , mLayerId(layer_id)
-  , mStaveId(stave_id)
   , s_alpide_control_output(n_ctrl_links)
   , s_alpide_data_input(n_data_links)
   , s_serial_data_input(n_data_links)
-  , mInnerBarrelMode(inner_barrel)
+  , mLayerId(layer_id)
+  , mStaveId(stave_id)
   , mReadoutUnitTriggerDelay(0)
   , mTriggerFilterTimeNs(trigger_filter_time)
+  , mInnerBarrelMode(inner_barrel)
+  , mAlpideLinkBusySignals(n_data_links)
 {
-  mDataLinkParsers.resize(links_in_use);
-  mAlpideLinkBusySignals.resize(links_in_use);
+  mDataLinkParsers.resize(n_data_links);
 
-  for(int i = 0; i < links_in_use; i++) {
+
+  for(unsigned int i = 0; i < n_data_links; i++) {
     mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", false);
     mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
     mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
@@ -58,11 +59,11 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   sensitive << E_trigger_in;
 
   SC_METHOD(busyChainMethod);
-  sensitive << s_busy_fifo_in.data_written_event();
+  sensitive << s_busy_fifo_in->data_written_event();
 
   SC_METHOD(evaluateBusyStatusMethod);
-  for(int i = 0; i < mDataLinkBusySignals.size(); i++) {
-    sensitive << mAlpideLinkBusySignals[i].
+  for(unsigned int i = 0; i < mAlpideLinkBusySignals.size(); i++) {
+    sensitive << mAlpideLinkBusySignals[i];
   }
 }
 
@@ -72,7 +73,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
 void ReadoutUnit::end_of_elaboration(void)
 {
   SC_METHOD(busyChainMethod);
-  sensitive_pos << s_busy_fifo_in.data_written_event();
+  sensitive << s_busy_fifo_in->data_written_event();
 }
 
 
@@ -81,21 +82,28 @@ void ReadoutUnit::end_of_elaboration(void)
 ///       SystemC simulations for the Readout Unit.
 void ReadoutUnit::sendTrigger(void)
 {
-  uint8_t opcode = 0x55; // Trigger
+  ControlRequestPayload trigger_word;
+
+  trigger_word.opcode = 0x55; // Trigger
+  trigger_word.chipId = 0x00;
+  trigger_word.address = 0x0000;
+  trigger_word.data = 0x0000;
 
   std::string msg = "Send Trigger at: " + sc_core::sc_time_stamp().to_string();
   SC_REPORT_INFO_VERB(name(),msg.c_str(),sc_core::SC_DEBUG);
-  s_alpide_control_output->transport({ opcode });
+
+  for(unsigned int i = 0; i < s_alpide_control_output.size(); i++)
+    s_alpide_control_output[i]->transport(trigger_word);
 }
 
 
 ///@brief Process trigger input events.
 void ReadoutUnit::triggerInputMethod(void)
 {
-  sc_time time_now = int64_t time_now = sc_time_stamp().value();
+  uint64_t time_now = sc_time_stamp().value();
 
   // Filter triggers that come too close in time
-  if((time_now - mLastTriggerTime) >= mTriggerFilterTime) {
+  if((time_now - mLastTriggerTime) >= mTriggerFilterTimeNs) {
 
     ///@todo If detector is busy.. hold back on triggers here...
 
@@ -112,7 +120,7 @@ void ReadoutUnit::evaluateBusyStatusMethod(void)
 {
   unsigned int busy_link_count = 0;
 
-  for(int i = 0; i < mAlpideLinkBusySignals.size(); i++) {
+  for(unsigned int i = 0; i < mAlpideLinkBusySignals.size(); i++) {
     if(mAlpideLinkBusySignals[i].read())
       busy_link_count++;
   }
@@ -125,11 +133,13 @@ void ReadoutUnit::evaluateBusyStatusMethod(void)
     else
       mLocalBusyStatus = false;
 
-    sc_time time_now = sc_time_stamp().value();
-    std::shared_ptr<BusyLinkWord> busy_word = new(BusyCountUpdate(mID,
-                                                                  time_now,
-                                                                  mBusyLinkCount,
-                                                                  mLocalBusyStatus));
+    uint64_t time_now = sc_time_stamp().value();
+
+    std::shared_ptr<BusyLinkWord> busy_word
+      = std::make_shared<BusyCountUpdate>(mId,
+                                          time_now,
+                                          mBusyLinkCount,
+                                          mLocalBusyStatus);
 
     s_busy_fifo_out->nb_write(busy_word);
   }
@@ -150,19 +160,19 @@ void ReadoutUnit::busyChainMethod(void)
 
     // Ignore (and discard) busy words that originated from this readout unit
     // (ie. it has made the roundtrip through the busy chain)
-    if(busy_word->mOriginAddress != mID) {
+    if(busy_word->mOriginAddress != mId) {
       std::shared_ptr<BusyCountUpdate> busy_count_word_ptr;
       std::shared_ptr<BusyGlobalStatusUpdate> busy_global_word_ptr;
 
-      busy_count_word = std::dynamic_pointer_cast<BusyCountUpdate>(busy_word);
-      busy_global_word = std::dynamic_pointer_cast<BusyGlobalStatusUpdate>(busy_word);
+      busy_count_word_ptr = std::dynamic_pointer_cast<BusyCountUpdate>(busy_word);
+      busy_global_word_ptr = std::dynamic_pointer_cast<BusyGlobalStatusUpdate>(busy_word);
 
       // Find out what kind of busy word we're dealing with, and process it
-      if(busy_count_word) {
+      if(busy_count_word_ptr) {
         ///@todo What should we do with busy count updates from other RU's?
         /// Do something smart here..
-      } else if (busy_global_word) {
-        mGlobalBusyStatus = busy_global_word->mGlobalBusyStatus;
+      } else if (busy_global_word_ptr) {
+        mGlobalBusyStatus = busy_global_word_ptr->mGlobalBusyStatus;
       }
     }
 
