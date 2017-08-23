@@ -91,10 +91,13 @@ public:
               unsigned int stave_id,
               unsigned int n_ctrl_links,
               unsigned int n_data_links,
-              unsigned int trigger_filter_time,
               bool inner_barrel);
   void end_of_elaboration();
+  void setTriggerFilterTime(unsigned int trigger_filter_time) {
+    mTriggerFilterTimeNs = trigger_filter_time;
+  }
 };
+
 
 
 #endif

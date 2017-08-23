@@ -31,9 +31,9 @@ namespace ITS {
 
   private:
     std::vector<std::shared_ptr<Alpide>> mChipVector;
-    std::vector<std::shared_ptr<ReadoutUnit>> mReadoutUnits[N_LAYERS];
-    std::vector<std::shared_ptr<StaveInterface>> mLayers[N_LAYERS];
-    std::vector<std::shared_ptr<sc_signal<sc_uint<24>>>> s_alpide_data_lines;
+    sc_vector<ReadoutUnit> mReadoutUnits[N_LAYERS];
+    sc_vector<StaveInterface> mDetectorStaves[N_LAYERS];
+    sc_vector<sc_signal<sc_uint<24>>> s_alpide_data_lines[N_LAYERS];
 
 
     void buildDetector(const detectorConfig& config, unsigned int trigger_filter_time);
@@ -51,8 +51,6 @@ namespace ITS {
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);
     void setPixel(const detectorPosition& pos, unsigned int row, unsigned int col);
   };
-
-
 
 }
 

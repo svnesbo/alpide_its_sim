@@ -68,88 +68,72 @@ void ITSDetector::buildDetector(const detectorConfig& config,
   // because we access/index them by index in the vectors, and vector access is O(1).
   mChipVector.resize(CHIP_COUNT_TOTAL, nullptr);
 
-  for(unsigned int i = 0; i < N_LAYERS; i++) {
-    std::cout << "Creating " << config.layer[i].num_staves << " staves for layer " << i << std::endl;
-    for(unsigned int j = 0; j < config.layer[i].num_staves; j++) {
-      std::cout << "Creating Stave and RU " << i << ":" << j << std::endl;
+  for(unsigned int lay_id = 0; lay_id < N_LAYERS; lay_id++) {
+    unsigned int num_staves = config.layer[lay_id].num_staves;
 
-      std::string coords_str = std::to_string(i) + ":" + std::to_string(j);;
-      std::string ru_name = "RU_" + coords_str;
+    std::cout << "Creating " << num_staves;
+    std::cout << " RUs and staves for layer " << lay_id;
+    std::cout << std::endl;
 
-      if(i < 3) {
-        std::string stave_name = "IB_stave_" + coords_str;
-        mLayers[i].push_back(std::make_shared<InnerBarrelStave>(stave_name.c_str(), i, j));
-      } else if(i >= 3 && i < 5) {
-        throw std::runtime_error("Middle barrel staves not implemented yet..");
-        /*
-        std::string stave_name = "MB_stave_" + coords_str;
-        mLayers[i].push_back(std::make_shared<MiddleBarrelStave>(stave_name.c_str(), i, j));
-        */
-      } else {
-        throw std::runtime_error("Middle barrel staves not implemented yet..");
-        /*
-        std::string stave_name = "OB_stave_" + coords_str;
-        mLayers[i].push_back(std::make_shared<OuterBarrelStave>(stave_name.c_str(), i, j));
-        */
-      }
+    // Create sc_vectors with ReadoutUnit and Staves for this layer
+    mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id));
+    mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id));
 
-      auto stave = mLayers[i].back();
+    unsigned int n_data_lines_per_stave =
+      DATA_LINKS_PER_LAYER[lay_id]/STAVES_PER_LAYER[lay_id];
 
-      stave->s_system_clk_in(s_system_clk_in);
+    unsigned int n_data_lines = num_staves * n_data_lines_per_stave;
 
-      bool inner_barrel_mode = (i < 3);
+    // Create sc_vector with data lines to connect RUs and Alpides for this layer
+    s_alpide_data_lines[lay_id].init(n_data_lines);
 
-      mReadoutUnits[i].push_back(std::make_shared<ReadoutUnit>(ru_name.c_str(),
-                                                               i,
-                                                               j,
-                                                               stave->numCtrlLinks(),
-                                                               stave->numDataLinks(),
-                                                               trigger_filter_time,
-                                                               inner_barrel_mode));
-
-
-
+    for(unsigned int sta_id = 0; sta_id < config.layer[lay_id].num_staves; sta_id++) {
       // Connect the busy in/out signals for the RUs in a daisy chain
-      if(j == config.layer[i].num_staves-1) {
+      // ------------------------------------------------------------
+      if(sta_id == num_staves-1) {
         // Connect busy input of first RU to busy output of last RU.
         // If only 1 stave/RU was specified, this will actually connect
         // the busy signals in a loopback configuration on the RU.
-        mReadoutUnits[i].front()->s_busy_in(mReadoutUnits[i].back()->s_busy_out);
+        mReadoutUnits[lay_id][0].s_busy_in(mReadoutUnits[lay_id][sta_id].s_busy_out);
 
-        std::cout << "Connecting s_busy_in on front RU (" << i << ":" << 0;
-        std::cout << " to s_busy_out on back RU (" << i << ":" << j << ")";
+        std::cout << "Connecting s_busy_in on front RU (" << lay_id << ":" << 0;
+        std::cout << " to s_busy_out on back RU (" << lay_id << ":" << sta_id << ")";
         std::cout << std::endl;
       }
-
-      if(j > 0) {
+      if(sta_id > 0) {
         // Connect busy input of current RU to busy output of previous RU.
         // (Happens only when more than 1 stave/RU is specified).
-        mReadoutUnits[i][j]->s_busy_in(mReadoutUnits[i][j-1]->s_busy_out);
+        mReadoutUnits[lay_id][sta_id].s_busy_in(mReadoutUnits[lay_id][sta_id-1].s_busy_out);
 
-        std::cout << "Connecting s_busy_in on RU " << i << ":" << j;
-        std::cout << " to s_busy_out on RU " << i << ":" << j-1;
+        std::cout << "Connecting s_busy_in on RU " << lay_id<< ":" << sta_id;
+        std::cout << " to s_busy_out on RU " << lay_id<< ":" << sta_id-1;
         std::cout << std::endl;
       }
 
-      auto RU = mReadoutUnits[i].back();
+      auto &RU = mReadoutUnits[lay_id][sta_id];
+      auto &stave = mDetectorStaves[lay_id][sta_id];
 
-      RU->s_system_clk_in(s_system_clk_in);
+      RU.setTriggerFilterTime(trigger_filter_time);
 
-      for(unsigned int link_num = 0; link_num < stave->numCtrlLinks(); link_num++) {
-        RU->s_alpide_control_output[link_num].bind(stave->socket_control_in[link_num]);
+      RU.s_system_clk_in(s_system_clk_in);
+      stave.s_system_clk_in(s_system_clk_in);
+
+      for(unsigned int link_num = 0; link_num < stave.numCtrlLinks(); link_num++) {
+        RU.s_alpide_control_output[link_num].bind(stave.socket_control_in[link_num]);
       }
 
       // Get a vector of pointer to the Alpide chips created by the new stave,
       // and add them to a map of chip id vs Alpide chip object.
-      auto new_chips = stave->getChips();
+      auto new_chips = stave.getChips();
 
-      for(unsigned int link_num = 0; link_num < stave->numDataLinks(); link_num++) {
-        stave->socket_data_out[link_num].bind(RU->s_alpide_data_input[link_num]);
-        //RU->s_serial_data_input[link_num](new_chips[link_num]->s_serial_data_output);
+      for(unsigned int link_num = 0; link_num < stave.numDataLinks(); link_num++) {
+        stave.socket_data_out[link_num].bind(RU.s_alpide_data_input[link_num]);
 
-        s_alpide_data_lines.push_back(std::make_shared<sc_signal<sc_uint<24>>>("data_line"));
-        RU->s_serial_data_input[link_num](*s_alpide_data_lines.back());
-        new_chips[link_num]->s_serial_data_output(*s_alpide_data_lines.back());
+        unsigned int link_id = link_num + (sta_id * n_data_lines_per_stave);
+
+        RU.s_serial_data_input[link_num](s_alpide_data_lines[lay_id][link_id]);
+
+        new_chips[link_num]->s_serial_data_output(s_alpide_data_lines[lay_id][link_id]);
       }
 
       for(auto chip_it = new_chips.begin(); chip_it != new_chips.end(); chip_it++) {
@@ -245,7 +229,7 @@ void ITSDetector::triggerMethod(void)
 {
   for(unsigned int i = 0; i < N_LAYERS; i++) {
     for(auto RU = mReadoutUnits[i].begin(); RU != mReadoutUnits[i].end(); RU++) {
-      (*RU)->E_trigger_in.notify();
+      RU->E_trigger_in.notify();
     }
   }
 }

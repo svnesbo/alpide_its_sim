@@ -8,6 +8,9 @@
  *         Matthias Bonora's WP10 RU SystemC simulation code.
  */
 
+#ifndef ITS_MODULES_STAVES_HPP
+#define ITS_MODULES_STAVES_HPP
+
 #include <Alpide/Alpide.hpp>
 #include <Alpide/AlpideInterface.hpp>
 
@@ -103,3 +106,6 @@ namespace ITS {
   typedef MBOBStave<28> OuterBarrelStave;
 
 }
+
+
+#endif

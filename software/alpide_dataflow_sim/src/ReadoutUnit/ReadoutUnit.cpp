@@ -32,7 +32,6 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int stave_id,
                          unsigned int n_ctrl_links,
                          unsigned int n_data_links,
-                         unsigned int trigger_filter_time,
                          bool inner_barrel)
   : sc_core::sc_module(name)
   , s_alpide_control_output(n_ctrl_links)
@@ -43,7 +42,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   , mLayerId(layer_id)
   , mStaveId(stave_id)
   , mReadoutUnitTriggerDelay(0)
-  , mTriggerFilterTimeNs(trigger_filter_time)
+  , mTriggerFilterTimeNs(0)
   , mInnerBarrelMode(inner_barrel)
   , mAlpideLinkBusySignals(n_data_links)
 {
