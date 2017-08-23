@@ -42,7 +42,8 @@ public:
   DataInitiatorSocket s_data_output;
 
   ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
-  sc_out<bool> s_chip_ready_out;
+  //sc_out<bool> s_chip_ready_out;
+  sc_export<sc_signal<bool>> s_chip_ready_out;
 
   sc_out<sc_uint<24>> s_serial_data_output;
 

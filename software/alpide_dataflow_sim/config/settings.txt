@@ -21,7 +21,7 @@ hit_multiplicity_distribution_file=config/multipl_dist_raw_bins.txt
 hit_multiplicity_distribution_type=discrete
 hit_multiplicity_gauss_avg=2000
 hit_multiplicity_gauss_stddev=350
-random_hit_generation=false
+random_hit_generation=true
 strobe_active_length_ns=100
 strobe_inactive_length_ns=200
 trigger_delay_ns=100
@@ -30,8 +30,8 @@ trigger_filter_time_ns=10000
 
 [its]
 layer0_num_staves=12
-layer1_num_staves=16
-layer2_num_staves=20
+layer1_num_staves=0
+layer2_num_staves=0
 layer3_num_staves=0
 layer4_num_staves=0
 layer5_num_staves=0

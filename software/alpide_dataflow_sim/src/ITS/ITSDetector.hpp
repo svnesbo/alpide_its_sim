@@ -33,8 +33,7 @@ namespace ITS {
     std::vector<std::shared_ptr<Alpide>> mChipVector;
     std::vector<std::shared_ptr<ReadoutUnit>> mReadoutUnits[N_LAYERS];
     std::vector<std::shared_ptr<StaveInterface>> mLayers[N_LAYERS];
-
-    std::vector<std::unique_ptr<sc_fifo<BusyLinkWord>>> s_readout_unit_fifos;
+    std::vector<std::shared_ptr<sc_signal<sc_uint<24>>>> s_alpide_data_lines;
 
 
     void buildDetector(const detectorConfig& config, unsigned int trigger_filter_time);

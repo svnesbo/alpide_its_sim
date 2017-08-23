@@ -69,7 +69,10 @@ void ITSDetector::buildDetector(const detectorConfig& config,
   mChipVector.resize(CHIP_COUNT_TOTAL, nullptr);
 
   for(unsigned int i = 0; i < N_LAYERS; i++) {
+    std::cout << "Creating " << config.layer[i].num_staves << " staves for layer " << i << std::endl;
     for(unsigned int j = 0; j < config.layer[i].num_staves; j++) {
+      std::cout << "Creating Stave and RU " << i << ":" << j << std::endl;
+
       std::string coords_str = std::to_string(i) + ":" + std::to_string(j);;
       std::string ru_name = "RU_" + coords_str;
 
@@ -92,6 +95,8 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
       auto stave = mLayers[i].back();
 
+      stave->s_system_clk_in(s_system_clk_in);
+
       bool inner_barrel_mode = (i < 3);
 
       mReadoutUnits[i].push_back(std::make_shared<ReadoutUnit>(ru_name.c_str(),
@@ -102,15 +107,31 @@ void ITSDetector::buildDetector(const detectorConfig& config,
                                                                trigger_filter_time,
                                                                inner_barrel_mode));
 
-      auto RU = mReadoutUnits[i].back();
+
+
+      // Connect the busy in/out signals for the RUs in a daisy chain
+      if(j == config.layer[i].num_staves-1) {
+        // Connect busy input of first RU to busy output of last RU.
+        // If only 1 stave/RU was specified, this will actually connect
+        // the busy signals in a loopback configuration on the RU.
+        mReadoutUnits[i].front()->s_busy_in(mReadoutUnits[i].back()->s_busy_out);
+
+        std::cout << "Connecting s_busy_in on front RU (" << i << ":" << 0;
+        std::cout << " to s_busy_out on back RU (" << i << ":" << j << ")";
+        std::cout << std::endl;
+      }
 
       if(j > 0) {
-        ///@todo Connect busy chain of mReadoutUnits[i][j] to mReadoutUnits[i][j-1] here
+        // Connect busy input of current RU to busy output of previous RU.
+        // (Happens only when more than 1 stave/RU is specified).
+        mReadoutUnits[i][j]->s_busy_in(mReadoutUnits[i][j-1]->s_busy_out);
+
+        std::cout << "Connecting s_busy_in on RU " << i << ":" << j;
+        std::cout << " to s_busy_out on RU " << i << ":" << j-1;
+        std::cout << std::endl;
       }
 
-      if(j == config.layer[i].num_staves-1) {
-        ///@todo Connect busy chain of mReadoutUnits[i][j] to mReadoutUnits[i][0] here
-      }
+      auto RU = mReadoutUnits[i].back();
 
       RU->s_system_clk_in(s_system_clk_in);
 
@@ -118,14 +139,18 @@ void ITSDetector::buildDetector(const detectorConfig& config,
         RU->s_alpide_control_output[link_num].bind(stave->socket_control_in[link_num]);
       }
 
-      for(unsigned int link_num = 0; link_num < stave->numDataLinks(); link_num++) {
-        stave->socket_data_out[link_num].bind(RU->s_alpide_data_input[link_num]);
-      }
-
-
       // Get a vector of pointer to the Alpide chips created by the new stave,
       // and add them to a map of chip id vs Alpide chip object.
       auto new_chips = stave->getChips();
+
+      for(unsigned int link_num = 0; link_num < stave->numDataLinks(); link_num++) {
+        stave->socket_data_out[link_num].bind(RU->s_alpide_data_input[link_num]);
+        //RU->s_serial_data_input[link_num](new_chips[link_num]->s_serial_data_output);
+
+        s_alpide_data_lines.push_back(std::make_shared<sc_signal<sc_uint<24>>>("data_line"));
+        RU->s_serial_data_input[link_num](*s_alpide_data_lines.back());
+        new_chips[link_num]->s_serial_data_output(*s_alpide_data_lines.back());
+      }
 
       for(auto chip_it = new_chips.begin(); chip_it != new_chips.end(); chip_it++) {
         unsigned int chip_id = (*chip_it)->getChipId();

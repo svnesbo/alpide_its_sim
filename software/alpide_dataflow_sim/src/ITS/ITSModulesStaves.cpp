@@ -9,6 +9,7 @@
  */
 
 #include "ITSModulesStaves.hpp"
+#include "ITS_config.hpp"
 
 using namespace ITS;
 //using std::placeholders::_1;
@@ -21,9 +22,13 @@ InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
   socket_control_in[0].register_transport(
     std::bind(&InnerBarrelStave::processCommand, this, std::placeholders::_1));
 
-  for (int i = 0; i < 9; ++i) {
-    std::string name = "Chip_" + std::to_string(i);
-    mChips.emplace_back(new Alpide(name.c_str(), i, 128, 64, 0, 100, false, true, false, true));
+  for (int i = 0; i < 9; i++) {
+    int chip_id = detector_position_to_chip_id({layer_id, stave_id, 0, i});
+    std::string name = "Chip_" + std::to_string(chip_id);
+
+    std::cout << "Creating chip with ID " << chip_id << std::endl;
+
+    mChips.push_back(std::make_shared<Alpide>(name.c_str(), chip_id, 128, 64, 0, 100, false, true, false, true));
 
     // Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     //        int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
@@ -33,6 +38,7 @@ InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
     auto &chip = *mChips.back();
     socket_control_out[i].bind(chip.s_control_input);
     chip.s_data_output(socket_data_out[i]);
+    chip.s_system_clk_in(s_system_clk_in);
   }
 }
 

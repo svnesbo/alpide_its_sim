@@ -15,6 +15,7 @@ namespace ITS {
   struct StaveInterface : public sc_module {
     std::vector<ControlTargetSocket> socket_control_in;
     std::vector<DataInitiatorSocket> socket_data_out;
+    sc_in_clk s_system_clk_in;
 
     StaveInterface(sc_core::sc_module_name const &name,
                    unsigned int layer_id,
@@ -55,7 +56,7 @@ namespace ITS {
 
     virtual std::vector<std::shared_ptr<Alpide>> getChips(void) const
       {
-        return std::vector<std::shared_ptr<Alpide>>(0);
+        return mChips;
       }
 
   private:

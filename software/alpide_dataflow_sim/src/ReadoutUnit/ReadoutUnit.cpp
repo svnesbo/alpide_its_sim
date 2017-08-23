@@ -38,6 +38,8 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   , s_alpide_control_output(n_ctrl_links)
   , s_alpide_data_input(n_data_links)
   , s_serial_data_input(n_data_links)
+  , s_busy_in("busy_in")
+  , s_busy_out("busy_out")
   , mLayerId(layer_id)
   , mStaveId(stave_id)
   , mReadoutUnitTriggerDelay(0)
@@ -47,19 +49,17 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
 {
   mDataLinkParsers.resize(n_data_links);
 
-
   for(unsigned int i = 0; i < n_data_links; i++) {
     mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", false);
     mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
     mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
-    mDataLinkParsers[i]->s_link_busy_out(mAlpideLinkBusySignals[i]);
+    mAlpideLinkBusySignals[i](mDataLinkParsers[i]->s_link_busy_out);
   }
+
+  s_busy_out(s_busy_fifo_out);
 
   SC_METHOD(triggerInputMethod);
   sensitive << E_trigger_in;
-
-  SC_METHOD(busyChainMethod);
-  sensitive << s_busy_fifo_in->data_written_event();
 
   SC_METHOD(evaluateBusyStatusMethod);
   for(unsigned int i = 0; i < mAlpideLinkBusySignals.size(); i++) {
@@ -73,7 +73,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
 void ReadoutUnit::end_of_elaboration(void)
 {
   SC_METHOD(busyChainMethod);
-  sensitive << s_busy_fifo_in->data_written_event();
+  sensitive << s_busy_in->data_written_event();
 }
 
 
@@ -121,7 +121,7 @@ void ReadoutUnit::evaluateBusyStatusMethod(void)
   unsigned int busy_link_count = 0;
 
   for(unsigned int i = 0; i < mAlpideLinkBusySignals.size(); i++) {
-    if(mAlpideLinkBusySignals[i].read())
+    if(mAlpideLinkBusySignals[i]->read())
       busy_link_count++;
   }
 
@@ -135,13 +135,18 @@ void ReadoutUnit::evaluateBusyStatusMethod(void)
 
     uint64_t time_now = sc_time_stamp().value();
 
-    std::shared_ptr<BusyLinkWord> busy_word
-      = std::make_shared<BusyCountUpdate>(mId,
-                                          time_now,
-                                          mBusyLinkCount,
-                                          mLocalBusyStatus);
+    // std::shared_ptr<BusyLinkWord> busy_word
+    //   = std::make_shared<BusyCountUpdate>(mId,
+    //                                       time_now,
+    //                                       mBusyLinkCount,
+    //                                       mLocalBusyStatus);
 
-    s_busy_fifo_out->nb_write(busy_word);
+    BusyLinkWord busy_word = BusyCountUpdate(mId,
+                                             time_now,
+                                             mBusyLinkCount,
+                                             mLocalBusyStatus);
+
+    s_busy_fifo_out.nb_write(busy_word);
   }
 }
 
@@ -153,30 +158,31 @@ void ReadoutUnit::busyChainMethod(void)
   ///@todo Pass on busy event here, unless the busy event originated from this readout unit.
   ///@todo How can I implement a payload with these events? Maybe Matthias' structure is suitable for this?
 
-  std::shared_ptr<BusyLinkWord> busy_word;
-  s_busy_fifo_in->nb_read(busy_word);
+  BusyLinkWord busy_word;
 
-  if(busy_word) {
+  if(s_busy_in->nb_read(busy_word)) {
 
     // Ignore (and discard) busy words that originated from this readout unit
     // (ie. it has made the roundtrip through the busy chain)
-    if(busy_word->mOriginAddress != mId) {
-      std::shared_ptr<BusyCountUpdate> busy_count_word_ptr;
-      std::shared_ptr<BusyGlobalStatusUpdate> busy_global_word_ptr;
+    if(busy_word.mOriginAddress != mId) {
+      ///@todo Finish this..
 
-      busy_count_word_ptr = std::dynamic_pointer_cast<BusyCountUpdate>(busy_word);
-      busy_global_word_ptr = std::dynamic_pointer_cast<BusyGlobalStatusUpdate>(busy_word);
+      // std::shared_ptr<BusyCountUpdate> busy_count_word_ptr;
+      // std::shared_ptr<BusyGlobalStatusUpdate> busy_global_word_ptr;
 
-      // Find out what kind of busy word we're dealing with, and process it
-      if(busy_count_word_ptr) {
-        ///@todo What should we do with busy count updates from other RU's?
-        /// Do something smart here..
-      } else if (busy_global_word_ptr) {
-        mGlobalBusyStatus = busy_global_word_ptr->mGlobalBusyStatus;
-      }
+      // busy_count_word_ptr = std::dynamic_pointer_cast<BusyCountUpdate>(busy_word);
+      // busy_global_word_ptr = std::dynamic_pointer_cast<BusyGlobalStatusUpdate>(busy_word);
+
+      // // Find out what kind of busy word we're dealing with, and process it
+      // if(busy_count_word_ptr) {
+      //   ///@todo What should we do with busy count updates from other RU's?
+      //   /// Do something smart here..
+      // } else if (busy_global_word_ptr) {
+      //   mGlobalBusyStatus = busy_global_word_ptr->mGlobalBusyStatus;
+      // }
     }
 
     // Pass the busy word down the daisy chain link
-    s_busy_fifo_out->nb_write(busy_word);
+    s_busy_fifo_out.nb_write(busy_word);
   }
 }

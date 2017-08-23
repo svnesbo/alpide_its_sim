@@ -42,6 +42,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   mChipId = chip_id;
   mEnableDtuDelay = dtu_delay_cycles > 0;
 
+  s_chip_ready_out(s_chip_ready_internal);
 
   s_event_buffers_used_debug = 0;
   s_total_number_of_hits = 0;
@@ -140,7 +141,7 @@ void Alpide::mainMethod(void)
   updateBusyStatus();
 
   // For the stimuli class to work properly this needs to be delayed one clock cycle
-  s_chip_ready_out = s_chip_ready_internal;
+  //s_chip_ready_out = s_chip_ready_internal;
 }
 
 
@@ -517,7 +518,7 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss << name_prefix << "alpide_" << mChipId << ".";
   std::string alpide_name_prefix = ss.str();
 
-  addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);
+  //addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);
   addTrace(wf, alpide_name_prefix, "chip_ready_internal", s_chip_ready_internal);
   addTrace(wf, alpide_name_prefix, "serial_data_output", s_serial_data_output);
   addTrace(wf, alpide_name_prefix, "event_buffers_used_debug", s_event_buffers_used_debug);
