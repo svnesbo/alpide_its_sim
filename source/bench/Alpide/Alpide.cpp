@@ -31,6 +31,8 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
                bool matrix_readout_speed)
   : sc_core::sc_module(name)
   , PixelMatrix(continuous_mode)
+  , s_control_input("s_control_input")
+  , s_data_output("s_data_output")
   , s_chip_ready_out("chip_ready_out")
   , s_dmu_fifo(dmu_fifo_size)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)

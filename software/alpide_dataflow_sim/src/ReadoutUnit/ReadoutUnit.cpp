@@ -53,6 +53,9 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
     mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
     mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
     mAlpideLinkBusySignals[i](mDataLinkParsers[i]->s_link_busy_out);
+
+    s_alpide_data_input[i].register_put(
+      std::bind(&ReadoutUnit::alpideDataSocketInput, this, std::placeholders::_1));
   }
 
   s_busy_out(s_busy_fifo_out);
@@ -73,6 +76,14 @@ void ReadoutUnit::end_of_elaboration(void)
 {
   SC_METHOD(busyChainMethod);
   sensitive << s_busy_in->data_written_event();
+}
+
+
+///@brief Dummy callback function for the Alpide data socket. Not used here.
+void ReadoutUnit::alpideDataSocketInput(const DataPayload &pl)
+{
+  // Do nothing
+  std::cout << "Received some Alpide data" << std::endl;
 }
 
 

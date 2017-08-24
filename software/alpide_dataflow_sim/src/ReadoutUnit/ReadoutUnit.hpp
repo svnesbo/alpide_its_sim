@@ -79,6 +79,7 @@ private:
   std::vector<sc_export<sc_signal<bool>>> mAlpideLinkBusySignals;
 
   void sendTrigger(void);
+  void alpideDataSocketInput(const DataPayload &pl);
 
   void evaluateBusyStatusMethod(void);
   void triggerInputMethod(void);
