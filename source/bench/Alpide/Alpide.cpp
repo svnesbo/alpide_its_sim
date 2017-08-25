@@ -125,9 +125,9 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   sensitive << E_strobe_interval_done;
   dont_initialize();
 
-  SC_METHOD(strobeAndFramingMethod);
-  sensitive << s_strobe_n;
-  dont_initialize();
+  // SC_METHOD(strobeAndFramingMethod);
+  // sensitive << s_strobe_n;
+  // dont_initialize();
 
 }
 
@@ -143,6 +143,7 @@ void Alpide::newEvent(uint64_t event_time)
 ///@todo Implement more advanced data transmission method.
 void Alpide::mainMethod(void)
 {
+  strobeInput();
   frameReadout();
   dataTransmission();
   updateBusyStatus();
@@ -180,16 +181,10 @@ void Alpide::triggerMethod(void)
     // Strobe not active - start new interval
     //s_strobe_n = false;
     E_strobe_interval_done.notify(0, SC_NS);
-    E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
   } else if(s_strobe_n.read() == false) {
     // Strobe already active
     if(mStrobeExtensionEnable) {
       E_strobe_interval_done.cancel();
-
-      // If an E_strobe_interval_done event already happened the same cycle, then
-      // strobeDurationMethod() could have written false to s_strobe_n already, but it would not
-      // have updated yet, so make sure it stays active (false/low).
-      //s_strobe_n = false;
       E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
     } else {
       mTriggersRejected++;
@@ -200,7 +195,14 @@ void Alpide::triggerMethod(void)
 
 void Alpide::strobeDurationMethod(void)
 {
-  s_strobe_n = !s_strobe_n;
+  if(s_strobe_n.read() == true) {
+    // Strobe was inactive - start of strobing interval
+    s_strobe_n = false;
+    E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
+  } else {
+    // Strobe was active - end of strobing interval
+    s_strobe_n = true;
+  }
 }
 
 
@@ -210,7 +212,7 @@ void Alpide::strobeDurationMethod(void)
 ///       Unit) in the Alpide chip.
 ///       Note: it is assumed that STROBE is synchronous to the clock.
 ///       It will not be "dangerous" if it is not, but it will deviate from the real chip implementation.
-void Alpide::strobeAndFramingMethod(void)
+void Alpide::strobeInput(void)
 {
   int64_t time_now = sc_time_stamp().value();
 
@@ -336,8 +338,8 @@ void Alpide::strobeAndFramingMethod(void)
 
 
 ///@brief Frame readout SystemC method @ 40MHz (system clock).
-///       Together with the strobeProcess, this function essentially does the same job as the
-///       FROMU (Frame Read Out Management Unit) in the Alpide chip.
+///       Together with the strobeAndFramingMethod, this function essentially
+///       does the same job as the FROMU (Frame Read Out Management Unit) in the Alpide chip.
 void Alpide::frameReadout(void)
 {
   uint64_t time_now = sc_time_stamp().value();

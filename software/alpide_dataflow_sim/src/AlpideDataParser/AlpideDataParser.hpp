@@ -61,7 +61,7 @@ public:
   AlpideEventFrame() : mFrameCompleted(false) {}
   bool pixelHitInEvent(PixelData& pixel) const;
   void setFrameCompleted(bool val) {mFrameCompleted = val;}
-  bool getFrameCompleted(void) {return mFrameCompleted;}
+  bool getFrameCompleted(void) const {return mFrameCompleted;}
   unsigned int getEventSize(void) const {return mPixelDataSet.size();}
   void addPixelHit(const PixelData& pixel) {
     mPixelDataSet.insert(pixel);
@@ -82,22 +82,24 @@ private:
   unsigned int mCurrentRegion = 0;
 
   // Counters for statistics
-  long mCommaCount;
-  long mIdleCount;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
-  long mIdleByteCount;    // Idle word byte counts
-  long mBusyOnCount;
-  long mBusyOffCount;
-  long mDataShortCount;
-  long mDataLongCount;
-  long mRegionHeaderCount;
-  long mChipHeaderCount;
-  long mChipTrailerCount;
-  long mChipEmptyFrameCount;
-  long mUnknownDataWordCount;
+  long mCommaCount = 0;
+  long mIdleCount = 0;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
+  long mIdleByteCount = 0;    // Idle word byte counts
+  long mBusyOnCount = 0;
+  long mBusyOffCount = 0;
+  long mDataShortCount = 0;
+  long mDataLongCount = 0;
+  long mRegionHeaderCount = 0;
+  long mChipHeaderCount = 0;
+  long mChipTrailerCount = 0;
+  long mChipEmptyFrameCount = 0;
+  long mUnknownDataWordCount = 0;
+
+  bool mSaveEvents;
 
 protected:
-  bool mBusyStatus;
-  bool mBusyStatusChanged;
+  bool mBusyStatus = false;
+  bool mBusyStatusChanged = false;
 
 public:
   unsigned int getNumEvents(void) const;
@@ -105,6 +107,7 @@ public:
   void popEvent(void);
   void inputDataWord(AlpideDataWord dw);
   AlpideDataParsed parseDataWord(AlpideDataWord dw);
+  AlpideEventBuilder(bool save_events) : mSaveEvents(save_events) {}
 private:
   AlpideDataTypes parseNonHeaderBytes(uint8_t data);
 };

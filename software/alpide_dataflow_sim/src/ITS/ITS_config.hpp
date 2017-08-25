@@ -58,6 +58,40 @@ namespace ITS {
   }
 
 
+  inline detectorPosition chip_id_to_detector_position(unsigned int chip_id) {
+    unsigned int layer_id = 0;
+    unsigned int stave_id = 0;
+    unsigned int module_id = 0;
+    unsigned int chip_num_in_stave = 0;
+    unsigned int chip_num_in_module = 0;
+
+    while(layer_id < N_LAYERS-1) {
+      if(chip_id < CUMULATIVE_CHIP_COUNT_AT_LAYER[layer_id+1])
+        break;
+      else
+        layer_id++;
+    }
+
+    unsigned int chip_num_in_layer = chip_id;
+
+    if(layer_id > 0)
+      chip_num_in_layer -= CUMULATIVE_CHIP_COUNT_AT_LAYER[layer_id];
+
+    stave_id = chip_num_in_layer / CHIPS_PER_STAVE_IN_LAYER[layer_id];
+    chip_num_in_stave = chip_num_in_layer % CHIPS_PER_STAVE_IN_LAYER[layer_id];
+
+    module_id = chip_num_in_stave / CHIPS_PER_MODULE_IN_LAYER[layer_id];
+    chip_num_in_module = chip_num_in_stave % CHIPS_PER_MODULE_IN_LAYER[layer_id];
+
+    detectorPosition pos = {layer_id,
+                            stave_id,
+                            module_id,
+                            chip_num_in_module};
+
+    return pos;
+  }
+
+
   ///@brief Creator class for ReadoutUnit objects.
   /// Used to create initialized ReadoutUnit objects when
   /// initializing sc_vector of ReadoutUnit.

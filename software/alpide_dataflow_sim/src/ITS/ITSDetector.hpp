@@ -35,6 +35,7 @@ namespace ITS {
     sc_vector<StaveInterface> mDetectorStaves[N_LAYERS];
     sc_vector<sc_signal<sc_uint<24>>> s_alpide_data_lines[N_LAYERS];
 
+    unsigned int mNumChips;
 
     void buildDetector(const detectorConfig& config, unsigned int trigger_filter_time);
     void verifyDetectorConfig(const detectorConfig& config) const;
@@ -50,7 +51,7 @@ namespace ITS {
     void setPixel(const ITSPixelHit& h);
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);
     void setPixel(const detectorPosition& pos, unsigned int row, unsigned int col);
-    unsigned int getNumChips(void) const { return mChipVector.size(); }
+    unsigned int getNumChips(void) const { return mNumChips; }
   };
 
 }

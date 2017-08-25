@@ -53,7 +53,9 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   mDataLinkParsers.resize(n_data_links);
 
   for(unsigned int i = 0; i < n_data_links; i++) {
+    // Data parsers should not save events, that just eats memory.. :(
     mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", false);
+
     mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
     mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
     mAlpideLinkBusySignals[i](mDataLinkParsers[i]->s_link_busy_out);

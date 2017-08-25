@@ -33,9 +33,6 @@
 
 using std::int64_t;
 
-// 108 chips in innermost layer
-#define N_CHIPS 108
-
 ///@brief   A simple event generator for Alpide SystemC simulation model.
 ///@details Physics events are generated at a rate that has an exponential distribution,
 ///         with Lambda = 1 / average rate.

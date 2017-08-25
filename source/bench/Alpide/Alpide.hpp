@@ -147,7 +147,7 @@ private:
   void mainMethod(void);
   void triggerMethod(void);
   void strobeDurationMethod(void);
-  void strobeAndFramingMethod(void);
+  void strobeInput(void);
 
   void frameReadout(void); // FROMU
   void dataTransmission(void);

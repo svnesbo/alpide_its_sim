@@ -6,6 +6,7 @@
  */
 
 #include "EventGenerator.hpp"
+#include "../ITS/ITS_config.hpp"
 #include "Alpide/alpide_constants.hpp"
 #include <boost/current_function.hpp>
 #include <boost/random/random_device.hpp>
@@ -401,7 +402,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
       }
 
 
-      ITS::detectorPosition pos = {0, 0, 0, 0};
+      ITS::detectorPosition pos = ITS::chip_id_to_detector_position(rand_chip_id);
 
       ///@todo Create hits for all chips properly here!!
       mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
@@ -428,23 +429,17 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
       const int &chip_id = digit_it->first;
       const PixelData &pix = digit_it->second;
 
-      if(chip_id == 5) {
-        // mHitVector[chip_id].emplace_back(pix.getCol(), pix.getRow(),
-        //                                 mLastPhysicsEventTimeNs,
-        //                                 mPixelDeadTime,
-        //                                 mPixelActiveTime);
+      ITS::detectorPosition pos = ITS::chip_id_to_detector_position(chip_id);
 
-        ITS::detectorPosition pos = {0, 0, 0, 0};
+      mHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
+                              mLastPhysicsEventTimeNs,
+                              mPixelDeadTime,
+                              mPixelActiveTime);
 
-        mHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
-                                mLastPhysicsEventTimeNs,
-                                mPixelDeadTime,
-                                mPixelActiveTime);
+      // Update statistics. We only get pixel digits from MC events,
+      // no traces, so only this counter is used.
+      chip_pixel_hit_counts[chip_id]++;
 
-        // Update statistics. We only get pixel digits from MC events,
-        // no traces, so only this counter is used.
-        chip_pixel_hit_counts[chip_id]++;
-      }
       digit_it++;
     }
   }

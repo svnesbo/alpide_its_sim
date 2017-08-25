@@ -145,6 +145,7 @@ void ITSDetector::buildDetector(const detectorConfig& config,
         }
 
         mChipVector[chip_id] = *chip_it;
+        mNumChips++;
       }
     }
   }

@@ -27,9 +27,20 @@ bool AlpideEventFrame::pixelHitInEvent(PixelData& pixel) const
 }
 
 
+///@brief Get number of events stored in event builder.
+///       Only events that have been completed (fully received)
+///       are taken into consideration.
+///@return Number of (completed) events
 unsigned int AlpideEventBuilder::getNumEvents(void) const
 {
-  return mEvents.size();
+  unsigned int num_events = mEvents.size();
+
+  if(num_events > 0) {
+    if(mEvents.back().getFrameCompleted() == false)
+      num_events--;
+  }
+
+  return num_events;
 }
 
 
@@ -71,6 +82,9 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
   switch(data_parsed.data[2]) {
   case ALPIDE_CHIP_HEADER1:
     //std::cout << "Got ALPIDE_CHIP_HEADER1: " << data_bits << std::endl;
+    if(mSaveEvents == false && mEvents.empty() != true) {
+      mEvents.clear();
+    }
     mEvents.push_back(AlpideEventFrame());
     break;
 
@@ -83,6 +97,10 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
   case ALPIDE_CHIP_EMPTY_FRAME1:
     //std::cout << "Got ALPIDE_CHIP_EMPTY_FRAME1: " << data_bits << std::endl;
     // Create an empty event frame
+    if(mSaveEvents == false && mEvents.empty() != true) {
+      mEvents.clear();
+    }
+
     mEvents.push_back(AlpideEventFrame());
     mEvents.back().setFrameCompleted(true);
     break;
@@ -301,6 +319,7 @@ SC_HAS_PROCESS(AlpideDataParser);
 ///            or just discard them.
 AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name, bool save_events)
   : sc_core::sc_module(name)
+  , AlpideEventBuilder(save_events)
 {
   s_link_busy_out(s_link_busy);
 
