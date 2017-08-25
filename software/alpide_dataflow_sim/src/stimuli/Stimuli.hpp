@@ -14,6 +14,7 @@
 #include "Alpide/Alpide.hpp"
 #include "../event/EventGenerator.hpp"
 #include "../ITS/ITSDetector.hpp"
+#include "../ITS/ITSModulesStaves.hpp"
 #include <QSettings>
 #include <string>
 
@@ -24,15 +25,19 @@ public:
   sc_signal<bool> s_physics_event;
   sc_signal<bool> s_its_busy;
 
+  // Only used in single chip simulation
+  sc_signal<bool> s_alpide_data_line;
+
 private:
-  ///@todo Remove?
-  //  sc_event E_physics_event;   // Event Gen to Stim class
-
-  sc_event E_physics_trigger; // EventGenerator physics event to CTP
-  sc_event E_CTP_trigger;     // CTP to detector/chip
-
   EventGenerator *mEventGen;
+
+  // mITS is only used for detector simulation
   ITS::ITSDetector *mITS;
+
+  // mReadoutUnit and mAlpide is only used for
+  // single chip simulations
+  ReadoutUnit *mReadoutUnit;
+  ITS::SingleChip *mAlpide;
 
   const QSettings* mSettings;
   std::string mOutputPath;

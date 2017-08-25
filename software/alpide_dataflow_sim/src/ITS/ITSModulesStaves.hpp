@@ -46,6 +46,40 @@ namespace ITS {
   };
 
 
+  struct SingleChip : public StaveInterface
+  {
+    sc_export<sc_signal<sc_uint<24>>> s_alpide_data_out_exp;
+
+    SingleChip(sc_core::sc_module_name const &name, int chip_id,
+               int region_fifo_size, int dmu_fifo_size, int dtu_delay_cycles,
+               int strobe_length_ns, bool strobe_extension,
+               bool enable_clustering, bool continuous_mode,
+               bool matrix_readout_speed);
+
+    virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const
+      {
+
+      }
+
+    virtual std::vector<std::shared_ptr<Alpide>> getChips(void) const
+      {
+        std::vector<std::shared_ptr<Alpide>> vec;
+
+        vec.push_back(mChip);
+
+        return vec;
+      }
+
+    void pixelInput(const Hit& h);
+
+  private:
+    ControlResponsePayload processCommand(ControlRequestPayload const &request);
+
+    std::shared_ptr<Alpide> mChip;
+    ControlInitiatorSocket socket_control_out;
+  };
+
+
   struct InnerBarrelStave : public StaveInterface
   {
     InnerBarrelStave(sc_core::sc_module_name const &name,

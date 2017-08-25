@@ -50,6 +50,7 @@ namespace ITS {
     void setPixel(const ITSPixelHit& h);
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);
     void setPixel(const detectorPosition& pos, unsigned int row, unsigned int col);
+    unsigned int getNumChips(void) const { return mChipVector.size(); }
   };
 
 }

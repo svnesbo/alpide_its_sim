@@ -7,10 +7,11 @@ pixel_shaping_active_time_ns=6000
 pixel_shaping_dead_time_ns=200
 region_fifo_size=128
 region_size=32
+strobe_extension_enable=false
 
 [data_output]
-write_event_csv=true
-write_vcd=true
+write_event_csv=false
+write_vcd=false
 write_vcd_clock=false
 
 [event]
@@ -39,7 +40,6 @@ layer6_num_staves=0
 
 [simulation]
 continuous_mode=false
-n_chips=1
-n_events=10
+n_events=1000
 random_seed=0
 single_chip=false

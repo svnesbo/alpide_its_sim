@@ -45,7 +45,7 @@ public:
   //sc_out<bool> s_chip_ready_out;
   sc_export<sc_signal<bool>> s_chip_ready_out;
 
-  sc_out<sc_uint<24>> s_serial_data_output;
+  sc_export<sc_signal<sc_uint<24>>> s_serial_data_out_exp;
 
 private:
   sc_signal<sc_uint<8>> s_fromu_readout_state;
@@ -89,6 +89,7 @@ private:
   sc_fifo<AlpideDataWord> s_dmu_fifo;
 
   sc_signal<sc_uint<24>> s_serial_data_dtu_input_debug;
+  sc_signal<sc_uint<24>> s_serial_data_out;
 
   ///@brief FIFO used to represent the encoding delay in the DTU
   sc_fifo<AlpideDataWord> s_dtu_delay_fifo;

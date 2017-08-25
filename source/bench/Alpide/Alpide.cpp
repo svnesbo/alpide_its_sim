@@ -46,6 +46,8 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 
   s_chip_ready_out(s_chip_ready_internal);
 
+  s_serial_data_out_exp(s_serial_data_out);
+
   s_event_buffers_used_debug = 0;
   s_total_number_of_hits = 0;
   s_oldest_event_number_of_hits = 0;
@@ -453,7 +455,7 @@ void Alpide::dataTransmission(void)
     }
 
     data_out = dw_dtu.data[2] << 16 | dw_dtu.data[1] << 8 | dw_dtu.data[0];
-    s_serial_data_output = data_out;
+    s_serial_data_out = data_out;
 
     // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
     if(s_dmu_fifo.nb_read(dw_dmu) == false) {
@@ -474,7 +476,7 @@ void Alpide::dataTransmission(void)
     }
     data_out = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
     s_serial_data_dtu_input_debug = data_out;
-    s_serial_data_output = data_out;
+    s_serial_data_out = data_out;
   }
 
   // Data initiator socket output
@@ -530,7 +532,7 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 
   //addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);
   addTrace(wf, alpide_name_prefix, "chip_ready_internal", s_chip_ready_internal);
-  addTrace(wf, alpide_name_prefix, "serial_data_output", s_serial_data_output);
+  addTrace(wf, alpide_name_prefix, "serial_data_out", s_serial_data_out);
   addTrace(wf, alpide_name_prefix, "event_buffers_used_debug", s_event_buffers_used_debug);
   addTrace(wf, alpide_name_prefix, "frame_start_fifo_size_debug", s_frame_start_fifo_size_debug);
   addTrace(wf, alpide_name_prefix, "frame_end_fifo_size_debug", s_frame_end_fifo_size_debug);

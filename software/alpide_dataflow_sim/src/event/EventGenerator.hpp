@@ -88,6 +88,7 @@ private:
   EventXML mMonteCarloEvents;
 
   bool mRandomHitGeneration;
+  double mMultDistScale;
   int mHitMultiplicityGaussAverage;
   int mHitMultiplicityGaussDeviation;
 
@@ -109,6 +110,7 @@ private:
 public:
   EventGenerator(sc_core::sc_module_name name,
                  const QSettings* settings,
+                 unsigned int num_chips,
                  std::string output_path);
   ~EventGenerator();
   const EventFrame& getNextEventFrame(void);
@@ -126,8 +128,7 @@ private:
   uint64_t generateNextPhysicsEvent(uint64_t time_now);
   void readDiscreteDistributionFile(const char* filename,
                                     std::vector<double> &dist_vector) const;
-  void scaleDiscreteDistribution(std::vector<double> &dist_vector,
-                                 double new_mean_value);
+  double normalizeDiscreteDistribution(std::vector<double> &dist_vector);
   unsigned int getRandomMultiplicity(void);
   void calculateAverageCrossingRate(void);
   void eventMemoryCountLimiter(void);

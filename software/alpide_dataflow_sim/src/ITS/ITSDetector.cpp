@@ -130,9 +130,7 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
         unsigned int link_id = link_num + (sta_id * n_data_lines_per_stave);
 
-        RU.s_serial_data_input[link_num](s_alpide_data_lines[lay_id][link_id]);
-
-        new_chips[link_num]->s_serial_data_output(s_alpide_data_lines[lay_id][link_id]);
+        RU.s_serial_data_input[link_num](new_chips[link_num]->s_serial_data_out_exp);
       }
 
       for(auto chip_it = new_chips.begin(); chip_it != new_chips.end(); chip_it++) {

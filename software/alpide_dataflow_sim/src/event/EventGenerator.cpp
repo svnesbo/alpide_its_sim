@@ -35,6 +35,7 @@ SC_HAS_PROCESS(EventGenerator);
 ///@param[in] output_path Directory path to store simulation output data in
 EventGenerator::EventGenerator(sc_core::sc_module_name name,
                                const QSettings* settings,
+                               unsigned int num_chips,
                                std::string output_path)
   : sc_core::sc_module(name)
 {
@@ -46,7 +47,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
   mPixelDeadTime = settings->value("alpide/pixel_shaping_dead_time_ns").toInt();
   mPixelActiveTime = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
-  mNumChips = settings->value("simulation/n_chips").toInt();
+  mNumChips = num_chips;
 
   mContinuousMode = settings->value("simulation/continuous_mode").toBool();
 
@@ -84,8 +85,10 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       std::cout << "\tits_layer_area: " << its_layer_area;
       std::cout << "\tavg_hits_per_event: " << avg_hits_per_event << std::endl;
       std::cout << "Number of bins in distribution before scaling: " << mult_dist.size() << std::endl;
-      scaleDiscreteDistribution(mult_dist, avg_hits_per_event);
-      std::cout << "Number of bins in distribution after scaling: " << mult_dist.size() << std::endl;
+      //scaleDiscreteDistribution(mult_dist, avg_hits_per_event);
+      double multpl_dist_mean = normalizeDiscreteDistribution(mult_dist);
+      mMultDistScale = avg_hits_per_event / multpl_dist_mean;
+      std::cout << "Multiplicity distribution scaling factor: " << mMultDistScale << std::endl;
 
       mRandHitMultiplicityDiscrete = new discrete_distribution<>(mult_dist.begin(), mult_dist.end());
 
@@ -282,18 +285,18 @@ void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vec
 }
 
 
-///@brief Scale the x axis of a discrete distribution,
-///       so that the distribution gets a new mean value.
-///@param[in,out] dist_vector Distribution to scale. The original distribution in
-///               this vector will be overwritten and replaced with the new, scaled, distribution.
-///@param[in] new_mean_value The desired mean value of the new distribution.
+///@brief Scale the probabilities (y-values) of a discrete distribution,
+///       to normalize it to 1.0 probability.
+///@param[in,out] dist_vector Distribution to normalize. The original distribution in
+///               this vector will be overwritten and replaced with the new, normalized, distribution.
 ///@throw runtime_error If dist_vector is empty, a runtime_error is thrown.
-void EventGenerator::scaleDiscreteDistribution(std::vector<double> &dist_vector, double new_mean_value)
+///@return Mean value in normalized distribution
+double EventGenerator::normalizeDiscreteDistribution(std::vector<double> &dist_vector)
 {
-  double old_probability_sum = 0.0;
-  double old_probability_sum_fixed = 0.0;
-  double old_mean_value = 0.0;
-  double old_mean_value_fixed = 0.0;
+  double probability_sum = 0.0;
+  double probability_sum_normalized = 0.0;
+  double mean_value = 0.0;
+  double mean_value_normalized = 0.0;
   double resulting_mean_value = 0.0;
   std::vector<double> new_dist_vector;
   std::map<double, double> scaled_dist_map;
@@ -303,86 +306,25 @@ void EventGenerator::scaleDiscreteDistribution(std::vector<double> &dist_vector,
 
   // First calculate mean value in current distribution
   for(unsigned int i = 0; i < dist_vector.size(); i++) {
-    old_mean_value += i*dist_vector[i];
-    old_probability_sum += dist_vector[i];
+    mean_value += i*dist_vector[i];
+    probability_sum += dist_vector[i];
   }
-  std::cout << "Mean value in original distribution: " << old_mean_value << std::endl << std::endl;
-
-  std::cout << "Probability sum/integral in original distribution: " << old_probability_sum << std::endl;
+  std::cout << "Mean value in original distribution: " << mean_value << std::endl << std::endl;
+  std::cout << "Hit density in original distribution: " << mean_value/4.5 << std::endl << std::endl;
+  std::cout << "Probability sum/integral in original distribution: " << probability_sum << std::endl;
 
   // Normalize the area of the probability curve to 1.0
   for(unsigned int i = 0; i < dist_vector.size(); i++) {
-    dist_vector[i] /= old_probability_sum;
-    old_mean_value_fixed += i*dist_vector[i];
-    old_probability_sum_fixed += dist_vector[i];
+    dist_vector[i] /= probability_sum;
+    mean_value_normalized += i*dist_vector[i];
+    probability_sum_normalized += dist_vector[i];
   }
 
-  std::cout << "Mean value in original distribution (fixed): " << old_mean_value_fixed << std::endl << std::endl;
+  std::cout << "Mean value in original distribution (normalized): " << mean_value_normalized << std::endl << std::endl;
+  std::cout << "Hit density in original distribution (normalized): " << mean_value_normalized/4.5 << std::endl << std::endl;
+  std::cout << "Probability sum/integral in original distribution (normalized): " << probability_sum_normalized << std::endl;
 
-  std::cout << "Probability sum/integral in original distribution (fixed): " << old_probability_sum_fixed << std::endl;
-
-  std::cout << "scaled_dist_map: " << std::endl;
-
-  double scale_factor = new_mean_value / old_mean_value_fixed;
-
-  // Size the new vector correctly
-  // Calculate a position in the old distribution, as a floating point value. Since we only have discrete
-  // values, use the decimal part to pick a certain amount from the previous index and the next index.
-  new_dist_vector.resize(dist_vector.size()*scale_factor);
-  double sum = 0.0;
-  for(unsigned int x_new = 0; x_new < new_dist_vector.size(); x_new++) {
-    // x_new: X value in new distribution (scaled)
-    // x_old: X value in old distribution (before scaling)
-    double x_old_decimal = x_new/scale_factor;
-    unsigned int x_old_int = (unsigned int)(x_old_decimal);
-    double x_old_remainder = x_old_decimal-x_old_int;
-    double y_new;
-
-    // Use the first and last entry directly
-    if(x_new == 0)
-      y_new = dist_vector.front();
-    else if(x_new == new_dist_vector.size()-1)
-      y_new = dist_vector.back();
-    else
-      // If the new value essentially lies between two values in the old distribution
-      // (after dividing by scaling factor), we calculate the this position would have if we
-      // drew a straight line between the value before and after.
-      y_new = dist_vector[x_old_int] + x_old_remainder*(dist_vector[x_old_int+1] - dist_vector[x_old_int]);
-
-    new_dist_vector[x_new] = y_new;
-
-    // Don't scale bin 0, because the probability of 0 hits should not change
-    // just because the distribution is scaled to a higher mean value.
-    if(x_new > 0)
-      new_dist_vector[x_new] /= scale_factor;
-
-    // Integrate over distribution vector as we go.
-    // All bins have width 1, and ideally the probability should sum up to be 1.0.
-    sum += new_dist_vector[x_new];
-  }
-
-  std::cout << "New distribution integral/sum: " << sum << std::endl;
-
-  /// @todo This changes the mean value slightly.. and the sum isn't that far
-  ///       off 1.0 before this anyway...
-  /*
-  double new_sum = 0.0;
-  // Normalize the area of the probability curve to 1.0, because after scaling
-  // the sum might have changed slightly.
-  for(unsigned int i = 0; i < new_dist_vector.size(); i++) {
-    new_dist_vector[i] /= sum;
-    new_sum += new_dist_vector[i];
-  }
-  std::cout << "New distribution normalized sum: " << new_sum << std::endl;
-  */
-
-  // Calculate mean value in new distribution
-  for(unsigned int i = 0; i < new_dist_vector.size(); i++) {
-    resulting_mean_value += i*new_dist_vector[i];
-  }
-  std::cout << "Mean value in new distribution: " << resulting_mean_value << std::endl << std::endl;
-
-  dist_vector = new_dist_vector;
+  return mean_value_normalized;
 }
 
 
@@ -393,9 +335,11 @@ void EventGenerator::scaleDiscreteDistribution(std::vector<double> &dist_vector,
 ///                      a multiplicity distribution initialized.
 unsigned int EventGenerator::getRandomMultiplicity(void)
 {
-  if(mRandHitMultiplicityDiscrete != nullptr)
-    return (*mRandHitMultiplicityDiscrete)(mRandHitMultiplicityGen);
-
+  if(mRandHitMultiplicityDiscrete != nullptr) {
+    unsigned int n_hits = (*mRandHitMultiplicityDiscrete)(mRandHitMultiplicityGen);
+    n_hits *= mMultDistScale;
+    return n_hits;
+  }
   else if(mRandHitMultiplicityGauss != nullptr)
     return (*mRandHitMultiplicityGauss)(mRandHitMultiplicityGen);
 

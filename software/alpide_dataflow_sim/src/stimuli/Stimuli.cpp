@@ -42,24 +42,46 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();
   mTriggerDelayNs = settings->value("event/trigger_delay_ns").toInt();
 
-  // Instantiate event generator object
-  mEventGen = new EventGenerator("event_gen", settings, mOutputPath);
+  unsigned int trigger_filter_time = settings->value("event/trigger_filter_time_ns").toInt();
+  int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
+  int dmu_fifo_size = settings->value("alpide/dmu_fifo_size").toInt();
+  int dtu_delay = settings->value("alpide/dtu_delay").toInt();
+  bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
+  bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
+  bool strobe_extension = settings->value("alpide/strobe_extension_enable").toBool();
 
   if(mSingleChipSimulation) {
-    ///@todo Implement single chip simulation
-    // mAlpideChip = new Alpide("alpide",
-    //                          i,
-    //                          region_fifo_size,
-    //                          dmu_fifo_size,
-    //                          dtu_delay,
-    //                          enable_clustering,
-    //                          mContinuousMode,
-    //                          matrix_readout_speed);
+    mAlpide = new ITS::SingleChip("SingleChip",
+                                  0,
+                                  region_fifo_size,
+                                  dmu_fifo_size,
+                                  dtu_delay,
+                                  mStrobeActiveNs,
+                                  strobe_extension,
+                                  enable_clustering,
+                                  mContinuousMode,
+                                  matrix_readout_speed);
 
-    // mAlpideChips->s_system_clk_in(clock);
-    // mAlpideChips->s_chip_ready_out(s_chip_ready[i]);
-    // mAlpideChips->s_serial_data_output(s_alpide_serial_data[i]);
-  } else {
+    mAlpide->s_system_clk_in(clock);
+
+    mReadoutUnit = new ReadoutUnit("RU",
+                                   0,
+                                   0,
+                                   1,
+                                   1,
+                                   trigger_filter_time,
+                                   true);
+
+    mReadoutUnit->s_busy_in(mReadoutUnit->s_busy_out);
+    mReadoutUnit->s_system_clk_in(clock);
+    mReadoutUnit->s_serial_data_input[0](mAlpide->s_alpide_data_out_exp);
+    mReadoutUnit->s_alpide_control_output[0].bind(mAlpide->socket_control_in[0]);
+    mAlpide->socket_data_out[0].bind(mReadoutUnit->s_alpide_data_input[0]);
+
+    // Instantiate event generator object for 1 chip
+    mEventGen = new EventGenerator("event_gen", settings, 1, mOutputPath);
+  }
+  else { // ITS Detector Simulation
     ITS::detectorConfig config;
     config.layer[0].num_staves = settings->value("its/layer0_num_staves").toInt();
     config.layer[1].num_staves = settings->value("its/layer1_num_staves").toInt();
@@ -69,18 +91,13 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     config.layer[5].num_staves = settings->value("its/layer5_num_staves").toInt();
     config.layer[6].num_staves = settings->value("its/layer6_num_staves").toInt();
 
-    unsigned int trigger_filter_time = settings->value("event/trigger_filter_time_ns").toInt();
-
     mITS = new ITS::ITSDetector("ITS", config, trigger_filter_time);
     mITS->s_system_clk_in(clock);
     mITS->s_detector_busy_out(s_its_busy);
-  }
 
-  int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
-  int dmu_fifo_size = settings->value("alpide/dmu_fifo_size").toInt();
-  int dtu_delay = settings->value("alpide/dtu_delay").toInt();
-  bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
-  bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
+    // Instantiate event generator object for number of chips in detector
+    mEventGen = new EventGenerator("event_gen", settings, mITS->getNumChips(), mOutputPath);
+  }
 
   s_physics_event = false;
 
@@ -115,15 +132,27 @@ void Stimuli::stimuliMainMethod(void)
     std::cout << "Feeding " << mEventGen->getLatestPhysicsEvent().size() << " pixels to ITS detector." << std::endl;
     // Get hits for this event, and "feed" them to the ITS detector
     auto event_hits = mEventGen->getLatestPhysicsEvent();
-    for(auto it = event_hits.begin(); it != event_hits.end(); it++)
-      mITS->pixelInput(*it);
 
+    if(mSingleChipSimulation) {
+      for(auto it = event_hits.begin(); it != event_hits.end(); it++)
+        mAlpide->pixelInput(*it);
 
-    std::cout << "Creating event for next trigger.." << std::endl;
+      std::cout << "Creating event for next trigger.." << std::endl;
 
-    // Create an event for the next trigger, delayed by the
-    // total/specified trigger delay (to account for cable/CTP delays etc.)
-    mITS->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
+      // Create an event for the next trigger, delayed by the
+      // total/specified trigger delay (to account for cable/CTP delays etc.)
+      mReadoutUnit->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
+    }
+    else {
+      for(auto it = event_hits.begin(); it != event_hits.end(); it++)
+        mITS->pixelInput(*it);
+
+      std::cout << "Creating event for next trigger.." << std::endl;
+
+      // Create an event for the next trigger, delayed by the
+      // total/specified trigger delay (to account for cable/CTP delays etc.)
+      mITS->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
+    }
 
     next_trigger(mEventGen->E_physics_event);
   }
