@@ -28,6 +28,7 @@ ITSDetector::ITSDetector(sc_core::sc_module_name name,
 
   SC_METHOD(triggerMethod);
   sensitive << E_trigger_in;
+  dont_initialize();
 }
 
 
@@ -76,7 +77,7 @@ void ITSDetector::buildDetector(const detectorConfig& config,
     std::cout << std::endl;
 
     // Create sc_vectors with ReadoutUnit and Staves for this layer
-    mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id));
+    mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id, trigger_filter_time));
     mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id));
 
     unsigned int n_data_lines_per_stave =
@@ -112,8 +113,6 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
       auto &RU = mReadoutUnits[lay_id][sta_id];
       auto &stave = mDetectorStaves[lay_id][sta_id];
-
-      RU.setTriggerFilterTime(trigger_filter_time);
 
       RU.s_system_clk_in(s_system_clk_in);
       stave.s_system_clk_in(s_system_clk_in);
@@ -227,6 +226,9 @@ void ITSDetector::setPixel(const ITSPixelHit& h)
 ///@brief SystemC METHOD for distributing triggers to all readout units
 void ITSDetector::triggerMethod(void)
 {
+  int64_t time_now = sc_time_stamp().value();
+  std::cout << "@ " << time_now << " ns: \tITS Detector triggered!" << std::endl;
+
   for(unsigned int i = 0; i < N_LAYERS; i++) {
     for(auto RU = mReadoutUnits[i].begin(); RU != mReadoutUnits[i].end(); RU++) {
       RU->E_trigger_in.notify();

@@ -32,6 +32,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int stave_id,
                          unsigned int n_ctrl_links,
                          unsigned int n_data_links,
+                         unsigned int trigger_filter_time,
                          bool inner_barrel)
   : sc_core::sc_module(name)
   , s_alpide_control_output(n_ctrl_links)
@@ -42,10 +43,13 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   , mLayerId(layer_id)
   , mStaveId(stave_id)
   , mReadoutUnitTriggerDelay(0)
-  , mTriggerFilterTimeNs(0)
+  , mTriggerFilterTimeNs(trigger_filter_time)
   , mInnerBarrelMode(inner_barrel)
   , mAlpideLinkBusySignals(n_data_links)
 {
+  // This prevents the first trigger from being filtered
+  mLastTriggerTime = -mTriggerFilterTimeNs;
+
   mDataLinkParsers.resize(n_data_links);
 
   for(unsigned int i = 0; i < n_data_links; i++) {
@@ -62,11 +66,13 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
 
   SC_METHOD(triggerInputMethod);
   sensitive << E_trigger_in;
+  dont_initialize();
 
   SC_METHOD(evaluateBusyStatusMethod);
   for(unsigned int i = 0; i < mAlpideLinkBusySignals.size(); i++) {
     sensitive << mAlpideLinkBusySignals[i];
   }
+  dont_initialize();
 }
 
 
@@ -76,6 +82,7 @@ void ReadoutUnit::end_of_elaboration(void)
 {
   SC_METHOD(busyChainMethod);
   sensitive << s_busy_in->data_written_event();
+  dont_initialize();
 }
 
 
@@ -83,7 +90,7 @@ void ReadoutUnit::end_of_elaboration(void)
 void ReadoutUnit::alpideDataSocketInput(const DataPayload &pl)
 {
   // Do nothing
-  std::cout << "Received some Alpide data" << std::endl;
+  //std::cout << "Received some Alpide data" << std::endl;
 }
 
 
@@ -112,13 +119,19 @@ void ReadoutUnit::triggerInputMethod(void)
 {
   uint64_t time_now = sc_time_stamp().value();
 
+  std::cout << "@" << time_now << ": RU " << mLayerId << ":" << mStaveId << " triggered.";
+
   // Filter triggers that come too close in time
   if((time_now - mLastTriggerTime) >= mTriggerFilterTimeNs) {
 
     ///@todo If detector is busy.. hold back on triggers here...
 
+    std::cout << " Sending to Alpide" << std::endl;
+
     mLastTriggerTime = time_now;
     sendTrigger();
+  } else {
+    std::cout << " Filtered" << std::endl;
   }
 }
 
@@ -172,6 +185,12 @@ void ReadoutUnit::busyChainMethod(void)
 
   if(s_busy_in->nb_read(busy_word)) {
 
+    uint64_t time_now = sc_time_stamp().value();
+    std::cout << "@" << time_now << ": RU " << mStaveId << ":" << mLayerId << " Got busy word." << std::endl;
+    std::cout << "Origin ID: " << busy_word.mOriginAddress << std::endl;
+    std::cout << "Timestamp : " << busy_word.mTimeStamp << std::endl;
+    std::cout << "Busy word type: " << busy_word.getString();
+
     // Ignore (and discard) busy words that originated from this readout unit
     // (ie. it has made the roundtrip through the busy chain)
     if(busy_word.mOriginAddress != mId) {
@@ -190,9 +209,10 @@ void ReadoutUnit::busyChainMethod(void)
       // } else if (busy_global_word_ptr) {
       //   mGlobalBusyStatus = busy_global_word_ptr->mGlobalBusyStatus;
       // }
-    }
 
-    // Pass the busy word down the daisy chain link
-    s_busy_fifo_out.nb_write(busy_word);
+      // Pass the busy word down the daisy chain link
+      std::cout << "Passing on busy word down the chain.." << std::endl;
+      s_busy_fifo_out.nb_write(busy_word);
+    }
   }
 }

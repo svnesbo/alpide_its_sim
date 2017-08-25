@@ -66,10 +66,12 @@ namespace ITS {
     unsigned int mLayerId;
     unsigned int mNumCtrlLinks;
     unsigned int mNumDataLinks;
+    unsigned int mTriggerFilterTime;
 
   public:
-    RUCreator(unsigned int layer_id)
+    RUCreator(unsigned int layer_id, unsigned int trigger_filter_time)
       : mLayerId(layer_id)
+      , mTriggerFilterTime(trigger_filter_time)
       {
         mNumCtrlLinks = CTRL_LINKS_PER_LAYER[layer_id]/STAVES_PER_LAYER[layer_id];
         mNumDataLinks = DATA_LINKS_PER_LAYER[layer_id]/STAVES_PER_LAYER[layer_id];
@@ -90,6 +92,7 @@ namespace ITS {
                              stave_id,
                              mNumCtrlLinks,
                              mNumDataLinks,
+                             mTriggerFilterTime,
                              mInnerBarrelMode);
     }
   };
@@ -123,7 +126,7 @@ namespace ITS {
           new_stave_ptr = new MiddleBarrelStave(stave_name.c_str(), mLayerId, stave_id);
         */
       } else {
-        throw std::runtime_error("Middle barrel staves not implemented yet..");
+        throw std::runtime_error("Outer barrel staves not implemented yet..");
         /*
           std::string stave_name = "OB_stave_" + coords_str;
           new_stave_ptr = new OuterBarrelStave(stave_name.c_str(), mLayerId, stave_id);

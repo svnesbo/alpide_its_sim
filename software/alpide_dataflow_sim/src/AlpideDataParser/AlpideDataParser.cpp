@@ -70,51 +70,51 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
   // Create new frame/event?
   switch(data_parsed.data[2]) {
   case ALPIDE_CHIP_HEADER1:
-    std::cout << "Got ALPIDE_CHIP_HEADER1: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_CHIP_HEADER1: " << data_bits << std::endl;
     mEvents.push_back(AlpideEventFrame());
     break;
 
   case ALPIDE_CHIP_TRAILER:
-    std::cout << "Got ALPIDE_CHIP_TRAILER: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_CHIP_TRAILER: " << data_bits << std::endl;
     if(!mEvents.empty())
       mEvents.back().setFrameCompleted(true);
     break;
 
   case ALPIDE_CHIP_EMPTY_FRAME1:
-    std::cout << "Got ALPIDE_CHIP_EMPTY_FRAME1: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_CHIP_EMPTY_FRAME1: " << data_bits << std::endl;
     // Create an empty event frame
     mEvents.push_back(AlpideEventFrame());
     mEvents.back().setFrameCompleted(true);
     break;
 
   case ALPIDE_REGION_HEADER:
-    std::cout << "Got ALPIDE_REGION_HEADER: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_REGION_HEADER: " << data_bits << std::endl;
     mCurrentRegion = dw.data[2] & 0b00011111;
-    std::cout << "\tCurrent region: " << mCurrentRegion << std::endl;
+    //std::cout << "\tCurrent region: " << mCurrentRegion << std::endl;
     break;
 
   case ALPIDE_DATA_SHORT1:
-    std::cout << "Got ALPIDE_DATA_SHORT1: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_DATA_SHORT1: " << data_bits << std::endl;
     if(!mEvents.empty()) {
       uint8_t pri_enc_id = (dw.data[2] >> 2) & 0x0F;
       uint16_t addr = ((dw.data[2] & 0x03) << 8) | dw.data[1];
       mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr));
-      std::cout << "\t" << "pri_enc: " << static_cast<unsigned int>(pri_enc_id);
-      std::cout << "\t" << "addr: " << addr << std::endl;
+      //std::cout << "\t" << "pri_enc: " << static_cast<unsigned int>(pri_enc_id);
+      //std::cout << "\t" << "addr: " << addr << std::endl;
     }
     break;
 
   case ALPIDE_DATA_LONG1:
-    std::cout << "Got ALPIDE_DATA_LONG1: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_DATA_LONG1: " << data_bits << std::endl;
     if(!mEvents.empty()) {
       uint8_t pri_enc_id = (dw.data[2] >> 2) & 0x0F;
       uint16_t addr = ((dw.data[2] & 0x03) << 8) | dw.data[1];
       uint8_t hitmap = dw.data[0] & 0x7F;
       std::bitset<7> hitmap_bits(hitmap);
 
-      std::cout << "\t" << "pri_enc: " << static_cast<unsigned int>(pri_enc_id);
-      std::cout << "\t" << "addr: " << addr << std::endl;
-      std::cout << "\t" << "hitmap: " << hitmap_bits << std::endl;
+      //std::cout << "\t" << "pri_enc: " << static_cast<unsigned int>(pri_enc_id);
+      //std::cout << "\t" << "addr: " << addr << std::endl;
+      //std::cout << "\t" << "hitmap: " << hitmap_bits << std::endl;
 
       // Add hit for base address of cluster
       mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr));
@@ -129,30 +129,30 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     break;
 
   case ALPIDE_IDLE:
-    std::cout << "Got ALPIDE_IDLE: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_IDLE: " << data_bits << std::endl;
     break;
 
   case ALPIDE_BUSY_ON:
-    std::cout << "Got ALPIDE_BUSY_ON: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_BUSY_ON: " << data_bits << std::endl;
     ///@todo Busy on here
     break;
 
   case ALPIDE_BUSY_OFF:
-    std::cout << "Got ALPIDE_BUSY_OFF: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_BUSY_OFF: " << data_bits << std::endl;
     ///@todo Busy off here
     break;
 
   case ALPIDE_UNKNOWN:
-    std::cout << "Got ALPIDE_UNKNOWN: " << data_bits << std::endl;
-    std::cout << "Byte 2: " << std::hex << static_cast<unsigned>(dw.data[2]) << std::endl;
-    std::cout << "Byte 1: " << std::hex << static_cast<unsigned>(dw.data[1]) << std::endl;
-    std::cout << "Byte 0: " << std::hex << static_cast<unsigned>(dw.data[0]) << std::endl;
-    std::cout << std::dec;
+    // std::cout << "Got ALPIDE_UNKNOWN: " << data_bits << std::endl;
+    // std::cout << "Byte 2: " << std::hex << static_cast<unsigned>(dw.data[2]) << std::endl;
+    // std::cout << "Byte 1: " << std::hex << static_cast<unsigned>(dw.data[1]) << std::endl;
+    // std::cout << "Byte 0: " << std::hex << static_cast<unsigned>(dw.data[0]) << std::endl;
+    // std::cout << std::dec;
     ///@todo Unknown Alpide data word received. Do something smart here?
     break;
 
   case ALPIDE_COMMA:
-    std::cout << "Got ALPIDE_COMMA: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_COMMA: " << data_bits << std::endl;
     break;
 
   case ALPIDE_DATA_SHORT2:
@@ -160,7 +160,7 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
   case ALPIDE_DATA_LONG3:
   case ALPIDE_CHIP_HEADER2:
   case ALPIDE_CHIP_EMPTY_FRAME2:
-    std::cout << "Got ALPIDE_SOMETHING.., which I shouldn't be receiving here..: " << data_bits << std::endl;
+    //std::cout << "Got ALPIDE_SOMETHING.., which I shouldn't be receiving here..: " << data_bits << std::endl;
     // These should never occur in data_parsed.byte[2].
     // They are here to get rid off compiler warnings :)
     break;
@@ -276,15 +276,15 @@ AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
     mIdleByteCount++;
     return ALPIDE_IDLE;
   } else if(data == DW_BUSY_ON) {
-    std::cout << "Got BUSY_ON" << std::endl;
+    //std::cout << "Got BUSY_ON" << std::endl;
     mBusyOnCount++;
     return ALPIDE_BUSY_ON;
   } else if(data == DW_BUSY_OFF) {
-    std::cout << "Got BUSY_OFF" << std::endl;
+    //std::cout << "Got BUSY_OFF" << std::endl;
     mBusyOffCount++;
     return ALPIDE_BUSY_OFF;
   } else if(data == DW_COMMA) {
-    std::cout << "Got COMMA" << std::endl;
+    //std::cout << "Got COMMA" << std::endl;
     mCommaCount++;
     return ALPIDE_COMMA;
   } else {

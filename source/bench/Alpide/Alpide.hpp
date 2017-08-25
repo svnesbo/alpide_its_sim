@@ -1,5 +1,5 @@
 /**
- * @file   alpide.h
+ * @file   Alpide.hpp
  * @author Simon Voigt Nesbo
  * @date   December 11, 2016
  * @brief  Header file for Alpide class.
@@ -126,13 +126,13 @@ private:
   uint16_t mStrobeLengthNs;
   uint64_t mStrobeStartTime;
 
-  ///@brief Number of triggers (event frames) that are accepted into an MEB by the chip
-  uint64_t mEventFramesAccepted = 0;
+  ///@brief Number of triggers that are accepted by the chip
+  uint64_t mTriggersAccepted = 0;
 
   ///@brief Triggered mode: If 3 MEBs are already full, the chip will not accept more events
   ///                       until one of those 3 MEBs have been read out. This variable is counted
   ///                       up for each event that is not accepted.
-  uint64_t mEventFramesRejected = 0;
+  uint64_t mTriggersRejected = 0;
 
   ///@brief Continuous mode only.
   ///       The Alpide chip will try to guarantee that there is a free MEB slice in continuous mode.
@@ -161,8 +161,8 @@ public:
          bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
-  uint64_t getEventFramesAcceptedCount(void) const {return mEventFramesAccepted;}
-  uint64_t getEventFramesRejectedCount(void) const {return mEventFramesRejected;}
+  uint64_t getTriggersAcceptedCount(void) const {return mTriggersAccepted;}
+  uint64_t getEventFramesRejectedCount(void) const {return mTriggersRejected;}
 };
 
 

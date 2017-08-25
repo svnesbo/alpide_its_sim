@@ -24,12 +24,12 @@ hit_multiplicity_gauss_stddev=350
 random_hit_generation=true
 strobe_active_length_ns=100
 strobe_inactive_length_ns=200
-trigger_delay_ns=100
+trigger_delay_ns=930
 trigger_filter_enable=true
-trigger_filter_time_ns=10000
+trigger_filter_time_ns=1230
 
 [its]
-layer0_num_staves=12
+layer0_num_staves=1
 layer1_num_staves=0
 layer2_num_staves=0
 layer3_num_staves=0
@@ -40,6 +40,6 @@ layer6_num_staves=0
 [simulation]
 continuous_mode=false
 n_chips=1
-n_events=100
+n_events=10
 random_seed=0
 single_chip=false

@@ -1,5 +1,5 @@
 /**
- * @file   alpide.h
+ * @file   Alpide.cpp
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Source file for Alpide class.
@@ -117,12 +117,15 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
 
   SC_METHOD(triggerMethod);
   sensitive << E_trigger;
+  dont_initialize();
 
   SC_METHOD(strobeDurationMethod);
   sensitive << E_strobe_interval_done;
+  dont_initialize();
 
   SC_METHOD(strobeAndFramingMethod);
   sensitive << s_strobe_n;
+  dont_initialize();
 
 }
 
@@ -165,11 +168,16 @@ ControlResponsePayload Alpide::processCommand(ControlRequestPayload const &reque
 ///       There is not automatic trigger/strobe synthesizer implemented here.
 void Alpide::triggerMethod(void)
 {
-  sc_time time_now;
+  uint64_t time_now = sc_time_stamp().value();
+
+  ///@todo What happens if I get one trigger at the exact time the strobe goes inactive???
+
+  std::cout << "@" << time_now << ": Alpide with ID " << mChipId << " triggered." << std::endl;
 
   if(s_strobe_n.read() == true) {
     // Strobe not active - start new interval
-    s_strobe_n = false;
+    //s_strobe_n = false;
+    E_strobe_interval_done.notify(0, SC_NS);
     E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
   } else if(s_strobe_n.read() == false) {
     // Strobe already active
@@ -179,10 +187,10 @@ void Alpide::triggerMethod(void)
       // If an E_strobe_interval_done event already happened the same cycle, then
       // strobeDurationMethod() could have written false to s_strobe_n already, but it would not
       // have updated yet, so make sure it stays active (false/low).
-      s_strobe_n = false;
+      //s_strobe_n = false;
       E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
     } else {
-      mEventFramesRejected++;
+      mTriggersRejected++;
     }
   }
 }
@@ -190,7 +198,7 @@ void Alpide::triggerMethod(void)
 
 void Alpide::strobeDurationMethod(void)
 {
-  s_strobe_n = false;
+  s_strobe_n = !s_strobe_n;
 }
 
 
@@ -220,7 +228,7 @@ void Alpide::strobeAndFramingMethod(void)
       if(getNumEvents() == 3) {
         // Reject events if all MEBs are full in continuous.
         // And yes, this can happen! Also in the real chip..
-        mEventFramesRejected++;
+        mTriggersRejected++;
         s_busy_violation = true;
         //s_flushed_incomplete = false;
         s_chip_ready_internal = false;
@@ -230,7 +238,7 @@ void Alpide::strobeAndFramingMethod(void)
         newEvent(time_now);
 
         mEventFramesFlushed++;
-        mEventFramesAccepted++;
+        mTriggersAccepted++;
         s_busy_violation = false;
         s_flushed_incomplete = true;
         s_chip_ready_internal = true;
@@ -238,7 +246,7 @@ void Alpide::strobeAndFramingMethod(void)
         // Normal operation in continuous, with at least 2 free buffers
         newEvent(time_now);
 
-        mEventFramesAccepted++;
+        mTriggersAccepted++;
         s_busy_violation = false;
         s_flushed_incomplete = false;
         s_chip_ready_internal = true;
@@ -249,11 +257,11 @@ void Alpide::strobeAndFramingMethod(void)
 
       if(getNumEvents() == 3) {
         s_chip_ready_internal = false;
-        mEventFramesRejected++;
+        mTriggersRejected++;
         s_busy_violation = true;
       } else {
         newEvent(time_now);
-        mEventFramesAccepted++;
+        mTriggersAccepted++;
         s_chip_ready_internal = true;
         s_busy_violation = false;
       }

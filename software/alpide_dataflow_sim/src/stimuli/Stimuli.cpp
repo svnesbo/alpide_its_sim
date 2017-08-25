@@ -86,33 +86,40 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
 
   SC_METHOD(stimuliMainMethod);
   sensitive << mEventGen->E_physics_event;
+  dont_initialize();
 
 
   // This method just generates a (VCD traceable) SystemC signal
   // that coincides with the physics event from the event generator
   SC_METHOD(physicsEventSignalMethod);
   sensitive << mEventGen->E_physics_event;
+  dont_initialize();
 }
 
 
 ///@brief Main control of simulation stimuli
 void Stimuli::stimuliMainMethod(void)
 {
-  if(simulation_done == false && g_terminate_program == false) {
+  if(simulation_done == true || g_terminate_program == true) {
     sc_core::sc_stop();
     writeDataToFile();
   }
   else if(mEventGen->getPhysicsEventCount() < mNumEvents) {
-    if((mEventGen->getPhysicsEventCount() % 100) == 0) {
-      int64_t time_now = sc_time_stamp().value();
-      std::cout << "@ " << time_now << " ns: \tPhysics event number ";
-      std::cout << mEventGen->getPhysicsEventCount() << std::endl;
-    }
+    //if((mEventGen->getPhysicsEventCount() % 100) == 0) {
+    int64_t time_now = sc_time_stamp().value();
+    std::cout << "@ " << time_now << " ns: \tPhysics event number ";
+    std::cout << mEventGen->getPhysicsEventCount() << std::endl;
+    //}
 
+
+    std::cout << "Feeding " << mEventGen->getLatestPhysicsEvent().size() << " pixels to ITS detector." << std::endl;
     // Get hits for this event, and "feed" them to the ITS detector
     auto event_hits = mEventGen->getLatestPhysicsEvent();
     for(auto it = event_hits.begin(); it != event_hits.end(); it++)
       mITS->pixelInput(*it);
+
+
+    std::cout << "Creating event for next trigger.." << std::endl;
 
     // Create an event for the next trigger, delayed by the
     // total/specified trigger delay (to account for cable/CTP delays etc.)
