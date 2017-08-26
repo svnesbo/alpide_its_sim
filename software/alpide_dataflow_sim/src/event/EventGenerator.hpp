@@ -55,9 +55,7 @@ private:
   std::vector<ITS::ITSPixelHit> mHitVector;
 
   int mNumChips;
-
   int mBunchCrossingRateNs;
-
   int mAverageEventRateNs;
 
   /// Total number of physics and event frames generated.
@@ -75,7 +73,6 @@ private:
   std::string mDataPath = "data";
 
   std::string mOutputPath;
-  bool mWriteEventsToDisk = false;
 
   bool mCreateCSVFile = true;
   std::ofstream mPhysicsEventsCSVFile;
@@ -125,8 +122,6 @@ public:
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
   void setPath(const std::string& path) {mDataPath = path;}
-  void enableWriteToDisk(void) {mWriteEventsToDisk = true;}
-  void disableWriteToDisk(void) {mWriteEventsToDisk = false;}
   int getPhysicsEventCount(void) const {return mPhysicsEventCount;}
   void physicsEventMethod(void);
 
@@ -136,8 +131,6 @@ private:
                                     std::vector<double> &dist_vector) const;
   double normalizeDiscreteDistribution(std::vector<double> &dist_vector);
   unsigned int getRandomMultiplicity(void);
-  void calculateAverageCrossingRate(void);
-  void eventMemoryCountLimiter(void);
 };
 
 

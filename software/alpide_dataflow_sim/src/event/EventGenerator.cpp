@@ -233,7 +233,7 @@ const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestPhysicsEvent(void)
 }
 
 
-///@brief Sets the bunch crossing rate, and recalculates the average crossing rate.
+///@brief Sets the bunch crossing rate, and recalculate the average crossing rate.
 void EventGenerator::setBunchCrossingRate(int rate_ns)
 {
   mBunchCrossingRateNs = rate_ns;
@@ -567,9 +567,6 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
   delete chip_trace_hit_counts;
   delete chip_pixel_hit_counts;
-
-  ///@todo Remove?
-  //eventMemoryCountLimiter();
 
   return t_delta;
 }
