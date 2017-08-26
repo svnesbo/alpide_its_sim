@@ -36,7 +36,6 @@ SC_HAS_PROCESS(EventGenerator);
 ///@param[in] output_path Directory path to store simulation output data in
 EventGenerator::EventGenerator(sc_core::sc_module_name name,
                                const QSettings* settings,
-                               unsigned int num_chips,
                                std::string output_path)
   : sc_core::sc_module(name)
 {
@@ -48,9 +47,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
   mPixelDeadTime = settings->value("alpide/pixel_shaping_dead_time_ns").toInt();
   mPixelActiveTime = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
-  mNumChips = num_chips;
-
-  mContinuousMode = settings->value("simulation/continuous_mode").toBool();
+  mSingleChipSimulation = settings->value("simulation/single_chip").toBool();
+  mNumChips = 0;
 
   if(mRandomHitGeneration) {
     // Instantiate event generator object with the desired hit multiplicity distribution
@@ -74,24 +72,72 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       std::string dist_file = multipl_dist_file.toStdString();
       readDiscreteDistributionFile(dist_file.c_str(), mult_dist);
 
-      // Calculate the average number of hits in an event,
-      // assuming that all chips here are on the same layer.
-      double hits_per_cm2 = settings->value("event/hit_density_min_bias_per_cm2").toDouble();
-      double alpide_chip_area = CHIP_WIDTH_CM*CHIP_HEIGHT_CM;
-      double its_layer_area = mNumChips * alpide_chip_area;
-      double avg_hits_per_event =  hits_per_cm2 * its_layer_area;
-
-      std::cout << "hits_per_cm2: " << hits_per_cm2;
-      std::cout << "\talpide_chip_area: " << alpide_chip_area;
-      std::cout << "\tits_layer_area: " << its_layer_area;
-      std::cout << "\tavg_hits_per_event: " << avg_hits_per_event << std::endl;
-      std::cout << "Number of bins in distribution before scaling: " << mult_dist.size() << std::endl;
-      //scaleDiscreteDistribution(mult_dist, avg_hits_per_event);
-      double multpl_dist_mean = normalizeDiscreteDistribution(mult_dist);
-      mMultDistScale = avg_hits_per_event / multpl_dist_mean;
-      std::cout << "Multiplicity distribution scaling factor: " << mMultDistScale << std::endl;
-
       mRandHitMultiplicityDiscrete = new discrete_distribution<>(mult_dist.begin(), mult_dist.end());
+      std::cout << "Number of bins in distribution before scaling: ";
+      std::cout << mult_dist.size() << std::endl;
+
+      double multpl_dist_mean = normalizeDiscreteDistribution(mult_dist);
+
+      if(mSingleChipSimulation) {
+        mHitDensities[0] = settings->value("event/hit_density_layer0").toDouble();
+        mDetectorArea[0] = CHIP_WIDTH_CM * CHIP_HEIGHT_CM;
+        mHitAverage[0] = mHitDensities[0] * mDetectorArea[0];
+        mMultiplicityScaleFactor[0] = mHitAverage[0] / multpl_dist_mean;
+        mNumChips = 1;
+
+        std::cout << "Chip area [cm^2]: ";
+        std::cout << mDetectorArea[0] << std::endl;
+
+        std::cout << "Chip hit density [cm^-1]: ";
+        std::cout << mHitDensities[0] << std::endl;
+
+        std::cout << "Chip average number of hits per event: ";
+        std::cout << mHitAverage[0] << std::endl;
+
+        std::cout << "Chip multiplicity distr. scaling factor: ";
+        std::cout << mMultiplicityScaleFactor[0] << std::endl;
+      } else {
+        mHitDensities[0] = settings->value("event/hit_density_layer0").toDouble();
+        mHitDensities[1] = settings->value("event/hit_density_layer1").toDouble();
+        mHitDensities[2] = settings->value("event/hit_density_layer2").toDouble();
+        mHitDensities[3] = settings->value("event/hit_density_layer3").toDouble();
+        mHitDensities[4] = settings->value("event/hit_density_layer4").toDouble();
+        mHitDensities[5] = settings->value("event/hit_density_layer5").toDouble();
+        mHitDensities[6] = settings->value("event/hit_density_layer6").toDouble();
+
+        mNumStaves[0] = settings->value("its/layer0_num_staves").toInt();
+        mNumStaves[1] = settings->value("its/layer1_num_staves").toInt();
+        mNumStaves[2] = settings->value("its/layer2_num_staves").toInt();
+        mNumStaves[3] = settings->value("its/layer3_num_staves").toInt();
+        mNumStaves[4] = settings->value("its/layer4_num_staves").toInt();
+        mNumStaves[5] = settings->value("its/layer5_num_staves").toInt();
+        mNumStaves[6] = settings->value("its/layer6_num_staves").toInt();
+
+        for(int layer = 0; layer < ITS::N_LAYERS; layer++) {
+          mDetectorArea[layer] =
+            mNumStaves[layer] *
+            ITS::CHIPS_PER_STAVE_IN_LAYER[layer] *
+            CHIP_WIDTH_CM *
+            CHIP_HEIGHT_CM;
+
+          mHitAverage[layer] = mHitDensities[layer] * mDetectorArea[layer];
+          mMultiplicityScaleFactor[layer] = mHitAverage[layer] / multpl_dist_mean;
+
+          mNumChips += mNumStaves[layer] * ITS::CHIPS_PER_STAVE_IN_LAYER[layer];
+
+          std::cout << "Layer " << layer << " area [cm^2]: ";
+          std::cout << mDetectorArea[layer] << std::endl;
+
+          std::cout << "Layer " << layer << " hit density [cm^-1]: ";
+          std::cout << mHitDensities[layer] << std::endl;
+
+          std::cout << "Layer " << layer << " average number of hits per event: ";
+          std::cout << mHitAverage[layer] << std::endl;
+
+          std::cout << "Layer " << layer << " multiplicity distr. scaling factor: ";
+          std::cout << mMultiplicityScaleFactor[layer] << std::endl;
+        }
+      }
 
       // Gaussian distribution is not used in this case
       mRandHitMultiplicityGauss = nullptr;
@@ -111,10 +157,14 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     mRandHitMultiplicityGauss = nullptr;
   }
 
-  mRandHitChipID = new uniform_int_distribution<int>(0, mNumChips-1);
   mRandHitChipX = new uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
   mRandHitChipY = new uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
 
+  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    mRandChipID[layer] = new uniform_int_distribution<int>(0, ITS::CHIPS_PER_MODULE_IN_LAYER[layer]);
+    mRandModule[layer] = new uniform_int_distribution<int>(0, ITS::MODULES_PER_STAVE_IN_LAYER[layer]);
+    mRandStave[layer] = new uniform_int_distribution<int>(0, mNumStaves[layer]);
+  }
 
   // Multiplied by BC rate so that the distribution is related to the clock cycles
   // Which is fine because physics events will be in sync with 40MHz BC clock, but
@@ -153,7 +203,12 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
 EventGenerator::~EventGenerator()
 {
-  delete mRandHitChipID;
+  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    delete mRandChipID[layer];
+    mRandStave[layer];
+    mRandModule[layer];
+  }
+
   delete mRandHitChipX;
   delete mRandHitChipY;
   delete mRandEventTime;
@@ -338,7 +393,6 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 {
   if(mRandHitMultiplicityDiscrete != nullptr) {
     unsigned int n_hits = (*mRandHitMultiplicityDiscrete)(mRandHitMultiplicityGen);
-    n_hits *= mMultDistScale;
     return n_hits;
   }
   else if(mRandHitMultiplicityGauss != nullptr)
@@ -358,7 +412,8 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 {
   int64_t t_delta, t_delta_cycles;
-  int n_hits = 0;
+  unsigned int n_hits = 0;
+  unsigned int n_hits_raw = 0;
 
   // Initialize array to 0. http://stackoverflow.com/a/2204380/6444574
   int *chip_trace_hit_counts = new int[mNumChips]();
@@ -369,50 +424,84 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
   mHitVector.clear();
 
+  // std::cout << std::endl;
+  // std::cout << "@ " << time_now << " ns:";
+  // std::cout << "Generating new physics event." << std::endl;
+  // std::cout << "--------------------------------------------------";
+  // std::cout << std::endl;
+
   if(mRandomHitGeneration == true) {
-    // Generate a random number of hits for this event
-    n_hits = getRandomMultiplicity();
+    // Generate an uncorrected random number of hits for this event
+    n_hits_raw = getRandomMultiplicity();
 
+    unsigned int num_layers = ITS::N_LAYERS;
+    if(mSingleChipSimulation)
+      num_layers = 1;
 
-    // Generate hits here
-    for(int i = 0; i < n_hits; i++) {
-      int rand_chip_id = (*mRandHitChipID)(mRandHitGen);
-      int rand_x1 = (*mRandHitChipX)(mRandHitGen);
-      int rand_y1 = (*mRandHitChipY)(mRandHitGen);
-      int rand_x2, rand_y2;
+    for(unsigned int layer = 0; layer < num_layers; layer++) {
+      n_hits = n_hits_raw * mMultiplicityScaleFactor[layer];
 
-      chip_trace_hit_counts[rand_chip_id]++;
+      std::cout << "@ " << time_now << " ns: ";
+      std::cout << "Generating " << n_hits;
+      std::cout << " track hits for layer " << layer << "." << std::endl;
 
-      ///@todo Account larger/bigger clusters here (when implemented)
-      chip_pixel_hit_counts[rand_chip_id] += 4;
+      // Generate hits here
+      for(int i = 0; i < n_hits; i++) {
+        unsigned int rand_stave_id = 0;
+        unsigned int rand_module_id = 0;
+        unsigned int rand_chip_id = 0;
 
-      // Very simple and silly method for making 2x2 pixel cluster
-      // Makes sure that we don't get pixels below row/col 0, and not above
-      // row 511 or above column 1023
-      if(rand_x1 < N_PIXEL_COLS/2) {
-        rand_x2 = rand_x1+1;
-      } else {
-        rand_x2 = rand_x1-1;
+        if(mSingleChipSimulation == false) {
+          rand_stave_id = (*mRandStave[layer])(mRandHitGen);
+
+          if(layer > 2)
+            rand_module_id = (*mRandStave[layer])(mRandHitGen);
+
+          rand_chip_id = (*mRandChipID[layer])(mRandHitGen);
+        }
+
+        unsigned int rand_x1 = (*mRandHitChipX)(mRandHitGen);
+        unsigned int rand_y1 = (*mRandHitChipY)(mRandHitGen);
+        unsigned int rand_x2, rand_y2;
+
+        ///@todo Account larger/bigger clusters here (when implemented)
+        chip_pixel_hit_counts[rand_chip_id] += 4;
+        chip_trace_hit_counts[rand_chip_id]++;
+
+        // Very simple and silly method for making 2x2 pixel cluster
+        // Makes sure that we don't get pixels below row/col 0, and not above
+        // row 511 or above column 1023
+        if(rand_x1 < N_PIXEL_COLS/2) {
+          rand_x2 = rand_x1+1;
+        } else {
+          rand_x2 = rand_x1-1;
+        }
+
+        if(rand_y1 < N_PIXEL_ROWS/2) {
+          rand_y2 = rand_y1+1;
+        } else {
+          rand_y2 = rand_y1-1;
+        }
+
+        ITS::detectorPosition pos = {layer,
+                                     rand_stave_id,
+                                     rand_module_id,
+                                     rand_chip_id};
+
+        // std::cout << "@ " << time_now << " ns:";
+        // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
+        // std::cout << " for " << pos << std::endl;
+
+        ///@todo Create hits for all chips properly here!!
+        mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+                                mPixelDeadTime, mPixelActiveTime);
+        mHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+                                mPixelDeadTime, mPixelActiveTime);
+        mHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+                                mPixelDeadTime, mPixelActiveTime);
+        mHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+                                mPixelDeadTime, mPixelActiveTime);
       }
-
-      if(rand_y1 < N_PIXEL_ROWS/2) {
-        rand_y2 = rand_y1+1;
-      } else {
-        rand_y2 = rand_y1-1;
-      }
-
-
-      ITS::detectorPosition pos = ITS::chip_id_to_detector_position(rand_chip_id);
-
-      ///@todo Create hits for all chips properly here!!
-      mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
-                              mPixelDeadTime, mPixelActiveTime);
-      mHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
-                              mPixelDeadTime, mPixelActiveTime);
-      mHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
-                              mPixelDeadTime, mPixelActiveTime);
-      mHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
-                              mPixelDeadTime, mPixelActiveTime);
     }
   } else { // No random hits, use MC generated events
     const EventDigits* digits = mMonteCarloEvents.getNextEvent();

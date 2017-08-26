@@ -28,6 +28,14 @@ namespace ITS {
     unsigned int stave_id;
     unsigned int module_id;
     unsigned int stave_chip_id;
+
+    inline friend std::ostream& operator<<(std::ostream& stream, const detectorPosition& pos) {
+      stream << "Layer: " << pos.layer_id;
+      stream << ", Stave: " << pos.stave_id;
+      stream << ", Module: " << pos.module_id;
+      stream << ", Chip: " << pos.stave_chip_id;
+      return stream;
+    }
   };
 
   inline unsigned int chip_id_to_layer_id(unsigned int chip_id) {

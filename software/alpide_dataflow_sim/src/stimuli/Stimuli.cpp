@@ -50,6 +50,8 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
   bool strobe_extension = settings->value("alpide/strobe_extension_enable").toBool();
 
+  mEventGen = new EventGenerator("event_gen", settings, mOutputPath);
+
   if(mSingleChipSimulation) {
     mAlpide = new ITS::SingleChip("SingleChip",
                                   0,
@@ -77,9 +79,6 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     mReadoutUnit->s_serial_data_input[0](mAlpide->s_alpide_data_out_exp);
     mReadoutUnit->s_alpide_control_output[0].bind(mAlpide->socket_control_in[0]);
     mAlpide->socket_data_out[0].bind(mReadoutUnit->s_alpide_data_input[0]);
-
-    // Instantiate event generator object for 1 chip
-    mEventGen = new EventGenerator("event_gen", settings, 1, mOutputPath);
   }
   else { // ITS Detector Simulation
     ITS::detectorConfig config;
@@ -94,9 +93,6 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     mITS = new ITS::ITSDetector("ITS", config, trigger_filter_time);
     mITS->s_system_clk_in(clock);
     mITS->s_detector_busy_out(s_its_busy);
-
-    // Instantiate event generator object for number of chips in detector
-    mEventGen = new EventGenerator("event_gen", settings, mITS->getNumChips(), mOutputPath);
   }
 
   s_physics_event = false;

@@ -61,7 +61,13 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["event/hit_multiplicity_distribution_file"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_FILE;
   defaultSettings["event/hit_multiplicity_gauss_avg"] = DEFAULT_EVENT_HIT_MULTIPLICITY_GAUSS_AVG;
   defaultSettings["event/hit_multiplicity_gauss_stddev"] = DEFAULT_EVENT_HIT_MULTIPLICITY_GAUSS_STDDEV;
-  defaultSettings["event/hit_density_min_bias_per_cm2"] = DEFAULT_EVENT_HIT_DENSITY_MIN_BIAS_PER_CM2;
+  defaultSettings["event/hit_density_layer0"] = DEFAULT_EVENT_HIT_DENSITY_LAYER0;
+  defaultSettings["event/hit_density_layer1"] = DEFAULT_EVENT_HIT_DENSITY_LAYER1;
+  defaultSettings["event/hit_density_layer2"] = DEFAULT_EVENT_HIT_DENSITY_LAYER2;
+  defaultSettings["event/hit_density_layer3"] = DEFAULT_EVENT_HIT_DENSITY_LAYER3;
+  defaultSettings["event/hit_density_layer4"] = DEFAULT_EVENT_HIT_DENSITY_LAYER4;
+  defaultSettings["event/hit_density_layer5"] = DEFAULT_EVENT_HIT_DENSITY_LAYER5;
+  defaultSettings["event/hit_density_layer6"] = DEFAULT_EVENT_HIT_DENSITY_LAYER6;
   defaultSettings["event/bunch_crossing_rate_ns"] = DEFAULT_EVENT_BUNCH_CROSSING_RATE_NS;
   //@todo Rename to average_trigger_rate_ns?
   defaultSettings["event/average_event_rate_ns"] = DEFAULT_EVENT_AVERAGE_EVENT_RATE_NS;

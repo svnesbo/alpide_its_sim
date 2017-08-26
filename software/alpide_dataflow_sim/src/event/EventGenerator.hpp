@@ -13,6 +13,7 @@
 #include "Alpide/EventFrame.hpp"
 #include "EventXML.hpp"
 #include "../ITS/ITSPixelHit.hpp"
+#include "../ITS/ITS_constants.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -68,7 +69,7 @@ private:
   int mPixelDeadTime;
   int mPixelActiveTime;
 
-  bool mContinuousMode = false;
+  bool mSingleChipSimulation = false;
 
   ///@todo This is currently used.. remove or update code that uses it..
   std::string mDataPath = "data";
@@ -85,16 +86,25 @@ private:
   EventXML mMonteCarloEvents;
 
   bool mRandomHitGeneration;
-  double mMultDistScale;
   int mHitMultiplicityGaussAverage;
   int mHitMultiplicityGaussDeviation;
+
+  unsigned int mNumStaves[ITS::N_LAYERS];
+  double mHitDensities[ITS::N_LAYERS];
+  double mDetectorArea[ITS::N_LAYERS];
+  double mHitAverage[ITS::N_LAYERS];
+  double mMultiplicityScaleFactor[ITS::N_LAYERS];
+
 
   boost::random::mt19937 mRandHitGen;
   boost::random::mt19937 mRandHitMultiplicityGen;
   boost::random::mt19937 mRandEventTimeGen;
 
   /// Uniform distribution used generating hit coordinates
-  boost::random::uniform_int_distribution<int> *mRandHitChipID, *mRandHitChipX, *mRandHitChipY;
+  boost::random::uniform_int_distribution<int> *mRandHitChipX, *mRandHitChipY;
+  boost::random::uniform_int_distribution<int> *mRandStave[ITS::N_LAYERS];
+  boost::random::uniform_int_distribution<int> *mRandModule[ITS::N_LAYERS];
+  boost::random::uniform_int_distribution<int> *mRandChipID[ITS::N_LAYERS];
 
   /// Choice of discrete distribution (based on discrete list of N_hits vs Probability),
   /// or gaussian distribution.
@@ -107,7 +117,6 @@ private:
 public:
   EventGenerator(sc_core::sc_module_name name,
                  const QSettings* settings,
-                 unsigned int num_chips,
                  std::string output_path);
   ~EventGenerator();
   const EventFrame& getNextEventFrame(void);
