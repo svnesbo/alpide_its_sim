@@ -182,10 +182,15 @@ void Stimuli::addTraces(sc_trace_file *wf) const
 {
   sc_trace(wf, s_physics_event, "PHYSICS_EVENT");
 
-  // Add traces for all Alpide chips
-  // for(auto it = mAlpideChips.begin(); it != mAlpideChips.end(); it++) {
-  //   (*it)->addTraces(wf, "");
-  // }
+  sc_trace(wf, s_its_busy, "its_busy");
+  sc_trace(wf, s_alpide_data_line, "alpide_data_line");
+
+  if(mSingleChipSimulation) {
+    //mReadoutUnit->addTraces(wf, "");
+    mAlpide->addTraces(wf, "");
+  } else {
+    mITS->addTraces(wf, "");
+  }
 }
 
 

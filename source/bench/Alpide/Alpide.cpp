@@ -533,6 +533,7 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   std::string alpide_name_prefix = ss.str();
 
   //addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);
+  addTrace(wf, alpide_name_prefix, "strobe_n", s_strobe_n);
   addTrace(wf, alpide_name_prefix, "chip_ready_internal", s_chip_ready_internal);
   addTrace(wf, alpide_name_prefix, "serial_data_out", s_serial_data_out);
   addTrace(wf, alpide_name_prefix, "event_buffers_used_debug", s_event_buffers_used_debug);

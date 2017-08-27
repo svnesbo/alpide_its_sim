@@ -9,6 +9,7 @@
 
 
 #include "ITSDetector.hpp"
+#include <misc/vcd_trace.hpp>
 
 using namespace ITS;
 
@@ -231,6 +232,30 @@ void ITSDetector::triggerMethod(void)
   for(unsigned int i = 0; i < N_LAYERS; i++) {
     for(auto RU = mReadoutUnits[i].begin(); RU != mReadoutUnits[i].end(); RU++) {
       RU->E_trigger_in.notify();
+    }
+  }
+}
+
+
+///@brief Add SystemC signals to log in VCD trace file.
+///@param[in,out] wf Pointer to VCD trace file object
+///@param[in] name_prefix Name prefix to be added to all the trace names
+void ITSDetector::addTraces(sc_trace_file *wf, std::string name_prefix) const
+{
+  std::stringstream ss;
+  ss << name_prefix << "ITS.";
+  std::string ITS_name_prefix = ss.str();
+
+  //addTrace(wf, ITS_name_prefix, "system_clk_in", s_system_clk_in);
+  //addTrace(wf, ITS_name_prefix, "trigger_in", E_trigger_in);
+  addTrace(wf, ITS_name_prefix, "detector_busy_out", s_detector_busy_out);
+
+  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    // mReadoutUnits[layer] and mDetectorStaves[layer] should
+    // always be the same size.
+    for(unsigned int stave = 0; stave < mReadoutUnits[layer].size(); stave++) {
+      mReadoutUnits[layer][stave].addTraces(wf, ITS_name_prefix);
+      mDetectorStaves[layer][stave].addTraces(wf, ITS_name_prefix);
     }
   }
 }

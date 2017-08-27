@@ -95,6 +95,7 @@ public:
               unsigned int trigger_filter_time,
               bool inner_barrel);
   void end_of_elaboration();
+  void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 
 

@@ -11,6 +11,7 @@
 
 
 #include "ReadoutUnit.hpp"
+#include <misc/vcd_trace.hpp>
 
 
 ///@todo Implementation
@@ -217,4 +218,18 @@ void ReadoutUnit::busyChainMethod(void)
       s_busy_fifo_out.nb_write(busy_word);
     }
   }
+}
+
+
+///@brief Add SystemC signals to log in VCD trace file.
+///@param[in,out] wf Pointer to VCD trace file object
+///@param[in] name_prefix Name prefix to be added to all the trace names
+void ReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
+{
+  std::stringstream ss;
+  ss << name_prefix << "RU_" << mLayerId << "_" << mStaveId << ".";
+  std::string RU_name_prefix = ss.str();
+
+  ///@todo Add a trigger out to RU that we can trace here..
+  //addTrace(wf, RU_name_prefix, "trigger_out", s_trigger_out);
 }

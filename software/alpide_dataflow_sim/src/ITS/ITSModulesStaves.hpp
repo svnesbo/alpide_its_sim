@@ -56,10 +56,7 @@ namespace ITS {
                bool enable_clustering, bool continuous_mode,
                bool matrix_readout_speed);
 
-    virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const
-      {
-
-      }
+    virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
     virtual std::vector<std::shared_ptr<Alpide>> getChips(void) const
       {
@@ -86,10 +83,7 @@ namespace ITS {
                      unsigned int layer_id,
                      unsigned int stave_id);
 
-    virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const
-      {
-
-      }
+    virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
     virtual std::vector<std::shared_ptr<Alpide>> getChips(void) const
       {

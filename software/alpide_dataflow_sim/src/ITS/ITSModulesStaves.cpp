@@ -10,6 +10,7 @@
 
 #include "ITSModulesStaves.hpp"
 #include "ITS_config.hpp"
+#include <misc/vcd_trace.hpp>
 
 using namespace ITS;
 //using std::placeholders::_1;
@@ -58,6 +59,19 @@ void SingleChip::pixelInput(const Hit& h)
 }
 
 
+///@brief Add SystemC signals to log in VCD trace file.
+///@param[in,out] wf Pointer to VCD trace file object
+///@param[in] name_prefix Name prefix to be added to all the trace names
+void SingleChip::addTraces(sc_trace_file *wf, std::string name_prefix) const
+{
+  std::stringstream ss;
+  ss << name_prefix << "SingleChip";
+  std::string single_chip_name_prefix = ss.str();
+
+  mChip->addTraces(wf, single_chip_name_prefix);
+}
+
+
 InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
                                    unsigned int layer_id,
                                    unsigned int stave_id)
@@ -98,4 +112,25 @@ InnerBarrelStave::processCommand(const ControlRequestPayload &request) {
   }
 
   return b;
+}
+
+
+///@brief Add SystemC signals to log in VCD trace file.
+///@param[in,out] wf Pointer to VCD trace file object
+///@param[in] name_prefix Name prefix to be added to all the trace names
+void InnerBarrelStave::addTraces(sc_trace_file *wf, std::string name_prefix) const
+{
+  std::stringstream ss;
+  ss << name_prefix << "IB_" << getLayerId() << "_" << getStaveId() << ".";
+  std::string IB_stave_name_prefix = ss.str();
+
+  //addTrace(wf, IB_stave_name_prefix, "socket_control_in", socket_control_in);
+  //addTrace(wf, IB_stave_name_prefix, "socket_data_out", socket_data_out);
+
+  for(int i = 0; i < mChips.size(); i++) {
+    std::stringstream ss_chip;
+    ss_chip << IB_stave_name_prefix << "Chip_" << i << ".";
+    std::string IB_stave_chip_prefix = ss_chip.str();
+    mChips[i]->addTraces(wf, IB_stave_chip_prefix);
+  }
 }
