@@ -234,6 +234,7 @@ void Alpide::strobeInput(void)
         // And yes, this can happen! Also in the real chip..
         mTriggersRejected++;
         s_busy_violation = true;
+        mBusyViolations++;
         //s_flushed_incomplete = false;
         s_chip_ready_internal = false;
       } else if(getNumEvents() == 2) {
@@ -241,7 +242,7 @@ void Alpide::strobeInput(void)
         flushOldestEvent();
         newEvent(time_now);
 
-        mEventFramesFlushed++;
+        mFlushedIncompleteCount++;
         mTriggersAccepted++;
         s_busy_violation = false;
         s_flushed_incomplete = true;
@@ -262,6 +263,7 @@ void Alpide::strobeInput(void)
       if(getNumEvents() == 3) {
         s_chip_ready_internal = false;
         mTriggersRejected++;
+        mBusyViolations++;
         s_busy_violation = true;
       } else {
         newEvent(time_now);
@@ -519,7 +521,13 @@ void Alpide::updateBusyStatus(void)
       s_multi_event_buffers_busy = false;
   }
 
-  s_busy_status = (s_frame_fifo_busy || s_multi_event_buffers_busy);
+  bool new_busy_status = (s_frame_fifo_busy || s_multi_event_buffers_busy);
+
+  if(new_busy_status == true && new_busy_status != s_busy_status) {
+    mBusyTransitions++;
+  }
+
+  s_busy_status = new_busy_status;
 }
 
 
@@ -561,6 +569,10 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 //  addTrace(wf, alpide_name_prefix, "frame_start_fifo", s_frame_start_fifo);
 //  addTrace(wf, alpide_name_prefix, "frame_end_fifo", s_frame_end_fifo);
   addTrace(wf, alpide_name_prefix, "serial_data_dtu_input_debug", s_serial_data_dtu_input_debug);
+
+  addTrace(wf, alpide_name_prefix, "busy_transition_count", mBusyTransitions);
+  addTrace(wf, alpide_name_prefix, "busy_violation_count", mBusyViolations);
+  addTrace(wf, alpide_name_prefix, "flushed_incomplete_count", mFlushedIncompleteCount);
 
   mTRU->addTraces(wf, alpide_name_prefix);
 

@@ -130,16 +130,14 @@ private:
   ///@brief Number of triggers that are accepted by the chip
   uint64_t mTriggersAccepted = 0;
 
-  ///@brief Triggered mode: If 3 MEBs are already full, the chip will not accept more events
-  ///                       until one of those 3 MEBs have been read out. This variable is counted
-  ///                       up for each event that is not accepted.
+  ///@brief Number of triggers that were "rejected" (ie. all 3 MEBs were full)
   uint64_t mTriggersRejected = 0;
 
-  ///@brief Continuous mode only.
-  ///       The Alpide chip will try to guarantee that there is a free MEB slice in continuous mode.
-  ///       It does this by deleting the oldest MEB slice (even if it has not been read out) when
-  ///       the 3rd one is filled. This variable counts up in that case.
-  uint64_t mEventFramesFlushed = 0;
+  ///@brief Number of "positive" busy transitions (ie. chip went into busy state)
+  uint64_t mBusyTransitions = 0;
+
+  uint64_t mBusyViolations = 0;
+  uint64_t mFlushedIncompleteCount = 0;
 
   uint64_t mEventIdCount = 0;
 
