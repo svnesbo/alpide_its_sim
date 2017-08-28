@@ -66,7 +66,6 @@ namespace ITS {
 
         return vec;
       }
-
     void pixelInput(const Hit& h);
 
   private:

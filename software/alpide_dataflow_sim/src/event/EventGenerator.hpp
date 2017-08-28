@@ -92,6 +92,10 @@ private:
   double mHitAverage[ITS::N_LAYERS];
   double mMultiplicityScaleFactor[ITS::N_LAYERS];
 
+  double mSingleChipHitDensity;
+  double mSingleChipDetectorArea;
+  double mSingleChipHitAverage;
+  double mSingleChipMultiplicityScaleFactor;
 
   boost::random::mt19937 mRandHitGen;
   boost::random::mt19937 mRandHitMultiplicityGen;

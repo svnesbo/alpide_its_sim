@@ -9,6 +9,7 @@
 
 
 #include "ITSDetector.hpp"
+#include "ITSSimulationStats.hpp"
 #include <misc/vcd_trace.hpp>
 
 using namespace ITS;
@@ -258,4 +259,14 @@ void ITSDetector::addTraces(sc_trace_file *wf, std::string name_prefix) const
       mDetectorStaves[layer][stave].addTraces(wf, ITS_name_prefix);
     }
   }
+}
+
+
+///@brief Write simulation stats/data to file
+///@param[in] output_path Path to simulation output directory
+void ITSDetector::writeSimulationStats(const std::string output_path) const
+{
+  writeAlpideStatsToFile(output_path, mChipVector);
+
+  ///@todo More ITS/RU stats here..
 }

@@ -58,7 +58,7 @@ public:
   void physicsEventSignalMethod(void);
   void stimuliEventProcess(void);
   void addTraces(sc_trace_file *wf) const;
-  void writeDataToFile(void) const;
+  void writeStimuliInfo(void) const;
 };
 
 

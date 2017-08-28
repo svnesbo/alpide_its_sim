@@ -67,6 +67,7 @@ add_sources(
   src/AlpideDataParser/AlpideDataParser.cpp
   src/ITS/ITSDetector.cpp
   src/ITS/ITSModulesStaves.cpp
+  src/ITS/ITSSimulationStats.cpp
   src/ReadoutUnit/ReadoutUnit.cpp
   src/event/EventGenerator.cpp
   src/event/EventXML.cpp

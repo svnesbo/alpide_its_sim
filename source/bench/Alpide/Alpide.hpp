@@ -160,8 +160,12 @@ public:
          bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
+
   uint64_t getTriggersAcceptedCount(void) const {return mTriggersAccepted;}
-  uint64_t getEventFramesRejectedCount(void) const {return mTriggersRejected;}
+  uint64_t getTriggersRejectedCount(void) const {return mTriggersRejected;}
+  uint64_t getBusyCount(void) const {return mBusyTransitions;}
+  uint64_t getBusyViolationCount(void) const {return mBusyViolations;}
+  uint64_t getFlushedIncompleteCount(void) const {return mFlushedIncompleteCount;}
 };
 
 

@@ -6,6 +6,7 @@
  */
 
 #include "Stimuli.hpp"
+#include "../ITS/ITSSimulationStats.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -18,8 +19,6 @@
 #include <fstream>
 
 extern volatile bool g_terminate_program;
-
-void print_event_rate(const std::list<int>& t_delta_queue);
 
 
 SC_HAS_PROCESS(Stimuli);
@@ -115,7 +114,13 @@ void Stimuli::stimuliMainMethod(void)
 {
   if(simulation_done == true || g_terminate_program == true) {
     sc_core::sc_stop();
-    writeDataToFile();
+
+    writeStimuliInfo();
+
+    if(mSingleChipSimulation)
+      writeAlpideStatsToFile(mOutputPath, mAlpide->getChips());
+    else
+      mITS->writeSimulationStats(mOutputPath);
   }
   else if(mEventGen->getPhysicsEventCount() < mNumEvents) {
     //if((mEventGen->getPhysicsEventCount() % 100) == 0) {
@@ -194,109 +199,18 @@ void Stimuli::addTraces(sc_trace_file *wf) const
 }
 
 
-///@brief Write simulation data to file. Histograms for MEB usage from the Alpide chips,
-///       and event frame statistics (number of accepted/rejected) in the chips are recorded here
-void Stimuli::writeDataToFile(void) const
+void Stimuli::writeStimuliInfo(void) const
 {
-  std::vector<std::map<unsigned int, std::uint64_t> > alpide_histos;
-  unsigned int all_histos_biggest_key = 0;
-
-  std::string csv_filename = mOutputPath + std::string("/MEB_size_histograms.csv");
-  ofstream csv_file(csv_filename);
-
-  if(!csv_file.is_open()) {
-    std::cerr << "Error opening CSV file for histograms: " << csv_filename << std::endl;
-    return;
-  }
-
-  csv_file << "Multi Event Buffers in use";
-
-  // Get histograms from chip objects, and finish writing CSV header
-  // for(auto it = mAlpideChips.begin(); it != mAlpideChips.end(); it++) {
-  //   int chip_id = (*it)->getChipId();
-  //   csv_file << ";Chip ID " << chip_id;
-
-  //   alpide_histos.push_back((*it)->getMEBHisto());
-
-  //   // Check and possibly update the biggest MEB size (key) found in the histograms
-  //   auto current_histo = alpide_histos.back();
-  //   if(current_histo.rbegin() != current_histo.rend()) {
-  //     unsigned int current_histo_biggest_key = current_histo.rbegin()->first;
-  //     if(all_histos_biggest_key < current_histo_biggest_key)
-  //       all_histos_biggest_key = current_histo_biggest_key;
-  //   }
-  // }
-
-  // Write values to CSV file
-  for(unsigned int MEB_size = 0; MEB_size <= all_histos_biggest_key; MEB_size++) {
-    csv_file << std::endl;
-    csv_file << MEB_size;
-
-    for(unsigned int i = 0; i < alpide_histos.size(); i++) {
-      csv_file << ";";
-
-      auto histo_it = alpide_histos[i].find(MEB_size);
-
-      // Write value if it was found in histogram
-      if(histo_it != alpide_histos[i].end())
-        csv_file << histo_it->second;
-      else
-        csv_file << 0;
-    }
-  }
-
-
-  std::string event_frame_stats_filename = mOutputPath + std::string("/event_frame_stats.csv");
-  ofstream event_frame_stats_file(event_frame_stats_filename);
-
-  event_frame_stats_file << "Chip ID; Accepted event frames; Rejected event frames" << std::endl;
-  // for(auto it = mAlpideChips.begin(); it != mAlpideChips.end(); it++) {
-  //   event_frame_stats_file << (*it)->getChipId() << ";";
-  //   event_frame_stats_file << (*it)->getEventFramesAcceptedCount() << ";";
-  //   event_frame_stats_file << (*it)->getEventFramesRejectedCount() << std::endl;
-  // }
-
-
   std::string info_filename = mOutputPath + std::string("/simulation_info.txt");
   ofstream info_file(info_filename);
 
   if(!info_file.is_open()) {
-    std::cerr << "Error opening simulation info file: " << csv_filename << std::endl;
+    std::cerr << "Error opening simulation info file: " << info_filename << std::endl;
     return;
   }
 
   info_file << "Number of physics events requested: " << mNumEvents << std::endl;
-  info_file << "Number of physics events simulated: " << mEventGen->getPhysicsEventCount() << std::endl;
-}
 
-
-///@brief Takes a list of t_delta values (time between events) for the last events,
-///       calculates the average event rate over those events, and prints it to std::cout.
-///       The list must be maintained by the caller.
-///@todo  Update/fix/remove this function.. currently not used..
-void print_event_rate(const std::list<int>& t_delta_queue)
-{
-  long t_delta_sum = 0;
-  double t_delta_avg;
-  long event_rate;
-
-  if(t_delta_queue.size() == 0) {
-    event_rate = 0;
-  } else {
-    for(auto it = t_delta_queue.begin(); it != t_delta_queue.end(); it++) {
-      t_delta_sum += *it;
-    }
-
-    std::cout << "t_delta_sum: " << t_delta_sum << " ns" << std::endl;
-    t_delta_avg = t_delta_sum/t_delta_queue.size();
-    std::cout << "t_delta_avg: " << t_delta_avg << " ns" << std::endl;
-
-    t_delta_avg /= 1.0E9;
-
-    std::cout << "t_delta_avg: " << t_delta_avg << " s" << std::endl;
-
-    event_rate = 1/t_delta_avg;
-  }
-
-  std::cout << "Average event rate: " << event_rate << "Hz" << std::endl;;
+  info_file << "Number of physics events simulated: ";
+  info_file << mEventGen->getPhysicsEventCount() << std::endl;
 }
