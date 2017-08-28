@@ -119,6 +119,10 @@ private:
 
 private:
   int mChipId;
+
+  ///@brief True: Continuous, False: Triggered
+  bool mContinuousMode;
+
   bool mEnableReadoutTraces;
   bool mEnableDtuDelay;
   bool mStrobeActive;

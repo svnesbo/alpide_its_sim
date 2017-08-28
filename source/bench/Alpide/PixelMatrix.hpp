@@ -47,15 +47,11 @@ private:
   uint64_t mMEBHistoLastUpdateTime = 0;
 
 protected:
-  ///@brief True: Continuous, False: Triggered
-  bool mContinuousMode;
-
   ///@todo Several of these functions will be exposed "publically" to users of
   ///      the Alpide class.. most of them should be made private, or maybe use
   ///      protected inheritance in Alpide class? But the user should still
   ///      have access to setPixel()..
 public:
-  PixelMatrix(bool continuous_mode);
   virtual void newEvent(uint64_t event_time);
   void deleteEvent(uint64_t event_time);
   void flushOldestEvent(void);

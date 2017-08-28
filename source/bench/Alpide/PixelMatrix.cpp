@@ -12,13 +12,6 @@
 #include <iostream>
 #include "PixelMatrix.hpp"
 
-///@brief PixelMatrix Constructor
-///@param[in] continuous_mode True: continuous mode, false: triggered mode
-PixelMatrix::PixelMatrix(bool continuous_mode)
-  : mContinuousMode(continuous_mode)
-{
-}
-
 
 ///@brief Indicate to the Alpide that we are starting on a new event. If the call is
 ///       successful a new MEB slice is created, and the next calls to setPixel will add pixels

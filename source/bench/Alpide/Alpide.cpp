@@ -30,7 +30,6 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
                bool strobe_extension, bool enable_clustering, bool continuous_mode,
                bool matrix_readout_speed)
   : sc_core::sc_module(name)
-  , PixelMatrix(continuous_mode)
   , s_control_input("s_control_input")
   , s_data_output("s_data_output")
   , s_chip_ready_out("chip_ready_out")
@@ -38,6 +37,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
+  , mContinuousMode(continuous_mode)
   , mStrobeExtensionEnable(strobe_extension)
   , mStrobeLengthNs(strobe_length_ns)
 {
