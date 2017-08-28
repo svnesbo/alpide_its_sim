@@ -218,58 +218,58 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 
 
   if(data_word_check == DW_DATA_LONG) {
-    mDataLongCount++;
+    mStats.mDataLongCount++;
     data_parsed.data[2] = ALPIDE_DATA_LONG1;
     data_parsed.data[1] = ALPIDE_DATA_LONG2;
     data_parsed.data[0] = ALPIDE_DATA_LONG3;
   } else if(data_word_check == DW_DATA_SHORT) {
-    mDataShortCount++;
+    mStats.mDataShortCount++;
     data_parsed.data[2] = ALPIDE_DATA_SHORT1;
     data_parsed.data[1] = ALPIDE_DATA_SHORT2;
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(chip_word_check == DW_CHIP_HEADER) {
-    mChipHeaderCount++;
+    mStats.mChipHeaderCount++;
     data_parsed.data[2] = ALPIDE_CHIP_HEADER1;
     data_parsed.data[1] = ALPIDE_CHIP_HEADER2;
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(chip_word_check == DW_CHIP_TRAILER) {
-    mChipTrailerCount++;
+    mStats.mChipTrailerCount++;
     data_parsed.data[2] = ALPIDE_CHIP_TRAILER;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(chip_word_check == DW_CHIP_EMPTY_FRAME) {
-    mChipEmptyFrameCount++;
+    mStats.mChipEmptyFrameCount++;
     data_parsed.data[2] = ALPIDE_CHIP_EMPTY_FRAME1;
     data_parsed.data[1] = ALPIDE_CHIP_EMPTY_FRAME2;
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(region_word_check == DW_REGION_HEADER) {
-    mRegionHeaderCount++;
+    mStats.mRegionHeaderCount++;
     data_parsed.data[2] = ALPIDE_REGION_HEADER;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_IDLE) {
-    mIdleCount++;
-    mIdleByteCount++;
+    mStats.mIdleCount++;
+    mStats.mIdleByteCount++;
     data_parsed.data[2] = ALPIDE_IDLE;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_BUSY_ON) {
-    mBusyOnCount++;
+    mStats.mBusyOnCount++;
     data_parsed.data[2] = ALPIDE_BUSY_ON;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_BUSY_OFF) {
-    mBusyOffCount++;
+    mStats.mBusyOffCount++;
     data_parsed.data[2] = ALPIDE_BUSY_OFF;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_COMMA) {
-    mCommaCount++;
+    mStats.mCommaCount++;
     data_parsed.data[2] = ALPIDE_COMMA;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else {
-    mUnknownDataWordCount++;
+    mStats.mUnknownDataWordCount++;
     data_parsed.data[2] = ALPIDE_UNKNOWN;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
@@ -291,22 +291,22 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
 {
   if(data == DW_IDLE) {
-    mIdleByteCount++;
+    mStats.mIdleByteCount++;
     return ALPIDE_IDLE;
   } else if(data == DW_BUSY_ON) {
     //std::cout << "Got BUSY_ON" << std::endl;
-    mBusyOnCount++;
+    mStats.mBusyOnCount++;
     return ALPIDE_BUSY_ON;
   } else if(data == DW_BUSY_OFF) {
     //std::cout << "Got BUSY_OFF" << std::endl;
-    mBusyOffCount++;
+    mStats.mBusyOffCount++;
     return ALPIDE_BUSY_OFF;
   } else if(data == DW_COMMA) {
     //std::cout << "Got COMMA" << std::endl;
-    mCommaCount++;
+    mStats.mCommaCount++;
     return ALPIDE_COMMA;
   } else {
-    mUnknownDataWordCount++;
+    mStats.mUnknownDataWordCount++;
     return ALPIDE_UNKNOWN;
   }
 }

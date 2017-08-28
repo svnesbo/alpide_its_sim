@@ -47,6 +47,23 @@ enum AlpideDataTypes {ALPIDE_IDLE,
                       ALPIDE_UNKNOWN};
 
 
+struct ProtocolStats {
+  // Counters for statistics
+  long mCommaCount = 0;
+  long mIdleCount = 0;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
+  long mIdleByteCount = 0;    // Idle word byte counts
+  long mBusyOnCount = 0;
+  long mBusyOffCount = 0;
+  long mDataShortCount = 0;
+  long mDataLongCount = 0;
+  long mRegionHeaderCount = 0;
+  long mChipHeaderCount = 0;
+  long mChipTrailerCount = 0;
+  long mChipEmptyFrameCount = 0;
+  long mUnknownDataWordCount = 0;
+};
+
+
 struct AlpideDataParsed {
   AlpideDataTypes data[3];
 };
@@ -80,21 +97,7 @@ private:
   std::vector<AlpideEventFrame> mEvents;
 
   unsigned int mCurrentRegion = 0;
-
-  // Counters for statistics
-  long mCommaCount = 0;
-  long mIdleCount = 0;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
-  long mIdleByteCount = 0;    // Idle word byte counts
-  long mBusyOnCount = 0;
-  long mBusyOffCount = 0;
-  long mDataShortCount = 0;
-  long mDataLongCount = 0;
-  long mRegionHeaderCount = 0;
-  long mChipHeaderCount = 0;
-  long mChipTrailerCount = 0;
-  long mChipEmptyFrameCount = 0;
-  long mUnknownDataWordCount = 0;
-
+  ProtocolStats mStats;
   bool mSaveEvents;
 
 protected:
@@ -108,6 +111,7 @@ public:
   void inputDataWord(AlpideDataWord dw);
   AlpideDataParsed parseDataWord(AlpideDataWord dw);
   AlpideEventBuilder(bool save_events) : mSaveEvents(save_events) {}
+  ProtocolStats getProtocolStats(void) {return mStats;}
 private:
   AlpideDataTypes parseNonHeaderBytes(uint8_t data);
 };

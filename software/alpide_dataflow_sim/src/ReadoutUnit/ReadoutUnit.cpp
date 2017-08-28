@@ -233,3 +233,45 @@ void ReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ///@todo Add a trigger out to RU that we can trace here..
   //addTrace(wf, RU_name_prefix, "trigger_out", s_trigger_out);
 }
+
+
+///@brief Write simulation stats/data to file
+///@param[in] output_path Path to simulation output directory
+void ReadoutUnit::writeSimulationStats(const std::string output_path) const
+{
+  std::string csv_filename = output_path + std::string("_Link_utilization.csv");
+  ofstream prot_stats_csv_file(csv_filename);
+
+  if(!prot_stats_csv_file.is_open()) {
+    std::cerr << "Error opening link utilization stats file: " << csv_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing link utilization stats to file:\n\"";
+    std::cout << csv_filename << "\"" << std::endl;
+  }
+
+  prot_stats_csv_file << "Link ID; COMMA; IDLE_FULL; IDLE_BYTES;";
+  prot_stats_csv_file << "BUSY_ON; BUSY_OFF; DATA_SHORT; DATA_LONG;";
+  prot_stats_csv_file << "REGION_HEADER; CHIP_HEADER; CHIP_TRAILER;";
+  prot_stats_csv_file << "CHIP_EMPTY_FRAME; UNKNOWN" << std::endl;
+
+  for(unsigned int i = 0; i < mDataLinkParsers.size(); i++) {
+    ProtocolStats stats = mDataLinkParsers[i]->getProtocolStats();
+
+    prot_stats_csv_file << i << ";";
+    prot_stats_csv_file << stats.mCommaCount << ";";
+    prot_stats_csv_file << stats.mIdleCount << ";";
+    prot_stats_csv_file << stats.mIdleByteCount << ";";
+    prot_stats_csv_file << stats.mBusyOnCount << ";";
+    prot_stats_csv_file << stats.mBusyOffCount << ";";
+    prot_stats_csv_file << stats.mDataShortCount << ";";
+    prot_stats_csv_file << stats.mDataLongCount << ";";
+    prot_stats_csv_file << stats.mRegionHeaderCount << ";";
+    prot_stats_csv_file << stats.mChipHeaderCount << ";";
+    prot_stats_csv_file << stats.mChipTrailerCount << ";";
+    prot_stats_csv_file << stats.mChipEmptyFrameCount << ";";
+    prot_stats_csv_file << stats.mUnknownDataWordCount << std::endl;
+  }
+
+  ///@todo More ITS/RU stats here..
+}

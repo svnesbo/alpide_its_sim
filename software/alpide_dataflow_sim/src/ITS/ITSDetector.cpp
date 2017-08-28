@@ -268,5 +268,15 @@ void ITSDetector::writeSimulationStats(const std::string output_path) const
 {
   writeAlpideStatsToFile(output_path, mChipVector);
 
+  for(unsigned int layer = 0; layer < N_LAYERS; layer++) {
+    for(unsigned int stave = 0; stave < mDetectorStaves[layer].size(); stave++){
+      std::stringstream ss;
+      ss << output_path << "/RU_" << layer << "_" << stave;
+
+      //mDetectorStaves[layer][stave].writeSimulationStats(output_path);
+      mReadoutUnits[layer][stave].writeSimulationStats(ss.str());
+    }
+  }
+
   ///@todo More ITS/RU stats here..
 }
