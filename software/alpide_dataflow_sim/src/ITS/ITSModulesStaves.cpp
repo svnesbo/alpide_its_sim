@@ -28,14 +28,14 @@ SingleChip::SingleChip(sc_core::sc_module_name const &name, int chip_id,
 
   mChip = std::make_shared<Alpide>("Alpide",
                                    chip_id,
-                                   128,
-                                   64,
-                                   0,
-                                   100,
-                                   false,
-                                   true,
-                                   false,
-                                   true);
+                                   region_fifo_size,
+                                   dmu_fifo_size,
+                                   dtu_delay_cycles,
+                                   strobe_length_ns,
+                                   strobe_extension,
+                                   enable_clustering,
+                                   continuous_mode,
+                                   matrix_readout_speed);
 
     socket_control_out.bind(mChip->s_control_input);
     mChip->s_data_output(socket_data_out[0]);
