@@ -96,10 +96,13 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
 
   s_physics_event = false;
 
+  if(mContinuousMode == true) {
+    SC_METHOD(continuousTriggerMethod);
+  }
+
   SC_METHOD(stimuliMainMethod);
   sensitive << mEventGen->E_physics_event;
   dont_initialize();
-
 
   // This method just generates a (VCD traceable) SystemC signal
   // that coincides with the physics event from the event generator
@@ -140,9 +143,11 @@ void Stimuli::stimuliMainMethod(void)
 
       std::cout << "Creating event for next trigger.." << std::endl;
 
-      // Create an event for the next trigger, delayed by the
-      // total/specified trigger delay (to account for cable/CTP delays etc.)
-      mReadoutUnit->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
+      if(mContinuousMode == false) {
+        // Create an event for the next trigger, delayed by the
+        // total/specified trigger delay (to account for cable/CTP delays etc.)
+        mReadoutUnit->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
+      }
     }
     else {
       for(auto it = event_hits.begin(); it != event_hits.end(); it++)
@@ -150,9 +155,11 @@ void Stimuli::stimuliMainMethod(void)
 
       std::cout << "Creating event for next trigger.." << std::endl;
 
+      if(mContinuousMode == false) {
       // Create an event for the next trigger, delayed by the
       // total/specified trigger delay (to account for cable/CTP delays etc.)
-      mITS->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
+        mITS->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
+      }
     }
 
     next_trigger(mEventGen->E_physics_event);
@@ -163,6 +170,18 @@ void Stimuli::stimuliMainMethod(void)
     next_trigger(10, SC_US);
     simulation_done = true;
   }
+}
+
+
+///@brief SystemC method for generating triggers in continuous mode
+void Stimuli::continuousTriggerMethod(void)
+{
+  if(mSingleChipSimulation)
+    mReadoutUnit->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
+  else
+    mITS->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
+
+  next_trigger(mStrobeActiveNs+mStrobeInactiveNs, SC_NS);
 }
 
 
