@@ -94,8 +94,12 @@ private:
   ///@brief FIFO used to represent the encoding delay in the DTU
   sc_fifo<AlpideDataWord> s_dtu_delay_fifo;
 
+  ///@brief Represents the FIFO written to by the BMU in the real ALPIDE chip
+  sc_fifo<AlpideDataWord> s_busy_fifo;
+
 
   sc_signal<sc_uint<8> > s_dmu_fifo_size;
+  sc_signal<sc_uint<8> > s_busy_fifo_size;
   sc_signal<bool> s_chip_ready_internal;
   sc_signal<bool> s_strobe_n;
 
@@ -149,8 +153,9 @@ private:
   void mainMethod(void);
   void triggerMethod(void);
   void strobeDurationMethod(void);
-  void strobeInput(void);
+  void busyFifoMethod(void);
 
+  void strobeInput(void);
   void frameReadout(void); // FROMU
   void dataTransmission(void);
   void updateBusyStatus(void);

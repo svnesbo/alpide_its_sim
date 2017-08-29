@@ -158,35 +158,6 @@ class AlpideDataWord
 public:
   uint8_t data[3];
 
-  bool signalBusyOn(void) {
-    if(data[0] == DW_IDLE) {
-      data[0] = DW_BUSY_ON;
-      return true;
-    } else if(data[1] == DW_IDLE) {
-      data[1] = DW_BUSY_ON;
-      return true;
-    } else if(data[2] == DW_IDLE) {
-      data[2] = DW_BUSY_ON;
-      return true;
-    } else {
-      return false;
-    }
-  }
-  bool signalBusyOff(void) {
-    if(data[0] == DW_IDLE) {
-      data[0] = DW_BUSY_OFF;
-      return true;
-    } else if(data[1] == DW_IDLE) {
-      data[1] = DW_BUSY_OFF;
-      return true;
-    } else if(data[2] == DW_IDLE) {
-      data[2] = DW_BUSY_OFF;
-      return true;
-    } else {
-      return false;
-    }
-  }
-
   inline bool operator==(const AlpideDataWord& rhs) const {
     return (this->data[0] == rhs.data[0] &&
             this->data[1] == rhs.data[1] &&

@@ -35,6 +35,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   , s_chip_ready_out("chip_ready_out")
   , s_dmu_fifo(dmu_fifo_size)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
+  , s_busy_fifo(BUSY_FIFO_SIZE)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
   , mContinuousMode(continuous_mode)
@@ -125,6 +126,10 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   sensitive << E_strobe_interval_done;
   dont_initialize();
 
+  SC_METHOD(busyFifoMethod);
+  sensitive << s_busy_status;
+  dont_initialize();
+
   // SC_METHOD(strobeAndFramingMethod);
   // sensitive << s_strobe_n;
   // dont_initialize();
@@ -206,7 +211,7 @@ void Alpide::strobeDurationMethod(void)
 }
 
 
-///@brief This SystemC method handles framing of events according to the strobe intervals.
+///@brief This function handles framing of events according to the strobe intervals.
 ///       Controls creation of new Multi Event Buffers (MEBs). Together with the frameReadout
 ///       function, this process essentially does the same as the FROMU (Frame Read Out Management
 ///       Unit) in the Alpide chip.
@@ -441,53 +446,53 @@ void Alpide::frameReadout(void)
 ///       cycles that the DTU in the Alpide chip adds to data transmission.
 ///
 ///       Should be called one time per clock cycle.
-///@todo  There needs to be a Busy FIFO, and this method needs to pick words from either
-///       that FIFO or from the DMU FIFO.
 void Alpide::dataTransmission(void)
 {
-  AlpideDataWord dw_dtu = AlpideComma();
-  AlpideDataWord dw_dmu = AlpideComma();
+  AlpideDataWord dw_dtu_fifo_input = AlpideIdle();
+  AlpideDataWord dw_dtu_fifo_output;
+
   sc_uint<24> data_out;
 
+  s_dmu_fifo_size = s_dmu_fifo.num_available();
+  s_busy_fifo_size = s_busy_fifo.num_available();
+
+  // Prioritize busy words over data words
+  if(s_busy_fifo.num_available() > 0) {
+    s_busy_fifo.nb_read(dw_dtu_fifo_input);
+  } else if(s_dmu_fifo.num_available() > 0) {
+    s_dmu_fifo.nb_read(dw_dtu_fifo_input);
+  }
+
+
   if(mEnableDtuDelay) {
-    s_dmu_fifo_size = s_dmu_fifo.num_available();
-
-    // DTU FIFO should always be filled,
-    // but in case it is not we will output a comma instead
-    if(s_dtu_delay_fifo.nb_read(dw_dtu) == false) {
-      dw_dtu = AlpideComma();
+    s_dtu_delay_fifo.nb_write(dw_dtu_fifo_input);
+    if(s_dtu_delay_fifo.nb_read(dw_dtu_fifo_output) == false) {
+      dw_dtu_fifo_output = AlpideIdle();
     }
-
-    data_out = dw_dtu.data[2] << 16 | dw_dtu.data[1] << 8 | dw_dtu.data[0];
-    s_serial_data_out = data_out;
-
-    // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
-    if(s_dmu_fifo.nb_read(dw_dmu) == false) {
-      dw_dmu = AlpideComma();
-    }
-
-    s_dtu_delay_fifo.nb_write(dw_dmu);
-    sc_uint<24> data_dtu_input = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
-    s_serial_data_dtu_input_debug = data_dtu_input;
+  } else {
+    dw_dtu_fifo_output = dw_dtu_fifo_input;
   }
-  // With dtu_delay_cycles = 0 the dtu delay fifo is only 1 word deep, and you get into this mode
-  // where it is full, empty, full, and you lose every 2nd word.. so we just bypass that
-  // delay fifo in this event..
-  else {
-    // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
-    if(s_dmu_fifo.nb_read(dw_dmu) == false) {
-      dw_dmu = AlpideComma();
-    }
-    data_out = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
-    s_serial_data_dtu_input_debug = data_out;
-    s_serial_data_out = data_out;
-  }
+
+  sc_uint<24> data_dtu_input =
+    dw_dtu_fifo_input.data[2] << 16 |
+    dw_dtu_fifo_input.data[1] << 8 |
+    dw_dtu_fifo_input.data[0];
+
+  // Debug signal of DTU FIFO input just for adding to VCD trace
+  s_serial_data_dtu_input_debug = data_dtu_input;
+
+  data_out =
+    dw_dtu_fifo_output.data[2] << 16 |
+    dw_dtu_fifo_output.data[1] << 8 |
+    dw_dtu_fifo_output.data[0];
+
+  s_serial_data_out = data_out;
 
   // Data initiator socket output
   DataPayload socket_dw;
-  socket_dw.data.push_back(dw_dmu.data[2]);
-  socket_dw.data.push_back(dw_dmu.data[1]);
-  socket_dw.data.push_back(dw_dmu.data[0]);
+  socket_dw.data.push_back(dw_dtu_fifo_output.data[2]);
+  socket_dw.data.push_back(dw_dtu_fifo_output.data[1]);
+  socket_dw.data.push_back(dw_dtu_fifo_output.data[0]);
   s_data_output->put(socket_dw);
 }
 
@@ -531,6 +536,30 @@ void Alpide::updateBusyStatus(void)
 }
 
 
+void Alpide::busyFifoMethod(void)
+{
+  AlpideDataWord dw_busy;
+
+  if(s_busy_status) {
+    dw_busy = AlpideBusyOn();
+  } else {
+    dw_busy = AlpideBusyOff();
+  }
+
+  // In the unlikely (should be impossible) case that
+  // this FIFO is full, just read out and discard the oldest
+  // word to make room for the new one.
+  // In the real chip the busy FSM probably waits, but for the
+  // sake of simulation speed it is simplified here.
+  if(s_busy_fifo.num_free() == 0) {
+    AlpideDataWord dummy_read;
+    s_busy_fifo.nb_read(dummy_read);
+  }
+
+  s_busy_fifo.nb_write(dw_busy);
+}
+
+
 ///@brief Add SystemC signals to log in VCD trace file.
 ///@param[in,out] wf Pointer to VCD trace file object
 ///@param[in] name_prefix Name prefix to be added to all the trace names
@@ -565,6 +594,7 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 
   addTrace(wf, alpide_name_prefix, "fromu_readout_state", s_fromu_readout_state);
   addTrace(wf, alpide_name_prefix, "dmu_fifo_size", s_dmu_fifo_size);
+  addTrace(wf, alpide_name_prefix, "busy_fifo_size", s_busy_fifo_size);
 
 //  addTrace(wf, alpide_name_prefix, "frame_start_fifo", s_frame_start_fifo);
 //  addTrace(wf, alpide_name_prefix, "frame_end_fifo", s_frame_end_fifo);

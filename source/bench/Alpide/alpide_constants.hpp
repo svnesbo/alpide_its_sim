@@ -2,7 +2,7 @@
  * @file   alpide_constants.h
  * @author Simon Voigt Nesbo
  * @date   November 27, 2016
- * @brief  Various constants for alpide chip, 
+ * @brief  Various constants for alpide chip,
  *         such as pixel matrix width and heigh, fifo depths, etc.
  */
 
@@ -24,6 +24,8 @@
 #define TRU_FRAME_FIFO_ALMOST_FULL1 48
 #define TRU_FRAME_FIFO_ALMOST_FULL2 56
 #define TRU_FRAME_FIFO_SIZE 64
+
+#define BUSY_FIFO_SIZE 4
 
 #define DATA_LONG_PIXMAP_SIZE ((unsigned int) 7)
 
