@@ -26,9 +26,11 @@
 #pragma GCC diagnostic pop
 
 
-/// Enumerations used to identify the meaning of the different bytes in the data stream from
-/// the Alpide chip. Not to be confused with the definitions in alpide_data_format.h which are used
-/// to initialize the 24-bit FIFO words.
+/// Enumerations used to identify the meaning of the different bytes in the
+/// data stream from the Alpide chip. Not to be confused with the definitions
+/// in alpide_data_format.h which are used to initialize the 24-bit FIFO words.
+/// The region trailer word should never appear in the data stream, they
+/// are only used internally in the ALPIDE chip.
 enum AlpideDataTypes {ALPIDE_IDLE,
                       ALPIDE_CHIP_HEADER1,
                       ALPIDE_CHIP_HEADER2,
@@ -36,6 +38,7 @@ enum AlpideDataTypes {ALPIDE_IDLE,
                       ALPIDE_CHIP_EMPTY_FRAME1,
                       ALPIDE_CHIP_EMPTY_FRAME2,
                       ALPIDE_REGION_HEADER,
+                      ALPIDE_REGION_TRAILER,
                       ALPIDE_DATA_SHORT1,
                       ALPIDE_DATA_SHORT2,
                       ALPIDE_DATA_LONG1,
@@ -57,9 +60,11 @@ struct ProtocolStats {
   long mDataShortCount = 0;
   long mDataLongCount = 0;
   long mRegionHeaderCount = 0;
+  long mRegionTrailerCount = 0; // Should never appear in data stream
   long mChipHeaderCount = 0;
   long mChipTrailerCount = 0;
   long mChipEmptyFrameCount = 0;
+  long mUnknownNonHeaderWordCount = 0;
   long mUnknownDataWordCount = 0;
 };
 

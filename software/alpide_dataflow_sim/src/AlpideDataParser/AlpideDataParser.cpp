@@ -111,6 +111,10 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     //std::cout << "\tCurrent region: " << mCurrentRegion << std::endl;
     break;
 
+  case ALPIDE_REGION_TRAILER:
+    // Do nothing. We should never see a region trailer word here
+    break;
+
   case ALPIDE_DATA_SHORT1:
     //std::cout << "Got ALPIDE_DATA_SHORT1: " << data_bits << std::endl;
     if(!mEvents.empty()) {
@@ -213,7 +217,7 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
   // Parse most significant byte - Check all options...
   uint8_t data_word_check = dw.data[2] & MASK_DATA;
   uint8_t chip_word_check = dw.data[2] & MASK_CHIP;
-  uint8_t region_word_check = dw.data[2] & MASK_REGION_HEADER;
+  uint8_t region_header_word_check = dw.data[2] & MASK_REGION_HEADER;
   uint8_t idle_busy_comma_word_check = dw.data[2] & MASK_IDLE_BUSY_COMMA;
 
 
@@ -242,11 +246,18 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
     data_parsed.data[2] = ALPIDE_CHIP_EMPTY_FRAME1;
     data_parsed.data[1] = ALPIDE_CHIP_EMPTY_FRAME2;
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
-  } else if(region_word_check == DW_REGION_HEADER) {
+  } else if(region_header_word_check == DW_REGION_HEADER) {
     mStats.mRegionHeaderCount++;
     data_parsed.data[2] = ALPIDE_REGION_HEADER;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
+  } else if(dw.data[2] == DW_REGION_TRAILER) {
+    // We should never see a region trailer here
+    // It is included for debugging purposes only..
+    mStats.mRegionTrailerCount++;
+    data_parsed.data[2] = ALPIDE_REGION_TRAILER;
+    data_parsed.data[1] = ALPIDE_REGION_TRAILER;
+    data_parsed.data[0] = ALPIDE_REGION_TRAILER;
   } else if(idle_busy_comma_word_check == DW_IDLE) {
     mStats.mIdleCount++;
     mStats.mIdleByteCount++;
@@ -306,7 +317,7 @@ AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
     mStats.mCommaCount++;
     return ALPIDE_COMMA;
   } else {
-    mStats.mUnknownDataWordCount++;
+    mStats.mUnknownNonHeaderWordCount++;
     return ALPIDE_UNKNOWN;
   }
 }

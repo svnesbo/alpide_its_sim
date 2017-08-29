@@ -250,10 +250,11 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     std::cout << csv_filename << "\"" << std::endl;
   }
 
-  prot_stats_csv_file << "Link ID; COMMA; IDLE_FULL; IDLE_BYTES;";
-  prot_stats_csv_file << "BUSY_ON; BUSY_OFF; DATA_SHORT; DATA_LONG;";
-  prot_stats_csv_file << "REGION_HEADER; CHIP_HEADER; CHIP_TRAILER;";
-  prot_stats_csv_file << "CHIP_EMPTY_FRAME; UNKNOWN" << std::endl;
+  prot_stats_csv_file << "Link ID; COMMA; IDLE_FULL; IDLE_BYTES; ";
+  prot_stats_csv_file << "BUSY_ON; BUSY_OFF; DATA_SHORT; DATA_LONG; ";
+  prot_stats_csv_file << "REGION_HEADER; REGION_TRAILER; CHIP_HEADER; ";
+  prot_stats_csv_file << "CHIP_TRAILER; CHIP_EMPTY_FRAME; UNKNOWN_NON_HEADER; ";
+  prot_stats_csv_file << "UNKNOWN_DATA_WORD" << std::endl;
 
   for(unsigned int i = 0; i < mDataLinkParsers.size(); i++) {
     ProtocolStats stats = mDataLinkParsers[i]->getProtocolStats();
@@ -267,9 +268,11 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     prot_stats_csv_file << stats.mDataShortCount << ";";
     prot_stats_csv_file << stats.mDataLongCount << ";";
     prot_stats_csv_file << stats.mRegionHeaderCount << ";";
+    prot_stats_csv_file << stats.mRegionTrailerCount << ";";
     prot_stats_csv_file << stats.mChipHeaderCount << ";";
     prot_stats_csv_file << stats.mChipTrailerCount << ";";
     prot_stats_csv_file << stats.mChipEmptyFrameCount << ";";
+    prot_stats_csv_file << stats.mUnknownNonHeaderWordCount << ";";
     prot_stats_csv_file << stats.mUnknownDataWordCount << std::endl;
   }
 
