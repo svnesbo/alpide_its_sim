@@ -24,7 +24,7 @@ namespace ITS {
   class ITSDetector : public sc_core::sc_module {
   public:
     sc_in_clk s_system_clk_in;
-    sc_event E_trigger_in;
+    sc_event_queue E_trigger_in;
 
     ///@todo Include some more global busy status etc. for the whole detector?? Maybe some stats?
     sc_out<bool> s_detector_busy_out;

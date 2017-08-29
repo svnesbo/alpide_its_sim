@@ -232,7 +232,7 @@ void ITSDetector::triggerMethod(void)
 
   for(unsigned int i = 0; i < N_LAYERS; i++) {
     for(auto RU = mReadoutUnits[i].begin(); RU != mReadoutUnits[i].end(); RU++) {
-      RU->E_trigger_in.notify();
+      RU->E_trigger_in.notify(SC_ZERO_TIME);
     }
   }
 }

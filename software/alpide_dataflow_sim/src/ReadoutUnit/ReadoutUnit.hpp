@@ -53,7 +53,7 @@ public:
   sc_port<sc_fifo_in_if<BusyLinkWord>> s_busy_in;
   sc_export<sc_fifo<BusyLinkWord>> s_busy_out;
 
-  sc_event E_trigger_in;
+  sc_event_queue E_trigger_in;
 
   ///@todo Make this a vector/array somehow, to cater for many chips..
   std::vector<sc_in<sc_uint<24>>> s_serial_data_input;
