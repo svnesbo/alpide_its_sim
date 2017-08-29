@@ -74,6 +74,13 @@ private:
   bool mInnerBarrelMode;
   bool mBusyDaisyChainMaster;
   uint64_t mLastTriggerTime;
+  uint64_t mTriggersReceivedCount = 0;
+  uint64_t mTriggersFilteredCount = 0;
+
+  // One entry per control link.
+  // Should be same size as s_alpide_control_output.
+  std::vector<uint64_t> mTriggersSentCount;
+
 
   std::vector<std::shared_ptr<AlpideDataParser>> mDataLinkParsers;
   std::vector<sc_export<sc_signal<bool>>> mAlpideLinkBusySignals;
