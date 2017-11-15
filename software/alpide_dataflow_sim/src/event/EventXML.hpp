@@ -12,15 +12,8 @@
 #include <QtXml/QtXml>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
-#include "Hit.hpp"
-
-struct detectorPosition {
-  int layer_id;
-  int stave_id;
-  int module_id;
-  int stave_chip_id;
-};
-
+#include "Alpide/Hit.hpp"
+#include "../ITS/ITSDetector.hpp"
 
 class EventDigits {
   // Vector index: hit/digit number
@@ -48,7 +41,7 @@ public:
 
 class EventXML {
   // Maps a detector position to each unique chip id
-  std::map<unsigned int, detectorPosition> mDetectorPositionList;
+  std::map<unsigned int, ITS::detectorPosition> mDetectorPositionList;
 
   std::vector<EventDigits*> mEvents;
 
@@ -62,7 +55,7 @@ class EventXML {
   boost::random::uniform_int_distribution<int> *mRandEventIdDist;
 
   bool findXMLElementInListById(const QDomNodeList& list, int id, QDomElement& element_out);
-  bool locateChipInEventXML(const detectorPosition& chip_position,
+  bool locateChipInEventXML(const ITS::detectorPosition& chip_position,
                             const QDomElement& event_xml_dom_root,
                             QDomElement& chip_element_out);
   void updateEventIdDistribution(void);

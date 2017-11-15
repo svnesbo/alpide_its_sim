@@ -55,7 +55,6 @@ include_directories (../../../../source/bench
 
 add_sources(
   alpide_test.cpp
-  ../event/EventFrame.cpp
   ../event/Hit.cpp
   ../AlpideDataParser/AlpideDataParser.cpp
   )

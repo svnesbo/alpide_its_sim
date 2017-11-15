@@ -6,6 +6,7 @@
  */
 
 #include "EventGenerator.hpp"
+#include "../ITS/ITS_config.hpp"
 #include "Alpide/alpide_constants.hpp"
 #include <boost/current_function.hpp>
 #include <boost/random/random_device.hpp>
@@ -46,20 +47,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
   mPixelDeadTime = settings->value("alpide/pixel_shaping_dead_time_ns").toInt();
   mPixelActiveTime = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
-  mNumChips = settings->value("simulation/n_chips").toInt();
-
-  mContinuousMode = settings->value("simulation/continuous_mode").toBool();
-  mTriggerFilterTimeNs = settings->value("event/trigger_filter_time_ns").toInt();
-
-  // Trigger filtering only allowed in triggered mode
-  if(mContinuousMode == false) {
-    mTriggerFilteringEnabled = settings->value("event/trigger_filter_enable").toBool();
-  } else {
-    mTriggerFilteringEnabled = false;
-  }
-
-  mEventQueue.resize(mNumChips);
-  mHitQueue.resize(mNumChips);
+  mSingleChipSimulation = settings->value("simulation/single_chip").toBool();
+  mNumChips = 0;
 
   if(mRandomHitGeneration) {
     // Instantiate event generator object with the desired hit multiplicity distribution
@@ -83,24 +72,81 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       std::string dist_file = multipl_dist_file.toStdString();
       readDiscreteDistributionFile(dist_file.c_str(), mult_dist);
 
-      // Calculate the average number of hits in an event,
-      // assuming that all chips here are on the same layer.
-      double hits_per_cm2 = settings->value("event/hit_density_min_bias_per_cm2").toDouble();
-      double alpide_chip_area = CHIP_WIDTH_CM*CHIP_HEIGHT_CM;
-      double its_layer_area = mNumChips * alpide_chip_area;
-      double avg_hits_per_event =  hits_per_cm2 * its_layer_area;
-
-      std::cout << "hits_per_cm2: " << hits_per_cm2;
-      std::cout << "\talpide_chip_area: " << alpide_chip_area;
-      std::cout << "\tits_layer_area: " << its_layer_area;
-      std::cout << "\tavg_hits_per_event: " << avg_hits_per_event << std::endl;
-      std::cout << "Number of bins in distribution before scaling: " << mult_dist.size() << std::endl;
-      //scaleDiscreteDistribution(mult_dist, avg_hits_per_event);
-      double multpl_dist_mean = normalizeDiscreteDistribution(mult_dist);
-      mMultDistScale = avg_hits_per_event / multpl_dist_mean;
-      std::cout << "Multiplicity distribution scaling factor: " << mMultDistScale << std::endl;
-
       mRandHitMultiplicityDiscrete = new discrete_distribution<>(mult_dist.begin(), mult_dist.end());
+      std::cout << "Number of bins in distribution before scaling: ";
+      std::cout << mult_dist.size() << std::endl;
+
+      double multpl_dist_mean = normalizeDiscreteDistribution(mult_dist);
+
+      if(mSingleChipSimulation) {
+        mSingleChipHitDensity = settings->value("event/hit_density_layer0").toDouble();
+        mSingleChipDetectorArea = CHIP_WIDTH_CM * CHIP_HEIGHT_CM;
+        mSingleChipHitAverage = mSingleChipHitDensity * mSingleChipDetectorArea;
+        mSingleChipMultiplicityScaleFactor = mSingleChipHitAverage / multpl_dist_mean;
+        mNumChips = 1;
+
+        std::cout << "Chip area [cm^2]: ";
+        std::cout << mDetectorArea[0] << std::endl;
+
+        std::cout << "Chip hit density [cm^-1]: ";
+        std::cout << mHitDensities[0] << std::endl;
+
+        std::cout << "Chip average number of hits per event: ";
+        std::cout << mHitAverage[0] << std::endl;
+
+        std::cout << "Chip multiplicity distr. scaling factor: ";
+        std::cout << mMultiplicityScaleFactor[0] << std::endl;
+      } else {
+        mHitDensities[0] = settings->value("event/hit_density_layer0").toDouble();
+        mHitDensities[1] = settings->value("event/hit_density_layer1").toDouble();
+        mHitDensities[2] = settings->value("event/hit_density_layer2").toDouble();
+        mHitDensities[3] = settings->value("event/hit_density_layer3").toDouble();
+        mHitDensities[4] = settings->value("event/hit_density_layer4").toDouble();
+        mHitDensities[5] = settings->value("event/hit_density_layer5").toDouble();
+        mHitDensities[6] = settings->value("event/hit_density_layer6").toDouble();
+
+        mNumStaves[0] = settings->value("its/layer0_num_staves").toInt();
+        mNumStaves[1] = settings->value("its/layer1_num_staves").toInt();
+        mNumStaves[2] = settings->value("its/layer2_num_staves").toInt();
+        mNumStaves[3] = settings->value("its/layer3_num_staves").toInt();
+        mNumStaves[4] = settings->value("its/layer4_num_staves").toInt();
+        mNumStaves[5] = settings->value("its/layer5_num_staves").toInt();
+        mNumStaves[6] = settings->value("its/layer6_num_staves").toInt();
+
+        for(int layer = 0; layer < ITS::N_LAYERS; layer++) {
+          // mDetectorArea[layer] =
+          //   mNumStaves[layer] *
+          //   ITS::CHIPS_PER_STAVE_IN_LAYER[layer] *
+          //   CHIP_WIDTH_CM *
+          //   CHIP_HEIGHT_CM;
+
+          mDetectorArea[layer] =
+            ITS::STAVES_PER_LAYER[layer] *
+            ITS::CHIPS_PER_STAVE_IN_LAYER[layer] *
+            CHIP_WIDTH_CM *
+            CHIP_HEIGHT_CM;
+
+          mHitAverage[layer] = mHitDensities[layer] * mDetectorArea[layer];
+          mMultiplicityScaleFactor[layer] = mHitAverage[layer] / multpl_dist_mean;
+
+          // Number of chips to actually simulate
+          mNumChips += mNumStaves[layer] * ITS::CHIPS_PER_STAVE_IN_LAYER[layer];
+
+          std::cout << "Num chips so far: " << mNumChips << std::endl;
+
+          std::cout << "Layer " << layer << " area [cm^2]: ";
+          std::cout << mDetectorArea[layer] << std::endl;
+
+          std::cout << "Layer " << layer << " hit density [cm^-1]: ";
+          std::cout << mHitDensities[layer] << std::endl;
+
+          std::cout << "Layer " << layer << " average number of hits per event: ";
+          std::cout << mHitAverage[layer] << std::endl;
+
+          std::cout << "Layer " << layer << " multiplicity distr. scaling factor: ";
+          std::cout << mMultiplicityScaleFactor[layer] << std::endl;
+        }
+      }
 
       // Gaussian distribution is not used in this case
       mRandHitMultiplicityGauss = nullptr;
@@ -120,10 +166,26 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     mRandHitMultiplicityGauss = nullptr;
   }
 
-  mRandHitChipID = new uniform_int_distribution<int>(0, mNumChips-1);
   mRandHitChipX = new uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
   mRandHitChipY = new uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
 
+  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    // Modules are not used for IB layers..
+    if(layer > 2)
+      mRandModule[layer] =
+        new uniform_int_distribution<int>(0, ITS::MODULES_PER_STAVE_IN_LAYER[layer]-1);
+    else
+      mRandModule[layer] == nullptr;
+
+    mRandChipID[layer] =
+      new uniform_int_distribution<int>(0, ITS::CHIPS_PER_MODULE_IN_LAYER[layer]-1);
+
+    // mRandStave[layer] =
+    //   new uniform_int_distribution<int>(0, mNumStaves[layer]-1);
+
+    mRandStave[layer] =
+      new uniform_int_distribution<int>(0, ITS::STAVES_PER_LAYER[layer]-1);
+  }
 
   // Multiplied by BC rate so that the distribution is related to the clock cycles
   // Which is fine because physics events will be in sync with 40MHz BC clock, but
@@ -156,16 +218,18 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   //////////////////////////////////////////////////////////////////////////////
   // SystemC declarations / connections / etc.
   //////////////////////////////////////////////////////////////////////////////
-  SC_CTHREAD(physicsEventProcess, s_clk_in.pos());
-
-  SC_METHOD(eventFrameProcess);
-  sensitive << s_strobe_in;
+  SC_METHOD(physicsEventMethod);
 }
 
 
 EventGenerator::~EventGenerator()
 {
-  delete mRandHitChipID;
+  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    delete mRandChipID[layer];
+    delete mRandStave[layer];
+    delete mRandModule[layer];
+  }
+
   delete mRandHitChipX;
   delete mRandHitChipY;
   delete mRandEventTime;
@@ -181,44 +245,16 @@ EventGenerator::~EventGenerator()
 }
 
 
-///@brief Limit the number of events stored in memory, as specified by mNumEventsInMemoryAllowed.
-///       The oldest events will be removed to bring the count below the threshold. If mWriteEventsToDisk is
-///       true, then the events that are removed will be written to disk.
-void EventGenerator::eventMemoryCountLimiter(void)
-{
-  // If mNumEventsInMemoryAllowed == 0, then an infinite (limited by memory) amount of events are allowed.
-  if((getEventsInMem() > mNumEventsInMemoryAllowed) &&
-     (mNumEventsInMemoryAllowed > 0))
-  {
-    removeOldestEvent();
-  }
-}
-
-
 ///@brief Get a reference to the next event (if there is one). Note: this function
 ///       will keep returning the same event until it has been removed by removeOldestEvent().
-///@return Reference to next event. If there are no events,
-///        then a reference to NoEventFrame (with event id = -1) is returned.
-const EventFrame& EventGenerator::getNextEventFrame(void)
+///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
+const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestPhysicsEvent(void) const
 {
-  // Start where we left off
-  int chip_id = mNextEventFrameChipId;
-
-  // Find first available EventFrame and return it
-  while(chip_id < mNumChips) {
-    if(mEventQueue[chip_id].size() > 0) {
-      return *(mEventQueue[chip_id].front());
-    }
-
-    chip_id++;
-    mNextEventFrameChipId = chip_id;
-  }
-
-  return NoEventFrame;
+  return mHitVector;
 }
 
 
-///@brief Sets the bunch crossing rate, and recalculates the average crossing rate.
+///@brief Sets the bunch crossing rate, and recalculate the average crossing rate.
 void EventGenerator::setBunchCrossingRate(int rate_ns)
 {
   mBunchCrossingRateNs = rate_ns;
@@ -261,29 +297,6 @@ void EventGenerator::initRandomNumGenerator(void)
     mRandHitGen.seed(mRandomSeed);
     mRandHitMultiplicityGen.seed(mRandomSeed);
     mRandEventTimeGen.seed(mRandomSeed);
-  }
-}
-
-
-///@brief Remove the oldest event from the event queue
-///       (if there are any events in the queue, otherwise do nothing).
-void EventGenerator::removeOldestEvent(void)
-{
-  // Start where we left off
-  int chip_id = mNextEventFrameChipId;
-
-  // chip_id in range?
-  if(chip_id < mNumChips) {
-    // Event left to remove for this chip?
-    if(mEventQueue[chip_id].size() > 0) {
-      EventFrame *oldest_event = mEventQueue[chip_id].front();
-      mEventQueue[chip_id].pop();
-
-      if(mWriteEventsToDisk)
-        oldest_event->writeToFile(mDataPath);
-
-      delete oldest_event;
-    }
   }
 }
 
@@ -401,7 +414,6 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 {
   if(mRandHitMultiplicityDiscrete != nullptr) {
     unsigned int n_hits = (*mRandHitMultiplicityDiscrete)(mRandHitMultiplicityGen);
-    n_hits *= mMultDistScale;
     return n_hits;
   }
   else if(mRandHitMultiplicityGauss != nullptr)
@@ -418,81 +430,158 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 ///       2) Generate hits for the next event, and put them on the hit queue
 ///       3) Update counters etc.
 ///@return The number of clock cycles until this event will actually occur
-int64_t EventGenerator::generateNextPhysicsEvent(void)
+uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 {
   int64_t t_delta, t_delta_cycles;
-  int n_hits = 0;
+  unsigned int n_hits = 0;
+  unsigned int n_hits_raw = 0;
 
   // Initialize array to 0. http://stackoverflow.com/a/2204380/6444574
   int *chip_trace_hit_counts = new int[mNumChips]();
   int *chip_pixel_hit_counts = new int[mNumChips]();
 
-  // Generate random (exponential distributed) interval till next event/interaction
-  // The exponential distribution only works with double float, that's why it is rounded
-  // to nearest clock cycle. Which is okay, because events in LHC should be synchronous
-  // with bunch crossing clock anyway?
-  // Add 1 because otherwise we risk getting events with 0 t_delta, which obviously is not
-  // physically possible, and also SystemC doesn't allow wait() for 0 clock cycles.
-  t_delta_cycles = std::round((*mRandEventTime)(mRandEventTimeGen)) + 1;
-  t_delta = t_delta_cycles * mBunchCrossingRateNs;
-
-  if((mPhysicsEventCount % 100) == 0) {
-    //print_function_timestamp();
-    int64_t time_now = sc_time_stamp().value();
-    std::cout << "@ " << time_now << " ns: ";
-    std::cout << "\tPhysics event number: " << mPhysicsEventCount;
-    std::cout << "\tt_delta: " << t_delta;
-    std::cout << "\tt_delta_cycles: " << t_delta_cycles;
-    std::cout << "\tmLastPhysicsEventTimeNs: " << mLastPhysicsEventTimeNs << std::endl;
-  }
-
-  mLastPhysicsEventTimeNs += t_delta;
+  mLastPhysicsEventTimeNs = time_now;
   mPhysicsEventCount++;
 
+  mHitVector.clear();
+
+  // std::cout << std::endl;
+  // std::cout << "@ " << time_now << " ns:";
+  // std::cout << "Generating new physics event." << std::endl;
+  // std::cout << "--------------------------------------------------";
+  // std::cout << std::endl;
 
   if(mRandomHitGeneration == true) {
-    // Generate a random number of hits for this event
-    n_hits = getRandomMultiplicity();
+    // Generate an uncorrected random number of hits for this event
+    n_hits_raw = getRandomMultiplicity();
+
+    // Skip empty events??
+    if(mSingleChipSimulation && n_hits_raw > 0) {
+      n_hits = n_hits_raw * mSingleChipMultiplicityScaleFactor;
+
+      for(int i = 0; i < n_hits; i++) {
+        unsigned int rand_x1 = (*mRandHitChipX)(mRandHitGen);
+        unsigned int rand_y1 = (*mRandHitChipY)(mRandHitGen);
+        unsigned int rand_x2, rand_y2;
+
+        // Very simple and silly method for making 2x2 pixel cluster
+        // Makes sure that we don't get pixels below row/col 0, and not above
+        // row 511 or above column 1023
+        if(rand_x1 < N_PIXEL_COLS/2) {
+          rand_x2 = rand_x1+1;
+        } else {
+          rand_x2 = rand_x1-1;
+        }
+
+        if(rand_y1 < N_PIXEL_ROWS/2) {
+          rand_y2 = rand_y1+1;
+        } else {
+          rand_y2 = rand_y1-1;
+        }
+
+        ITS::detectorPosition pos = {0, 0, 0, 0};
 
 
-    // Generate hits here
-    for(int i = 0; i < n_hits; i++) {
-      int rand_chip_id = (*mRandHitChipID)(mRandHitGen);
-      int rand_x1 = (*mRandHitChipX)(mRandHitGen);
-      int rand_y1 = (*mRandHitChipY)(mRandHitGen);
-      int rand_x2, rand_y2;
+        ///@todo Account larger/bigger clusters here (when implemented)
+        chip_pixel_hit_counts[0] += 4;
+        chip_trace_hit_counts[0]++;
 
-      chip_trace_hit_counts[rand_chip_id]++;
+        // std::cout << "@ " << time_now << " ns:";
+        // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
+        // std::cout << " for " << pos << std::endl;
 
-      ///@todo Account larger/bigger clusters here (when implemented)
-      chip_pixel_hit_counts[rand_chip_id] += 4;
-
-      // Very simple and silly method for making 2x2 pixel cluster
-      // Makes sure that we don't get pixels below row/col 0, and not above
-      // row 511 or above column 1023
-      if(rand_x1 < N_PIXEL_COLS/2) {
-        rand_x2 = rand_x1+1;
-      } else {
-        rand_x2 = rand_x1-1;
+        ///@todo Create hits for all chips properly here!!
+        mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+                                mPixelDeadTime, mPixelActiveTime);
+        mHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+                                mPixelDeadTime, mPixelActiveTime);
+        mHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+                                mPixelDeadTime, mPixelActiveTime);
+        mHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+                                mPixelDeadTime, mPixelActiveTime);
       }
+    } else if(n_hits_raw > 0) { // Generate hits for each layer in ITS detector simulation
+      for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+        //for(unsigned int layer = 0; layer < num_layers; layer++) {
 
-      if(rand_y1 < N_PIXEL_ROWS/2) {
-        rand_y2 = rand_y1+1;
-      } else {
-        rand_y2 = rand_y1-1;
-      }
+        // Skip this layer if no staves are configured for this
+        // layer in simulation settings file
+        if(mNumStaves[layer] == 0)
+          continue;
 
-      // Create hit objects directly at the back of the deque,
-      // without a copy or move taking place.
-      mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y1, mLastPhysicsEventTimeNs,
-                                           mPixelDeadTime, mPixelActiveTime);
-      mHitQueue[rand_chip_id].emplace_back(rand_x1, rand_y2, mLastPhysicsEventTimeNs,
-                                           mPixelDeadTime, mPixelActiveTime);
-      mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y1, mLastPhysicsEventTimeNs,
-                                           mPixelDeadTime, mPixelActiveTime);
-      mHitQueue[rand_chip_id].emplace_back(rand_x2, rand_y2, mLastPhysicsEventTimeNs,
-                                           mPixelDeadTime, mPixelActiveTime);
-    }
+        n_hits = n_hits_raw * mMultiplicityScaleFactor[layer];
+
+        std::cout << "@ " << time_now << " ns: ";
+        std::cout << "Generating " << n_hits;
+        std::cout << " track hits for layer " << layer << "." << std::endl;
+
+        // Generate hits here
+        for(int i = 0; i < n_hits; i++) {
+          unsigned int rand_stave_id = (*mRandStave[layer])(mRandHitGen);
+
+          // Skip hits for staves in this layer other than the first
+          // N staves that were defined in the simulation settings file
+          if(rand_stave_id >= mNumStaves[layer])
+            continue;
+
+
+          unsigned int rand_module_id = 0;
+
+          // Modules are not used for IB layers
+          if(layer > 2)
+            rand_module_id = (*mRandStave[layer])(mRandHitGen);
+
+          unsigned int rand_chip_id = (*mRandChipID[layer])(mRandHitGen);
+
+
+          unsigned int rand_x1 = (*mRandHitChipX)(mRandHitGen);
+          unsigned int rand_y1 = (*mRandHitChipY)(mRandHitGen);
+          unsigned int rand_x2, rand_y2;
+
+          // Very simple and silly method for making 2x2 pixel cluster
+          // Makes sure that we don't get pixels below row/col 0, and not above
+          // row 511 or above column 1023
+          if(rand_x1 < N_PIXEL_COLS/2) {
+            rand_x2 = rand_x1+1;
+          } else {
+            rand_x2 = rand_x1-1;
+          }
+
+          if(rand_y1 < N_PIXEL_ROWS/2) {
+            rand_y2 = rand_y1+1;
+          } else {
+            rand_y2 = rand_y1-1;
+          }
+
+          ITS::detectorPosition pos = {layer,
+                                       rand_stave_id,
+                                       rand_module_id,
+                                       rand_chip_id};
+
+          unsigned int unique_chip_id = ITS::detector_position_to_chip_id(pos);
+
+
+          ///@todo Account larger/bigger clusters here (when implemented)
+          chip_pixel_hit_counts[unique_chip_id] += 4;
+          chip_trace_hit_counts[unique_chip_id]++;
+
+          // std::cout << "@ " << time_now << " ns:";
+          // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
+          // std::cout << " for " << pos << std::endl;
+
+          ///@todo Create hits for all chips properly here!!
+          mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+                                  mPixelDeadTime, mPixelActiveTime);
+          mHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+                                  mPixelDeadTime, mPixelActiveTime);
+          mHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+                                  mPixelDeadTime, mPixelActiveTime);
+          mHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+                                  mPixelDeadTime, mPixelActiveTime);
+        } // Hit generation loop
+      } // Layer loop
+    } // Detector simulation
+
   } else { // No random hits, use MC generated events
     const EventDigits* digits = mMonteCarloEvents.getNextEvent();
 
@@ -508,24 +597,40 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
       const int &chip_id = digit_it->first;
       const PixelData &pix = digit_it->second;
 
-      if(chip_id == 5) {
-        // mHitQueue[chip_id].emplace_back(pix.getCol(), pix.getRow(),
-        //                                 mLastPhysicsEventTimeNs,
-        //                                 mPixelDeadTime,
-        //                                 mPixelActiveTime);
+      ITS::detectorPosition pos = ITS::chip_id_to_detector_position(chip_id);
 
-        mHitQueue[0].emplace_back(pix.getCol(), pix.getRow(),
-                                  mLastPhysicsEventTimeNs,
-                                  mPixelDeadTime,
-                                  mPixelActiveTime);
+      mHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
+                              mLastPhysicsEventTimeNs,
+                              mPixelDeadTime,
+                              mPixelActiveTime);
 
-        // Update statistics. We only get pixel digits from MC events,
-        // no traces, so only this counter is used.
-        chip_pixel_hit_counts[chip_id]++;
-      }
+      // Update statistics. We only get pixel digits from MC events,
+      // no traces, so only this counter is used.
+      chip_pixel_hit_counts[chip_id]++;
+
       digit_it++;
     }
   }
+
+
+  // Generate random (exponential distributed) interval till next event/interaction
+  // The exponential distribution only works with double float, that's why it is rounded
+  // to nearest clock cycle. Which is okay, because events in LHC should be synchronous
+  // with bunch crossing clock anyway?
+  // Add 1 because otherwise we risk getting events with 0 t_delta, which obviously is not
+  // physically possible, and also SystemC doesn't allow wait() for 0 clock cycles.
+  t_delta_cycles = std::round((*mRandEventTime)(mRandEventTimeGen)) + 1;
+  t_delta = t_delta_cycles * mBunchCrossingRateNs;
+
+  if((mPhysicsEventCount % 100) == 0) {
+    //print_function_timestamp();
+    std::cout << "@ " << time_now << " ns: ";
+    std::cout << "\tPhysics event number: " << mPhysicsEventCount;
+    std::cout << "\tt_delta: " << t_delta;
+    std::cout << "\tt_delta_cycles: " << t_delta_cycles;
+    std::cout << "\tmLastPhysicsEventTimeNs: " << mLastPhysicsEventTimeNs << std::endl;
+  }
+
 
   // Write event rate and multiplicity numbers to CSV file
   if(mCreateCSVFile) {
@@ -539,228 +644,20 @@ int64_t EventGenerator::generateNextPhysicsEvent(void)
     mPhysicsEventsCSVFile << std::endl;
   }
 
-  delete chip_trace_hit_counts;
-  delete chip_pixel_hit_counts;
+  delete[] chip_trace_hit_counts;
+  delete[] chip_pixel_hit_counts;
 
-  ///@todo Remove?
-  //eventMemoryCountLimiter();
-
-  return t_delta_cycles;
+  return t_delta;
 }
 
 
-///@brief Remove old hits.
-///       Start at the front of the hit queue, and pop (remove)
-///       hits from the front while the hits are no longer active at current simulation time,
-///       and older than the oldest event frame (so we don't delete hits that may be
-///       still be used in a event frame that hasn't been processed yet).
-void EventGenerator::removeInactiveHits(void)
-{
-  int64_t time_now = sc_time_stamp().value();
-  bool done = false;
-  int i = 0;
-
-  #ifdef DEBUG_OUTPUT
-  print_function_timestamp();
-  std::cout << "\tQueue size (before): " << mHitQueue.size() << std::endl;
-  #endif
-
-  for(int chip_id = 0; chip_id < mNumChips; chip_id++) {
-    do {
-      if(mHitQueue[chip_id].size() > 0) {
-        // Check if oldest hit should be removed..
-        if(mHitQueue[chip_id].front().isActive(time_now) == false &&
-           mHitQueue[chip_id].front().getActiveTimeEnd() < mLastEventFrameEndTimeNs)
-        {
-          mHitQueue[chip_id].pop_front();
-          i++;
-          done = false;
-        } else {
-          done = true; // Done if oldest hit is still active
-        }
-      } else {
-        done = true; // Done if queue size is zero
-      }
-    } while(done == false);
-  }
-
-
-  #ifdef DEBUG_OUTPUT
-  ///@todo Fix this..
-  std::cout << /*"\tQueue size (now): " << mHitQueue[chip_id].size() <<*/ "\t" << i << " hits removed" << std::endl;
-  #endif
-}
-
-
-///@brief Create a new event frame at the given start time. It checks if the trigger and
-///       associated event frame should be filtered or not, and updates trigger ID count.
-///@param[in] event_start Start time of event frame (time when strobe signal went high).
-///@param[in] event_end End time of event frame (time when strobe signal went low again).
-///@param[in] chip_id Chip ID to generate event for
-///@return Pointer to new EventFrame object that was allocated on the stack.
-///        Caller must remember to delete it when done in order to free memory.
-EventFrame* EventGenerator::generateNextEventFrame(int64_t event_start, int64_t event_end, int chip_id)
-{
-  ///@todo Should I check distance between start time of two triggers?
-  ///      Or the distance in time between the end of the first trigger and the
-  ///      start of the next trigger?
-  int64_t time_since_last_trigger = event_start - mLastEventFrameStartTimeNs;
-
-  // If event/trigger filtering is enabled, and this event/trigger came
-  // too close to the previous one we filter it out.
-  bool filter_event = mTriggerFilteringEnabled ? (time_since_last_trigger < mTriggerFilterTimeNs) : false;
-
-  // But don't filter the first event frame
-  if(mEventFrameIdCount == 0)
-    filter_event = false;
-
-  int event_id = mEventFrameIdCount;
-  EventFrame* e = new EventFrame(event_start, event_end, chip_id, event_id, filter_event);
-
-  // Only add hits to the event if it is not being filtered
-  if(e->getEventFilteredFlag() == false) {
-    addHitsToEventFrame(*e);
-  }
-
-  #ifdef DEBUG_OUTPUT
-  print_function_timestamp();
-  std::cout << "\tEvent frame number: " << mEventFrameIdCount << std::endl;
-  std::cout << "\ttime_since_last_trigger: " << time_since_last_trigger << std::endl;
-  std::cout << "\tevent_start: " << event_start << std::endl;
-  std::cout << "\tmLastEventFrameStartTimeNs: " << mLastEventFrameStartTimeNs << std::endl;
-  std::cout << "\tmTriggerFilterTimeNs: " << mTriggerFilterTimeNs << std::endl;
-  std::cout << "\tFiltered: " << (filter_event ? "true" : "false") << std::endl;
-  #endif
-
-
-  return e;
-}
-
-
-///@brief Iterate through the hit queue corresponding to the chip_id associated with
-///       the event referenced by e, and add the active hits to it.
-///@param[in,out] e Event to add hits to.
-void EventGenerator::addHitsToEventFrame(EventFrame& e)
-{
-  int chip_id = e.getChipId();
-
-  for(auto it = mHitQueue[chip_id].begin(); it != mHitQueue[chip_id].end(); it++) {
-    // All the hits are ordered in time in the hit queue.
-    // If this hit is not active, it could be that:
-    // 1) We haven't reached the newer hits which would be active for this event yet
-    // 2) We have gone through the hits that are active for this event, and have now
-    //    reached hits that are "too new" (event queue size is larger than 0 then)
-    if(it->isActive(e.getEventStartTime(), e.getEventEndTime())) {
-      e.addHit(*it);
-    } else if (e.getEventSize() > 0) {
-      // Case 2. There won't be any more hits now, so we can break.
-      /// @todo Is this check worth it performance wise, or is it better to just iterate
-      ///       through the whole list?
-      break;
-    }
-  }
-}
-
-
-///@brief SystemC controled method, should be sensitive to the positive edge
-///       of the clock. Responsible for
+///@brief SystemC controlled method
 ///       1) Creating new physics events (hits)
 ///       2) Deleting old inactive hits
-void EventGenerator::physicsEventProcess(void)
+void EventGenerator::physicsEventMethod(void)
 {
-  int64_t t_delta_cycles;
-
-  // Run until the simulation stops
-  while(1) {
-    // Generate next physics event. This event will be t_delta_cycles in the future.
-    t_delta_cycles = generateNextPhysicsEvent();
-
-    // Indicate the event with a 1 clock cycle pulse on this signal
-    s_physics_event_out.write(1);
-    wait(1);
-    s_physics_event_out.write(0);
-
-    if(t_delta_cycles > 1) {
-      // Wait for t_delta_cycles number of clock cycles, which is when the next physics event
-      // will actually happen, taking into account the clock cycle we already waited.
-      // Note: this type of wait() call only works with CTHREAD (normally one would specify time unit).
-      wait(t_delta_cycles-1);
-    }
-
-    ///@todo Maybe do this only on strobe falling edge? Saves some CPU cycles that way?
-    removeInactiveHits();
-  }
-}
-
-
-///@brief SystemC controlled method. It should be sensitive to the strobe signal,
-///       (both rising and falling edge) and is responsible for creating the
-///       EventFrame objects after a STROBE pulse.
-void EventGenerator::eventFrameProcess(void)
-{
-  int64_t time_now = sc_time_stamp().value();
-  bool triggers_filtered = false;
-
-  #ifdef DEBUG_OUTPUT
-  print_function_timestamp();
-  #endif
-
-  // Falling edge - active low strobe
-  if(s_strobe_in.read() == false) {
-    // Save the current simulation time when the strobe was asserted.
-    // We will create the EventFrame object when it is deasserted, and need to
-    // remember the start time.
-    mNextEventFrameStartTimeNs = time_now;
-
-    // Make sure this process doesn't trigger the first time on the wrong strobe edge..
-    mStrobeActive = true;
-  } else if(mStrobeActive) { // Rising edge.
-    mStrobeActive = false;
-
-    for(int chip_id = 0; chip_id < mNumChips; chip_id++) {
-      EventFrame* next_event_frame = generateNextEventFrame(mNextEventFrameStartTimeNs,
-                                                                  time_now,
-                                                                  chip_id);
-
-      mEventQueue[chip_id].push(next_event_frame);
-
-      // Post an event notification that a new EventFrame is ready
-      E_event_frame_available->notify(SC_ZERO_TIME);
-
-      // Write number of pixel hits in event to CSV file
-      if(mCreateCSVFile) {
-        // Write time column and filtered column only one time
-        if(chip_id == 0) {
-          mEventFramesCSVFile << time_now << ";";
-          mEventFramesCSVFile << (next_event_frame->getEventFilteredFlag() ? "true" : "false");
-        }
-
-        mEventFramesCSVFile << ";" << next_event_frame->getEventSize();
-
-        if(chip_id == mNumChips-1)
-          mEventFramesCSVFile << std::endl;
-      }
-
-      // Doesn't matter if this is set every time during the loop, all event frames
-      // with the same ID will have the trigger filtered flag set to the same value
-      triggers_filtered = next_event_frame->getEventFilteredFlag();
-
-      #ifdef DEBUG_OUTPUT
-      std::cout << "\tEvent frame queue size: " << mEventQueue.size() << std::endl;
-      #endif
-    }
-
-    // Don't update last event time if the event frame(s) were filtered out
-    if(triggers_filtered == false) {
-      mLastEventFrameStartTimeNs = mNextEventFrameStartTimeNs;
-      mLastEventFrameEndTimeNs = time_now;
-    }
-    mEventFrameIdCount++;
-    mNextEventFrameChipId = 0;
-
-    #ifdef DEBUG_OUTPUT
-    std::cout << "\tTrigger start time: " << mLastEventFrameStartTimeNs << " ns. " << std::endl;
-    std::cout << "\tEnd time: " << mLastEventFrameEndTimeNs << " ns." << std::endl;
-    #endif
-  }
+  uint64_t time_now = sc_time_stamp().value();
+  uint64_t t_delta = generateNextPhysicsEvent(time_now);
+  E_physics_event.notify();
+  next_trigger(t_delta, SC_NS);
 }

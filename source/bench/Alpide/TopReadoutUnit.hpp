@@ -1,5 +1,5 @@
 /**
- * @file   top_readout.h
+ * @file   TopReadoutUnit.hpp
  * @author Simon Voigt Nesbo
  * @date   February 20, 2017
  * @brief  Class for implementing the Top Readout Unit (TRU) in the Alpide chip.

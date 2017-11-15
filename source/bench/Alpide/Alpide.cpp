@@ -1,5 +1,5 @@
 /**
- * @file   alpide.h
+ * @file   Alpide.cpp
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Source file for Alpide class.
@@ -19,22 +19,35 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
 ///@param[in] dmu_fifo_size Depth of DMU (Data Management Unit) FIFO.
 ///@param[in] dtu_delay_cycles Number of clock cycle delays associated with Data Transfer Unit (DTU)
+///@param[in] strobe_length_ns Strobe length (in nanoseconds)
+///@param[in] strobe_extension Enable/disable strobe extension
+///           (if new strobe received before the previous strobe interval ended)
 ///@param[in] enable_clustering Enable clustering and use of DATA LONG words
 ///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
 ///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               int dmu_fifo_size, int dtu_delay_cycles, bool enable_clustering,
-               bool continuous_mode, bool matrix_readout_speed)
+               int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
+               bool strobe_extension, bool enable_clustering, bool continuous_mode,
+               bool matrix_readout_speed)
   : sc_core::sc_module(name)
-  , PixelMatrix(continuous_mode)
+  , s_control_input("s_control_input")
+  , s_data_output("s_data_output")
   , s_chip_ready_out("chip_ready_out")
   , s_dmu_fifo(dmu_fifo_size)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
+  , s_busy_fifo(BUSY_FIFO_SIZE)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
+  , mContinuousMode(continuous_mode)
+  , mStrobeExtensionEnable(strobe_extension)
+  , mStrobeLengthNs(strobe_length_ns)
 {
   mChipId = chip_id;
   mEnableDtuDelay = dtu_delay_cycles > 0;
+
+  s_chip_ready_out(s_chip_ready_internal);
+
+  s_serial_data_out_exp(s_serial_data_out);
 
   s_event_buffers_used_debug = 0;
   s_total_number_of_hits = 0;
@@ -48,6 +61,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   s_busy_status = false;
   s_readout_abort = false;
   s_chip_ready_internal = false;
+  s_strobe_n = true;
 
   mStrobeActive = false;
 
@@ -98,15 +112,41 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   while(s_dtu_delay_fifo.num_free() > 0)
     s_dtu_delay_fifo.nb_write(dw);
 
+  s_control_input.register_transport(std::bind(&Alpide::processCommand,
+                                               this, std::placeholders::_1));
 
-  SC_METHOD(mainProcess);
+  SC_METHOD(mainMethod);
   sensitive_pos << s_system_clk_in;
+
+  SC_METHOD(triggerMethod);
+  sensitive << E_trigger;
+  dont_initialize();
+
+  SC_METHOD(strobeDurationMethod);
+  sensitive << E_strobe_interval_done;
+  dont_initialize();
+
+  SC_METHOD(busyFifoMethod);
+  sensitive << s_busy_status;
+  dont_initialize();
+
+  // SC_METHOD(strobeAndFramingMethod);
+  // sensitive << s_strobe_n;
+  // dont_initialize();
+
+}
+
+
+void Alpide::newEvent(uint64_t event_time)
+{
+  PixelMatrix::newEvent(event_time);
+  // Set chip ready signal here??
 }
 
 
 ///@brief Data transmission SystemC method. Currently runs on 40MHz clock.
 ///@todo Implement more advanced data transmission method.
-void Alpide::mainProcess(void)
+void Alpide::mainMethod(void)
 {
   strobeInput();
   frameReadout();
@@ -114,21 +154,79 @@ void Alpide::mainProcess(void)
   updateBusyStatus();
 
   // For the stimuli class to work properly this needs to be delayed one clock cycle
-  s_chip_ready_out = s_chip_ready_internal;
+  //s_chip_ready_out = s_chip_ready_internal;
 }
 
 
-///@brief This function handles the strobe input to the Alpide class object.
-///       Controls creation of new Multi Event Buffers (MEBs). Together with the frameReadout function, this
-///       process essentially does the same as the FROMU (Frame Read Out Management Unit) in the Alpide chip.
+ControlResponsePayload Alpide::processCommand(ControlRequestPayload const &request)
+{
+  if (request.opcode == 0x55) {
+    SC_REPORT_INFO_VERB(name(), "Received Trigger", sc_core::SC_DEBUG);
+    E_trigger.notify();
+  } else {
+    SC_REPORT_ERROR(name(), "Invalid opcode received");
+  }
+  // do nothing
+  return {};
+}
+
+
+///@brief Called on trigger input - initiates strobing intervals
+///       All triggers have to be supplied externally to the Alpide module.
+///       There is not automatic trigger/strobe synthesizer implemented here.
+void Alpide::triggerMethod(void)
+{
+  uint64_t time_now = sc_time_stamp().value();
+
+  ///@todo What happens if I get one trigger at the exact time the strobe goes inactive???
+
+  std::cout << "@" << time_now << ": Alpide with ID " << mChipId << " triggered." << std::endl;
+
+  if(s_strobe_n.read() == true) {
+    // Strobe not active - start new interval
+    //s_strobe_n = false;
+    E_strobe_interval_done.notify(0, SC_NS);
+  } else if(s_strobe_n.read() == false) {
+    // Strobe already active
+    if(mStrobeExtensionEnable) {
+      E_strobe_interval_done.cancel();
+      E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
+    } else {
+      mTriggersRejected++;
+    }
+  }
+}
+
+
+void Alpide::strobeDurationMethod(void)
+{
+  if(s_strobe_n.read() == true) {
+    // Strobe was inactive - start of strobing interval
+    s_strobe_n = false;
+    E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
+  } else {
+    // Strobe was active - end of strobing interval
+    s_strobe_n = true;
+  }
+}
+
+
+///@brief This function handles framing of events according to the strobe intervals.
+///       Controls creation of new Multi Event Buffers (MEBs). Together with the frameReadout
+///       function, this process essentially does the same as the FROMU (Frame Read Out Management
+///       Unit) in the Alpide chip.
 ///       Note: it is assumed that STROBE is synchronous to the clock.
 ///       It will not be "dangerous" if it is not, but it will deviate from the real chip implementation.
 void Alpide::strobeInput(void)
 {
   int64_t time_now = sc_time_stamp().value();
 
-  if(s_strobe_n_in.read() == false && mStrobeActive == false) {   // Strobe falling edge - start of frame/event, strobe is active low
+  if(s_strobe_n.read() == false && mStrobeActive == false) {   // Strobe falling edge - start of frame/event, strobe is active low
     mStrobeActive = true;
+    mStrobeStartTime = time_now;
+
+    // Remove "expired" hits from hit list in the pixel front end
+    removeInactiveHits(time_now);
 
     ///@todo What should I do in data overrun mode (when readout_abort is set)?
     ///      Should I still accept events? I need the frame end word to be added, for the normal
@@ -137,9 +235,11 @@ void Alpide::strobeInput(void)
     ///@todo Should rejected event frame count be increased in data overrun mode?
     if(mContinuousMode) {
       if(getNumEvents() == 3) {
-        // Reject events if all MEBs are full in continuous
-        mEventFramesRejected++;
+        // Reject events if all MEBs are full in continuous.
+        // And yes, this can happen! Also in the real chip..
+        mTriggersRejected++;
         s_busy_violation = true;
+        mBusyViolations++;
         //s_flushed_incomplete = false;
         s_chip_ready_internal = false;
       } else if(getNumEvents() == 2) {
@@ -147,8 +247,8 @@ void Alpide::strobeInput(void)
         flushOldestEvent();
         newEvent(time_now);
 
-        mEventFramesFlushed++;
-        mEventFramesAccepted++;
+        mFlushedIncompleteCount++;
+        mTriggersAccepted++;
         s_busy_violation = false;
         s_flushed_incomplete = true;
         s_chip_ready_internal = true;
@@ -156,7 +256,7 @@ void Alpide::strobeInput(void)
         // Normal operation in continuous, with at least 2 free buffers
         newEvent(time_now);
 
-        mEventFramesAccepted++;
+        mTriggersAccepted++;
         s_busy_violation = false;
         s_flushed_incomplete = false;
         s_chip_ready_internal = true;
@@ -167,11 +267,12 @@ void Alpide::strobeInput(void)
 
       if(getNumEvents() == 3) {
         s_chip_ready_internal = false;
-        mEventFramesRejected++;
+        mTriggersRejected++;
+        mBusyViolations++;
         s_busy_violation = true;
       } else {
         newEvent(time_now);
-        mEventFramesAccepted++;
+        mTriggersAccepted++;
         s_chip_ready_internal = true;
         s_busy_violation = false;
       }
@@ -179,7 +280,13 @@ void Alpide::strobeInput(void)
   }
   // Strobe rising edge - end of frame/event
   // Make sure we can't trigger first on the wrong end of strobe by checking chip_ready signal
-  else if(s_strobe_n_in.read() == true && mStrobeActive == true) {
+  else if(s_strobe_n.read() == true && mStrobeActive == true) {
+    // Latch event/pixels if chip was ready, ie. there was a free MEB for this strobe
+    if(s_chip_ready_internal) {
+      this->getEventFrame(mStrobeStartTime, time_now, mEventIdCount).feedHitsToPixelMatrix(*this);
+      mEventIdCount++;
+    }
+
     s_chip_ready_internal = false;
     mStrobeActive = false;
 
@@ -238,8 +345,8 @@ void Alpide::strobeInput(void)
 
 
 ///@brief Frame readout SystemC method @ 40MHz (system clock).
-///       Together with the strobeProcess, this function essentially does the same job as the
-///       FROMU (Frame Read Out Management Unit) in the Alpide chip.
+///       Together with the strobeAndFramingMethod, this function essentially
+///       does the same job as the FROMU (Frame Read Out Management Unit) in the Alpide chip.
 void Alpide::frameReadout(void)
 {
   uint64_t time_now = sc_time_stamp().value();
@@ -339,48 +446,54 @@ void Alpide::frameReadout(void)
 ///       cycles that the DTU in the Alpide chip adds to data transmission.
 ///
 ///       Should be called one time per clock cycle.
-///@todo  There needs to be a Busy FIFO, and this method needs to pick words from either
-///       that FIFO or from the DMU FIFO.
 void Alpide::dataTransmission(void)
 {
-  AlpideDataWord dw_dtu = AlpideComma();
+  AlpideDataWord dw_dtu_fifo_input = AlpideIdle();
+  AlpideDataWord dw_dtu_fifo_output;
+
+  sc_uint<24> data_out;
+
+  s_dmu_fifo_size = s_dmu_fifo.num_available();
+  s_busy_fifo_size = s_busy_fifo.num_available();
+
+  // Prioritize busy words over data words
+  if(s_busy_fifo.num_available() > 0) {
+    s_busy_fifo.nb_read(dw_dtu_fifo_input);
+  } else if(s_dmu_fifo.num_available() > 0) {
+    s_dmu_fifo.nb_read(dw_dtu_fifo_input);
+  }
+
 
   if(mEnableDtuDelay) {
-    s_dmu_fifo_size = s_dmu_fifo.num_available();
-
-    // DTU FIFO should always be filled,
-    // but in case it is not we will output a comma instead
-    if(s_dtu_delay_fifo.nb_read(dw_dtu) == false) {
-      dw_dtu = AlpideComma();
+    s_dtu_delay_fifo.nb_write(dw_dtu_fifo_input);
+    if(s_dtu_delay_fifo.nb_read(dw_dtu_fifo_output) == false) {
+      dw_dtu_fifo_output = AlpideIdle();
     }
-
-    sc_uint<24> data_out = dw_dtu.data[2] << 16 | dw_dtu.data[1] << 8 | dw_dtu.data[0];
-    s_serial_data_output = data_out;
-
-    AlpideDataWord dw_dmu = AlpideComma();
-
-    // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
-    if(s_dmu_fifo.nb_read(dw_dmu) == false) {
-      dw_dmu = AlpideComma();
-    }
-
-    s_dtu_delay_fifo.nb_write(dw_dmu);
-    sc_uint<24> data_dtu_input = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
-    s_serial_data_dtu_input_debug = data_dtu_input;
+  } else {
+    dw_dtu_fifo_output = dw_dtu_fifo_input;
   }
-  // With dtu_delay_cycles = 0 the dtu delay fifo is only 1 word deep, and you get into this mode
-  // where it is full, empty, full, and you lose every 2nd word.. so we just bypass that
-  // delay fifo in this event..
-  else {
-    AlpideDataWord dw_dmu = AlpideComma();
-    // Get next dataword from DMU FIFO, or use COMMA word instead if nothing was read from  DMU FIFO
-    if(s_dmu_fifo.nb_read(dw_dmu) == false) {
-      dw_dmu = AlpideComma();
-    }
-    sc_uint<24> data_out = dw_dmu.data[2] << 16 | dw_dmu.data[1] << 8 | dw_dmu.data[0];
-    s_serial_data_dtu_input_debug = data_out;
-    s_serial_data_output = data_out;
-  }
+
+  sc_uint<24> data_dtu_input =
+    dw_dtu_fifo_input.data[2] << 16 |
+    dw_dtu_fifo_input.data[1] << 8 |
+    dw_dtu_fifo_input.data[0];
+
+  // Debug signal of DTU FIFO input just for adding to VCD trace
+  s_serial_data_dtu_input_debug = data_dtu_input;
+
+  data_out =
+    dw_dtu_fifo_output.data[2] << 16 |
+    dw_dtu_fifo_output.data[1] << 8 |
+    dw_dtu_fifo_output.data[0];
+
+  s_serial_data_out = data_out;
+
+  // Data initiator socket output
+  DataPayload socket_dw;
+  socket_dw.data.push_back(dw_dtu_fifo_output.data[2]);
+  socket_dw.data.push_back(dw_dtu_fifo_output.data[1]);
+  socket_dw.data.push_back(dw_dtu_fifo_output.data[0]);
+  s_data_output->put(socket_dw);
 }
 
 
@@ -413,7 +526,37 @@ void Alpide::updateBusyStatus(void)
       s_multi_event_buffers_busy = false;
   }
 
-  s_busy_status = (s_frame_fifo_busy || s_multi_event_buffers_busy);
+  bool new_busy_status = (s_frame_fifo_busy || s_multi_event_buffers_busy);
+
+  if(new_busy_status == true && new_busy_status != s_busy_status) {
+    mBusyTransitions++;
+  }
+
+  s_busy_status = new_busy_status;
+}
+
+
+void Alpide::busyFifoMethod(void)
+{
+  AlpideDataWord dw_busy;
+
+  if(s_busy_status) {
+    dw_busy = AlpideBusyOn();
+  } else {
+    dw_busy = AlpideBusyOff();
+  }
+
+  // In the unlikely (should be impossible) case that
+  // this FIFO is full, just read out and discard the oldest
+  // word to make room for the new one.
+  // In the real chip the busy FSM probably waits, but for the
+  // sake of simulation speed it is simplified here.
+  if(s_busy_fifo.num_free() == 0) {
+    AlpideDataWord dummy_read;
+    s_busy_fifo.nb_read(dummy_read);
+  }
+
+  s_busy_fifo.nb_write(dw_busy);
 }
 
 
@@ -426,9 +569,10 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss << name_prefix << "alpide_" << mChipId << ".";
   std::string alpide_name_prefix = ss.str();
 
-  addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);
+  //addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);
+  addTrace(wf, alpide_name_prefix, "strobe_n", s_strobe_n);
   addTrace(wf, alpide_name_prefix, "chip_ready_internal", s_chip_ready_internal);
-  addTrace(wf, alpide_name_prefix, "serial_data_output", s_serial_data_output);
+  addTrace(wf, alpide_name_prefix, "serial_data_out", s_serial_data_out);
   addTrace(wf, alpide_name_prefix, "event_buffers_used_debug", s_event_buffers_used_debug);
   addTrace(wf, alpide_name_prefix, "frame_start_fifo_size_debug", s_frame_start_fifo_size_debug);
   addTrace(wf, alpide_name_prefix, "frame_end_fifo_size_debug", s_frame_end_fifo_size_debug);
@@ -450,10 +594,15 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 
   addTrace(wf, alpide_name_prefix, "fromu_readout_state", s_fromu_readout_state);
   addTrace(wf, alpide_name_prefix, "dmu_fifo_size", s_dmu_fifo_size);
+  addTrace(wf, alpide_name_prefix, "busy_fifo_size", s_busy_fifo_size);
 
 //  addTrace(wf, alpide_name_prefix, "frame_start_fifo", s_frame_start_fifo);
 //  addTrace(wf, alpide_name_prefix, "frame_end_fifo", s_frame_end_fifo);
   addTrace(wf, alpide_name_prefix, "serial_data_dtu_input_debug", s_serial_data_dtu_input_debug);
+
+  addTrace(wf, alpide_name_prefix, "busy_transition_count", mBusyTransitions);
+  addTrace(wf, alpide_name_prefix, "busy_violation_count", mBusyViolations);
+  addTrace(wf, alpide_name_prefix, "flushed_incomplete_count", mFlushedIncompleteCount);
 
   mTRU->addTraces(wf, alpide_name_prefix);
 

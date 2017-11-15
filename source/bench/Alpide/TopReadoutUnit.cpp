@@ -1,5 +1,5 @@
 /**
- * @file   top_readout.cpp
+ * @file   TopReadoutUnit.cpp
  * @author Simon Voigt Nesbo
  * @date   February 20, 2017
  * @brief  Class for implementing the Top Readout Unit (TRU) in the Alpide chip.
@@ -75,6 +75,11 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
 
   bool frame_start_fifo_empty = !s_frame_start_fifo_output->nb_can_get();
   bool frame_end_fifo_empty = !s_frame_end_fifo_output->nb_can_get();
+
+  bool region_readout_allowed =
+    !dmu_data_fifo_full &&
+    !no_regions_valid &&
+    !s_region_fifo_empty_in[current_region];
 
   s_all_regions_empty_debug = all_regions_empty;
   s_no_regions_valid_debug = no_regions_valid;
@@ -175,13 +180,13 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
   case REGION_DATA:
     s_region_event_pop_out = false;
     s_region_event_start_out = false;
-    s_region_data_read_out[current_region] =
-      !dmu_data_fifo_full &&
-      !no_regions_valid &&
-      !s_region_fifo_empty_in[current_region];
 
-    data_out = s_region_data_in[current_region];
-    s_dmu_fifo_input->nb_write(data_out);
+    s_region_data_read_out[current_region] = region_readout_allowed;
+
+    if(region_readout_allowed) {
+      data_out = s_region_data_in[current_region];
+      s_dmu_fifo_input->nb_write(data_out);
+    }
 
     if(dmu_data_fifo_full) {
       s_tru_state = WAIT;

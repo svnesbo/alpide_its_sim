@@ -50,7 +50,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["data_output/write_vcd_clock"] = DEFAULT_DATA_OUTPUT_WRITE_VCD_CLOCK;
   defaultSettings["data_output/write_event_csv"] = DEFAULT_DATA_OUTPUT_WRITE_EVENT_CSV;
 
-  defaultSettings["simulation/n_chips"] = DEFAULT_SIMULATION_N_CHIPS;
+  defaultSettings["simulation/single_chip"] = DEFAULT_SIMULATION_SINGLE_CHIP;
   defaultSettings["simulation/n_events"] = DEFAULT_SIMULATION_N_EVENTS;
   defaultSettings["simulation/continuous_mode"] = DEFAULT_SIMULATION_CONTINUOUS_MODE;
   defaultSettings["simulation/random_seed"] = DEFAULT_SIMULATION_RANDOM_SEED;
@@ -61,7 +61,13 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["event/hit_multiplicity_distribution_file"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_FILE;
   defaultSettings["event/hit_multiplicity_gauss_avg"] = DEFAULT_EVENT_HIT_MULTIPLICITY_GAUSS_AVG;
   defaultSettings["event/hit_multiplicity_gauss_stddev"] = DEFAULT_EVENT_HIT_MULTIPLICITY_GAUSS_STDDEV;
-  defaultSettings["event/hit_density_min_bias_per_cm2"] = DEFAULT_EVENT_HIT_DENSITY_MIN_BIAS_PER_CM2;
+  defaultSettings["event/hit_density_layer0"] = DEFAULT_EVENT_HIT_DENSITY_LAYER0;
+  defaultSettings["event/hit_density_layer1"] = DEFAULT_EVENT_HIT_DENSITY_LAYER1;
+  defaultSettings["event/hit_density_layer2"] = DEFAULT_EVENT_HIT_DENSITY_LAYER2;
+  defaultSettings["event/hit_density_layer3"] = DEFAULT_EVENT_HIT_DENSITY_LAYER3;
+  defaultSettings["event/hit_density_layer4"] = DEFAULT_EVENT_HIT_DENSITY_LAYER4;
+  defaultSettings["event/hit_density_layer5"] = DEFAULT_EVENT_HIT_DENSITY_LAYER5;
+  defaultSettings["event/hit_density_layer6"] = DEFAULT_EVENT_HIT_DENSITY_LAYER6;
   defaultSettings["event/bunch_crossing_rate_ns"] = DEFAULT_EVENT_BUNCH_CROSSING_RATE_NS;
   //@todo Rename to average_trigger_rate_ns?
   defaultSettings["event/average_event_rate_ns"] = DEFAULT_EVENT_AVERAGE_EVENT_RATE_NS;
@@ -79,7 +85,15 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["alpide/pixel_shaping_dead_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_DEAD_TIME_NS;
   defaultSettings["alpide/pixel_shaping_active_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_ACTIVE_TIME_NS;
   defaultSettings["alpide/matrix_readout_speed_fast"] = DEFAULT_ALPIDE_MATRIX_READOUT_SPEED_FAST;
+  defaultSettings["alpide/strobe_extension_enable"] = DEFAULT_ALPIDE_STROBE_EXTENSION_ENABLE;
 
+  defaultSettings["its/layer0_num_staves"] = DEFAULT_ITS_LAYER0_NUM_STAVES;
+  defaultSettings["its/layer1_num_staves"] = DEFAULT_ITS_LAYER1_NUM_STAVES;
+  defaultSettings["its/layer2_num_staves"] = DEFAULT_ITS_LAYER2_NUM_STAVES;
+  defaultSettings["its/layer3_num_staves"] = DEFAULT_ITS_LAYER3_NUM_STAVES;
+  defaultSettings["its/layer4_num_staves"] = DEFAULT_ITS_LAYER4_NUM_STAVES;
+  defaultSettings["its/layer5_num_staves"] = DEFAULT_ITS_LAYER5_NUM_STAVES;
+  defaultSettings["its/layer6_num_staves"] = DEFAULT_ITS_LAYER6_NUM_STAVES;
 
   QStringList simSettingsKeys = readoutSimSettings->allKeys();
 

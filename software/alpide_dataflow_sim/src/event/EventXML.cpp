@@ -60,8 +60,8 @@
 ///      </lay>
 ///   </its_detector>
 ///   @endcode
-///    The data pattern file will be read, and hits from the pattern file will be generated on the pixel(s) of the
-///   corresponding layer/stave/chip.
+///    The data pattern file will be read, and hits from the pattern file
+///    will be generated on the pixel(s) of the corresponding layer/stave/chip.
 ///@}
 
 #include <iostream>
@@ -95,9 +95,9 @@ EventXML::EventXML(bool random_event_order, int random_seed)
   ///@todo Temporary - only for testing until we have real detector geometry in place..
   //mDetectorPositionList[0] = {0, 0, 0, 4};
   for(unsigned int chip_id = 0; chip_id < 108; chip_id++) {
-    int stave_id = chip_id/9;
-    int module_id = 0;
-    int module_chip_id = chip_id%12;
+    unsigned int stave_id = chip_id/9;
+    unsigned int module_id = 0;
+    unsigned int module_chip_id = chip_id%12;
 
     mDetectorPositionList[chip_id] = {0, stave_id, module_id, module_chip_id};
   }
@@ -215,7 +215,7 @@ void EventXML::readEventXML(const QString& event_filename)
   for(auto it = mDetectorPositionList.begin(); it != mDetectorPositionList.end(); it++) {
     int chip_id = it->first;
 
-    const detectorPosition& chip_position = mDetectorPositionList[chip_id];
+    const ITS::detectorPosition& chip_position = mDetectorPositionList[chip_id];
 
     std::cout << "Looking for chip ID: " << chip_id << std::endl;
     std::cout << "Layer: " << chip_position.layer_id;
@@ -262,7 +262,7 @@ void EventXML::readEventXML(const QString& event_filename)
 ///@param[out] chip_element_out Reference to a QDomElement object, which is used as an output and
 ///            set to the chip element in the XML DOM object (if it was found).
 ///@return True if chip was found, false if not.
-bool EventXML::locateChipInEventXML(const detectorPosition& chip_position,
+bool EventXML::locateChipInEventXML(const ITS::detectorPosition& chip_position,
                                     const QDomElement& event_xml_dom_root,
                                     QDomElement& chip_element_out)
 {

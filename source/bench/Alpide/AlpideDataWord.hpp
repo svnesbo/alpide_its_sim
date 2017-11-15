@@ -30,13 +30,14 @@ using std::uint8_t;
 /// --------------------- | ----------- | --------------
 /// IDLE                  | 1111 1111   | None
 /// CHIP HEADER           | 1010        | <chip id[3:0]><BUNCH COUNTER FOR FRAME[10:3]>
-/// CHIP TRAILER          | 1011        | <readout flags[3:0]> 
-/// CHIP EMPTY FRAME      | 1110        | <chip id[3:0]><BUNCH COUNTER FOR FRAME[10:3]> 
-/// REGION HEADER         | 110         | <region id[4:0]> 
-/// DATA SHORT            | 01          | <encoder id[3:0]><addr[9:0]> 
-/// DATA LONG             | 00          | <encoder id[3:0]><addr[9:0]> 0 <hit map[6:0]> 1111 0001 1111 
-/// BUSY ON               | 1111 0001   | None 
-/// BUSY OFF              | 1111 0000   | None 
+/// CHIP TRAILER          | 1011        | <readout flags[3:0]>
+/// CHIP EMPTY FRAME      | 1110        | <chip id[3:0]><BUNCH COUNTER FOR FRAME[10:3]>
+/// REGION HEADER         | 110         | <region id[4:0]>
+/// REGION_TRAILER        | 1111 0011   | None
+/// DATA SHORT            | 01          | <encoder id[3:0]><addr[9:0]>
+/// DATA LONG             | 00          | <encoder id[3:0]><addr[9:0]> 0 <hit map[6:0]> 1111 0001 1111
+/// BUSY ON               | 1111 0001   | None
+/// BUSY OFF              | 1111 0000   | None
 /// COMMA                 | 1011 1100   | Note: 1111 1110 used instead in this code
 
 
@@ -58,7 +59,7 @@ const uint8_t DW_BUSY_OFF           = 0b11110000;
 
 /// This is not the correct COMMA word, but using this value instead makes this
 /// simulation model a bit simpler because the word cannot be confused with CHIP TRAILER
-/// 1111 1110 used to avoid confusion with CHIP TRAILER).
+/// The normal (correct) comma word is 0xBC = 0b10111100
 const uint8_t DW_COMMA              = 0b11111110;
 
 const uint8_t READOUT_FLAGS_BUSY_VIOLATION     = 0b00001000;
@@ -101,13 +102,13 @@ struct FrameStartFifoWord {
     sc_trace(tf, dw.BC_for_frame, name + ".BC_for_frame");
   }
 
-///@todo Overload this for all FrameStartFifoWord classes, so SystemC can print them to trace files properly?  
+///@todo Overload this for all FrameStartFifoWord classes, so SystemC can print them to trace files properly?
   inline friend std::ostream& operator<<(std::ostream& stream, const FrameStartFifoWord& dw) {
     stream << dw.busy_violation;
-    stream << ":";    
+    stream << ":";
     stream << dw.BC_for_frame;
     return stream;
-  }  
+  }
 };
 
 
@@ -137,7 +138,7 @@ struct FrameEndFifoWord {
     sc_trace(tf, dw.busy_transition, name + ".busy_transition");
   }
 
-///@todo Overload this for all FrameEndFifoWord classes, so SystemC can print them to trace files properly?  
+///@todo Overload this for all FrameEndFifoWord classes, so SystemC can print them to trace files properly?
   inline friend std::ostream& operator<<(std::ostream& stream, const FrameEndFifoWord& dw) {
     stream << "0b";
     stream << dw.flushed_incomplete;
@@ -145,7 +146,7 @@ struct FrameEndFifoWord {
     stream << dw.busy_transition;
     return stream;
   }
-};  
+};
 
 
 ///@brief The FIFOs in the Alpide chip are 24 bits, or 3 bytes, wide. This is a base class for the
@@ -156,35 +157,6 @@ class AlpideDataWord
 {
 public:
   uint8_t data[3];
-
-  bool signalBusyOn(void) {
-    if(data[0] == DW_IDLE) {
-      data[0] = DW_BUSY_ON;
-      return true;
-    } else if(data[1] == DW_IDLE) {
-      data[1] = DW_BUSY_ON;
-      return true;
-    } else if(data[2] == DW_IDLE) {
-      data[2] = DW_BUSY_ON;
-      return true;
-    } else {
-      return false;
-    }
-  }
-  bool signalBusyOff(void) {
-    if(data[0] == DW_IDLE) {
-      data[0] = DW_BUSY_OFF;
-      return true;
-    } else if(data[1] == DW_IDLE) {
-      data[1] = DW_BUSY_OFF;
-      return true;
-    } else if(data[2] == DW_IDLE) {
-      data[2] = DW_BUSY_OFF;
-      return true;
-    } else {
-      return false;
-    }
-  }
 
   inline bool operator==(const AlpideDataWord& rhs) const {
     return (this->data[0] == rhs.data[0] &&
@@ -203,17 +175,17 @@ public:
                               const std::string& name ) {
     sc_trace(tf, dw.data[0], name + ".byte0");
     sc_trace(tf, dw.data[1], name + ".byte1");
-    sc_trace(tf, dw.data[2], name + ".byte2");             
+    sc_trace(tf, dw.data[2], name + ".byte2");
   }
 
-///@todo Overload this for all AlpideDataWord classes, so SystemC can print them to trace files properly?  
+///@todo Overload this for all AlpideDataWord classes, so SystemC can print them to trace files properly?
   inline friend std::ostream& operator<<(std::ostream& stream, const AlpideDataWord& alpide_dw) {
     stream << "0x";
     stream << std::hex << alpide_dw.data[0];
     stream << std::hex << alpide_dw.data[1];
     stream << std::hex << alpide_dw.data[2];
     return stream;
-  }  
+  }
 };
 
 
@@ -223,7 +195,7 @@ class AlpideIdle : public AlpideDataWord
 public:
   AlpideIdle() {
     data[2] = DW_IDLE;
-    data[1] = DW_IDLE;    
+    data[1] = DW_IDLE;
     data[0] = DW_IDLE;
   }
 };
@@ -235,13 +207,13 @@ public:
   AlpideChipHeader(uint8_t chip_id, uint16_t bunch_counter) {
     // Mask out bits 10:3 of the bunch counter
     uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
-    
+
     data[2] = DW_CHIP_HEADER | (chip_id & 0x0F);
     data[1] = bc_masked;
     data[0] = DW_IDLE;
   }
   AlpideChipHeader(uint8_t chip_id, FrameStartFifoWord& frame_start)
-    : AlpideChipHeader(chip_id, frame_start.BC_for_frame) {}  
+    : AlpideChipHeader(chip_id, frame_start.BC_for_frame) {}
 };
 
 
@@ -270,14 +242,14 @@ public:
       frame_end.strobe_extended = false;
       frame_end.busy_transition = false;
     }
-      
+
     data[2] = DW_CHIP_TRAILER
       | (frame_start.busy_violation ? READOUT_FLAGS_BUSY_VIOLATION : 0)
       | (frame_end.flushed_incomplete ? READOUT_FLAGS_FLUSHED_INCOMPLETE : 0)
       | (frame_end.strobe_extended ? READOUT_FLAGS_STROBE_EXTENDED : 0)
       | (frame_end.busy_transition ? READOUT_FLAGS_BUSY_TRANSITION : 0);
     data[1] = DW_IDLE;
-    data[0] = DW_IDLE;    
+    data[0] = DW_IDLE;
   }
 };
 
@@ -288,13 +260,13 @@ public:
   AlpideChipEmptyFrame(uint8_t chip_id, uint16_t bunch_counter) {
     // Mask out bits 10:3 of the bunch counter
     uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
-    
+
     data[2] = DW_CHIP_EMPTY_FRAME | (chip_id & 0x0F);
     data[1] = bc_masked;
     data[0] = DW_IDLE;
   }
   AlpideChipEmptyFrame(uint8_t chip_id, FrameStartFifoWord& frame_start)
-    : AlpideChipEmptyFrame(chip_id, frame_start.BC_for_frame) {}   
+    : AlpideChipEmptyFrame(chip_id, frame_start.BC_for_frame) {}
 };
 
 
@@ -371,7 +343,7 @@ public:
   AlpideComma() {
     data[2] = DW_COMMA;
     data[1] = DW_COMMA;
-    data[0] = DW_COMMA;    
+    data[0] = DW_COMMA;
   }
 };
 

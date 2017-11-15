@@ -1,5 +1,5 @@
 /**
- * @file   alpide.h
+ * @file   Alpide.hpp
  * @author Simon Voigt Nesbo
  * @date   December 11, 2016
  * @brief  Header file for Alpide class.
@@ -12,7 +12,9 @@
 #define ALPIDE_H
 
 #include "AlpideDataWord.hpp"
+#include "AlpideInterface.hpp"
 #include "PixelMatrix.hpp"
+#include "PixelFrontEnd.hpp"
 #include "RegionReadoutUnit.hpp"
 #include "TopReadoutUnit.hpp"
 
@@ -30,17 +32,20 @@
 /// Alpide main class. Currently it only implements the MEBs,
 /// no RRU FIFOs, and no TRU FIFO. It will be used to run some initial
 /// estimations for probability of MEB overflow (busy).
-class Alpide : sc_core::sc_module, public PixelMatrix
+class Alpide : sc_core::sc_module, public PixelMatrix, public PixelFrontEnd
 {
 public:
   ///@brief 40MHz LHC clock
   sc_in_clk s_system_clk_in;
-  sc_in<bool> s_strobe_n_in;
+
+  ControlTargetSocket s_control_input;
+  DataInitiatorSocket s_data_output;
 
   ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
-  sc_out<bool> s_chip_ready_out;
+  //sc_out<bool> s_chip_ready_out;
+  sc_export<sc_signal<bool>> s_chip_ready_out;
 
-  sc_out<sc_uint<24>> s_serial_data_output;
+  sc_export<sc_signal<sc_uint<24>>> s_serial_data_out_exp;
 
 private:
   sc_signal<sc_uint<8>> s_fromu_readout_state;
@@ -84,13 +89,22 @@ private:
   sc_fifo<AlpideDataWord> s_dmu_fifo;
 
   sc_signal<sc_uint<24>> s_serial_data_dtu_input_debug;
+  sc_signal<sc_uint<24>> s_serial_data_out;
 
   ///@brief FIFO used to represent the encoding delay in the DTU
   sc_fifo<AlpideDataWord> s_dtu_delay_fifo;
 
+  ///@brief Represents the FIFO written to by the BMU in the real ALPIDE chip
+  sc_fifo<AlpideDataWord> s_busy_fifo;
+
 
   sc_signal<sc_uint<8> > s_dmu_fifo_size;
+  sc_signal<sc_uint<8> > s_busy_fifo_size;
   sc_signal<bool> s_chip_ready_internal;
+  sc_signal<bool> s_strobe_n;
+
+  sc_event E_trigger;
+  sc_event E_strobe_interval_done;
 
   tlm::tlm_fifo<FrameStartFifoWord> s_frame_start_fifo;
   tlm::tlm_fifo<FrameEndFifoWord> s_frame_end_fifo;
@@ -109,40 +123,58 @@ private:
 
 private:
   int mChipId;
+
+  ///@brief True: Continuous, False: Triggered
+  bool mContinuousMode;
+
   bool mEnableReadoutTraces;
   bool mEnableDtuDelay;
   bool mStrobeActive;
+  bool mStrobeExtensionEnable;
   uint16_t mBunchCounter;
+  uint16_t mStrobeLengthNs;
+  uint64_t mStrobeStartTime;
 
-  ///@brief Number of triggers (event frames) that are accepted into an MEB by the chip
-  uint64_t mEventFramesAccepted = 0;
+  ///@brief Number of triggers that are accepted by the chip
+  uint64_t mTriggersAccepted = 0;
 
-  ///@brief Triggered mode: If 3 MEBs are already full, the chip will not accept more events
-  ///                       until one of those 3 MEBs have been read out. This variable is counted
-  ///                       up for each event that is not accepted.
-  uint64_t mEventFramesRejected = 0;
+  ///@brief Number of triggers that were "rejected" (ie. all 3 MEBs were full)
+  uint64_t mTriggersRejected = 0;
 
-  ///@brief Continuous mode only.
-  ///       The Alpide chip will try to guarantee that there is a free MEB slice in continuous mode.
-  ///       It does this by deleting the oldest MEB slice (even if it has not been read out) when
-  ///       the 3rd one is filled. This variable counts up in that case.
-  uint64_t mEventFramesFlushed = 0;
+  ///@brief Number of "positive" busy transitions (ie. chip went into busy state)
+  uint64_t mBusyTransitions = 0;
 
-  void mainProcess(void);
+  uint64_t mBusyViolations = 0;
+  uint64_t mFlushedIncompleteCount = 0;
+
+  uint64_t mEventIdCount = 0;
+
+  void newEvent(uint64_t event_time);
+  void mainMethod(void);
+  void triggerMethod(void);
+  void strobeDurationMethod(void);
+  void busyFifoMethod(void);
+
   void strobeInput(void);
   void frameReadout(void); // FROMU
   void dataTransmission(void);
-  bool getFrameReadoutDone(void);
   void updateBusyStatus(void);
+  bool getFrameReadoutDone(void);
+  ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-         int dmu_fifo_size, int dtu_delay_cycles, bool enable_clustering,
-         bool continuous_mode, bool matrix_readout_speed);
+         int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
+         bool strobe_extension, bool enable_clustering, bool continuous_mode,
+         bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
-  uint64_t getEventFramesAcceptedCount(void) const {return mEventFramesAccepted;}
-  uint64_t getEventFramesRejectedCount(void) const {return mEventFramesRejected;}
+
+  uint64_t getTriggersAcceptedCount(void) const {return mTriggersAccepted;}
+  uint64_t getTriggersRejectedCount(void) const {return mTriggersRejected;}
+  uint64_t getBusyCount(void) const {return mBusyTransitions;}
+  uint64_t getBusyViolationCount(void) const {return mBusyViolations;}
+  uint64_t getFlushedIncompleteCount(void) const {return mFlushedIncompleteCount;}
 };
 
 
