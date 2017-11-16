@@ -72,6 +72,7 @@ add_sources(
   src/event/EventGenerator.cpp
   src/event/EventXML.cpp
   src/settings/Settings.cpp
+  src/settings/parse_cmdline_args.cpp
   src/stimuli/Stimuli.cpp
   src/main.cpp
   )

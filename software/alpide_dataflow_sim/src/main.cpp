@@ -7,9 +7,11 @@
 
 
 #include "settings/Settings.hpp"
+#include "settings/parse_cmdline_args.hpp"
 #include "event/EventGenerator.hpp"
 #include "Alpide/Alpide.hpp"
 #include "stimuli/Stimuli.hpp"
+#include "version.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -46,8 +48,23 @@ int sc_main(int argc, char** argv)
 {
   boost::posix_time::ptime simulation_start_time = boost::posix_time::second_clock::local_time();
 
+  std::cout << std::endl; // Print a new line after SystemC info
+
   // Parse configuration file here
   QSettings* simulation_settings = getSimSettings();
+
+  QCoreApplication app(argc, argv);
+  QCoreApplication::setApplicationName("Alpide Dataflow Simulation");
+  QCoreApplication::setApplicationVersion(QString::number(VERSION_MAJOR) + "." +
+                                          QString::number(VERSION_MINOR));
+
+  QCommandLineParser parser;
+  parser.setApplicationDescription("\nAlpide Dataflow Simulation for the upgraded ITS detector");
+
+  // Parse command line arguments. Command line arguments will overwrite
+  // the settings specified in the settings file.
+  if(parseCommandLine(parser, app, *simulation_settings) == false)
+    return 0;
 
   double sim_data_size = estimate_data_size(simulation_settings);
 

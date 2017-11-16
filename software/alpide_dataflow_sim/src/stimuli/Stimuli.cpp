@@ -42,12 +42,74 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   mTriggerDelayNs = settings->value("event/trigger_delay_ns").toInt();
 
   unsigned int trigger_filter_time = settings->value("event/trigger_filter_time_ns").toInt();
+  bool trigger_filter_enable = settings->value("event/trigger_filter_enable").toBool();
   int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
   int dmu_fifo_size = settings->value("alpide/dmu_fifo_size").toInt();
   int dtu_delay = settings->value("alpide/dtu_delay").toInt();
   bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
   bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
   bool strobe_extension = settings->value("alpide/strobe_extension_enable").toBool();
+
+  std::cout << std::endl;
+  std::cout << "-------------------------------------------------" << std::endl;
+  std::cout << "Simulation settings:" << std::endl;
+  std::cout << "-------------------------------------------------" << std::endl;
+  std::cout << "Number of events: " << mNumEvents << std::endl;
+  std::cout << "Single chip simulation: " << (mSingleChipSimulation ? "true" : "false") << std::endl;
+  std::cout << "Trigger mode: " << (mContinuousMode ? "continuous" : "triggered") << std::endl;
+  std::cout << "Strobe active time (ns): " << mStrobeActiveNs << std::endl;
+  std::cout << "Strobe inactive time (ns): " << mStrobeInactiveNs << std::endl;
+  std::cout << "Trigger delay (ns): " << mTriggerDelayNs << std::endl;
+  std::cout << "Trigger filter time (ns): " << trigger_filter_time << std::endl;
+  std::cout << "Trigger filter enabled: " << (trigger_filter_enable ? "true" : "false") << std::endl;
+  std::cout << "Region FIFO size: " << region_fifo_size << std::endl;
+  std::cout << "DMU FIFO size: " << dmu_fifo_size << std::endl;
+  std::cout << "DTU delay (clock cycles): " << dtu_delay << std::endl;
+  std::cout << "Clustering enabled: " << (enable_clustering ? "true" : "false") << std::endl;
+  std::cout << "Matrix readout speed fast: " << (matrix_readout_speed ? "true" : "false") << std::endl;
+  std::cout << "Strobe extension enabled: " << (strobe_extension ? "true" : "false") << std::endl;
+
+  std::cout << "Layer 0 hit density: ";
+  std::cout << settings->value("event/hit_density_layer0").toDouble() << std::endl;
+
+  std::cout << "Layer 1 hit density: ";
+  std::cout << settings->value("event/hit_density_layer1").toDouble() << std::endl;
+
+  std::cout << "Layer 2 hit density: ";
+  std::cout << settings->value("event/hit_density_layer2").toDouble() << std::endl;
+
+  std::cout << "Layer 3 hit density: ";
+  std::cout << settings->value("event/hit_density_layer3").toDouble() << std::endl;
+
+  std::cout << "Layer 4 hit density: ";
+  std::cout << settings->value("event/hit_density_layer4").toDouble() << std::endl;
+
+  std::cout << "Layer 5 hit density: ";
+  std::cout << settings->value("event/hit_density_layer5").toDouble() << std::endl;
+
+  std::cout << "Layer 6 hit density: ";
+  std::cout << settings->value("event/hit_density_layer6").toDouble() << std::endl;
+
+  std::cout << "Layer 0 number of staves: ";
+  std::cout << settings->value("its/layer0_num_staves").toUInt() << std::endl;
+
+  std::cout << "Layer 1 number of staves: ";
+  std::cout << settings->value("its/layer1_num_staves").toUInt() << std::endl;
+
+  std::cout << "Layer 2 number of staves: ";
+  std::cout << settings->value("its/layer2_num_staves").toUInt() << std::endl;
+
+  std::cout << "Layer 3 number of staves: ";
+  std::cout << settings->value("its/layer3_num_staves").toUInt() << std::endl;
+
+  std::cout << "Layer 4 number of staves: ";
+  std::cout << settings->value("its/layer4_num_staves").toUInt() << std::endl;
+
+  std::cout << "Layer 5 number of staves: ";
+  std::cout << settings->value("its/layer5_num_staves").toUInt() << std::endl;
+
+  std::cout << "Layer 6 number of staves: ";
+  std::cout << settings->value("its/layer6_num_staves").toUInt() << std::endl;
 
   mEventGen = new EventGenerator("event_gen", settings, mOutputPath);
 
