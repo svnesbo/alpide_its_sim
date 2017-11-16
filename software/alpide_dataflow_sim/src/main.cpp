@@ -25,6 +25,7 @@
 #include <chrono>
 #include <ctime>
 #include <QDir>
+#include <QFile>
 #include <unistd.h>
 #include <signal.h>
 
@@ -38,7 +39,7 @@
 
 
 void signal_callback_handler(int signum);
-std::string create_output_dir(const QSettings* settings);
+bool create_output_dir(const QSettings* settings, std::string& output_path);
 double estimate_data_size(const QSettings* settings);
 
 volatile bool g_terminate_program = false;
@@ -84,7 +85,9 @@ int sc_main(int argc, char** argv)
   }
 
   // Create output data directory
-  std::string output_dir_str = create_output_dir(simulation_settings);
+  std::string output_dir_str;
+  if(create_output_dir(simulation_settings, output_dir_str) == false)
+    return 0;
 
   // Register a signal and signal handler, so that we exit the simulation nicely
   // and not lose data if the user presses CTRL+C on the command line
@@ -149,20 +152,58 @@ void signal_callback_handler(int signum)
 }
 
 
-///@brief Create output directory "$PWD/sim_output/Run <timestamp>".
-///       Also writes a copy of the settings file used for the simulation to this path.
-///@return Output directory path string
-std::string create_output_dir(const QSettings* settings)
+///@brief Create output directory based on user settings.
+///       The default is "$PWD/sim_output/run_<id>", but a different prefix than
+///       sim_output can be specified in settings.
+///       A copy of the settings file used for the simulation is created in
+///       the simulation output path, as well as a timestamp file.
+///@param[in] settings QSettings object which has information about output path prefix
+///@param[out] output_path Full path of simulation data output directory
+///@return True if creating output directory succeeded, false if not.
+bool create_output_dir(const QSettings* settings, std::string& output_path)
 {
   auto time_now_ = std::chrono::system_clock::now();
   std::time_t time_now = std::chrono::system_clock::to_time_t(time_now_);
+  std::string output_dir_prefix_str;
   std::string output_dir_str;
 
-  output_dir_str = settings->value("output_dir_prefix").toString().toStdString();
-  output_dir_str += std::string("/Run ") + std::string(std::ctime(&time_now));
+  output_dir_prefix_str = settings->value("output_dir_prefix").toString().toStdString();
 
-  // Strip away the newline character that std::ctime automatically adds at the end of the string
-  output_dir_str = output_dir_str.substr(0, output_dir_str.length()-1);
+  QDir output_prefix_dir(output_dir_prefix_str.c_str());
+
+  if(output_prefix_dir.exists() == false) {
+    if(output_prefix_dir.mkpath(".") == false) {
+      std::cout << "Error creating output data prefix path: ";
+      std::cout << output_dir_prefix_str << std::endl;
+      return false;
+    }
+  }
+
+  QStringList name_filters;
+  name_filters << "run_*";
+  output_prefix_dir.setNameFilters(name_filters);
+  output_prefix_dir.setSorting(QDir::NoSort);  // will sort manually with std::sort
+
+  auto entryList = output_prefix_dir.entryList();
+
+  if(entryList.length() > 0) {
+    // Sort existing files/directories in natural ascending order
+    // (ie. 0, 1, 2, 100, as opposed to 0, 1, 100, 2..)
+    // https://stackoverflow.com/a/36018397
+    QCollator collator;
+    collator.setNumericMode(true);
+    std::sort(entryList.begin(), entryList.end(), collator);
+
+    QString last_dir = entryList.last();
+    last_dir.remove(0, strlen("run_"));
+    unsigned int last_run_number = last_dir.toUInt();
+
+    output_dir_str = "run_" + QString::number(last_run_number+1).toStdString();
+  } else {
+    output_dir_str = "run_0";
+  }
+
+  output_dir_str = output_dir_prefix_str + "/" + output_dir_str;
 
   std::cout << "Output directory for simulation: \"";
   std::cout << output_dir_str << "\"" << std::endl;
@@ -170,7 +211,7 @@ std::string create_output_dir(const QSettings* settings)
   QDir output_dir(output_dir_str.c_str());
   if(output_dir.mkpath(".") == false) {
     std::cerr << "Error creating output data path: " << output_dir_str << std::endl;
-    exit(-1);
+    return false;
   }
 
   // Make a copy of the settings file in the simulation output directory
@@ -181,7 +222,24 @@ std::string create_output_dir(const QSettings* settings)
     settings_copy.setValue(*it, settings->value(*it));
   }
 
-  return output_dir_str;
+
+  // Make a timestamp.txt file here..
+  QString timestamp_filename = QString(output_dir_str.c_str()) + QString("/timestamp.txt");
+  QFile timestamp_file(timestamp_filename);
+  if(!timestamp_file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    std::cout << "Error creating timestamp file." << std::endl;
+    return false;
+  }
+
+  QTextStream out(&timestamp_file);
+
+  out << QString(std::ctime(&time_now));
+  out.flush();
+  timestamp_file.close();
+
+  output_path = output_dir_str;
+
+  return true;
 }
 
 
