@@ -156,10 +156,16 @@ std::string create_output_dir(const QSettings* settings)
 {
   auto time_now_ = std::chrono::system_clock::now();
   std::time_t time_now = std::chrono::system_clock::to_time_t(time_now_);
-  std::string output_dir_str = std::string("sim_output/Run ") + std::string(std::ctime(&time_now));
+  std::string output_dir_str;
+
+  output_dir_str = settings->value("output_dir_prefix").toString().toStdString();
+  output_dir_str += std::string("/Run ") + std::string(std::ctime(&time_now));
 
   // Strip away the newline character that std::ctime automatically adds at the end of the string
   output_dir_str = output_dir_str.substr(0, output_dir_str.length()-1);
+
+  std::cout << "Output directory for simulation: \"";
+  std::cout << output_dir_str << "\"" << std::endl;
 
   QDir output_dir(output_dir_str.c_str());
   if(output_dir.mkpath(".") == false) {
