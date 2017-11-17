@@ -46,8 +46,9 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   , mReadoutUnitTriggerDelay(0)
   , mTriggerFilterTimeNs(trigger_filter_time)
   , mInnerBarrelMode(inner_barrel)
-  , mAlpideLinkBusySignals(n_data_links)
   , mTriggersSentCount(n_ctrl_links)
+  , mTriggerActionMaps(n_ctrl_links)
+  , mAlpideLinkBusySignals(n_data_links)
 {
   // This prevents the first trigger from being filtered
   mLastTriggerTime = -mTriggerFilterTimeNs;
@@ -113,13 +114,27 @@ void ReadoutUnit::sendTrigger(void)
   std::string msg = "Send Trigger at: " + sc_core::sc_time_stamp().to_string();
   SC_REPORT_INFO_VERB(name(),msg.c_str(),sc_core::SC_DEBUG);
 
+  uint64_t time_now = sc_time_stamp().value();
+  bool filter_trigger = (time_now - mLastTriggerTime) < mTriggerFilterTimeNs;
+
   for(unsigned int i = 0; i < s_alpide_control_output.size(); i++) {
-    ///@todo
-    ///if(link_busy[i] == false) {
-    s_alpide_control_output[i]->transport(trigger_word);
-    mTriggersSentCount[i]++;
-    //}
+    if(filter_trigger) {
+      // Filter triggers that come too close in time
+      mTriggerActionMaps[i][mTriggerIdCount] = TRIGGER_FILTERED;
+      mTriggersFilteredCount++;
+    } else if(true) { ///@todo else if(link_busy[i] == false) {
+      // If we are not busy, send trigger
+      s_alpide_control_output[i]->transport(trigger_word);
+      mTriggersSentCount[i]++;
+      mTriggerActionMaps[i][mTriggerIdCount] = TRIGGER_SENT;
+      mLastTriggerTime = time_now;
+    } else {
+      mTriggerActionMaps[i][mTriggerIdCount] = TRIGGER_NOT_SENT_BUSY;
+      mLastTriggerTime = time_now;
+    }
   }
+
+  mTriggerIdCount++;
 }
 
 
@@ -128,22 +143,11 @@ void ReadoutUnit::triggerInputMethod(void)
 {
   uint64_t time_now = sc_time_stamp().value();
 
-  std::cout << "@" << time_now << ": RU " << mLayerId << ":" << mStaveId << " triggered.";
+  std::cout << "@" << time_now;
+  std::cout << ": RU " << mLayerId << ":" << mStaveId << " triggered.";
+  std::cout << std::endl;
 
-  mTriggersReceivedCount++;
-
-  // Filter triggers that come too close in time
-  if((time_now - mLastTriggerTime) >= mTriggerFilterTimeNs) {
-    ///@todo If detector is busy.. hold back on triggers here...
-
-    std::cout << " Sending to Alpide" << std::endl;
-
-    mLastTriggerTime = time_now;
-    sendTrigger();
-  } else {
-    mTriggersFilteredCount++;
-    std::cout << " Filtered" << std::endl;
-  }
+  sendTrigger();
 }
 
 
@@ -250,6 +254,8 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   std::string csv_filename = output_path + std::string("_Link_utilization.csv");
   ofstream prot_stats_csv_file(csv_filename);
 
+  // Write file with Alpide data protocol word utilization
+  // -----------------------------------------------------
   if(!prot_stats_csv_file.is_open()) {
     std::cerr << "Error opening link utilization stats file: " << csv_filename << std::endl;
     return;
@@ -283,10 +289,11 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     prot_stats_csv_file << stats.mUnknownNonHeaderWordCount << ";";
     prot_stats_csv_file << stats.mUnknownDataWordCount << std::endl;
   }
+  prot_stats_csv_file.close();
 
 
-  // Write file with trigger statistics
-  // ----------------------------------
+  // Write file with trigger stats
+  // -----------------------------------------------------
   csv_filename = output_path + std::string("_Trigger_stats.csv");
   ofstream trigger_stats_csv_file(csv_filename);
 
@@ -298,19 +305,58 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     std::cout << csv_filename << "\"" << std::endl;
   }
 
-  trigger_stats_csv_file << "Triggers received; Triggers filtered";
-  for(unsigned int i = 0; i < mTriggersSentCount.size(); i++) {
-    trigger_stats_csv_file << "; Link " << i << " triggers sent";
+  // Write header to CSV file
+  trigger_stats_csv_file << "Trigger ID";
+  for(uint64_t link_id = 0; link_id < mTriggerActionMaps.size(); link_id++) {
+    trigger_stats_csv_file << "; Link " << link_id << " action";
   }
   trigger_stats_csv_file << std::endl;
 
-  trigger_stats_csv_file << mTriggersReceivedCount << "; ";
-  trigger_stats_csv_file << mTriggersFilteredCount << "; ";
+  // Write action for each link, for each trigger, to csv file
+  for(uint64_t trigger_id = 0; trigger_id < mTriggerIdCount; trigger_id++) {
+    trigger_stats_csv_file << trigger_id;
+    for(uint64_t link_id = 0; link_id < mTriggerActionMaps.size(); link_id++) {
+      if(mTriggerActionMaps[link_id].at(trigger_id) == TRIGGER_SENT)
+        trigger_stats_csv_file << "; SENT";
+      else if(mTriggerActionMaps[link_id].at(trigger_id) == TRIGGER_NOT_SENT_BUSY)
+        trigger_stats_csv_file << "; BUSY";
+      else
+        trigger_stats_csv_file << "; FILTER";
+    }
+    trigger_stats_csv_file << std::endl;
+  }
+
+  trigger_stats_csv_file.close();
+
+
+  // Write file with trigger summary
+  // -----------------------------------------------------
+  csv_filename = output_path + std::string("_Trigger_summary.csv");
+  ofstream trigger_summary_csv_file(csv_filename);
+
+  if(!trigger_summary_csv_file.is_open()) {
+    std::cerr << "Error opening trigger summary file: " << csv_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing trigger summary to file:\n\"";
+    std::cout << csv_filename << "\"" << std::endl;
+  }
+
+  trigger_summary_csv_file << "Triggers received; Triggers filtered";
+  for(unsigned int i = 0; i < mTriggersSentCount.size(); i++) {
+    trigger_summary_csv_file << "; Link " << i << " triggers sent";
+  }
+  trigger_summary_csv_file << std::endl;
+
+  // Trigger id count is equivalent to number of triggers received
+  trigger_summary_csv_file << mTriggerIdCount << "; ";
+  trigger_summary_csv_file << mTriggersFilteredCount << "; ";
 
   for(unsigned int i = 0; i < mTriggersSentCount.size(); i++) {
-    trigger_stats_csv_file << mTriggersSentCount[i] << "; ";
+    trigger_summary_csv_file << mTriggersSentCount[i] << "; ";
   }
-  trigger_stats_csv_file << std::endl;
+  trigger_summary_csv_file << std::endl;
+  trigger_summary_csv_file.close();
 
   ///@todo More ITS/RU stats here..
 }

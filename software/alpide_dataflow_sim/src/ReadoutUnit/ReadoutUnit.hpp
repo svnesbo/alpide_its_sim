@@ -28,6 +28,8 @@
 
 #define NUM_ALPIDE_DATA_LINKS 28
 
+enum TriggerAction {TRIGGER_SENT, TRIGGER_NOT_SENT_BUSY, TRIGGER_FILTERED};
+
 
 class ReadoutUnit : public sc_core::sc_module {
 public:
@@ -36,27 +38,14 @@ public:
   std::vector<ControlInitiatorSocket> s_alpide_control_output;
   std::vector<DataTargetSocket> s_alpide_data_input;
 
-  /*
-    The stimuli (or stave?) class will have to instantiate the FIFOs between the RUs:
-
-    sc_fifo<BusyLinkWord> s_busy_fifos[N];
-
-    And connect the RUs together:
-
-    RU[0]->s_busy_fifo_out(s_busy_fifos[0]);
-    RU[1]->s_busy_fifo_in(s_busy_fifos[0]);
-
-    And so on..
-  */
-
-
-  sc_port<sc_fifo_in_if<BusyLinkWord>> s_busy_in;
-  sc_export<sc_fifo<BusyLinkWord>> s_busy_out;
-
   sc_event_queue E_trigger_in;
 
   ///@todo Make this a vector/array somehow, to cater for many chips..
   std::vector<sc_in<sc_uint<24>>> s_serial_data_input;
+
+  // Busy in and out signals for busy daisy chain
+  sc_port<sc_fifo_in_if<BusyLinkWord>> s_busy_in;
+  sc_export<sc_fifo<BusyLinkWord>> s_busy_out;
 
 private:
   sc_fifo<BusyLinkWord> s_busy_fifo_out;
@@ -74,12 +63,16 @@ private:
   bool mInnerBarrelMode;
   bool mBusyDaisyChainMaster;
   uint64_t mLastTriggerTime;
-  uint64_t mTriggersReceivedCount = 0;
+  uint64_t mTriggerIdCount = 0;
   uint64_t mTriggersFilteredCount = 0;
 
   // One entry per control link.
   // Should be same size as s_alpide_control_output.
   std::vector<uint64_t> mTriggersSentCount;
+
+  // Map holds the trigger action taken per event ID
+  // One map per control link in the vector
+  std::vector<std::map<uint64_t, TriggerAction>> mTriggerActionMaps;
 
 
   std::vector<std::shared_ptr<AlpideDataParser>> mDataLinkParsers;
