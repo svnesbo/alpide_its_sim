@@ -8,6 +8,7 @@
 #include <TH1F.h>
 #include <TH1I.h>
 #include "ReadoutUnitStats.hpp"
+#include "ITSLayerStats.hpp"
 
 //enum TrigAction {TRIGGER_SENT, TRIGGER_NOT_SENT_BUSY, TRIGGER_FILTERED};
 
@@ -27,7 +28,8 @@ int process_readout_trigger_stats(const char* sim_run_data_path)
   std::map<uint64_t, uint32_t> trig_filter_mismatch;
   */
 
-  ReadoutUnitStats RU(0, 0, sim_run_data_path);
+  //ReadoutUnitStats RU(0, 0, sim_run_data_path);
+  ITSLayerStats ITS_layer(0, 12, sim_run_data_path);
 
 
 

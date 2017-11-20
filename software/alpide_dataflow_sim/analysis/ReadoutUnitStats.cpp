@@ -94,7 +94,10 @@ void ReadoutUnitStats::readFile(std::string filename)
       }
     }
 
-    mTriggerCoverage[trigger_id] = (double)coverage/links_included;
+    if(links_included == 0)
+      mTriggerCoverage[trigger_id] = 0.0;
+    else
+      mTriggerCoverage[trigger_id] = (double)coverage/links_included;
 
     std::cout << "Trigger " << trigger_id;
     std::cout << " coverage: " << mTriggerCoverage[trigger_id] << std::endl;
@@ -120,7 +123,10 @@ void ReadoutUnitStats::readFile(std::string filename)
       std::cout << ", " << *it;
   }
   std::cout << std::endl;
+}
 
 
-
+double ReadoutUnitStats::getTriggerCoverage(uint64_t trigger_id) const
+{
+  return mTriggerCoverage[trigger_id];
 }

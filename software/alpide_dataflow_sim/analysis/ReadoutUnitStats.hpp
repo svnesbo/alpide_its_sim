@@ -6,6 +6,9 @@
  *
  */
 
+#ifndef READOUT_UNIT_STATS_HPP
+#define READOUT_UNIT_STATS_HPP
+
 //#include <cstdint>
 #include <stdint.h>
 #include <vector>
@@ -13,9 +16,9 @@
 
 //using std::uint8_t;
 
-const uint8_t TRIGGER_SENT = 0;
-const uint8_t TRIGGER_NOT_SENT_BUSY = 1;
-const uint8_t TRIGGER_FILTERED = 2;
+static const uint8_t TRIGGER_SENT = 0;
+static const uint8_t TRIGGER_NOT_SENT_BUSY = 1;
+static const uint8_t TRIGGER_FILTERED = 2;
 
 class ReadoutUnitStats {
   // Indexing: [trigger_id][link_id]
@@ -39,4 +42,9 @@ class ReadoutUnitStats {
 public:
   ReadoutUnitStats(unsigned int layer, unsigned int stave, const char* path);
   void readFile(std::string filename);
+  double getTriggerCoverage(uint64_t trigger_id) const;
+  uint64_t getNumTriggers(void) const {return mNumTriggers;}
 };
+
+
+#endif
