@@ -292,41 +292,34 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   prot_stats_csv_file.close();
 
 
-  // Write file with trigger stats
+  // Write binary data file with trigger stats
   // -----------------------------------------------------
-  csv_filename = output_path + std::string("_Trigger_stats.csv");
-  ofstream trigger_stats_csv_file(csv_filename);
+  std::string trig_stats_filename = output_path + std::string("_Trigger_stats.dat");
+  ofstream trig_stats_file(trig_stats_filename, std::ios_base::out | std::ios_base::binary);
 
-  if(!trigger_stats_csv_file.is_open()) {
-    std::cerr << "Error opening trigger stats file: " << csv_filename << std::endl;
+  if(!trig_stats_file.is_open()) {
+    std::cerr << "Error opening trigger stats file: " << trig_stats_filename << std::endl;
     return;
   } else {
     std::cout << "Writing trigger stats to file:\n\"";
-    std::cout << csv_filename << "\"" << std::endl;
+    std::cout << trig_stats_filename << "\"" << std::endl;
   }
 
-  // Write header to CSV file
-  trigger_stats_csv_file << "Trigger ID";
-  for(uint64_t link_id = 0; link_id < mTriggerActionMaps.size(); link_id++) {
-    trigger_stats_csv_file << "; Link " << link_id << " action";
-  }
-  trigger_stats_csv_file << std::endl;
 
-  // Write action for each link, for each trigger, to csv file
+  // Write number of triggers and number of links to file header
+  uint64_t num_triggers = mTriggerIdCount;
+  uint8_t num_links = s_alpide_control_output.size();
+  trig_stats_file.write((char*)&num_triggers, sizeof(uint64_t));
+  trig_stats_file.write((char*)&num_links, sizeof(uint8_t));
+
+  // Write action for each link, for each trigger
   for(uint64_t trigger_id = 0; trigger_id < mTriggerIdCount; trigger_id++) {
-    trigger_stats_csv_file << trigger_id;
     for(uint64_t link_id = 0; link_id < mTriggerActionMaps.size(); link_id++) {
-      if(mTriggerActionMaps[link_id].at(trigger_id) == TRIGGER_SENT)
-        trigger_stats_csv_file << "; SENT";
-      else if(mTriggerActionMaps[link_id].at(trigger_id) == TRIGGER_NOT_SENT_BUSY)
-        trigger_stats_csv_file << "; BUSY";
-      else
-        trigger_stats_csv_file << "; FILTER";
+      uint8_t link_action = mTriggerActionMaps[link_id].at(trigger_id);
+      trig_stats_file.write((char*)&link_action, sizeof(uint8_t));
     }
-    trigger_stats_csv_file << std::endl;
   }
-
-  trigger_stats_csv_file.close();
+  trig_stats_file.close();
 
 
   // Write file with trigger summary

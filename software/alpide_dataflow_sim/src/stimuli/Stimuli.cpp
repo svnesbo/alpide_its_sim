@@ -187,7 +187,8 @@ void Stimuli::stimuliMainMethod(void)
     else
       mITS->writeSimulationStats(mOutputPath);
   }
-  else if(mEventGen->getPhysicsEventCount() < mNumEvents) {
+  // We want to stop at n_events, not n_events-1.
+  else if(mEventGen->getPhysicsEventCount() < mNumEvents+1) {
     //if((mEventGen->getPhysicsEventCount() % 100) == 0) {
     int64_t time_now = sc_time_stamp().value();
     std::cout << "@ " << time_now << " ns: \tPhysics event number ";

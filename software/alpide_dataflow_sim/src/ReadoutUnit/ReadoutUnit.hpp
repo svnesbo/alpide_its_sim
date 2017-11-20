@@ -28,7 +28,9 @@
 
 #define NUM_ALPIDE_DATA_LINKS 28
 
-enum TriggerAction {TRIGGER_SENT, TRIGGER_NOT_SENT_BUSY, TRIGGER_FILTERED};
+const uint8_t TRIGGER_SENT = 0;
+const uint8_t TRIGGER_NOT_SENT_BUSY = 1;
+const uint8_t TRIGGER_FILTERED = 2;
 
 
 class ReadoutUnit : public sc_core::sc_module {
@@ -70,9 +72,11 @@ private:
   // Should be same size as s_alpide_control_output.
   std::vector<uint64_t> mTriggersSentCount;
 
-  // Map holds the trigger action taken per event ID
+  // Map holds the trigger action taken per event ID per control link
   // One map per control link in the vector
-  std::vector<std::map<uint64_t, TriggerAction>> mTriggerActionMaps;
+  // Valid values for the uint8_t:
+  // TRIGGER_SENT, TRIGGER_NOT_SENT_BUSY, TRIGGER_FILTERED.
+  std::vector<std::map<uint64_t, uint8_t>> mTriggerActionMaps;
 
 
   std::vector<std::shared_ptr<AlpideDataParser>> mDataLinkParsers;
