@@ -109,7 +109,15 @@ void ReadoutUnit::sendTrigger(void)
   trigger_word.opcode = 0x55; // Trigger
   trigger_word.chipId = 0x00;
   trigger_word.address = 0x0000;
-  trigger_word.data = 0x0000;
+
+  // Tell the Alpide how much it should increase its trigger ID count with.
+  // The trigger ID counts up without skipping any values in the RU,
+  // but since not all triggers are distributed to the Alpide, to have a
+  // synchronized trigger ID across we need to tell it how much to increase
+  // the trigger ID with.
+  // Since the data in this socket is only 16 bits, we can not send the
+  // full trigger ID.
+  trigger_word.data = mTriggerIdCount-mPreviousTriggerId;
 
   std::string msg = "Send Trigger at: " + sc_core::sc_time_stamp().to_string();
   SC_REPORT_INFO_VERB(name(),msg.c_str(),sc_core::SC_DEBUG);
@@ -127,6 +135,7 @@ void ReadoutUnit::sendTrigger(void)
       s_alpide_control_output[i]->transport(trigger_word);
       mTriggersSentCount[i]++;
       mTriggerActionMaps[i][mTriggerIdCount] = TRIGGER_SENT;
+      mPreviousTriggerId = mTriggerIdCount;
       mLastTriggerTime = time_now;
     } else {
       mTriggerActionMaps[i][mTriggerIdCount] = TRIGGER_NOT_SENT_BUSY;

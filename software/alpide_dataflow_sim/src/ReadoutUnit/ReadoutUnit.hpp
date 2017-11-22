@@ -66,6 +66,7 @@ private:
   bool mBusyDaisyChainMaster;
   uint64_t mLastTriggerTime;
   uint64_t mTriggerIdCount = 0;
+  uint64_t mPreviousTriggerId = 0;
   uint64_t mTriggersFilteredCount = 0;
 
   // One entry per control link.

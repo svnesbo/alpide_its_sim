@@ -34,13 +34,37 @@ struct AlpideDataParsed {
 class AlpideEventFrame {
 private:
   std::set<PixelData> mPixelDataSet;
-  bool mFrameCompleted;
+
+  ///@brief Indicates that we got the CHIP_TRAILER word,
+  ///       and received all the data there is for this frame
+  bool mFrameCompleted = false;
+
+  // Readout status flags from ALPIDE CHIP_TRAILER word
+  uint8_t mReadoutFlags;
+
+  uint8_t mChipId = 0;
+  uint64_t mTriggerId = 0;
+  uint16_t mBunchCounterValue = 0;
 
 public:
-  AlpideEventFrame() : mFrameCompleted(false) {}
+  AlpideEventFrame() {}
   bool pixelHitInEvent(PixelData& pixel) const;
   void setFrameCompleted(bool val) {mFrameCompleted = val;}
   bool getFrameCompleted(void) const {return mFrameCompleted;}
+
+  void setReadoutFlags(uint8_t flags) {mReadoutFlags = flags;}
+  bool getBusyViolation(void) const;
+  bool getFlushedIncomplete(void) const;
+  bool getStrobeExtended(void) const;
+  bool getBusyTransition(void) const;
+
+  void setChipId(uint8_t id) {mChipId = id;}
+  void setTriggerId(uint64_t trigger_id) {mTriggerId = trigger_id;}
+  void setBunchCounterValue(uint16_t bc_val) {mBunchCounterValue = bc_val;}
+  uint8_t getChipId(void) const {return mChipId;}
+  uint64_t getTriggerId(void) const {return mTriggerId;}
+  uint16_t getBunchCounterValue(void) const {return mBunchCounterValue;}
+
   unsigned int getEventSize(void) const {return mPixelDataSet.size();}
   void addPixelHit(const PixelData& pixel) {
     mPixelDataSet.insert(pixel);
@@ -74,7 +98,7 @@ public:
   void popEvent(void);
   void inputDataWord(AlpideDataWord dw);
   AlpideDataParsed parseDataWord(AlpideDataWord dw);
-  AlpideEventBuilder(bool save_events = false,
+  AlpideEventBuilder(bool save_events = true,
                      bool include_hit_data = false,
                      bool use_fast_parser = true);
   std::map<AlpideDataType, uint64_t> getProtocolStats(void) {
@@ -99,7 +123,7 @@ private:
   void parserInputProcess(void);
 
 public:
-  AlpideDataParser(sc_core::sc_module_name name, bool save_events = true);
+  AlpideDataParser(sc_core::sc_module_name name, bool save_events = false);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 

@@ -134,9 +134,16 @@ private:
   bool mEnableDtuDelay;
   bool mStrobeActive;
   bool mStrobeExtensionEnable;
+  bool mStrobeExtended = false;
   uint16_t mBunchCounter;
   uint16_t mStrobeLengthNs;
   uint64_t mStrobeStartTime;
+
+  ///@brief Trigger ID counter
+  uint64_t mTrigIdCount = 0;
+
+  ///@brief Trigger ID for the currently active strobe
+  uint64_t mTrigIdForStrobe = 0;
 
   ///@brief Number of triggers that are accepted by the chip
   uint64_t mTriggersAccepted = 0;

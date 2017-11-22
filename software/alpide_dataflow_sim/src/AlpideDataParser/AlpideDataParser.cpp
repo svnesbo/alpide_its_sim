@@ -27,6 +27,30 @@ bool AlpideEventFrame::pixelHitInEvent(PixelData& pixel) const
 }
 
 
+bool AlpideEventFrame::getBusyViolation(void) const
+{
+  return (mReadoutFlags & READOUT_FLAGS_BUSY_VIOLATION) != 0;
+}
+
+
+bool AlpideEventFrame::getFlushedIncomplete(void) const
+{
+  return (mReadoutFlags & READOUT_FLAGS_FLUSHED_INCOMPLETE) != 0;
+}
+
+
+bool AlpideEventFrame::getStrobeExtended(void) const
+{
+  return (mReadoutFlags & READOUT_FLAGS_STROBE_EXTENDED) != 0;
+}
+
+
+bool AlpideEventFrame::getBusyTransition(void) const
+{
+  return (mReadoutFlags & READOUT_FLAGS_BUSY_TRANSITION) != 0;
+}
+
+
 ///@brief Constructor for AlpideEventBuilder
 ///@param save_events Specify if the parser should store all events in memory,
 ///            or discard old events and only keep the latest one.
@@ -126,29 +150,46 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
   // Create new frame/event?
   switch(data_parsed.data[2]) {
   case ALPIDE_CHIP_HEADER1:
+  {
     //std::cout << "Got ALPIDE_CHIP_HEADER1: " << data_bits << std::endl;
     if(mSaveEvents == false && mEvents.empty() != true) {
       mEvents.clear();
     }
     mEvents.push_back(AlpideEventFrame());
+    mEvents.back().setChipId(dw.data[2] & 0x0F);
+    mEvents.back().setBunchCounterValue((uint16_t)dw.data[1] << 3);
+
+    // A little dirty, but we should always have an AlpideChipHeader here
+    AlpideChipHeader* dw_header = static_cast<AlpideChipHeader*>(&dw);
+    mEvents.back().setTriggerId(dw_header->trigger_id);
     break;
+  }
 
   case ALPIDE_CHIP_TRAILER:
     //std::cout << "Got ALPIDE_CHIP_TRAILER: " << data_bits << std::endl;
-    if(!mEvents.empty())
+    if(!mEvents.empty()) {
+      mEvents.back().setReadoutFlags(dw.data[2] & 0x0F);
       mEvents.back().setFrameCompleted(true);
+    }
     break;
 
   case ALPIDE_CHIP_EMPTY_FRAME1:
+  {
     //std::cout << "Got ALPIDE_CHIP_EMPTY_FRAME1: " << data_bits << std::endl;
     // Create an empty event frame
     if(mSaveEvents == false && mEvents.empty() != true) {
       mEvents.clear();
     }
-
     mEvents.push_back(AlpideEventFrame());
+    mEvents.back().setChipId(dw.data[2] & 0x0F);
+    mEvents.back().setBunchCounterValue((uint16_t)dw.data[1] << 3);
     mEvents.back().setFrameCompleted(true);
+
+    // A little dirty, but we should always have an AlpideChipEmptryFrame here
+    AlpideChipEmptyFrame* dw_empty_frame = static_cast<AlpideChipEmptyFrame*>(&dw);
+    mEvents.back().setTriggerId(dw_empty_frame->trigger_id);
     break;
+  }
 
   case ALPIDE_REGION_HEADER:
     //std::cout << "Got ALPIDE_REGION_HEADER: " << data_bits << std::endl;

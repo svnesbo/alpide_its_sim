@@ -3,6 +3,8 @@
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Source file for Alpide class.
+ * @todo   Finish strobe extension. See comments in triggerMethod()
+ *         and in AlpideDataWord.hpp.
  */
 
 #include "Alpide.hpp"
@@ -158,6 +160,11 @@ void Alpide::mainMethod(void)
 ControlResponsePayload Alpide::processCommand(ControlRequestPayload const &request)
 {
   if (request.opcode == 0x55) {
+    // Increase trigger ID counter. See sendTrigger() in ReadoutUnit.cpp for details.
+    // This use of the data field in the control word is only used as a convenient
+    // way of having a synchronized trigger ID in the Alpide and RU in these simulations,
+    // it does not happen in the real system.
+    mTrigIdCount += request.data;
     SC_REPORT_INFO_VERB(name(), "Received Trigger", sc_core::SC_DEBUG);
     E_trigger.notify();
   } else {
@@ -182,10 +189,22 @@ void Alpide::triggerMethod(void)
   if(s_strobe_n.read() == true) {
     // Strobe not active - start new interval
     //s_strobe_n = false;
+    mStrobeExtended = false;
     E_strobe_interval_done.notify(0, SC_NS);
   } else if(s_strobe_n.read() == false) {
     // Strobe already active
     if(mStrobeExtensionEnable) {
+      ///@todo Strobe extension must be tied to the readout flags
+      ///      With the current architecture this is hard to do,
+      ///      because the strobe_extended flag is correctly implemented
+      ///      in FrameEndFifoWord, but the FrameEndFifoWord is not
+      ///      created before the MEB has been read out by RRUs.
+      ///      By then we could have gotten a new strobe, which would
+      ///      overwrite this flag. If we simply cheat and move the
+      ///      strobe_extended flag to FrameStartFifoWord, we can set it
+      ///      in FrameStartFifoWord based on this flag at the end of
+      ///      the strobe interval.
+      mStrobeExtended = true;
       E_strobe_interval_done.cancel();
       E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
     } else {
@@ -200,6 +219,7 @@ void Alpide::strobeDurationMethod(void)
   if(s_strobe_n.read() == true) {
     // Strobe was inactive - start of strobing interval
     s_strobe_n = false;
+    mTrigIdForStrobe = mTrigIdCount;
     E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
   } else {
     // Strobe was active - end of strobing interval
@@ -287,7 +307,10 @@ void Alpide::strobeInput(void)
     s_chip_ready_internal = false;
     mStrobeActive = false;
 
-    FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
+    FrameStartFifoWord frame_start_data = {s_busy_violation,
+                                           mBunchCounter,
+                                           mTrigIdForStrobe};
+
     int frame_start_fifo_size = s_frame_start_fifo.used();
     bool frame_start_fifo_empty = !s_frame_start_fifo.nb_can_get();
     bool frame_start_fifo_full = !s_frame_start_fifo.nb_can_put();

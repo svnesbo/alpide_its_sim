@@ -113,6 +113,9 @@ struct FrameStartFifoWord {
   bool busy_violation;
   uint16_t BC_for_frame; // Bunch counter
 
+  ///@brief Not part of the start frame fifo word in the real chip.
+  uint64_t trigger_id;
+
   inline bool operator==(const FrameStartFifoWord& rhs) const {
     return (this->busy_violation == rhs.busy_violation &&
             this->BC_for_frame == rhs.BC_for_frame);
@@ -141,6 +144,8 @@ struct FrameStartFifoWord {
 
 
 /// Data word stored in FRAME END FIFO
+///@todo Move strobe_extended to FrameStartFifoWord,
+///      although it technically belongs here..
 struct FrameEndFifoWord {
   bool flushed_incomplete;
   bool strobe_extended;
@@ -248,7 +253,13 @@ public:
 class AlpideChipHeader : public AlpideDataWord
 {
 public:
-  AlpideChipHeader(uint8_t chip_id, uint16_t bunch_counter) {
+  uint64_t trigger_id;
+
+  AlpideChipHeader(uint8_t chip_id, uint16_t bunch_counter, uint64_t trig_id) {
+    // Technically trigger ID is not part of this data word,
+    // but is added for convenience in the simulation model.
+    trigger_id = trig_id;
+
     // Mask out bits 10:3 of the bunch counter
     uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
 
@@ -261,7 +272,11 @@ public:
     data_type[2] = ALPIDE_IDLE;
   }
   AlpideChipHeader(uint8_t chip_id, FrameStartFifoWord& frame_start)
-    : AlpideChipHeader(chip_id, frame_start.BC_for_frame) {}
+    : AlpideChipHeader(chip_id,
+                       frame_start.BC_for_frame,
+                       frame_start.trigger_id)
+    {
+    }
 };
 
 
@@ -313,20 +328,32 @@ public:
 class AlpideChipEmptyFrame : public AlpideDataWord
 {
 public:
-  AlpideChipEmptyFrame(uint8_t chip_id, uint16_t bunch_counter) {
-    // Mask out bits 10:3 of the bunch counter
-    uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
+  uint64_t trigger_id;
 
-    data[2] = DW_CHIP_EMPTY_FRAME | (chip_id & 0x0F);
-    data[1] = bc_masked;
-    data[0] = DW_IDLE;
+  AlpideChipEmptyFrame(uint8_t chip_id,
+                       uint16_t bunch_counter,
+                       uint64_t trig_id)
+    {
+      // Technically trigger ID is not part of this data word,
+      // but is added for convenience in the simulation model.
+      trigger_id = trig_id;
 
-    data_type[0] = ALPIDE_CHIP_EMPTY_FRAME1;
-    data_type[1] = ALPIDE_CHIP_EMPTY_FRAME2;
-    data_type[2] = ALPIDE_IDLE;
-  }
+      // Mask out bits 10:3 of the bunch counter
+      uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
+
+      data[2] = DW_CHIP_EMPTY_FRAME | (chip_id & 0x0F);
+      data[1] = bc_masked;
+      data[0] = DW_IDLE;
+
+      data_type[0] = ALPIDE_CHIP_EMPTY_FRAME1;
+      data_type[1] = ALPIDE_CHIP_EMPTY_FRAME2;
+      data_type[2] = ALPIDE_IDLE;
+    }
   AlpideChipEmptyFrame(uint8_t chip_id, FrameStartFifoWord& frame_start)
-    : AlpideChipEmptyFrame(chip_id, frame_start.BC_for_frame) {}
+    : AlpideChipEmptyFrame(chip_id,
+                           frame_start.BC_for_frame,
+                           frame_start.trigger_id)
+    {}
 };
 
 
