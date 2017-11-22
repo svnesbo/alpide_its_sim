@@ -26,30 +26,6 @@
 #pragma GCC diagnostic pop
 
 
-/// Enumerations used to identify the meaning of the different bytes in the
-/// data stream from the Alpide chip. Not to be confused with the definitions
-/// in alpide_data_format.h which are used to initialize the 24-bit FIFO words.
-/// The region trailer word should never appear in the data stream, they
-/// are only used internally in the ALPIDE chip.
-enum AlpideDataTypes {ALPIDE_IDLE,
-                      ALPIDE_CHIP_HEADER1,
-                      ALPIDE_CHIP_HEADER2,
-                      ALPIDE_CHIP_TRAILER,
-                      ALPIDE_CHIP_EMPTY_FRAME1,
-                      ALPIDE_CHIP_EMPTY_FRAME2,
-                      ALPIDE_REGION_HEADER,
-                      ALPIDE_REGION_TRAILER,
-                      ALPIDE_DATA_SHORT1,
-                      ALPIDE_DATA_SHORT2,
-                      ALPIDE_DATA_LONG1,
-                      ALPIDE_DATA_LONG2,
-                      ALPIDE_DATA_LONG3,
-                      ALPIDE_BUSY_ON,
-                      ALPIDE_BUSY_OFF,
-                      ALPIDE_COMMA,
-                      ALPIDE_UNKNOWN};
-
-
 struct ProtocolStats {
   // Counters for statistics
   long mCommaCount = 0;
@@ -70,7 +46,7 @@ struct ProtocolStats {
 
 
 struct AlpideDataParsed {
-  AlpideDataTypes data[3];
+  AlpideDataType data[3];
 };
 
 
@@ -118,7 +94,7 @@ public:
   AlpideEventBuilder(bool save_events) : mSaveEvents(save_events) {}
   ProtocolStats getProtocolStats(void) {return mStats;}
 private:
-  AlpideDataTypes parseNonHeaderBytes(uint8_t data);
+  AlpideDataType parseNonHeaderBytes(uint8_t data);
 };
 
 
@@ -126,7 +102,7 @@ private:
 class AlpideDataParser : sc_core::sc_module, public AlpideEventBuilder {
 public:
   // SystemC signals
-  sc_in<sc_uint<24> > s_serial_data_in;
+  sc_in<AlpideDataWord> s_serial_data_in;
   sc_in_clk s_clk_in;
   sc_export<sc_signal<bool>> s_link_busy_out;
 

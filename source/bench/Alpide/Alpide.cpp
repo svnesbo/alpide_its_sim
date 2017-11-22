@@ -152,9 +152,6 @@ void Alpide::mainMethod(void)
   frameReadout();
   dataTransmission();
   updateBusyStatus();
-
-  // For the stimuli class to work properly this needs to be delayed one clock cycle
-  //s_chip_ready_out = s_chip_ready_internal;
 }
 
 
@@ -464,6 +461,7 @@ void Alpide::dataTransmission(void)
   }
 
 
+  // Read data from DTU FIFO output, or IDLE if FIFO is empty.
   if(mEnableDtuDelay) {
     s_dtu_delay_fifo.nb_write(dw_dtu_fifo_input);
     if(s_dtu_delay_fifo.nb_read(dw_dtu_fifo_output) == false) {
@@ -481,12 +479,7 @@ void Alpide::dataTransmission(void)
   // Debug signal of DTU FIFO input just for adding to VCD trace
   s_serial_data_dtu_input_debug = data_dtu_input;
 
-  data_out =
-    dw_dtu_fifo_output.data[2] << 16 |
-    dw_dtu_fifo_output.data[1] << 8 |
-    dw_dtu_fifo_output.data[0];
-
-  s_serial_data_out = data_out;
+  s_serial_data_out = dw_dtu_fifo_output;
 
   // Data initiator socket output
   DataPayload socket_dw;

@@ -164,15 +164,19 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
 ///       Note: should run on Alpide system clock frequency.
 void RegionReadoutUnit::regionValidFSM(void)
 {
-  AlpideDataWord dw = {0, 0, 0};
+  AlpideDataWord dw;
   bool region_fifo_empty = s_region_fifo.used() == 0;
   bool region_data_is_trailer = false;
 
+  // Ignore warning about uninitialized dw
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
   if(!region_fifo_empty) {
     s_region_fifo.nb_peek(dw);
     if(dw.data[0] == DW_REGION_TRAILER)
       region_data_is_trailer = true;
   }
+#pragma GCC diagnostic pop
 
   switch(s_rru_valid_state.read()) {
   case VALID_FSM::IDLE:

@@ -299,7 +299,7 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 ///       It will also increase counters for the corresponding words.
 ///@param[in] data One of the "additional" bytes in a data word to parse
 ///@return Data word type for "additional" byte provided in data argument
-AlpideDataTypes AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
+AlpideDataType AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
 {
   if(data == DW_IDLE) {
     mStats.mIdleByteCount++;
@@ -345,11 +345,7 @@ AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name, bool save_event
 ///       A busy signal indicates if the parser has detected BUSY ON/OFF words.
 void AlpideDataParser::parserInputProcess(void)
 {
-  AlpideDataWord dw;
-
-  dw.data[0] = s_serial_data_in.read().range(7, 0);
-  dw.data[1] = s_serial_data_in.read().range(15,8);
-  dw.data[2] = s_serial_data_in.read().range(23,16);
+  AlpideDataWord dw = s_serial_data_in.read();
 
   inputDataWord(dw);
 
