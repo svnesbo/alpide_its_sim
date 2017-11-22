@@ -230,7 +230,7 @@ void Stimuli::stimuliMainMethod(void)
   else {
     // After all strobes have been generated, or upon CTRL+C, allow simulation
     // to run for another X us to allow readout of data remaining in MEBs, FIFOs etc.
-    next_trigger(10, SC_US);
+    next_trigger(50, SC_US);
     simulation_done = true;
   }
 }

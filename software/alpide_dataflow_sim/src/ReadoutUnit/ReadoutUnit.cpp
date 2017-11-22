@@ -264,30 +264,128 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     std::cout << csv_filename << "\"" << std::endl;
   }
 
-  prot_stats_csv_file << "Link ID; COMMA; IDLE_FULL; IDLE_BYTES; ";
-  prot_stats_csv_file << "BUSY_ON; BUSY_OFF; DATA_SHORT; DATA_LONG; ";
-  prot_stats_csv_file << "REGION_HEADER; REGION_TRAILER; CHIP_HEADER; ";
-  prot_stats_csv_file << "CHIP_TRAILER; CHIP_EMPTY_FRAME; UNKNOWN_NON_HEADER; ";
-  prot_stats_csv_file << "UNKNOWN_DATA_WORD" << std::endl;
+  prot_stats_csv_file << "Link ID;";
+  prot_stats_csv_file << "COMMA (bytes);";
+  prot_stats_csv_file << "IDLE_TOTAL (bytes);";
+  prot_stats_csv_file << "IDLE_PURE (bytes);";
+  prot_stats_csv_file << "IDLE_FILLER (bytes);";
+  prot_stats_csv_file << "BUSY_ON (bytes);";
+  prot_stats_csv_file << "BUSY_OFF (bytes);";
+  prot_stats_csv_file << "DATA_SHORT (bytes);";
+  prot_stats_csv_file << "DATA_LONG (bytes);";
+  prot_stats_csv_file << "REGION_HEADER (bytes);";
+  prot_stats_csv_file << "REGION_TRAILER (bytes);";
+  prot_stats_csv_file << "CHIP_HEADER (bytes);";
+  prot_stats_csv_file << "CHIP_TRAILER (bytes);";
+  prot_stats_csv_file << "CHIP_EMPTY_FRAME (bytes);";
+  prot_stats_csv_file << "UNKNOWN (bytes);";
+  prot_stats_csv_file << "IDLE_TOTAL (count);";
+  prot_stats_csv_file << "IDLE_PURE (count);";
+  prot_stats_csv_file << "IDLE_FILLER (count);";
+  prot_stats_csv_file << "BUSY_ON (count);";
+  prot_stats_csv_file << "BUSY_OFF (count);";
+  prot_stats_csv_file << "DATA_SHORT (count);";
+  prot_stats_csv_file << "DATA_LONG (count);";
+  prot_stats_csv_file << "REGION_HEADER (count);";
+  prot_stats_csv_file << "REGION_TRAILER (count);";
+  prot_stats_csv_file << "CHIP_HEADER (count);";
+  prot_stats_csv_file << "CHIP_TRAILER (count);";
+  prot_stats_csv_file << "CHIP_EMPTY_FRAME (count);";
+  prot_stats_csv_file << std::endl;
 
   for(unsigned int i = 0; i < mDataLinkParsers.size(); i++) {
-    ProtocolStats stats = mDataLinkParsers[i]->getProtocolStats();
+    auto stats = mDataLinkParsers[i]->getProtocolStats();
+
+    // Calculate total number of bytes used by data words,
+    // and counts of each type of data word
+    uint64_t comma_bytes = stats[ALPIDE_COMMA];
+
+    uint64_t idle_total_bytes = stats[ALPIDE_IDLE];
+    uint64_t idle_total_count = idle_total_bytes;
+
+    uint64_t chip_header_bytes = stats[ALPIDE_CHIP_HEADER1] +
+                                 stats[ALPIDE_CHIP_HEADER2];
+    uint64_t chip_header_count = chip_header_bytes/2;
+
+    uint64_t chip_empty_frame_bytes = stats[ALPIDE_CHIP_EMPTY_FRAME1] +
+                                      stats[ALPIDE_CHIP_EMPTY_FRAME2];
+    uint64_t chip_empty_frame_count = chip_empty_frame_bytes/2;
+
+    uint64_t data_short_bytes = stats[ALPIDE_DATA_SHORT1] +
+                                stats[ALPIDE_DATA_SHORT2];
+    uint64_t data_short_count = data_short_bytes/2;
+
+    uint64_t data_long_bytes = stats[ALPIDE_DATA_LONG1] +
+                               stats[ALPIDE_DATA_LONG2] +
+                               stats[ALPIDE_DATA_LONG3];
+    uint64_t data_long_count = data_long_bytes/3;
+
+    uint64_t chip_trailer_bytes = stats[ALPIDE_CHIP_TRAILER];
+    uint64_t chip_trailer_count = chip_trailer_bytes;
+
+    uint64_t region_header_bytes = stats[ALPIDE_REGION_HEADER];
+    uint64_t region_header_count = region_header_bytes;
+
+    uint64_t region_trailer_bytes = stats[ALPIDE_REGION_TRAILER];
+    uint64_t region_trailer_count = region_trailer_bytes;
+
+    uint64_t busy_on_bytes = stats[ALPIDE_BUSY_ON];
+    uint64_t busy_on_count = busy_on_bytes;
+
+    uint64_t busy_off_bytes = stats[ALPIDE_BUSY_OFF];
+    uint64_t busy_off_count = busy_off_bytes;
+
+    uint64_t unknown_bytes = stats[ALPIDE_UNKNOWN];
+
+
+    // Calculate number of IDLE "filler" bytes, ie. the IDLE words
+    // that fill empty gaps in other data words
+    uint64_t idle_filler_bytes = chip_header_bytes;
+    idle_filler_bytes += 2*chip_trailer_bytes;
+    idle_filler_bytes += chip_empty_frame_bytes;
+    idle_filler_bytes += 2*region_header_bytes;
+
+    // Region trailer is triplicated
+    idle_filler_bytes += 0*region_trailer_bytes;
+
+    idle_filler_bytes += data_short_bytes;
+    idle_filler_bytes += 2*busy_on_bytes;
+    idle_filler_bytes += 2*busy_off_bytes;
+
+    uint64_t idle_filler_count = idle_filler_bytes;
+
+    uint64_t idle_pure_bytes = idle_total_bytes-idle_filler_bytes;
+    uint64_t idle_pure_count = idle_pure_bytes;
 
     prot_stats_csv_file << i << ";";
-    prot_stats_csv_file << stats.mCommaCount << ";";
-    prot_stats_csv_file << stats.mIdleCount << ";";
-    prot_stats_csv_file << stats.mIdleByteCount << ";";
-    prot_stats_csv_file << stats.mBusyOnCount << ";";
-    prot_stats_csv_file << stats.mBusyOffCount << ";";
-    prot_stats_csv_file << stats.mDataShortCount << ";";
-    prot_stats_csv_file << stats.mDataLongCount << ";";
-    prot_stats_csv_file << stats.mRegionHeaderCount << ";";
-    prot_stats_csv_file << stats.mRegionTrailerCount << ";";
-    prot_stats_csv_file << stats.mChipHeaderCount << ";";
-    prot_stats_csv_file << stats.mChipTrailerCount << ";";
-    prot_stats_csv_file << stats.mChipEmptyFrameCount << ";";
-    prot_stats_csv_file << stats.mUnknownNonHeaderWordCount << ";";
-    prot_stats_csv_file << stats.mUnknownDataWordCount << std::endl;
+
+    prot_stats_csv_file << comma_bytes << ";";
+    prot_stats_csv_file << idle_total_bytes << ";";
+    prot_stats_csv_file << idle_pure_bytes << ";";
+    prot_stats_csv_file << idle_filler_bytes << ";";
+    prot_stats_csv_file << busy_on_bytes << ";";
+    prot_stats_csv_file << busy_off_bytes << ";";
+    prot_stats_csv_file << data_short_bytes << ";";
+    prot_stats_csv_file << data_long_bytes << ";";
+    prot_stats_csv_file << region_header_bytes << ";";
+    prot_stats_csv_file << region_trailer_bytes << ";";
+    prot_stats_csv_file << chip_header_bytes << ";";
+    prot_stats_csv_file << chip_trailer_bytes << ";";
+    prot_stats_csv_file << chip_empty_frame_bytes << ";";
+    prot_stats_csv_file << unknown_bytes << ";";
+
+    prot_stats_csv_file << idle_total_count << ";";
+    prot_stats_csv_file << idle_pure_count << ";";
+    prot_stats_csv_file << idle_filler_count << ";";
+    prot_stats_csv_file << busy_on_count << ";";
+    prot_stats_csv_file << busy_off_count << ";";
+    prot_stats_csv_file << data_short_count << ";";
+    prot_stats_csv_file << data_long_count << ";";
+    prot_stats_csv_file << region_header_count << ";";
+    prot_stats_csv_file << region_trailer_count << ";";
+    prot_stats_csv_file << chip_header_count << ";";
+    prot_stats_csv_file << chip_trailer_count << ";";
+    prot_stats_csv_file << chip_empty_frame_count << std::endl;
   }
   prot_stats_csv_file.close();
 

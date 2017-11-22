@@ -27,6 +27,40 @@ bool AlpideEventFrame::pixelHitInEvent(PixelData& pixel) const
 }
 
 
+///@brief Constructor for AlpideEventBuilder
+///@param save_events Specify if the parser should store all events in memory,
+///            or discard old events and only keep the latest one.
+///@param include_hit_data Include pixel hits in the events that are built
+///@param use_fast_parser Don't analyze data at the binary level to find
+///                       out what data words they are, use the data_type fields
+///                       in AlpideDataWord instead.
+AlpideEventBuilder::AlpideEventBuilder(bool save_events,
+                                       bool include_hit_data,
+                                       bool use_fast_parser)
+  : mSaveEvents(save_events)
+  , mIncludeHitData(include_hit_data)
+  , mFastParserEnable(use_fast_parser)
+{
+  mProtocolStats[ALPIDE_IDLE] = 0;
+  mProtocolStats[ALPIDE_CHIP_HEADER1] = 0;
+  mProtocolStats[ALPIDE_CHIP_HEADER2] = 0;
+  mProtocolStats[ALPIDE_CHIP_TRAILER] = 0;
+  mProtocolStats[ALPIDE_CHIP_EMPTY_FRAME1] = 0;
+  mProtocolStats[ALPIDE_CHIP_EMPTY_FRAME2] = 0;
+  mProtocolStats[ALPIDE_REGION_HEADER] = 0;
+  mProtocolStats[ALPIDE_REGION_TRAILER] = 0;
+  mProtocolStats[ALPIDE_DATA_SHORT1] = 0;
+  mProtocolStats[ALPIDE_DATA_SHORT2] = 0;
+  mProtocolStats[ALPIDE_DATA_LONG1] = 0;
+  mProtocolStats[ALPIDE_DATA_LONG2] = 0;
+  mProtocolStats[ALPIDE_DATA_LONG3] = 0;
+  mProtocolStats[ALPIDE_BUSY_ON] = 0;
+  mProtocolStats[ALPIDE_BUSY_OFF] = 0;
+  mProtocolStats[ALPIDE_COMMA] = 0;
+  mProtocolStats[ALPIDE_UNKNOWN] = 0;
+}
+
+
 ///@brief Get number of events stored in event builder.
 ///       Only events that have been completed (fully received)
 ///       are taken into consideration.
@@ -72,9 +106,20 @@ void AlpideEventBuilder::popEvent(void)
 ///@param[in] dw AlpideDataWord input to parse.
 void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
 {
-  AlpideDataParsed data_parsed = parseDataWord(dw);
-  unsigned long data = (dw.data[2] << 16) | (dw.data[1] << 8) | dw.data[0];
-  std::bitset<24> data_bits(data);
+  AlpideDataParsed data_parsed;
+
+  if(mFastParserEnable == false)
+    data_parsed = parseDataWord(dw);
+  else {
+    data_parsed.data[0] = dw.data_type[0];
+    data_parsed.data[1] = dw.data_type[1];
+    data_parsed.data[2] = dw.data_type[2];
+  }
+
+  //unsigned long data = (dw.data[2] << 16) | (dw.data[1] << 8) | dw.data[0];
+
+  // This was used only for debug output..
+  //std::bitset<24> data_bits(data);
 
   mBusyStatusChanged = false;
 
@@ -117,7 +162,7 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
 
   case ALPIDE_DATA_SHORT1:
     //std::cout << "Got ALPIDE_DATA_SHORT1: " << data_bits << std::endl;
-    if(!mEvents.empty()) {
+    if(!mEvents.empty() && mIncludeHitData) {
       uint8_t pri_enc_id = (dw.data[2] >> 2) & 0x0F;
       uint16_t addr = ((dw.data[2] & 0x03) << 8) | dw.data[1];
       mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr));
@@ -128,7 +173,7 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
 
   case ALPIDE_DATA_LONG1:
     //std::cout << "Got ALPIDE_DATA_LONG1: " << data_bits << std::endl;
-    if(!mEvents.empty()) {
+    if(!mEvents.empty() && mIncludeHitData) {
       uint8_t pri_enc_id = (dw.data[2] >> 2) & 0x0F;
       uint16_t addr = ((dw.data[2] & 0x03) << 8) | dw.data[1];
       uint8_t hitmap = dw.data[0] & 0x7F;
@@ -202,19 +247,25 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     mBusyStatus = false;
     mBusyStatusChanged = true;
   }
+
+  // Increase statistics counters for protocol utilization
+  mProtocolStats[data_parsed.data[2]]++;
+  mProtocolStats[data_parsed.data[1]]++;
+  mProtocolStats[data_parsed.data[0]]++;
 }
 
 
-///@brief Parse 3-byte Alpide data words the, and increase counters for the different types of
-///       data words. Note: the function only discovers what type of data word it is, it does
-///       nothing with the data word's parameters
+///@brief Parse 3-byte Alpide data words the, and increase counters for
+///       the different types of data words.
+///       Note: the function only discovers what type of data word it is,
+///       it does nothing with the data word's parameters
 ///@param[in] dw AlpideDataWord input to parse.
 ///@return AlpideDataParsed object with parsed data word type filled in for each byte
 AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 {
   AlpideDataParsed data_parsed;
 
-  // Parse most significant byte - Check all options...
+  // Parse most significant byte (data is sent MSB first)
   uint8_t data_word_check = dw.data[2] & MASK_DATA;
   uint8_t chip_word_check = dw.data[2] & MASK_CHIP;
   uint8_t region_header_word_check = dw.data[2] & MASK_REGION_HEADER;
@@ -222,65 +273,52 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 
 
   if(data_word_check == DW_DATA_LONG) {
-    mStats.mDataLongCount++;
     data_parsed.data[2] = ALPIDE_DATA_LONG1;
     data_parsed.data[1] = ALPIDE_DATA_LONG2;
     data_parsed.data[0] = ALPIDE_DATA_LONG3;
   } else if(data_word_check == DW_DATA_SHORT) {
-    mStats.mDataShortCount++;
     data_parsed.data[2] = ALPIDE_DATA_SHORT1;
     data_parsed.data[1] = ALPIDE_DATA_SHORT2;
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(chip_word_check == DW_CHIP_HEADER) {
-    mStats.mChipHeaderCount++;
     data_parsed.data[2] = ALPIDE_CHIP_HEADER1;
     data_parsed.data[1] = ALPIDE_CHIP_HEADER2;
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(chip_word_check == DW_CHIP_TRAILER) {
-    mStats.mChipTrailerCount++;
     data_parsed.data[2] = ALPIDE_CHIP_TRAILER;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(chip_word_check == DW_CHIP_EMPTY_FRAME) {
-    mStats.mChipEmptyFrameCount++;
     data_parsed.data[2] = ALPIDE_CHIP_EMPTY_FRAME1;
     data_parsed.data[1] = ALPIDE_CHIP_EMPTY_FRAME2;
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(region_header_word_check == DW_REGION_HEADER) {
-    mStats.mRegionHeaderCount++;
     data_parsed.data[2] = ALPIDE_REGION_HEADER;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(dw.data[2] == DW_REGION_TRAILER) {
     // We should never see a region trailer here
     // It is included for debugging purposes only..
-    mStats.mRegionTrailerCount++;
     data_parsed.data[2] = ALPIDE_REGION_TRAILER;
     data_parsed.data[1] = ALPIDE_REGION_TRAILER;
     data_parsed.data[0] = ALPIDE_REGION_TRAILER;
   } else if(idle_busy_comma_word_check == DW_IDLE) {
-    mStats.mIdleCount++;
-    mStats.mIdleByteCount++;
     data_parsed.data[2] = ALPIDE_IDLE;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_BUSY_ON) {
-    mStats.mBusyOnCount++;
     data_parsed.data[2] = ALPIDE_BUSY_ON;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_BUSY_OFF) {
-    mStats.mBusyOffCount++;
     data_parsed.data[2] = ALPIDE_BUSY_OFF;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else if(idle_busy_comma_word_check == DW_COMMA) {
-    mStats.mCommaCount++;
     data_parsed.data[2] = ALPIDE_COMMA;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
   } else {
-    mStats.mUnknownDataWordCount++;
     data_parsed.data[2] = ALPIDE_UNKNOWN;
     data_parsed.data[1] = parseNonHeaderBytes(dw.data[1]);
     data_parsed.data[0] = parseNonHeaderBytes(dw.data[0]);
@@ -296,28 +334,22 @@ AlpideDataParsed AlpideEventBuilder::parseDataWord(AlpideDataWord dw)
 ///       Data short uses first 2 bytes - use this function for the last byte
 ///       Region header uses the first byte - use this function for the last two bytes
 ///       The function will return either IDLE, BUSY_ON, BUSY_OFF, or UNKNOWN for these bytes.
-///       It will also increase counters for the corresponding words.
 ///@param[in] data One of the "additional" bytes in a data word to parse
 ///@return Data word type for "additional" byte provided in data argument
 AlpideDataType AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
 {
   if(data == DW_IDLE) {
-    mStats.mIdleByteCount++;
     return ALPIDE_IDLE;
   } else if(data == DW_BUSY_ON) {
     //std::cout << "Got BUSY_ON" << std::endl;
-    mStats.mBusyOnCount++;
     return ALPIDE_BUSY_ON;
   } else if(data == DW_BUSY_OFF) {
     //std::cout << "Got BUSY_OFF" << std::endl;
-    mStats.mBusyOffCount++;
     return ALPIDE_BUSY_OFF;
   } else if(data == DW_COMMA) {
     //std::cout << "Got COMMA" << std::endl;
-    mStats.mCommaCount++;
     return ALPIDE_COMMA;
   } else {
-    mStats.mUnknownNonHeaderWordCount++;
     return ALPIDE_UNKNOWN;
   }
 }
@@ -326,8 +358,8 @@ AlpideDataType AlpideEventBuilder::parseNonHeaderBytes(uint8_t data)
 SC_HAS_PROCESS(AlpideDataParser);
 ///@brief Data parser constructor
 ///@param name SystemC module name
-///@param save_events Specify if the parser should store events in memory,
-///            or just discard them.
+///@param save_events Specify if the parser should store all events in memory,
+///            or discard old events and only keep the latest one.
 AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name, bool save_events)
   : sc_core::sc_module(name)
   , AlpideEventBuilder(save_events)

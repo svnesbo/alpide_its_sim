@@ -26,25 +26,6 @@
 #pragma GCC diagnostic pop
 
 
-struct ProtocolStats {
-  // Counters for statistics
-  long mCommaCount = 0;
-  long mIdleCount = 0;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
-  long mIdleByteCount = 0;    // Idle word byte counts
-  long mBusyOnCount = 0;
-  long mBusyOffCount = 0;
-  long mDataShortCount = 0;
-  long mDataLongCount = 0;
-  long mRegionHeaderCount = 0;
-  long mRegionTrailerCount = 0; // Should never appear in data stream
-  long mChipHeaderCount = 0;
-  long mChipTrailerCount = 0;
-  long mChipEmptyFrameCount = 0;
-  long mUnknownNonHeaderWordCount = 0;
-  long mUnknownDataWordCount = 0;
-};
-
-
 struct AlpideDataParsed {
   AlpideDataType data[3];
 };
@@ -78,12 +59,14 @@ private:
   std::vector<AlpideEventFrame> mEvents;
 
   unsigned int mCurrentRegion = 0;
-  ProtocolStats mStats;
+  std::map<AlpideDataType, uint64_t> mProtocolStats;
   bool mSaveEvents;
 
 protected:
   bool mBusyStatus = false;
   bool mBusyStatusChanged = false;
+  bool mIncludeHitData;
+  bool mFastParserEnable;
 
 public:
   unsigned int getNumEvents(void) const;
@@ -91,8 +74,12 @@ public:
   void popEvent(void);
   void inputDataWord(AlpideDataWord dw);
   AlpideDataParsed parseDataWord(AlpideDataWord dw);
-  AlpideEventBuilder(bool save_events) : mSaveEvents(save_events) {}
-  ProtocolStats getProtocolStats(void) {return mStats;}
+  AlpideEventBuilder(bool save_events = false,
+                     bool include_hit_data = false,
+                     bool use_fast_parser = true);
+  std::map<AlpideDataType, uint64_t> getProtocolStats(void) {
+    return mProtocolStats;
+  }
 private:
   AlpideDataType parseNonHeaderBytes(uint8_t data);
 };
