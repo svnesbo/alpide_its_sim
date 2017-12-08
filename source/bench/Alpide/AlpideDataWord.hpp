@@ -118,12 +118,14 @@ struct FrameStartFifoWord {
 
   inline bool operator==(const FrameStartFifoWord& rhs) const {
     return (this->busy_violation == rhs.busy_violation &&
-            this->BC_for_frame == rhs.BC_for_frame);
+            this->BC_for_frame == rhs.BC_for_frame &&
+            this->trigger_id == rhs.trigger_id);
   }
 
   inline FrameStartFifoWord& operator=(const FrameStartFifoWord& rhs) {
     busy_violation = rhs.busy_violation;
     BC_for_frame = rhs.BC_for_frame;
+    trigger_id = rhs.trigger_id;
     return *this;
   }
 
@@ -196,24 +198,21 @@ class AlpideDataWord
 {
 public:
   uint8_t data[3];
+
+  ///@brief data_type is used to prevent having to fully parse
+  ///       the binary data to know what kind of data word it is
   AlpideDataType data_type[3] = {ALPIDE_UNKNOWN,
                                  ALPIDE_UNKNOWN,
                                  ALPIDE_UNKNOWN};
+
+  ///@brief trigger_id is only used by chip header / empty frame words
+  ///       Does not exist in the real Alpide data stream.
+  uint64_t trigger_id;
 
   inline bool operator==(const AlpideDataWord& rhs) const {
     return (this->data[0] == rhs.data[0] &&
             this->data[1] == rhs.data[1] &&
             this->data[2] == rhs.data[2]);
-  }
-
-  inline AlpideDataWord& operator=(const AlpideDataWord& rhs) {
-    data[0] = rhs.data[0];
-    data[1] = rhs.data[1];
-    data[2] = rhs.data[2];
-    data_type[0] = rhs.data_type[0];
-    data_type[1] = rhs.data_type[1];
-    data_type[2] = rhs.data_type[2];
-    return *this;
   }
 
   inline friend void sc_trace(sc_trace_file *tf, const AlpideDataWord& dw,
@@ -253,8 +252,6 @@ public:
 class AlpideChipHeader : public AlpideDataWord
 {
 public:
-  uint64_t trigger_id;
-
   AlpideChipHeader(uint8_t chip_id, uint16_t bunch_counter, uint64_t trig_id) {
     // Technically trigger ID is not part of this data word,
     // but is added for convenience in the simulation model.
@@ -267,9 +264,9 @@ public:
     data[1] = bc_masked;
     data[0] = DW_IDLE;
 
-    data_type[0] = ALPIDE_CHIP_HEADER1;
+    data_type[2] = ALPIDE_CHIP_HEADER1;
     data_type[1] = ALPIDE_CHIP_HEADER2;
-    data_type[2] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
   AlpideChipHeader(uint8_t chip_id, FrameStartFifoWord& frame_start)
     : AlpideChipHeader(chip_id,
@@ -288,9 +285,9 @@ public:
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
 
-    data_type[0] = ALPIDE_CHIP_TRAILER;
+    data_type[2] = ALPIDE_CHIP_TRAILER;
     data_type[1] = ALPIDE_IDLE;
-    data_type[2] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
   AlpideChipTrailer(FrameStartFifoWord frame_start,
                     FrameEndFifoWord frame_end,
@@ -318,9 +315,9 @@ public:
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
 
-    data_type[0] = ALPIDE_CHIP_TRAILER;
+    data_type[2] = ALPIDE_CHIP_TRAILER;
     data_type[1] = ALPIDE_IDLE;
-    data_type[2] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
@@ -328,8 +325,6 @@ public:
 class AlpideChipEmptyFrame : public AlpideDataWord
 {
 public:
-  uint64_t trigger_id;
-
   AlpideChipEmptyFrame(uint8_t chip_id,
                        uint16_t bunch_counter,
                        uint64_t trig_id)
@@ -345,9 +340,9 @@ public:
       data[1] = bc_masked;
       data[0] = DW_IDLE;
 
-      data_type[0] = ALPIDE_CHIP_EMPTY_FRAME1;
+      data_type[2] = ALPIDE_CHIP_EMPTY_FRAME1;
       data_type[1] = ALPIDE_CHIP_EMPTY_FRAME2;
-      data_type[2] = ALPIDE_IDLE;
+      data_type[0] = ALPIDE_IDLE;
     }
   AlpideChipEmptyFrame(uint8_t chip_id, FrameStartFifoWord& frame_start)
     : AlpideChipEmptyFrame(chip_id,
@@ -365,9 +360,9 @@ public:
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
 
-    data_type[0] = ALPIDE_REGION_HEADER;
+    data_type[2] = ALPIDE_REGION_HEADER;
     data_type[1] = ALPIDE_IDLE;
-    data_type[2] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
@@ -381,9 +376,9 @@ public:
     data[1] = DW_REGION_TRAILER;
     data[0] = DW_REGION_TRAILER;
 
-    data_type[0] = ALPIDE_REGION_TRAILER;
-    data_type[1] = ALPIDE_REGION_TRAILER;
     data_type[2] = ALPIDE_REGION_TRAILER;
+    data_type[1] = ALPIDE_REGION_TRAILER;
+    data_type[0] = ALPIDE_REGION_TRAILER;
   }
 };
 
@@ -396,9 +391,9 @@ public:
     data[1] = addr & 0xFF;
     data[0] = DW_IDLE;
 
-    data_type[0] = ALPIDE_DATA_SHORT1;
+    data_type[2] = ALPIDE_DATA_SHORT1;
     data_type[1] = ALPIDE_DATA_SHORT2;
-    data_type[2] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
@@ -411,9 +406,9 @@ public:
     data[1] = addr & 0xFF;
     data[0] = hitmap & 0x7F;
 
-    data_type[0] = ALPIDE_DATA_LONG1;
+    data_type[2] = ALPIDE_DATA_LONG1;
     data_type[1] = ALPIDE_DATA_LONG2;
-    data_type[2] = ALPIDE_DATA_LONG3;
+    data_type[0] = ALPIDE_DATA_LONG3;
   }
 };
 
@@ -426,9 +421,9 @@ public:
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
 
-    data_type[0] = ALPIDE_BUSY_ON;
+    data_type[2] = ALPIDE_BUSY_ON;
     data_type[1] = ALPIDE_IDLE;
-    data_type[2] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
@@ -441,9 +436,9 @@ public:
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
 
-    data_type[0] = ALPIDE_BUSY_OFF;
+    data_type[2] = ALPIDE_BUSY_OFF;
     data_type[1] = ALPIDE_IDLE;
-    data_type[2] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
@@ -459,9 +454,9 @@ public:
     data[1] = DW_COMMA;
     data[0] = DW_COMMA;
 
-    data_type[0] = ALPIDE_COMMA;
-    data_type[1] = ALPIDE_COMMA;
     data_type[2] = ALPIDE_COMMA;
+    data_type[1] = ALPIDE_COMMA;
+    data_type[0] = ALPIDE_COMMA;
   }
 };
 

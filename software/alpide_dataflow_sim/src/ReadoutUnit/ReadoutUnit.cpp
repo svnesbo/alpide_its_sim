@@ -125,6 +125,11 @@ void ReadoutUnit::sendTrigger(void)
   uint64_t time_now = sc_time_stamp().value();
   bool filter_trigger = (time_now - mLastTriggerTime) < mTriggerFilterTimeNs;
 
+  // Update current trigger ID in the data parsers
+  for(unsigned int i = 0; i < mDataLinkParsers.size(); i++)
+    mDataLinkParsers[i]->setCurrentTriggerId(mTriggerIdCount);
+
+  // Issue triggers on ALPIDE control links (unless trigger is being filtered)
   for(unsigned int i = 0; i < s_alpide_control_output.size(); i++) {
     if(filter_trigger) {
       // Filter triggers that come too close in time
@@ -399,34 +404,146 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   prot_stats_csv_file.close();
 
 
-  // Write binary data file with trigger stats
   // -----------------------------------------------------
-  std::string trig_stats_filename = output_path + std::string("_Trigger_stats.dat");
-  ofstream trig_stats_file(trig_stats_filename, std::ios_base::out | std::ios_base::binary);
+  // Write binary data file with trigger actions
+  // -----------------------------------------------------
+  // File format:
+  //
+  //   Header:
+  //   uint64_t: number of triggers
+  //   uint8_t:  number of control links
+  //
+  //   For each trigger ID:
+  //     Control link 0:
+  //       uint8_t: link action
+  //     Control link 1:
+  //       uint8_t: link action
+  //     ...
+  //     Control link n-1:
+  //       uint8_t: link action
 
-  if(!trig_stats_file.is_open()) {
-    std::cerr << "Error opening trigger stats file: " << trig_stats_filename << std::endl;
+  std::string trig_actions_filename = output_path + std::string("_trigger_actions.dat");
+  ofstream trig_actions_file(trig_actions_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!trig_actions_file.is_open()) {
+    std::cerr << "Error opening trigger actions file: " << trig_actions_filename << std::endl;
     return;
   } else {
-    std::cout << "Writing trigger stats to file:\n\"";
-    std::cout << trig_stats_filename << "\"" << std::endl;
+    std::cout << "Writing trigger actions to file:\n\"";
+    std::cout << trig_actions_filename << "\"" << std::endl;
   }
 
 
-  // Write number of triggers and number of links to file header
+  // Write number of triggers and number of control links to file header
   uint64_t num_triggers = mTriggerIdCount;
-  uint8_t num_links = s_alpide_control_output.size();
-  trig_stats_file.write((char*)&num_triggers, sizeof(uint64_t));
-  trig_stats_file.write((char*)&num_links, sizeof(uint8_t));
+  uint8_t num_ctrl_links = s_alpide_control_output.size();
+  trig_actions_file.write((char*)&num_triggers, sizeof(uint64_t));
+  trig_actions_file.write((char*)&num_ctrl_links, sizeof(uint8_t));
 
   // Write action for each link, for each trigger
   for(uint64_t trigger_id = 0; trigger_id < mTriggerIdCount; trigger_id++) {
     for(uint64_t link_id = 0; link_id < mTriggerActionMaps.size(); link_id++) {
       uint8_t link_action = mTriggerActionMaps[link_id].at(trigger_id);
-      trig_stats_file.write((char*)&link_action, sizeof(uint8_t));
+      trig_actions_file.write((char*)&link_action, sizeof(uint8_t));
     }
   }
-  trig_stats_file.close();
+  trig_actions_file.close();
+
+
+  // -----------------------------------------------------
+  // Write binary data file with busy events
+  // -----------------------------------------------------
+  // File format:
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "busy events"
+  //       Data (for each busy event)
+  //          uint64_t: time of BUSY_ON
+  //          uint64_t: time of BUSY_OFF
+  //          uint64_t: trigger ID when BUSY_ON occured
+
+  std::string busy_events_filename = output_path + std::string("_busy_events.dat");
+  ofstream busy_events_file(busy_events_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!busy_events_file.is_open()) {
+    std::cerr << "Error opening busy events file: " << busy_events_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing busy events to file:\n\"";
+    std::cout << busy_events_filename << "\"" << std::endl;
+  }
+
+
+  // Write number of data links to file header
+  uint8_t num_data_links = s_alpide_data_input.size();
+  busy_events_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write busy events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<BusyEvent> busy_events = mDataLinkParsers[link_id]->getBusyEvents();
+    uint64_t num_busy_events = busy_events.size();
+    busy_events_file.write((char*)&num_busy_events, sizeof(uint64_t));
+
+    for(auto busy_event_it = busy_events.begin();
+        busy_event_it != busy_events.end();
+        busy_event_it++)
+    {
+      busy_events_file.write((char*)&(busy_event_it->mBusyOnTime), sizeof(uint64_t));
+      busy_events_file.write((char*)&(busy_event_it->mBusyOffTime), sizeof(uint64_t));
+      busy_events_file.write((char*)&(busy_event_it->mTriggerId), sizeof(uint64_t));
+    }
+  }
+  busy_events_file.close();
+
+
+  // -----------------------------------------------------
+  // Write binary data file with busy violation events
+  // -----------------------------------------------------
+  // File format:
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "busy violation events"
+  //       Data (for each busy violation event)
+  //          uint64_t: trigger ID for busy violation
+
+  std::string busyv_events_filename = output_path + std::string("_busyv_events.dat");
+  ofstream busyv_events_file(busyv_events_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!busyv_events_file.is_open()) {
+    std::cerr << "Error opening busy violation events file: " << busyv_events_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing busy violation events to file:\n\"";
+    std::cout << busyv_events_filename << "\"" << std::endl;
+  }
+
+
+  // Write number of data links to file header
+  busyv_events_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write busy events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<uint64_t> busyv_events = mDataLinkParsers[link_id]->getBusyViolationTriggers();
+    uint64_t num_busyv_events = busyv_events.size();
+    busyv_events_file.write((char*)&num_busyv_events, sizeof(uint64_t));
+
+    for(auto busy_event_it = busyv_events.begin();
+        busy_event_it != busyv_events.end();
+        busy_event_it++)
+    {
+      uint64_t busyv_trigger_id = *busy_event_it;
+      busyv_events_file.write((char*)&busyv_trigger_id, sizeof(uint64_t));
+    }
+  }
+  busyv_events_file.close();
 
 
   // Write file with trigger summary

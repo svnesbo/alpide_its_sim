@@ -26,6 +26,19 @@
 #pragma GCC diagnostic pop
 
 
+struct BusyEvent {
+  uint64_t mBusyOnTime;
+  uint64_t mBusyOffTime;
+  uint64_t mTriggerId;
+
+  BusyEvent(uint64_t busy_on_time, uint64_t busy_off_time, uint64_t trigger_id)
+    : mBusyOnTime(busy_on_time)
+    , mBusyOffTime(busy_off_time)
+    , mTriggerId(trigger_id)
+  {}
+};
+
+
 struct AlpideDataParsed {
   AlpideDataType data[3];
 };
@@ -84,7 +97,15 @@ private:
 
   unsigned int mCurrentRegion = 0;
   std::map<AlpideDataType, uint64_t> mProtocolStats;
+  std::vector<uint64_t> mBusyViolationTriggers;
+  std::vector<BusyEvent> mBusyEvents;
   bool mSaveEvents;
+
+  ///@brief Current trigger ID, should be updated by e.g. ReadoutUnit.
+  ///       Not to be confused with the trigger ID for an event that
+  ///       is read out. Basically just used to have current trigger ID
+  ///       in mBusyEvents.
+  uint64_t mCurrentTriggerId = 0;
 
 protected:
   bool mBusyStatus = false;
@@ -93,16 +114,29 @@ protected:
   bool mFastParserEnable;
 
 public:
-  unsigned int getNumEvents(void) const;
-  const AlpideEventFrame* getNextEvent(void) const;
-  void popEvent(void);
-  void inputDataWord(AlpideDataWord dw);
-  AlpideDataParsed parseDataWord(AlpideDataWord dw);
   AlpideEventBuilder(bool save_events = true,
                      bool include_hit_data = false,
                      bool use_fast_parser = true);
+
+  void setCurrentTriggerId(uint64_t trigger_id) {
+    mCurrentTriggerId = trigger_id;
+  }
+
+  void popEvent(void);
+  void inputDataWord(AlpideDataWord dw);
+  AlpideDataParsed parseDataWord(AlpideDataWord dw);
+
+  unsigned int getNumEvents(void) const;
+  const AlpideEventFrame* getNextEvent(void) const;
+
   std::map<AlpideDataType, uint64_t> getProtocolStats(void) {
     return mProtocolStats;
+  }
+  std::vector<uint64_t> getBusyViolationTriggers(void) {
+    return mBusyViolationTriggers;
+  }
+  std::vector<BusyEvent> getBusyEvents(void) {
+    return mBusyEvents;
   }
 private:
   AlpideDataType parseNonHeaderBytes(uint8_t data);

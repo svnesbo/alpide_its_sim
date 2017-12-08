@@ -170,6 +170,11 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     if(!mEvents.empty()) {
       mEvents.back().setReadoutFlags(dw.data[2] & 0x0F);
       mEvents.back().setFrameCompleted(true);
+
+      // Maintain a vector of trigger IDs for triggers
+      // that resulted in a busy violation
+      if(mEvents.back().getBusyViolation() == true)
+        mBusyViolationTriggers.push_back(mEvents.back().getTriggerId());
     }
     break;
 
@@ -240,13 +245,15 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
     //std::cout << "Got ALPIDE_IDLE: " << data_bits << std::endl;
     break;
 
+    // Not used.. checking all 3 bytes at the bottom of this function
   case ALPIDE_BUSY_ON:
-    //std::cout << "Got ALPIDE_BUSY_ON: " << data_bits << std::endl;
+    // std::cout << "Got ALPIDE_BUSY_ON: " << std::endl;
     ///@todo Busy on here
     break;
 
+    // Not used.. checking all 3 bytes at the bottom of this function
   case ALPIDE_BUSY_OFF:
-    //std::cout << "Got ALPIDE_BUSY_OFF: " << data_bits << std::endl;
+    // std::cout << "Got ALPIDE_BUSY_OFF: " << std::endl;
     ///@todo Busy off here
     break;
 
@@ -279,12 +286,16 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
      data_parsed.data[1] == ALPIDE_BUSY_ON ||
      data_parsed.data[0] == ALPIDE_BUSY_ON)
   {
+    mBusyEvents.emplace_back(sc_time_stamp().value(), 0, mCurrentTriggerId);
     mBusyStatus = true;
     mBusyStatusChanged = true;
   } else if(data_parsed.data[2] == ALPIDE_BUSY_OFF ||
             data_parsed.data[1] == ALPIDE_BUSY_OFF ||
             data_parsed.data[0] == ALPIDE_BUSY_OFF)
   {
+    if(mBusyEvents.empty() == false)
+      mBusyEvents.back().mBusyOffTime = sc_time_stamp().value();
+
     mBusyStatus = false;
     mBusyStatusChanged = true;
   }
