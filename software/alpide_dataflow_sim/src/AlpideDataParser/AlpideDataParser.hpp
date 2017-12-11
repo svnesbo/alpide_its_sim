@@ -29,12 +29,15 @@
 struct BusyEvent {
   uint64_t mBusyOnTime;
   uint64_t mBusyOffTime;
-  uint64_t mTriggerId;
+  uint64_t mBusyOnTriggerId;
+  uint64_t mBusyOffTriggerId;
 
-  BusyEvent(uint64_t busy_on_time, uint64_t busy_off_time, uint64_t trigger_id)
+  BusyEvent(uint64_t busy_on_time, uint64_t busy_off_time,
+            uint64_t busy_on_trigger, uint64_t busy_off_trigger)
     : mBusyOnTime(busy_on_time)
     , mBusyOffTime(busy_off_time)
-    , mTriggerId(trigger_id)
+    , mBusyOnTriggerId(busy_on_trigger)
+    , mBusyOffTriggerId(busy_off_trigger)
   {}
 };
 

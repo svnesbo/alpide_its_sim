@@ -465,6 +465,7 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   //          uint64_t: time of BUSY_ON
   //          uint64_t: time of BUSY_OFF
   //          uint64_t: trigger ID when BUSY_ON occured
+  //          uint64_t: trigger ID when BUSY_OFF occured
 
   std::string busy_events_filename = output_path + std::string("_busy_events.dat");
   ofstream busy_events_file(busy_events_filename, std::ios_base::out | std::ios_base::binary);
@@ -494,7 +495,8 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     {
       busy_events_file.write((char*)&(busy_event_it->mBusyOnTime), sizeof(uint64_t));
       busy_events_file.write((char*)&(busy_event_it->mBusyOffTime), sizeof(uint64_t));
-      busy_events_file.write((char*)&(busy_event_it->mTriggerId), sizeof(uint64_t));
+      busy_events_file.write((char*)&(busy_event_it->mBusyOnTriggerId), sizeof(uint64_t));
+      busy_events_file.write((char*)&(busy_event_it->mBusyOffTriggerId), sizeof(uint64_t));
     }
   }
   busy_events_file.close();

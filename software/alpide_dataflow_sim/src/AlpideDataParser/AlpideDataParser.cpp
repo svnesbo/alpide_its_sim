@@ -286,15 +286,22 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
      data_parsed.data[1] == ALPIDE_BUSY_ON ||
      data_parsed.data[0] == ALPIDE_BUSY_ON)
   {
-    mBusyEvents.emplace_back(sc_time_stamp().value(), 0, mCurrentTriggerId);
+    // Just put off time/trigger = on time/trigger for now,
+    // they will get the right value when we get BUSY_OFF
+    mBusyEvents.emplace_back(sc_time_stamp().value(),
+                             sc_time_stamp().value(),
+                             mCurrentTriggerId,
+                             mCurrentTriggerId);
     mBusyStatus = true;
     mBusyStatusChanged = true;
   } else if(data_parsed.data[2] == ALPIDE_BUSY_OFF ||
             data_parsed.data[1] == ALPIDE_BUSY_OFF ||
             data_parsed.data[0] == ALPIDE_BUSY_OFF)
   {
-    if(mBusyEvents.empty() == false)
+    if(mBusyEvents.empty() == false) {
       mBusyEvents.back().mBusyOffTime = sc_time_stamp().value();
+      mBusyEvents.back().mBusyOffTriggerId = mCurrentTriggerId;
+    }
 
     mBusyStatus = false;
     mBusyStatusChanged = true;
