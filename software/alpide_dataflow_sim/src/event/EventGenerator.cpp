@@ -161,6 +161,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
     mMonteCarloEvents.readEventXML("config/monte_carlo_events/PbPb/", MC_xml_files);
 
+    mNumChips = 1;
+
     // Discrete and gaussion hit distributions are not used in this case
     mRandHitMultiplicityDiscrete = nullptr;
     mRandHitMultiplicityGauss = nullptr;
@@ -606,7 +608,10 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
       // Update statistics. We only get pixel digits from MC events,
       // no traces, so only this counter is used.
-      chip_pixel_hit_counts[chip_id]++;
+      //chip_pixel_hit_counts[chip_id]++;
+
+      ///@todo Fix this... mNumChips is not initialized correctly for MC events..
+      chip_pixel_hit_counts[0]++;
 
       digit_it++;
     }

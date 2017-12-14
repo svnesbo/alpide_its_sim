@@ -5,6 +5,7 @@
 #include <vector>
 #include <TFile.h>
 #include <TCanvas.h>
+#include <TApplication.h>
 #include <TH1F.h>
 #include <TH1I.h>
 #include "ReadoutUnitStats.hpp"
@@ -14,6 +15,12 @@
 
 int process_readout_trigger_stats(const char* sim_run_data_path)
 {
+  // Create application environment, needed for interactive apps.
+  // Alternatively can create a TRint object, I which case you
+  // get also command line input capability.
+  TApplication theApp("App", 0, 0);
+
+
   /*
   // Indexing: [layer][stave/RU][link ID][trigger ID]
   std::vector<std::vector<std::vector<std::vector<TrigAction>>>> trigger_stats;
@@ -34,7 +41,7 @@ int process_readout_trigger_stats(const char* sim_run_data_path)
 
 
 
-
+  theApp.Run();
 
 
 

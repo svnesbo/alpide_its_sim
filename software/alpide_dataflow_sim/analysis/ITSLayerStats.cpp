@@ -14,6 +14,8 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves, co
 {
   for(unsigned int stave = 0; stave < num_staves; stave++) {
     mRUStats.emplace_back(layer_num, stave, path);
+
+    mRUStats.back().plotRU();
   }
 
   // Todo: check that we have the same number of triggers in all RUs?

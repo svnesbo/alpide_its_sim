@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -O3")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -O3 -g")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/")
