@@ -282,7 +282,7 @@ double ReadoutUnitStats::getTriggerCoverage(uint64_t trigger_id) const
 }
 
 
-void ReadoutUnitStats::plotRU(const char* root_filename)
+void ReadoutUnitStats::plotRU(void)
 {
   unsigned int num_data_links = mLinkStats.size();
 

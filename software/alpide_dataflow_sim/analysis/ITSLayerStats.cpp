@@ -11,8 +11,7 @@
 #include "TFile.h"
 #include "TDirectory.h"
 
-ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
-                             const char* path, const char* root_filename)
+ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves, const char* path)
   : mLayer(layer_num)
 {
   TDirectory* current_dir = gDirectory;
@@ -32,7 +31,7 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
 
     mRUStats.emplace_back(layer_num, stave, path);
 
-    mRUStats.back().plotRU(root_filename);
+    mRUStats.back().plotRU();
   }
 
   // Todo: check that we have the same number of triggers in all RUs?

@@ -71,7 +71,7 @@ public:
   void readBusyEventFiles(std::string file_path_base);
   double getTriggerCoverage(uint64_t trigger_id) const;
   uint64_t getNumTriggers(void) const {return mNumTriggers;}
-  void plotRU(const char* root_filename);
+  void plotRU(void);
 };
 
 

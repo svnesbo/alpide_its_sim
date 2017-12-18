@@ -41,7 +41,7 @@ int process_readout_trigger_stats(const char* sim_run_data_path)
 
   //ReadoutUnitStats RU(0, 0, sim_run_data_path);
   //ITSLayerStats ITS_layer(0, 12, sim_run_data_path);
-  ITSLayerStats ITS_layer(0, 12, sim_run_data_path, root_filename.c_str());
+  ITSLayerStats ITS_layer(0, 12, sim_run_data_path);
 
   delete f;
 
