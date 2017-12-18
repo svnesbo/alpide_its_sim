@@ -20,6 +20,10 @@ int process_readout_trigger_stats(const char* sim_run_data_path)
   // get also command line input capability.
   TApplication theApp("App", 0, 0);
 
+  std::string root_filename = sim_run_data_path + std::string("/busy_data.root");
+
+  // Create/recreate root file
+  TFile *f = new TFile(root_filename.c_str(), "recreate");
 
   /*
   // Indexing: [layer][stave/RU][link ID][trigger ID]
@@ -37,15 +41,11 @@ int process_readout_trigger_stats(const char* sim_run_data_path)
 
   //ReadoutUnitStats RU(0, 0, sim_run_data_path);
   //ITSLayerStats ITS_layer(0, 12, sim_run_data_path);
-  ITSLayerStats ITS_layer(0, 1, sim_run_data_path);
+  ITSLayerStats ITS_layer(0, 12, sim_run_data_path, root_filename.c_str());
 
-
+  delete f;
 
   theApp.Run();
-
-
-
-
 
 
   /*

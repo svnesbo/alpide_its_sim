@@ -19,7 +19,8 @@ class ITSLayerStats {
   std::vector<double> mTriggerCoverage;
 
 public:
-  ITSLayerStats(unsigned int layer_num, unsigned int num_staves, const char* path);
+  ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
+                const char* path, const char* root_filename);
   double getTriggerCoverage(uint64_t trigger_id) const;
 };
 

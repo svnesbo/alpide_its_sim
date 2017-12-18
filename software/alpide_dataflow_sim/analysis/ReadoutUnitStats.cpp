@@ -28,6 +28,7 @@
 #include "TStyle.h"
 #include "TCanvas.h"
 #include "TFile.h"
+#include "TDirectory.h"
 /* #include "TPad.h" */
 /* #include "TRandom.h" */
 
@@ -281,15 +282,17 @@ double ReadoutUnitStats::getTriggerCoverage(uint64_t trigger_id) const
 }
 
 
-void ReadoutUnitStats::plotRU(void)
+void ReadoutUnitStats::plotRU(const char* root_filename)
 {
   unsigned int num_data_links = mLinkStats.size();
 
-  std::stringstream ss_root_filename;
-  ss_root_filename << "RU_" << mLayer << "_" << mStave << ".root";
+  if(gDirectory == nullptr) {
+    std::cout << "ReadoutUnitsStats::plotRU() error: gDirectory not initialized." << std::endl;
+    exit(-1);
+  }
 
-  TFile *f = new TFile(ss_root_filename.str().c_str(), "recreate");
-
+  gDirectory->mkdir(Form("RU_%i", mStave));
+  gDirectory->cd(Form("RU_%i", mStave));
 
   //----------------------------------------------------------------------------
   // Plot busy time distribution
@@ -524,7 +527,4 @@ void ReadoutUnitStats::plotRU(void)
   }
 
   c4->Update();
-
-
-  delete f;
 }

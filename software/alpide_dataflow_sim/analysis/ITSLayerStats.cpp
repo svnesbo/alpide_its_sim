@@ -8,14 +8,31 @@
 
 #include "ITSLayerStats.hpp"
 #include <iostream>
+#include "TFile.h"
+#include "TDirectory.h"
 
-ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves, const char* path)
+ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
+                             const char* path, const char* root_filename)
   : mLayer(layer_num)
 {
+  TDirectory* current_dir = gDirectory;
+
+  if(gDirectory == nullptr) {
+    std::cout << "ITSLayerStats::ITSLayerStats() error: gDirectory not initialized." << std::endl;
+    exit(-1);
+  }
+
+  gDirectory->mkdir(Form("Layer_%i", mLayer));
+
+  // Create and parse RU data, and generate plots in TFile
   for(unsigned int stave = 0; stave < num_staves; stave++) {
+    // Keep changing to this layer's directory,
+    // because the plotRU() function changes the current directory.
+    current_dir->cd(Form("Layer_%i", mLayer));
+
     mRUStats.emplace_back(layer_num, stave, path);
 
-    mRUStats.back().plotRU();
+    mRUStats.back().plotRU(root_filename);
   }
 
   // Todo: check that we have the same number of triggers in all RUs?
