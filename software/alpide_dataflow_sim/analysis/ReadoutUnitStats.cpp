@@ -261,12 +261,12 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
       // If this is not the first busy violation event, calculate how
       // many triggers since the previous busy violation, and store it
       if(event_count > 0) {
-        uint64_t prev_busyv_trigger = mLinkStats.back().mBusyViolationTriggers.back();
+        uint64_t prev_busyv_trigger = mLinkStats.back().mBusyVTriggers.back();
         uint64_t busyv_distance = busyv_trigger_id - prev_busyv_trigger;
         mLinkStats.back().mBusyVTriggerDistances.push_back(busyv_distance);
       }
 
-      mLinkStats.back().mBusyViolationTriggers.push_back(busyv_trigger_id);
+      mLinkStats.back().mBusyVTriggers.push_back(busyv_trigger_id);
 
       std::cout << "Busy violation " << event_count << std::endl;
       std::cout << "\tTrigger id: " << busyv_trigger_id << std::endl ;
@@ -290,6 +290,11 @@ void ReadoutUnitStats::plotRU(void)
 
   TFile *f = new TFile(ss_root_filename.str().c_str(), "recreate");
 
+
+  //----------------------------------------------------------------------------
+  // Plot busy time distribution
+  // Todo: Use sparse histogram?
+  //----------------------------------------------------------------------------
   std::stringstream ss_busy_canvas_name;
   ss_busy_canvas_name << "c_" << mLayer << "_" << mStave << "_busy";
 
@@ -298,34 +303,18 @@ void ReadoutUnitStats::plotRU(void)
                             900,900);
   gStyle->SetOptStat(0);
 
-  // Create the three pads
-  /* TPad *center_pad = new TPad("center_pad", "center_pad",0.0,0.0,0.6,0.6); */
-  /* center_pad->Draw(); */
-
   c1->cd();
 
   TPad *pad = new TPad("pad", "pad", 0.0,0.0,1.0,1.0);
   pad->Draw();
 
-
-  /* TPad *right_pad = new TPad("right_pad", "right_pad",0.55,0.0,1.0,0.6); */
-  /* right_pad->Draw(); */
-
-  /* TPad *top_pad = new TPad("top_pad", "top_pad",0.0,0.55,0.6,1.0); */
-  /* top_pad->Draw(); */
-
-
-
   // Create, fill and project a 2D histogram.
   TH2D *h_busy_map = new TH2D("h_busy_map","Busy events",
-                      mNumTriggers,0,mNumTriggers-1,
-                      num_data_links,0,num_data_links);
+                              mNumTriggers,0,mNumTriggers-1,
+                              num_data_links*5,0,num_data_links);
 
-  /* Float_t px, py; */
-  /* for (Int_t i = 0; i < 25000; i++) { */
-  /*    gRandom->Rannor(px,py); */
-  /*    h2->Fill(px,5*py); */
-  /* } */
+  h_busy_map->GetXaxis()->SetTitle("Trigger ID");
+  h_busy_map->GetYaxis()->SetTitle("Link ID");
 
   std::cout << "Plotting data.. " << num_data_links << " links." << std::endl;
 
@@ -339,44 +328,62 @@ void ReadoutUnitStats::plotRU(void)
   }
 
 
-  /* for(Int_t trigger_id = 0; trigger_id < 101; trigger_id++) { */
-  /*   for(Int_t link_id = 0; link_id < 11; link_id++) { */
-  /*     int val = gRandom->Integer(2); // Get random 0 or 1 */
-
-  /*     if(val == 1) */
-  /*       h2->Fill(trigger_id, link_id); */
-  /*   } */
-  /* } */
-
-  /* TH1D * projh2X = h2->ProjectionX(); */
-  /* TH1D * projh2Y = h2->ProjectionY(); */
-
-
   pad->cd();
-  // Drawing
-  //center_pad->cd();
+
   gStyle->SetPalette(1);
-  //h2->SetOption("LEGO");
-  //h2->Draw("COL2");
+  //h_busy_map->Draw("COL2");
   h_busy_map->Draw("BOX");
   h_busy_map->Write();
 
   c1->Update();
 
-  /* top_pad->cd(); */
-  /* projh2X->SetFillColor(kBlue+1); */
-  /* projh2X->Draw("bar"); */
 
-  /* right_pad->cd(); */
-  /* projh2Y->SetFillColor(kBlue-2); */
-  /* projh2Y->Draw("hbar"); */
 
-  /* c1->cd(); */
-  /* TLatex *t = new TLatex(); */
-  /* t->SetTextFont(42); */
-  /* t->SetTextSize(0.02); */
-  /* t->DrawLatex(0.6,0.88,"This example demonstrate how to display"); */
-  /* t->DrawLatex(0.6,0.85,"a histogram and its two projections."); */
+  //----------------------------------------------------------------------------
+  // Plot busy time distribution
+  // Todo: Use sparse histogram?
+  //----------------------------------------------------------------------------
+  std::stringstream ss_busyv_canvas_name;
+  ss_busyv_canvas_name << "c_" << mLayer << "_" << mStave << "_busyv";
+
+  TCanvas *c11 = new TCanvas(ss_busyv_canvas_name.str().c_str(),
+                             ss_busyv_canvas_name.str().c_str(),
+                             900,900);
+  gStyle->SetOptStat(0);
+
+  c11->cd();
+
+  TPad *pad_busyv_map = new TPad("pad_busyv_map", "pad_busyv_map",
+                                 0.0,0.0,1.0,1.0);
+  pad_busyv_map->Draw();
+
+  // Create, fill and project a 2D histogram.
+  TH2D *h_busyv_map = new TH2D("h_busyv_map","Busy violation events",
+                               mNumTriggers,0,mNumTriggers-1,
+                               num_data_links,0,num_data_links);
+
+  h_busyv_map->GetXaxis()->SetTitle("Trigger ID");
+  h_busyv_map->GetYaxis()->SetTitle("Link ID");
+
+  for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
+    for(auto busyv_event_it = mLinkStats[link_id].mBusyVTriggers.begin();
+        busyv_event_it != mLinkStats[link_id].mBusyVTriggers.end();
+        busyv_event_it++)
+    {
+      h_busyv_map->Fill(*busyv_event_it, link_id, 1);
+    }
+  }
+
+
+  pad_busyv_map->cd();
+
+  gStyle->SetPalette(1);
+  //h_busy_map->Draw("COL2");
+  h_busyv_map->Draw("BOX");
+  h_busyv_map->Write();
+
+  c11->Update();
+
 
 
   //----------------------------------------------------------------------------
@@ -400,7 +407,10 @@ void ReadoutUnitStats::plotRU(void)
   for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
     std::string h_name = std::string("h_busy_time_distr_link_") + std::to_string(link_id);
 
-    TH1D *h_busy_time_distr = new TH1D(h_name.c_str(),"Busy time",50,0,100000);
+    TH1D *h_busy_time_distr = new TH1D(h_name.c_str(),Form("Busy time link %i", link_id),
+                                       50,0,100000);
+    h_busy_time_distr->GetXaxis()->SetTitle("Time [ns]");
+    h_busy_time_distr->GetYaxis()->SetTitle("Counts");
     //h_busy_time_distr->SetNameTitle(h_name.c_str(),"Busy time");
 
     //gStyle->SetHistLineColor(link_id);
@@ -443,7 +453,12 @@ void ReadoutUnitStats::plotRU(void)
     std::string h_name = std::string("h_busy_trigger_distr_link_") +
                          std::to_string(link_id);
 
-    TH1D *h_busy_trigger_distr = new TH1D(h_name.c_str(),"Busy trigger lengths",64,0,64);
+    TH1D *h_busy_trigger_distr = new TH1D(h_name.c_str(),
+                                          Form("Busy trigger lengths link %i", link_id),
+                                          64,0,64);
+
+    h_busy_trigger_distr->GetXaxis()->SetTitle("Number of triggers");
+    h_busy_trigger_distr->GetYaxis()->SetTitle("Counts");
     //h_busy_trigger_distr->SetNameTitle(h_name.c_str(),"Busy trigger");
 
     //gStyle->SetHistLineColor(link_id);
@@ -487,8 +502,11 @@ void ReadoutUnitStats::plotRU(void)
                          std::to_string(link_id);
 
     TH1D *h_busyv_dist_distr = new TH1D(h_name.c_str(),
-                                        "Busy violation trigger distances",
+                                        Form("Busy violation trigger distances link %i", link_id),
                                         50,0,50);
+
+    h_busyv_dist_distr->GetXaxis()->SetTitle("Number of triggers");
+    h_busyv_dist_distr->GetYaxis()->SetTitle("Counts");
     //h_busy_trigger_distr->SetNameTitle(h_name.c_str(),"Busy trigger");
 
     //gStyle->SetHistLineColor(link_id);

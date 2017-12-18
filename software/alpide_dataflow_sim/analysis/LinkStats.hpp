@@ -22,7 +22,7 @@ struct BusyTime {
 
 struct LinkStats {
   // Triggers that had busy violations
-  std::vector<uint64_t> mBusyViolationTriggers;
+  std::vector<uint64_t> mBusyVTriggers;
 
   // Triggers for which the link was busy
   // (regardless of for how long in time it was actually busy)
