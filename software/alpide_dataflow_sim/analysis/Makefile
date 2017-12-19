@@ -34,7 +34,7 @@ ROOTLIBS=-lRooFit -lHtml -lMinuit -lRooFitCore -lRooStats -lHistFactory
 DEPS = ITSLayerStats.hpp LinkStats.hpp ReadoutUnitStats.hpp
 #DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-OBJ = ITSLayerStats.o ReadoutUnitStats.o process_readout_trigger_stats.o
+OBJ = ITSLayerStats.o ReadoutUnitStats.o LinkStats.o process_readout_trigger_stats.o
 #OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 

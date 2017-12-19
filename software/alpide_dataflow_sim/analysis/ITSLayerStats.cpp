@@ -25,7 +25,7 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves, co
 
   // Create and parse RU data, and generate plots in TFile
   for(unsigned int stave = 0; stave < num_staves; stave++) {
-    // Keep changing to this layer's directory,
+    // Keep changing back to this layer's directory,
     // because the plotRU() function changes the current directory.
     current_dir->cd(Form("Layer_%i", mLayer));
 

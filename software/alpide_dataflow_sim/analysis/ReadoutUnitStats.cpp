@@ -16,21 +16,14 @@
 
 #include "TCanvas.h"
 #include "TROOT.h"
-//#include "TRandom3.h"
 #include "TCanvas.h"
 #include "TProfile.h"
-//#include "TGraphErrors.h"
 #include "TH2F.h"
 #include "TH1F.h"
-//#include "TLegend.h"
-//#include "TArrow.h"
-/* #include "TLatex.h" */
 #include "TStyle.h"
 #include "TCanvas.h"
 #include "TFile.h"
 #include "TDirectory.h"
-/* #include "TPad.h" */
-/* #include "TRandom.h" */
 
 
 ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave, const char* path)
@@ -203,7 +196,7 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
     std::cout << "Data link " << int(link_count) << std::endl;
 
     // Add a new LinkStats entry
-    mLinkStats.push_back(LinkStats());
+    mLinkStats.emplace_back(mLayer, mStave, link_count);
 
     // Number of busy events for this link
     uint64_t num_busy_events = 0;
@@ -253,6 +246,8 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
     uint64_t num_busyv_events = 0;
     busyv_file.read((char*)&num_busyv_events, sizeof(uint64_t));
 
+    uint64_t busyv_sequence_count = 0;
+
     // Iterate through busy violation events for this link
     for(uint64_t event_count = 0; event_count < num_busyv_events; event_count++) {
       uint64_t busyv_trigger_id = 0;
@@ -260,18 +255,29 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
       busyv_file.read((char*)&busyv_trigger_id, sizeof(uint64_t));
 
       // If this is not the first busy violation event, calculate how
-      // many triggers since the previous busy violation, and store it
+      // many triggers since the previous busy violation, and calculate
+      // lengths of busy violation sequences
       if(event_count > 0) {
         uint64_t prev_busyv_trigger = mLinkStats.back().mBusyVTriggers.back();
         uint64_t busyv_distance = busyv_trigger_id - prev_busyv_trigger;
         mLinkStats.back().mBusyVTriggerDistances.push_back(busyv_distance);
+
+        if(busyv_sequence_count > 0 && busyv_distance > 1) {
+          mLinkStats.back().mBusyVTriggerSequences.push_back(busyv_sequence_count);
+          busyv_sequence_count = 0;
+        }
       }
+
+      busyv_sequence_count++;
 
       mLinkStats.back().mBusyVTriggers.push_back(busyv_trigger_id);
 
       std::cout << "Busy violation " << event_count << std::endl;
       std::cout << "\tTrigger id: " << busyv_trigger_id << std::endl ;
     }
+
+    if(busyv_sequence_count > 0)
+      mLinkStats.back().mBusyVTriggerSequences.push_back(busyv_sequence_count);
   }
 }
 
@@ -282,9 +288,11 @@ double ReadoutUnitStats::getTriggerCoverage(uint64_t trigger_id) const
 }
 
 
-void ReadoutUnitStats::plotRU(void)
+void ReadoutUnitStats::plotRU()
 {
   unsigned int num_data_links = mLinkStats.size();
+
+  TDirectory* current_dir = gDirectory;
 
   if(gDirectory == nullptr) {
     std::cout << "ReadoutUnitsStats::plotRU() error: gDirectory not initialized." << std::endl;
@@ -388,143 +396,12 @@ void ReadoutUnitStats::plotRU(void)
   c11->Update();
 
 
-
-  //----------------------------------------------------------------------------
-  // Plot busy time distribution
-  //----------------------------------------------------------------------------
-  std::stringstream ss_busy_time_distr_canvas_name;
-  ss_busy_time_distr_canvas_name << "c_" << mLayer << "_" << mStave << "_busy_time_distr";
-
-  TCanvas *c2 = new TCanvas(ss_busy_time_distr_canvas_name.str().c_str(),
-                            ss_busy_time_distr_canvas_name.str().c_str(),
-                            900,900);
-
-  c2->cd();
-
-  TPad *pad_busy_time_distr = new TPad("pad_busy_time_distr",
-                                       "pad_busy_time_distr",
-                                       0.0,0.0,1.0,1.0);
-  pad_busy_time_distr->Draw();
-  pad_busy_time_distr->cd();
-
+  // Plot link histograms
   for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
-    std::string h_name = std::string("h_busy_time_distr_link_") + std::to_string(link_id);
+    // Keep changing back to this RU's directory,
+    // because the plotLink() function changes the current directory.
+    current_dir->cd(Form("RU_%i", mStave));
 
-    TH1D *h_busy_time_distr = new TH1D(h_name.c_str(),Form("Busy time link %i", link_id),
-                                       50,0,100000);
-    h_busy_time_distr->GetXaxis()->SetTitle("Time [ns]");
-    h_busy_time_distr->GetYaxis()->SetTitle("Counts");
-    //h_busy_time_distr->SetNameTitle(h_name.c_str(),"Busy time");
-
-    //gStyle->SetHistLineColor(link_id);
-
-    for(auto busy_time_it = mLinkStats[link_id].mBusyTime.begin();
-        busy_time_it != mLinkStats[link_id].mBusyTime.end();
-        busy_time_it++)
-    {
-      h_busy_time_distr->Fill(busy_time_it->mBusyTimeNs);
-    }
-
-    //h_busy_time->Draw("CONT SAME");
-    h_busy_time_distr->Write();
-    //link_id = num_data_links;
+    mLinkStats[link_id].plotLink();
   }
-
-  c2->Update();
-
-
-  //----------------------------------------------------------------------------
-  // Plot busy trigger length distribution
-  //----------------------------------------------------------------------------
-  std::stringstream ss_busy_trigger_distr_canvas_name;
-  ss_busy_trigger_distr_canvas_name << "c_" << mLayer;
-  ss_busy_trigger_distr_canvas_name << "_" << mStave << "_busy_trigger_distr";
-
-  TCanvas *c3 = new TCanvas(ss_busy_trigger_distr_canvas_name.str().c_str(),
-                            ss_busy_trigger_distr_canvas_name.str().c_str(),
-                            900,900);
-
-  c3->cd();
-
-  TPad *pad_busy_trigger_distr = new TPad("pad_busy_trigger_distr",
-                                          "pad_busy_trigger_distr",
-                                          0.0,0.0,1.0,1.0);
-  pad_busy_trigger_distr->Draw();
-  pad_busy_trigger_distr->cd();
-
-  for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
-    std::string h_name = std::string("h_busy_trigger_distr_link_") +
-                         std::to_string(link_id);
-
-    TH1D *h_busy_trigger_distr = new TH1D(h_name.c_str(),
-                                          Form("Busy trigger lengths link %i", link_id),
-                                          64,0,64);
-
-    h_busy_trigger_distr->GetXaxis()->SetTitle("Number of triggers");
-    h_busy_trigger_distr->GetYaxis()->SetTitle("Counts");
-    //h_busy_trigger_distr->SetNameTitle(h_name.c_str(),"Busy trigger");
-
-    //gStyle->SetHistLineColor(link_id);
-
-    for(auto busy_trigger_it = mLinkStats[link_id].mBusyTriggerLengths.begin();
-        busy_trigger_it != mLinkStats[link_id].mBusyTriggerLengths.end();
-        busy_trigger_it++)
-    {
-      h_busy_trigger_distr->Fill(*busy_trigger_it);
-    }
-
-    //h_busy_trigger->Draw("CONT SAME");
-    h_busy_trigger_distr->Write();
-    //link_id = num_data_links;
-  }
-
-  c3->Update();
-
-
-  //----------------------------------------------------------------------------
-  // Plot busy violation trigger distance distribution
-  //----------------------------------------------------------------------------
-  std::stringstream ss_busyv_dist_distr_canvas_name;
-  ss_busyv_dist_distr_canvas_name << "c_" << mLayer;
-  ss_busyv_dist_distr_canvas_name << "_" << mStave << "_busyv_distance_distr";
-
-  TCanvas *c4 = new TCanvas(ss_busyv_dist_distr_canvas_name.str().c_str(),
-                            ss_busyv_dist_distr_canvas_name.str().c_str(),
-                            900,900);
-
-  c4->cd();
-
-  TPad *pad_busyv_dist_distr = new TPad("pad_busyv_dist_distr",
-                                        "pad_busyv_dist_distr",
-                                        0.0,0.0,1.0,1.0);
-  pad_busyv_dist_distr->Draw();
-  pad_busyv_dist_distr->cd();
-
-  for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
-    std::string h_name = std::string("h_busyv_distance_distr_link_") +
-                         std::to_string(link_id);
-
-    TH1D *h_busyv_dist_distr = new TH1D(h_name.c_str(),
-                                        Form("Busy violation trigger distances link %i", link_id),
-                                        50,0,50);
-
-    h_busyv_dist_distr->GetXaxis()->SetTitle("Number of triggers");
-    h_busyv_dist_distr->GetYaxis()->SetTitle("Counts");
-    //h_busy_trigger_distr->SetNameTitle(h_name.c_str(),"Busy trigger");
-
-    //gStyle->SetHistLineColor(link_id);
-
-    for(auto busyv_dist_it = mLinkStats[link_id].mBusyVTriggerDistances.begin();
-        busyv_dist_it != mLinkStats[link_id].mBusyVTriggerDistances.end();
-        busyv_dist_it++)
-    {
-      h_busyv_dist_distr->Fill(*busyv_dist_it);
-    }
-
-    //h_busy_trigger->Draw("CONT SAME");
-    h_busyv_dist_distr->Write();
-    //link_id = num_data_links;
-  }
-
-  c4->Update();
 }
