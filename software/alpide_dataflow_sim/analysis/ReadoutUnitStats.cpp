@@ -303,15 +303,15 @@ void ReadoutUnitStats::plotRU()
   gDirectory->cd(Form("RU_%i", mStave));
 
   //----------------------------------------------------------------------------
-  // Plot busy time distribution
+  // Plot busy map vs trigger id
   // Todo: Use sparse histogram?
   //----------------------------------------------------------------------------
-  TH2D *h_busy_map = new TH2D("h_busy_map","Busy events",
+  TH2D *h1 = new TH2D("h_busy_map","Busy events",
                               mNumTriggers,0,mNumTriggers-1,
                               num_data_links*5,0,num_data_links);
 
-  h_busy_map->GetXaxis()->SetTitle("Trigger ID");
-  h_busy_map->GetYaxis()->SetTitle("Link ID");
+  h1->GetXaxis()->SetTitle("Trigger ID");
+  h1->GetYaxis()->SetTitle("Link ID");
 
   std::cout << "Plotting data.. " << num_data_links << " links." << std::endl;
 
@@ -320,34 +320,51 @@ void ReadoutUnitStats::plotRU()
         busy_event_it != mLinkStats[link_id].mBusyTriggers.end();
         busy_event_it++)
     {
-      h_busy_map->Fill(*busy_event_it, link_id, 1);
+      h1->Fill(*busy_event_it, link_id, 1);
     }
   }
 
-  h_busy_map->Write();
+  h1->Write();
 
 
   //----------------------------------------------------------------------------
-  // Plot busy time distribution
-  // Todo: Use sparse histogram?
+  // Plot busy link count vs trigger id
   //----------------------------------------------------------------------------
-  TH2D *h_busyv_map = new TH2D("h_busyv_map","Busy violation events",
-                               mNumTriggers,0,mNumTriggers-1,
-                               num_data_links,0,num_data_links);
+  TH1D *h2 = h1->ProjectionX("h_busy_links");
+  h2->GetYaxis()->SetTitle("Busy link count");
+  h2->GetXaxis()->SetTitle("Trigger ID");
+  h2->Write();
 
-  h_busyv_map->GetXaxis()->SetTitle("Trigger ID");
-  h_busyv_map->GetYaxis()->SetTitle("Link ID");
+
+  //----------------------------------------------------------------------------
+  // Plot busy violation map vs trigger id
+  //----------------------------------------------------------------------------
+    TH2D *h3 = new TH2D("h_busyv_map","Busy violation events",
+                        mNumTriggers,0,mNumTriggers-1,
+                        num_data_links,0,num_data_links);
+
+  h3->GetXaxis()->SetTitle("Trigger ID");
+  h3->GetYaxis()->SetTitle("Link ID");
 
   for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
     for(auto busyv_event_it = mLinkStats[link_id].mBusyVTriggers.begin();
         busyv_event_it != mLinkStats[link_id].mBusyVTriggers.end();
         busyv_event_it++)
     {
-      h_busyv_map->Fill(*busyv_event_it, link_id, 1);
+      h3->Fill(*busyv_event_it, link_id, 1);
     }
   }
 
-  h_busyv_map->Write();
+  h3->Write();
+
+
+  //----------------------------------------------------------------------------
+  // Plot busy link count vs trigger id
+  //----------------------------------------------------------------------------
+  TH1D *h4 = h3->ProjectionX("h_busyv_links");
+  h4->GetYaxis()->SetTitle("Busy violation link count");
+  h4->GetXaxis()->SetTitle("Trigger ID");
+  h4->Write();
 
 
   //----------------------------------------------------------------------------
