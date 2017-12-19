@@ -306,20 +306,6 @@ void ReadoutUnitStats::plotRU()
   // Plot busy time distribution
   // Todo: Use sparse histogram?
   //----------------------------------------------------------------------------
-  std::stringstream ss_busy_canvas_name;
-  ss_busy_canvas_name << "c_" << mLayer << "_" << mStave << "_busy";
-
-  TCanvas *c1 = new TCanvas(ss_busy_canvas_name.str().c_str(),
-                            ss_busy_canvas_name.str().c_str(),
-                            900,900);
-  gStyle->SetOptStat(0);
-
-  c1->cd();
-
-  TPad *pad = new TPad("pad", "pad", 0.0,0.0,1.0,1.0);
-  pad->Draw();
-
-  // Create, fill and project a 2D histogram.
   TH2D *h_busy_map = new TH2D("h_busy_map","Busy events",
                               mNumTriggers,0,mNumTriggers-1,
                               num_data_links*5,0,num_data_links);
@@ -338,37 +324,13 @@ void ReadoutUnitStats::plotRU()
     }
   }
 
-
-  pad->cd();
-
-  gStyle->SetPalette(1);
-  //h_busy_map->Draw("COL2");
-  h_busy_map->Draw("BOX");
   h_busy_map->Write();
-
-  c1->Update();
-
 
 
   //----------------------------------------------------------------------------
   // Plot busy time distribution
   // Todo: Use sparse histogram?
   //----------------------------------------------------------------------------
-  std::stringstream ss_busyv_canvas_name;
-  ss_busyv_canvas_name << "c_" << mLayer << "_" << mStave << "_busyv";
-
-  TCanvas *c11 = new TCanvas(ss_busyv_canvas_name.str().c_str(),
-                             ss_busyv_canvas_name.str().c_str(),
-                             900,900);
-  gStyle->SetOptStat(0);
-
-  c11->cd();
-
-  TPad *pad_busyv_map = new TPad("pad_busyv_map", "pad_busyv_map",
-                                 0.0,0.0,1.0,1.0);
-  pad_busyv_map->Draw();
-
-  // Create, fill and project a 2D histogram.
   TH2D *h_busyv_map = new TH2D("h_busyv_map","Busy violation events",
                                mNumTriggers,0,mNumTriggers-1,
                                num_data_links,0,num_data_links);
@@ -385,18 +347,12 @@ void ReadoutUnitStats::plotRU()
     }
   }
 
-
-  pad_busyv_map->cd();
-
-  gStyle->SetPalette(1);
-  //h_busy_map->Draw("COL2");
-  h_busyv_map->Draw("BOX");
   h_busyv_map->Write();
 
-  c11->Update();
 
-
+  //----------------------------------------------------------------------------
   // Plot link histograms
+  //----------------------------------------------------------------------------
   for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
     // Keep changing back to this RU's directory,
     // because the plotLink() function changes the current directory.
