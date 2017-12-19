@@ -44,7 +44,25 @@ class ReadoutUnitStats {
   // Indexing: [trigger_id][link_id]
   std::vector<LinkStats> mLinkStats;
 
-  // Todo: Add busy count stats from the RU?
+  // Distribution of for how long the links are busy
+  // ie. busy_off_time - busy_on_time
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllBusyTime;
+
+  // Distribution of for how many triggers the busy signals is asserted
+  // ie. busy_off_trigger_id - busy_on_trigger_id
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllBusyTriggerLengths;
+
+  // Distribution of space/distance in
+  // numbers of triggers between busy violations
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllBusyVTriggerDistances;
+
+  // Distribution of numbers of triggers with
+  // busy violations in a sequence of busy violations
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllBusyVTriggerSequences;
 
 
   // Index: [trigger_id][ctrl_link_id]

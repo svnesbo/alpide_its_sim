@@ -36,7 +36,6 @@ struct LinkStats {
   // ie. busy_off_trigger_id - busy_on_trigger_id
   std::vector<uint64_t> mBusyTriggerLengths;
 
-
   // Distribution of space/distance in
   // numbers of triggers between busy violations
   std::vector<uint64_t> mBusyVTriggerDistances;

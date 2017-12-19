@@ -213,6 +213,9 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
 
       busy_time.mBusyTimeNs = busy_time.mEndTimeNs - busy_time.mStartTimeNs;
 
+      // Keep track of busy time for all links, as well as for individual links (below)
+      mAllBusyTime.push_back(busy_time.mBusyTimeNs);
+
       busy_file.read((char*)&busy_on_trigger, sizeof(uint64_t));
       busy_file.read((char*)&busy_off_trigger, sizeof(uint64_t));
 
@@ -230,7 +233,9 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
         trigger_id++;
       } while(trigger_id < busy_off_trigger);
 
+      // Keep track of busy trigger lengths per link, and for all links
       mLinkStats.back().mBusyTriggerLengths.push_back(1 + (busy_off_trigger-busy_on_trigger));
+      mAllBusyTriggerLengths.push_back(1 + (busy_off_trigger-busy_on_trigger));
 
       std::cout << "Busy event " << event_count << std::endl;
       std::cout << "\tBusy on time: " << busy_time.mStartTimeNs << std::endl;
@@ -260,10 +265,16 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
       if(event_count > 0) {
         uint64_t prev_busyv_trigger = mLinkStats.back().mBusyVTriggers.back();
         uint64_t busyv_distance = busyv_trigger_id - prev_busyv_trigger;
+
+        // Keep track of busyv distances per link, and for all links
         mLinkStats.back().mBusyVTriggerDistances.push_back(busyv_distance);
+        mAllBusyVTriggerDistances.push_back(busyv_distance);
 
         if(busyv_sequence_count > 0 && busyv_distance > 1) {
+          // Keep track of busyv sequences per link, and for all links
           mLinkStats.back().mBusyVTriggerSequences.push_back(busyv_sequence_count);
+          mAllBusyVTriggerSequences.push_back(busyv_sequence_count);
+
           busyv_sequence_count = 0;
         }
       }
@@ -276,8 +287,11 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
       std::cout << "\tTrigger id: " << busyv_trigger_id << std::endl ;
     }
 
-    if(busyv_sequence_count > 0)
+    if(busyv_sequence_count > 0) {
+      // Keep track of busyv sequences per link, and for all links
       mLinkStats.back().mBusyVTriggerSequences.push_back(busyv_sequence_count);
+      mAllBusyVTriggerSequences.push_back(busyv_sequence_count);
+    }
   }
 }
 
@@ -368,6 +382,89 @@ void ReadoutUnitStats::plotRU()
 
 
   //----------------------------------------------------------------------------
+  // Plot busy time distribution
+  //----------------------------------------------------------------------------
+  TH1D *h5 = new TH1D("h_busy_time",
+                      Form("Busy time RU %i:%i", mLayer, mStave),
+                      50,0,100000);
+  h5->GetXaxis()->SetTitle("Time [ns]");
+  h5->GetYaxis()->SetTitle("Counts");
+
+  for(auto busy_time_it = mAllBusyTime.begin();
+      busy_time_it != mAllBusyTime.end();
+      busy_time_it++)
+  {
+    h5->Fill(*busy_time_it);
+  }
+
+  h5->SetStats(true);
+  h5->Write();
+
+
+  //----------------------------------------------------------------------------
+  // Plot busy trigger length distribution
+  //----------------------------------------------------------------------------
+  TH1D *h6 = new TH1D("h_busy_trigger",
+                      Form("Busy trigger length RU %i:%i", mLayer, mStave),
+                      64,0,64);
+
+  h6->GetXaxis()->SetTitle("Number of triggers");
+  h6->GetYaxis()->SetTitle("Counts");
+
+  for(auto busy_trigger_it = mAllBusyTriggerLengths.begin();
+      busy_trigger_it != mAllBusyTriggerLengths.end();
+      busy_trigger_it++)
+  {
+    h6->Fill(*busy_trigger_it);
+  }
+
+  h6->SetStats(true);
+  h6->Write();
+
+
+  //----------------------------------------------------------------------------
+  // Plot busy violation trigger distance distribution
+  //----------------------------------------------------------------------------
+  TH1D *h7 = new TH1D("h_busyv_distance",
+                      Form("Busy violation distances RU %i:%i", mLayer, mStave),
+                      50,0,50);
+
+  h7->GetXaxis()->SetTitle("Busy violation trigger distance");
+  h7->GetYaxis()->SetTitle("Counts");
+
+  for(auto busyv_dist_it = mAllBusyVTriggerDistances.begin();
+      busyv_dist_it != mAllBusyVTriggerDistances.end();
+      busyv_dist_it++)
+  {
+    h7->Fill(*busyv_dist_it);
+  }
+
+  h7->SetStats(true);
+  h7->Write();
+
+
+  //----------------------------------------------------------------------------
+  // Plot busy violation trigger sequence distribution
+  //----------------------------------------------------------------------------
+  TH1D *h8 = new TH1D("h_busyv_sequence",
+                      Form("Busy violation sequences RU %i:%i", mLayer, mStave),
+                      50,0,50);
+
+  h8->GetXaxis()->SetTitle("Busy violation trigger sequence length");
+  h8->GetYaxis()->SetTitle("Counts");
+
+  for(auto busyv_dist_it = mAllBusyVTriggerSequences.begin();
+      busyv_dist_it != mAllBusyVTriggerSequences.end();
+      busyv_dist_it++)
+  {
+    h8->Fill(*busyv_dist_it);
+  }
+
+  h8->SetStats(true);
+  h8->Write();
+
+
+  //----------------------------------------------------------------------------
   // Plot link histograms
   //----------------------------------------------------------------------------
   for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
@@ -377,4 +474,14 @@ void ReadoutUnitStats::plotRU()
 
     mLinkStats[link_id].plotLink();
   }
+
+
+  delete h1;
+  delete h2;
+  delete h3;
+  delete h4;
+  delete h5;
+  delete h6;
+  delete h7;
+  delete h8;
 }
