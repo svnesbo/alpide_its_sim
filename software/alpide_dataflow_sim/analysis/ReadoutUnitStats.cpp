@@ -35,6 +35,7 @@ ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave, const
 
   readTrigActionsFile(ss_file_path_base.str());
   readBusyEventFiles(ss_file_path_base.str());
+  readProtocolUtilizationFile(ss_file_path_base.str());
 }
 
 
@@ -143,7 +144,8 @@ void ReadoutUnitStats::readTrigActionsFile(std::string file_path_base)
 }
 
 
-///@brief
+///@brief Reads the RUs busy event files, and initializes LinkStats objects for each link
+///       found with the various busy event data.
 void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
 {
   std::stringstream ss_busy_events;
@@ -189,6 +191,7 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
   std::cout << int(num_data_links_busy_file);
   std::cout << std::endl;
   std::cout << "-------------------------------------------------" << std::endl;
+
 
   // Iterate through data for each link
   for(uint8_t link_count = 0; link_count < num_data_links_busy_file; link_count++) {
@@ -292,6 +295,128 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
       mLinkStats.back().mBusyVTriggerSequences.push_back(busyv_sequence_count);
       mAllBusyVTriggerSequences.push_back(busyv_sequence_count);
     }
+  }
+}
+
+
+///@brief Read and parse CSV file with protocol utilization stats.
+///       Must be called after readBusyEventFiles(), because it needs to know
+///       how many links to expect.
+void ReadoutUnitStats::readProtocolUtilizationFile(std::string file_path_base)
+{
+  if(mLinkStats.empty()) {
+    std::cout << "ReadoutUnitStats::readProtocolUtilizationFile(): called without";
+    std::cout << " initializing LinkStats objects first." << std::endl;
+    exit(-1);
+  }
+
+  unsigned int num_data_links = mLinkStats.size();
+
+
+  std::stringstream ss_prot_util;
+
+  ss_prot_util  << file_path_base << "_Link_utilization.csv";
+
+  std::string prot_util_filename = ss_prot_util.str();
+
+  std::cout << "Opening file: " << prot_util_filename << std::endl;
+  std::ifstream prot_util_file(prot_util_filename, std::ios_base::in);
+
+  if(!prot_util_file.is_open()) {
+    std::cerr << "Error opening file " << prot_util_filename << std::endl;
+    exit(-1);
+  }
+
+  std::string csv_header;
+  std::getline(prot_util_file, csv_header);
+
+  if(csv_header.length() == 0) {
+    std::cout << "ReadoutUnitStats::readProtocolUtilizationFile(): ";
+    std::cout << "Error reading or empty CSV header read." << std::endl;
+    exit(-1);
+  }
+
+  unsigned int index = 0;
+  while(csv_header.length() > 0) {
+    size_t end_of_field_pos = csv_header.find(";");
+    std::string header_field = csv_header.substr(0, end_of_field_pos);
+    mProtocolUtilization[header_field] = 0;
+    mProtUtilIndex[index] = header_field;
+
+    std::cout << "Found field: " << header_field << std::endl;
+
+    // Remove the current field, accounting for both with
+    // or without semicolon at the end
+    if(end_of_field_pos == std::string::npos)
+      csv_header = "";
+    else
+      csv_header = csv_header.substr(csv_header.find(";")+1);
+
+    index++;
+  }
+
+
+  for(unsigned int link_count = 0; link_count < num_data_links; link_count++) {
+    if(prot_util_file.good() == false) {
+      std::cout << "ReadoutUnitStats::readProtocolUtilizationFile(): CSV file not ";
+      std::cout << "good before " << num_data_links << "links have been read." << std::endl;
+    }
+
+    mLinkStats[link_count].mProtUtilIndex = mProtUtilIndex;
+
+    unsigned int index = 0;
+    std::string csv_line;
+    std::getline(prot_util_file, csv_line);
+
+    while(csv_line.length() > 0) {
+      size_t end_of_field_pos = csv_line.find(";");
+      std::string value_str = csv_line.substr(0, end_of_field_pos);
+      std::string field = mProtUtilIndex[index];
+
+      // Update stats for both links, and combined stats for all links for in RU
+      mLinkStats[link_count].mProtocolUtilization[field] = std::stoul(value_str);;
+      mProtocolUtilization[field] += std::stoul(value_str);;
+
+      // Remove the current field, accounting for both with
+      // or without semicolon at the end
+      if(end_of_field_pos == std::string::npos)
+        csv_line = "";
+      else
+        csv_line = csv_line.substr(csv_line.find(";")+1);
+
+      index++;
+
+      if(index > 30)
+        exit(-1);
+    }
+
+    if(index != mProtUtilIndex.size()) {
+      std::cout << "Incorrect number of fields on line " << link_count+1;
+      std::cout << " in file " << prot_util_filename << std::endl;
+      exit(-1);
+    }
+  }
+
+
+  std::cout << std::endl << std::endl;
+  std::cout << "Printing link utilization stats - totals:" << std::endl;
+  std::cout << "-----------------------------------------" << std::endl;
+
+  for(auto it = mProtUtilIndex.begin(); it != mProtUtilIndex.end(); it++) {
+    std::cout << it->second << ": " << mProtocolUtilization[it->second] << std::endl;
+  }
+
+  std::cout << std::endl << std::endl;
+
+  for(unsigned int link_count = 0; link_count < num_data_links; link_count++) {
+    std::cout << std::endl << std::endl;
+    std::cout << "Printing link utilization stats - link " << link_count << ":" << std::endl;
+    std::cout << "-----------------------------------------" << std::endl;
+
+    for(auto it = mProtUtilIndex.begin(); it != mProtUtilIndex.end(); it++) {
+      std::cout << it->second << ": " << mLinkStats[link_count].mProtocolUtilization[it->second] << std::endl;
+    }
+    std::cout << std::endl << std::endl;
   }
 }
 
