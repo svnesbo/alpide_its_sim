@@ -29,6 +29,7 @@
 ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave, const char* path)
   : mLayer(layer)
   , mStave(stave)
+  , mSimDataPath(path)
 {
   std::stringstream ss_file_path_base;
   ss_file_path_base << path << "/" << "RU_" << layer << "_" << stave;
@@ -427,7 +428,7 @@ double ReadoutUnitStats::getTriggerCoverage(uint64_t trigger_id) const
 }
 
 
-void ReadoutUnitStats::plotRU()
+void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 {
   unsigned int num_data_links = mLinkStats.size();
 
@@ -440,6 +441,9 @@ void ReadoutUnitStats::plotRU()
 
   gDirectory->mkdir(Form("RU_%i", mStave));
   gDirectory->cd(Form("RU_%i", mStave));
+
+  TCanvas* c1 = new TCanvas();
+  c1->cd();
 
   //----------------------------------------------------------------------------
   // Plot busy map vs trigger id
@@ -463,7 +467,17 @@ void ReadoutUnitStats::plotRU()
     }
   }
 
+  h1->Draw("COL");
   h1->Write();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_busy_map.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_busy_map.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
@@ -473,14 +487,24 @@ void ReadoutUnitStats::plotRU()
   h2->GetYaxis()->SetTitle("Busy link count");
   h2->GetXaxis()->SetTitle("Trigger ID");
   h2->Write();
+  h2->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_busy_links.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_busy_links.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
   // Plot busy violation map vs trigger id
   //----------------------------------------------------------------------------
-    TH2D *h3 = new TH2D("h_busyv_map","Busy violation events",
-                        mNumTriggers,0,mNumTriggers-1,
-                        num_data_links,0,num_data_links);
+  TH2D *h3 = new TH2D("h_busyv_map","Busy violation events",
+                      mNumTriggers,0,mNumTriggers-1,
+                      num_data_links,0,num_data_links);
 
   h3->GetXaxis()->SetTitle("Trigger ID");
   h3->GetYaxis()->SetTitle("Link ID");
@@ -495,6 +519,16 @@ void ReadoutUnitStats::plotRU()
   }
 
   h3->Write();
+  h3->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_busyv_map.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_busyv_map.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
@@ -504,6 +538,16 @@ void ReadoutUnitStats::plotRU()
   h4->GetYaxis()->SetTitle("Busy violation link count");
   h4->GetXaxis()->SetTitle("Trigger ID");
   h4->Write();
+  h4->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_busy_count_vs_trigger.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_busy_count_vs_trigger.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
@@ -524,6 +568,16 @@ void ReadoutUnitStats::plotRU()
 
   h5->SetStats(true);
   h5->Write();
+  h5->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_busy_time.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_busy_time.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
@@ -545,6 +599,16 @@ void ReadoutUnitStats::plotRU()
 
   h6->SetStats(true);
   h6->Write();
+  h6->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_busy_trig_len.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_busy_trig_len.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
@@ -566,6 +630,16 @@ void ReadoutUnitStats::plotRU()
 
   h7->SetStats(true);
   h7->Write();
+  h7->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_busyv_distance.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_busyv_distance.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
@@ -587,6 +661,56 @@ void ReadoutUnitStats::plotRU()
 
   h8->SetStats(true);
   h8->Write();
+  h8->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_busyv_sequence.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_busyv_sequence.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+
+  //----------------------------------------------------------------------------
+  // Plot link utilization histogram
+  //----------------------------------------------------------------------------
+  TH1D *h9 = new TH1D("h_prot_util",
+                      Form("Protocol utilization RU %i:%i", mLayer, mStave),
+                      mProtocolUtilization.size(),
+                      0,
+                      mProtocolUtilization.size()-1);
+
+  //h9->GetXaxis()->SetTitle("Data word type");
+  h9->GetYaxis()->SetTitle("Counts");
+
+  for(auto prot_util_it = mProtUtilIndex.begin();
+      prot_util_it != mProtUtilIndex.end();
+      prot_util_it++)
+  {
+    unsigned int bin_index = prot_util_it->first + 1;
+    std::string bin_name = prot_util_it->second;
+    h9->Fill(bin_index, mProtocolUtilization[bin_name]);
+    h9->GetXaxis()->SetBinLabel(bin_index, bin_name.c_str());
+  }
+
+  // Draw labels on X axis vertically
+  h9->LabelsOption("v", "x");
+
+  //h9->SetStats(true);
+  h9->Write();
+  h9->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_prot_utilization.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_prot_utilization.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
 
 
   //----------------------------------------------------------------------------
@@ -601,6 +725,7 @@ void ReadoutUnitStats::plotRU()
   }
 
 
+  delete c1;
   delete h1;
   delete h2;
   delete h3;
@@ -609,4 +734,5 @@ void ReadoutUnitStats::plotRU()
   delete h6;
   delete h7;
   delete h8;
+  delete h9;
 }

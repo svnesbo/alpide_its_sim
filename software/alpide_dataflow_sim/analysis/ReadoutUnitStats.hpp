@@ -89,6 +89,8 @@ class ReadoutUnitStats {
   unsigned int mLayer;
   unsigned int mStave;
 
+  std::string mSimDataPath;
+
 public:
   ReadoutUnitStats(unsigned int layer, unsigned int stave, const char* path);
   void readTrigActionsFile(std::string file_path_base);
@@ -96,7 +98,7 @@ public:
   void readProtocolUtilizationFile(std::string file_path_base);
   double getTriggerCoverage(uint64_t trigger_id) const;
   uint64_t getNumTriggers(void) const {return mNumTriggers;}
-  void plotRU(void);
+  void plotRU(bool create_png, bool create_pdf);
 };
 
 

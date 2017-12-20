@@ -111,8 +111,39 @@ void LinkStats::plotLink(void)
   h4->SetStats(true);
   h4->Write();
 
+
+  //----------------------------------------------------------------------------
+  // Plot link utilization histogram
+  //----------------------------------------------------------------------------
+  TH1D *h5 = new TH1D("h_prot_util",
+                      Form("Protocol utilization link %i:%i%i", mLayer, mStave, mLink),
+                      mProtocolUtilization.size(),
+                      0,
+                      mProtocolUtilization.size()-1);
+
+  //h5->GetXaxis()->SetTitle("Data word type");
+  h5->GetYaxis()->SetTitle("Counts");
+
+  for(auto prot_util_it = mProtUtilIndex.begin();
+      prot_util_it != mProtUtilIndex.end();
+      prot_util_it++)
+  {
+    unsigned int bin_index = prot_util_it->first + 1;
+    std::string bin_name = prot_util_it->second;
+    h5->Fill(bin_index, mProtocolUtilization[bin_name]);
+    h5->GetXaxis()->SetBinLabel(bin_index, bin_name.c_str());
+  }
+
+  // Draw labels on X axis vertically
+  h5->LabelsOption("v", "x");
+
+  //h5->SetStats(true);
+  h5->Write();
+
+
   delete h1;
   delete h2;
   delete h3;
   delete h4;
+  delete h5;
 }
