@@ -354,17 +354,17 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
 
     // Calculate number of IDLE "filler" bytes, ie. the IDLE words
     // that fill empty gaps in other data words
-    uint64_t idle_filler_bytes = chip_header_bytes;
-    idle_filler_bytes += 2*chip_trailer_bytes;
-    idle_filler_bytes += chip_empty_frame_bytes;
-    idle_filler_bytes += 2*region_header_bytes;
+    uint64_t idle_filler_bytes = chip_header_count;
+    idle_filler_bytes += 2*chip_trailer_count;
+    idle_filler_bytes += chip_empty_frame_count;
+    idle_filler_bytes += 2*region_header_count;
 
     // Region trailer is triplicated
-    idle_filler_bytes += 0*region_trailer_bytes;
+    idle_filler_bytes += 0*region_trailer_count;
 
-    idle_filler_bytes += data_short_bytes;
-    idle_filler_bytes += 2*busy_on_bytes;
-    idle_filler_bytes += 2*busy_off_bytes;
+    idle_filler_bytes += data_short_count;
+    idle_filler_bytes += 2*busy_on_count;
+    idle_filler_bytes += 2*busy_off_count;
 
     uint64_t idle_filler_count = idle_filler_bytes;
 
