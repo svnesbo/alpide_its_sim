@@ -1,11 +1,13 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <TFile.h>
 #include <TCanvas.h>
-#include <TApplication.h>
+#include <TROOT.h>
+//#include <TApplication.h>
 #include <TH1F.h>
 #include <TH1I.h>
 #include "ReadoutUnitStats.hpp"
@@ -13,17 +15,22 @@
 
 //enum TrigAction {TRIGGER_SENT, TRIGGER_NOT_SENT_BUSY, TRIGGER_FILTERED};
 
-int process_readout_trigger_stats(const char* sim_run_data_path)
+int process_readout_trigger_stats(const char* sim_run_data_path,
+                                  bool create_png,
+                                  bool create_pdf)
 {
   // Create application environment, needed for interactive apps.
   // Alternatively can create a TRint object, I which case you
   // get also command line input capability.
-  TApplication theApp("App", 0, 0);
+  //TApplication theApp("App", 0, 0);
 
   std::string root_filename = sim_run_data_path + std::string("/busy_data.root");
 
   // Create/recreate root file
   TFile *f = new TFile(root_filename.c_str(), "recreate");
+
+
+  gROOT->SetBatch(kTRUE);
 
   /*
   // Indexing: [layer][stave/RU][link ID][trigger ID]
@@ -41,9 +48,10 @@ int process_readout_trigger_stats(const char* sim_run_data_path)
 
   //ReadoutUnitStats RU(0, 0, sim_run_data_path);
   //ITSLayerStats ITS_layer(0, 12, sim_run_data_path);
-  ITSLayerStats ITS_layer(0, 12, sim_run_data_path);
+  ITSLayerStats ITS_layer(0, 12, sim_run_data_path, create_png, create_pdf);
 
 
+  delete f;
 
   /*
 
@@ -125,11 +133,62 @@ int process_readout_trigger_stats(const char* sim_run_data_path)
 }
 
 
+void print_help(void)
+{
+  std::cout << std::endl;
+  std::cout << "Usage:" << std::endl;
+  std::cout << "process_readout_trigger_stats [optional arguments] <path_to_sim_data>" << std::endl;
+  std::cout << std::endl;
+  std::cout << "Optional arguments: " << std::endl;
+  std::cout << "-h, --help: \tPrint this screen" << std::endl;
+  std::cout << "-png, --png: \tWrite all plots to PNG files." << std::endl;
+  std::cout << "-pdf, --pdf: \tWrite all plots to PDF files." << std::endl;
+}
+
 
 # ifndef __CINT__
 int main(int argc, char** argv)
 {
-  process_readout_trigger_stats(argv[1]);
+  std::string png_path = "";
+  std::string pdf_path = "";
+
+  bool create_png = false;
+  bool create_pdf = false;
+
+  if(argc == 1) {
+    print_help();
+    exit(0);
+  }
+
+  for(unsigned int arg_num = 1; arg_num < argc; arg_num++) {
+    if(strcmp(argv[arg_num], "-png") == 0 || strcmp(argv[arg_num], "--png") == 0) {
+      png_path = std::string(argv[argc-1]) + "/png";
+      std::cout << "Creating directory " << pdf_path << std::endl;
+      std::string mkdir_png_path = "mkdir " + png_path;
+      system(mkdir_png_path.c_str());
+      create_png = true;
+    }
+    else if(strcmp(argv[arg_num], "-pdf") == 0 || strcmp(argv[arg_num], "--pdf") == 0) {
+      pdf_path = std::string(argv[argc-1]) + "/pdf";
+      std::cout << "Creating directory " << pdf_path << std::endl;
+      std::string mkdir_pdf_path = "mkdir " + pdf_path;
+      system(mkdir_pdf_path.c_str());
+      create_pdf = true;
+    }
+    else if(strcmp(argv[arg_num], "-h") == 0 || strcmp(argv[arg_num], "--help") == 0) {
+      print_help();
+      exit(0);
+    }
+    else if(arg_num < argc-1) {
+      // If "last argument" is unknown then ignore that one,
+      // because it has to be the file name
+      std::cout << "Unknown argument " << argv[arg_num] << std::endl;
+      print_help();
+      exit(0);
+    }
+  }
+
+  process_readout_trigger_stats(argv[argc-1], create_png, create_pdf);
   return 0;
 }
 # endif

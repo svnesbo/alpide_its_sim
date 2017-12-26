@@ -47,6 +47,12 @@ struct LinkStats {
   // When, in time, that the link was busy
   std::vector<BusyTime> mBusyTime;
 
+  // Protocol utilization date for each header field
+  std::map<std::string, unsigned long> mProtocolUtilization;
+
+  // Index in CSV file versus header field
+  std::map<unsigned int, std::string> mProtUtilIndex;
+
   LinkStats(unsigned int layer_id,
             unsigned int stave_id,
             unsigned int link_id)
