@@ -57,6 +57,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
 
 
   defaultSettings["event/random_hit_generation"] = DEFAULT_EVENT_RANDOM_HIT_GENERATION;
+  defaultSettings["event/monte_carlo_path"] = DEFAULT_EVENT_MONTE_CARLO_PATH;
   defaultSettings["event/hit_multiplicity_distribution_type"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_TYPE;
   defaultSettings["event/hit_multiplicity_distribution_file"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_FILE;
   defaultSettings["event/hit_multiplicity_gauss_avg"] = DEFAULT_EVENT_HIT_MULTIPLICITY_GAUSS_AVG;
