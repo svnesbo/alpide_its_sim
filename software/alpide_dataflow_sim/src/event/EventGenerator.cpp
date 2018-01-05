@@ -152,14 +152,21 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       mRandHitMultiplicityGauss = nullptr;
     }
   } else {
-    QDir monte_carlo_event_dir("config/monte_carlo_events/PbPb/");
+    QDir monte_carlo_event_dir(settings->value("event/monte_carlo_path").toString());
     QStringList name_filters;
 
     name_filters << "*.xml";
 
     QStringList MC_xml_files = monte_carlo_event_dir.entryList(name_filters);
 
-    mMonteCarloEvents.readEventXML("config/monte_carlo_events/PbPb/", MC_xml_files);
+    if(MC_xml_files.empty()) {
+      std::cout << "Error: No .xml files found in path \"";
+      std::cout << settings->value("event/monte_carlo_path").toString();
+      std::cout << "\", or path does not exist." << std::endl;
+      exit(-1);
+    }
+
+    mMonteCarloEvents.readEventXML(monte_carlo_event_dir, MC_xml_files);
 
     mNumChips = 1;
 
