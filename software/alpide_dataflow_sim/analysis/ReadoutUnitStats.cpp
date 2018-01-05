@@ -38,7 +38,6 @@ ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave, const
   readTrigActionsFile(ss_file_path_base.str());
   readBusyEventFiles(ss_file_path_base.str());
   readProtocolUtilizationFile(ss_file_path_base.str());
-  calcTrigCoverage();
 }
 
 
@@ -70,7 +69,8 @@ void ReadoutUnitStats::readTrigActionsFile(std::string file_path_base)
   std::cout << "Num triggers: " << num_triggers << std::endl;
   std::cout << "Num links: " << mNumCtrlLinks << std::endl;
 
-  mTriggerSentCoverage.resize(num_triggers);
+  mTrigSentCoverage.resize(num_triggers);
+  mTrigSentExclFilteringCoverage.resize(num_triggers);
   mTriggerActions.resize(num_triggers);
 
   uint64_t trigger_id = 0;
@@ -81,7 +81,6 @@ void ReadoutUnitStats::readTrigActionsFile(std::string file_path_base)
   // and calculate coverage etc.
   while(trigger_id < num_triggers && ru_stats_file.good()) {
     uint8_t coverage = 0;
-    uint8_t links_included = 0;
     uint8_t links_filtered = 0;
 
     for(unsigned int link_id = 0; link_id < num_ctrl_links; link_id++) {
@@ -96,12 +95,12 @@ void ReadoutUnitStats::readTrigActionsFile(std::string file_path_base)
       case TRIGGER_SENT:
         std::cout << "TRIGGER_SENT" << std::endl;
         coverage++;
-        links_included++;
+        //links_included++;
         break;
 
       case TRIGGER_NOT_SENT_BUSY:
         std::cout << "TRIGGER_NOT_SENT_BUSY" << std::endl;
-        links_included++;
+        //links_included++;
         break;
 
       case TRIGGER_FILTERED:
@@ -109,20 +108,21 @@ void ReadoutUnitStats::readTrigActionsFile(std::string file_path_base)
         links_filtered++;
         break;
       default:
+        // This should never happen
         std::cout << "UNKNOWN" << std::endl;
         unknown_trig_action_count++;
         break;
       }
     }
 
-    if(links_included == 0)
-      mTriggerSentCoverage[trigger_id] = 0.0;
-    else
-      mTriggerSentCoverage[trigger_id] = (double)coverage/links_included;
+    mTrigSentCoverage[trigger_id] = (double)coverage/num_ctrl_links;
+    mTrigSentExclFilteringCoverage[trigger_id] = (double)(coverage+links_filtered)/num_ctrl_links;
 
-    std::cout << "Trigger " << trigger_id;
-    std::cout << " coverage: " << mTriggerSentCoverage[trigger_id] << std::endl;
+    std::cout << "Trigger " << trigger_id << std::endl;
+    std::cout << "Coverage: " << mTrigSentCoverage[trigger_id] << std::endl;
+    std::cout << "Coverage excluding filtered triggers: "<< mTrigSentExclFilteringCoverage[trigger_id] << std::endl;
 
+    // Keep a record of those triggers that were filtered for some, but not all control links
     if(links_filtered != 0 && links_filtered != num_ctrl_links)
       mTriggerMismatch.push_back(trigger_id);
 
@@ -149,6 +149,9 @@ void ReadoutUnitStats::readTrigActionsFile(std::string file_path_base)
 
 ///@brief Reads the RUs busy event files, and initializes LinkStats objects for each link
 ///       found with the various busy event data.
+///       Expects readTrigActionsFile() to have been called first, because the
+///       mTrigSentCoverage vector needs to have been set up for some of the calculations here.
+///@param file_path_base Path to simulation run data directory
 void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
 {
   std::stringstream ss_busy_events;
@@ -259,11 +262,19 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
 
     uint64_t busyv_sequence_count = 0;
 
+    // Resize vector and initialize each element to number of data links
+    mTrigReadoutCoverage.resize(mNumTriggers, num_data_links_busyv_file);
+    mTrigReadoutExclFilteringCoverage.resize(mNumTriggers, num_data_links_busyv_file);
+
     // Iterate through busy violation events for this link
     for(uint64_t event_count = 0; event_count < num_busyv_events; event_count++) {
       uint64_t busyv_trigger_id = 0;
 
       busyv_file.read((char*)&busyv_trigger_id, sizeof(uint64_t));
+
+      // Subtract one link per trigger id, for each busyv event
+      mTrigReadoutCoverage[busyv_trigger_id]--;
+      mTrigReadoutExclFilteringCoverage[busyv_trigger_id]--;
 
       // If this is not the first busy violation event, calculate how
       // many triggers since the previous busy violation, and calculate
@@ -298,7 +309,20 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
       mLinkStats.back().mBusyVTriggerSequences.push_back(busyv_sequence_count);
       mAllBusyVTriggerSequences.push_back(busyv_sequence_count);
     }
+  } // iterate through each data link
+
+
+  // Finish calculation of readout trigger coverage
+  for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
+    mTrigReadoutCoverage[trig_id] -= (1 - mTrigSentCoverage[trig_id]) * num_data_links_busyv_file;
+    mTrigReadoutCoverage[trig_id] /= num_data_links_busyv_file;
+
+    mTrigReadoutExclFilteringCoverage[trig_id] -=
+      (1 - mTrigSentExclFilteringCoverage[trig_id]) * num_data_links_busyv_file;
+
+    mTrigReadoutExclFilteringCoverage[trig_id] /= num_data_links_busyv_file;
   }
+
 }
 
 
@@ -424,20 +448,43 @@ void ReadoutUnitStats::readProtocolUtilizationFile(std::string file_path_base)
 }
 
 
-///@brief Trigger Sent Coverage for an individual trigger is defined as:
-///       (Number of links the trigger was sent to) / Number of links
-///       If the trigger was filtered, it is set to -1.
-double ReadoutUnitStats::getTriggerSentCoverage(uint64_t trigger_id) const
+///@brief Trigger sent coverage for an individual trigger is defined as:
+///       (Number of ctrl links the trigger was sent to) / Number of ctrl links
+double ReadoutUnitStats::getTrigSentCoverage(uint64_t trigger_id) const
 {
-  return mTriggerSentCoverage[trigger_id];
+  return mTrigSentCoverage[trigger_id];
 }
 
 
-///@brief Trigger Alpide Coverage for an individual trigger is defined as:
-///       (number_of_links - number_of_links_with_busy_violation) / number_of_links
-double ReadoutUnitStats::getTriggerCoverage(uint64_t trigger_id) const
+///@brief Trigger sent coverage for an individual trigger is defined as:
+///       (   Number of ctrl links the trigger was sent to
+///         + Number of ctrl links the trigger was filtered from
+///       ) / (Number of control links)
+double ReadoutUnitStats::getTrigSentExclFilteringCoverage(uint64_t trigger_id) const
 {
-  return mTriggerCoverage[trigger_id];
+  return mTrigSentExclFilteringCoverage[trigger_id];
+}
+
+
+///@brief Readout coverage for an individual trigger is defined as:
+///       (   num_data_links
+///         - num_links_with_busy_violation
+///         - num_ctrl_link_trigger_was_issued_to x num_data_links_per_ctrl_link
+///       ) / num_data_links
+double ReadoutUnitStats::getTrigReadoutCoverage(uint64_t trigger_id) const
+{
+  return mTrigReadoutCoverage[trigger_id];
+}
+
+
+///@brief Readout coverage excluding trigger filter for an individual trigger is defined as:
+///       (   num_data_links
+///         - num_links_with_busy_violation
+///         - num_ctrl_link_trigger_was_issued_to x ....
+///       ) / num_data_links
+double ReadoutUnitStats::getTrigReadoutExclFilteringCoverage(uint64_t trigger_id) const
+{
+  return mTrigReadoutExclFilteringCoverage[trigger_id];
 }
 
 
@@ -687,16 +734,120 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 
 
   //----------------------------------------------------------------------------
+  // Plot triggers sent coverage vs. trigger ID
+  //----------------------------------------------------------------------------
+  TH1D *h9 = new TH1D("h_trig_ctrl_link_coverage",
+                      Form("Alpide Trigger Control Link Coverage - RU %i:%i", mLayer, mStave),
+                      mNumTriggers,0,mNumTriggers-1);
+
+  for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
+    h9->Fill(trig_id, mTrigSentCoverage[trig_id]);
+  }
+
+  h9->GetYaxis()->SetTitle("Coverage");
+  h9->GetXaxis()->SetTitle("Trigger ID");
+  h9->Write();
+  h9->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_trig_ctrl_link_coverage.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_trig_ctrl_link_coverage.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+
+  //----------------------------------------------------------------------------
+  // Plot triggers sent coverage vs. trigger ID, excluding filtered triggers
+  //----------------------------------------------------------------------------
+  TH1D *h10 = new TH1D("h_trig_ctrl_link_excl_filter_coverage",
+                       Form("Alpide Trigger Control Link Coverage Excluding Filtering - RU %i:%i", mLayer, mStave),
+                       mNumTriggers,0,mNumTriggers-1);
+
+  for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
+    h10->Fill(trig_id, mTrigSentExclFilteringCoverage[trig_id]);
+  }
+
+  h10->GetYaxis()->SetTitle("Coverage");
+  h10->GetXaxis()->SetTitle("Trigger ID");
+  h10->Write();
+  h10->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_trig_ctrl_link_excl_filter_coverage.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_trig_ctrl_link_excl_filter_coverage.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+
+  //----------------------------------------------------------------------------
+  // Plot trigger readout coverage vs. trigger ID
+  //----------------------------------------------------------------------------
+  TH1D *h11 = new TH1D("h_trig_readout_coverage",
+                       Form("Alpide Trigger Readout Coverage - RU %i:%i", mLayer, mStave),
+                       mNumTriggers,0,mNumTriggers-1);
+
+  for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
+    h11->Fill(trig_id, mTrigReadoutCoverage[trig_id]);
+  }
+
+  h11->GetYaxis()->SetTitle("Coverage");
+  h11->GetXaxis()->SetTitle("Trigger ID");
+  h11->Write();
+  h11->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_trig_readout_coverage.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_trig_readout_coverage.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+
+  //----------------------------------------------------------------------------
+  // Plot trigger readout (excluding trigger filtering) coverage vs. trigger ID
+  //----------------------------------------------------------------------------
+  TH1D *h12 = new TH1D("h_trig_readout_excl_filter_coverage",
+                       Form("Alpide Trigger Readout Coverage Excluding Filtering - RU %i:%i", mLayer, mStave),
+                       mNumTriggers,0,mNumTriggers-1);
+
+  for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
+    h12->Fill(trig_id, mTrigReadoutExclFilteringCoverage[trig_id]);
+  }
+
+  h12->GetYaxis()->SetTitle("Coverage");
+  h12->GetXaxis()->SetTitle("Trigger ID");
+  h12->Write();
+  h12->Draw();
+
+  if(create_png)
+    c1->Print(Form("%s/png/RU_%i_%i_trig_readout_excl_filter_coverage.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  if(create_pdf)
+    c1->Print(Form("%s/pdf/RU_%i_%i_trig_readout_excl_filter_coverage.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+
+  //----------------------------------------------------------------------------
   // Plot link utilization histogram
   //----------------------------------------------------------------------------
-  TH1D *h9 = new TH1D("h_prot_util",
+  TH1D *h13 = new TH1D("h_prot_util",
                       Form("Protocol utilization RU %i:%i", mLayer, mStave),
                       mProtocolUtilization.size(),
                       0,
                       mProtocolUtilization.size()-1);
 
-  //h9->GetXaxis()->SetTitle("Data word type");
-  h9->GetYaxis()->SetTitle("Counts");
+  //h13->GetXaxis()->SetTitle("Data word type");
+  h13->GetYaxis()->SetTitle("Counts");
 
   for(auto prot_util_it = mProtUtilIndex.begin();
       prot_util_it != mProtUtilIndex.end();
@@ -704,16 +855,16 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   {
     unsigned int bin_index = prot_util_it->first + 1;
     std::string bin_name = prot_util_it->second;
-    h9->Fill(bin_index, mProtocolUtilization[bin_name]);
-    h9->GetXaxis()->SetBinLabel(bin_index, bin_name.c_str());
+    h13->Fill(bin_index, mProtocolUtilization[bin_name]);
+    h13->GetXaxis()->SetBinLabel(bin_index, bin_name.c_str());
   }
 
   // Draw labels on X axis vertically
-  h9->LabelsOption("v", "x");
+  h13->LabelsOption("v", "x");
 
-  //h9->SetStats(true);
-  h9->Write();
-  h9->Draw();
+  //h13->SetStats(true);
+  h13->Write();
+  h13->Draw();
 
   if(create_png)
     c1->Print(Form("%s/png/RU_%i_%i_prot_utilization.png",
@@ -723,7 +874,6 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     c1->Print(Form("%s/pdf/RU_%i_%i_prot_utilization.pdf",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
-
 
 
   //----------------------------------------------------------------------------
@@ -738,41 +888,6 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   }
 
 
-  //----------------------------------------------------------------------------
-  // Plot trigger distribution coverage vs. trigger ID
-  //----------------------------------------------------------------------------
-  //----------------------------------------------------------------------------
-  // Plot alpide link trigger coverage
-  // Defined as: (num_links - num_busyv_links)/num_links  for each trigger id.
-  //----------------------------------------------------------------------------
-  /*
-  TH1D *h5 = new TH1D("h_alpide_trig_link_coverage",
-                      Form("Alpide Trigger Link Coverage - RU %i:%i", mLayer, mStave),
-                      mNumTriggers,0,mNumTriggers-1,);
-
-  for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
-    // Bins start at 1, bin 0 is overflow bin
-    double busyv_count = h4->GetBin(trig_id+1);
-    double coverage = (num_data_links - busyv_count)/num_data_links;
-
-    h5->Fill(trig_id, coverage);
-  }
-
-  h5->GetYaxis()->SetTitle("Link coverage");
-  h5->GetXaxis()->SetTitle("Trigger ID");
-  h5->Write();
-  h5->Draw();
-
-  if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_alpide_trig_link_coverage.png",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
-  if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_alpide_trig_link_coverage.pdf",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
-  */
-
   delete c1;
   delete h1;
   delete h2;
@@ -783,10 +898,8 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   delete h7;
   delete h8;
   delete h9;
-}
-
-
-void ReadoutUnitStats::calcTrigCoverage(void)
-{
-  // WIP
+  delete h10;
+  delete h11;
+  delete h12;
+  delete h13;
 }

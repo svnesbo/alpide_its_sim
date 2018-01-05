@@ -77,10 +77,17 @@ class ReadoutUnitStats {
   // Index: trigger id
   // For each trigger it has the ratio between number of links a
   // trigger was sent to, and the total number of links.
-  std::vector<double> mTriggerSentCoverage;
+  std::vector<double> mTrigSentCoverage;
+
+  // Index: trigger id
+  // For each trigger it has the ratio between number of links a
+  // trigger was sent to, and the total number of links minus filtered links/triggers.
+  std::vector<double> mTrigSentExclFilteringCoverage;
 
 
-  std::vector<double> mTriggerCoverage;
+  std::vector<double> mTrigReadoutCoverage;
+
+  std::vector<double> mTrigReadoutExclFilteringCoverage;
 
   // Trigger IDs where there was a mismatch in the
   // trigger filter status. Either all or no links should
@@ -97,14 +104,17 @@ class ReadoutUnitStats {
 
   std::string mSimDataPath;
 
-public:
-  ReadoutUnitStats(unsigned int layer, unsigned int stave, const char* path);
+
   void readTrigActionsFile(std::string file_path_base);
   void readBusyEventFiles(std::string file_path_base);
   void readProtocolUtilizationFile(std::string file_path_base);
-  void calcTrigCoverage(void);
-  double getTriggerSentCoverage(uint64_t trigger_id) const;
-  double getTriggerCoverage(uint64_t trigger_id) const;
+
+public:
+  ReadoutUnitStats(unsigned int layer, unsigned int stave, const char* path);
+  double getTrigSentCoverage(uint64_t trigger_id) const;
+  double getTrigSentExclFilteringCoverage(uint64_t trigger_id) const;
+  double getTrigReadoutCoverage(uint64_t trigger_id) const;
+  double getTrigReadoutExclFilteringCoverage(uint64_t trigger_id) const;
   uint64_t getNumTriggers(void) const {return mNumTriggers;}
   void plotRU(bool create_png, bool create_pdf);
 };

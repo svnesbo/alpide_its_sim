@@ -44,7 +44,7 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
   for(uint64_t trigger_id = 0; trigger_id < num_triggers; trigger_id++) {
     double coverage = 0.0;
     for(unsigned int stave = 0; stave < num_staves; stave++) {
-      coverage += mRUStats[stave].getTriggerCoverage(trigger_id);
+      coverage += mRUStats[stave].getTrigSentCoverage(trigger_id);
     }
 
     mTriggerCoverage[trigger_id] = coverage/num_staves;
