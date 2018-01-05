@@ -75,13 +75,19 @@ class ReadoutUnitStats {
   std::vector<std::vector<uint8_t>> mTriggerActions;
 
   // Index: trigger id
+  // For each trigger it has the ratio between number of links a
+  // trigger was sent to, and the total number of links.
+  std::vector<double> mTriggerSentCoverage;
+
+
   std::vector<double> mTriggerCoverage;
 
   // Trigger IDs where there was a mismatch in the
   // trigger filter status. Either all or no links should
   // have the TRIGGER_FILTERED state, if there are trigger
   // IDs where that was not the case, then they are put in this
-  // vector.
+  // vector. So this shouldn't really happen, and this vector should
+  // always be empty for a ReadoutUnit.
   std::vector<uint64_t> mTriggerMismatch;
 
   uint64_t mNumTriggers;
@@ -96,6 +102,8 @@ public:
   void readTrigActionsFile(std::string file_path_base);
   void readBusyEventFiles(std::string file_path_base);
   void readProtocolUtilizationFile(std::string file_path_base);
+  void calcTrigCoverage(void);
+  double getTriggerSentCoverage(uint64_t trigger_id) const;
   double getTriggerCoverage(uint64_t trigger_id) const;
   uint64_t getNumTriggers(void) const {return mNumTriggers;}
   void plotRU(bool create_png, bool create_pdf);

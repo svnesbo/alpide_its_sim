@@ -200,11 +200,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   if(mCreateCSVFile) {
     std::string physics_events_csv_filename = mOutputPath + std::string("/physics_events_data.csv");
     mPhysicsEventsCSVFile.open(physics_events_csv_filename);
-    mPhysicsEventsCSVFile << "delta_t;hit_multiplicity";
-    for(int i = 0; i < mNumChips; i++)
-      mPhysicsEventsCSVFile << ";chip_" << i << "_trace_hits";
-    for(int i = 0; i < mNumChips; i++)
-      mPhysicsEventsCSVFile << ";chip_" << i << "_pixel_hits";
+    mPhysicsEventsCSVFile << "delta_t;event_pixel_hit_multiplicity";
     mPhysicsEventsCSVFile << std::endl;
 
     std::string event_frames_csv_filename = mOutputPath + std::string("/event_frames_data.csv");
@@ -434,13 +430,10 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 ///@return The number of clock cycles until this event will actually occur
 uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 {
+  unsigned int event_pixel_hit_count = 0;
   int64_t t_delta, t_delta_cycles;
   unsigned int n_hits = 0;
   unsigned int n_hits_raw = 0;
-
-  // Initialize array to 0. http://stackoverflow.com/a/2204380/6444574
-  int *chip_trace_hit_counts = new int[mNumChips]();
-  int *chip_pixel_hit_counts = new int[mNumChips]();
 
   mLastPhysicsEventTimeNs = time_now;
   mPhysicsEventCount++;
@@ -484,9 +477,8 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
         ITS::detectorPosition pos = {0, 0, 0, 0};
 
 
-        ///@todo Account larger/bigger clusters here (when implemented)
-        chip_pixel_hit_counts[0] += 4;
-        chip_trace_hit_counts[0]++;
+        ///@todo Account for larger/bigger clusters here (when implemented)
+        event_pixel_hit_count += 4;
 
         // std::cout << "@ " << time_now << " ns:";
         // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
@@ -560,12 +552,8 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
                                        rand_module_id,
                                        rand_chip_id};
 
-          unsigned int unique_chip_id = ITS::detector_position_to_chip_id(pos);
-
-
-          ///@todo Account larger/bigger clusters here (when implemented)
-          chip_pixel_hit_counts[unique_chip_id] += 4;
-          chip_trace_hit_counts[unique_chip_id]++;
+          ///@todo Account for larger/bigger clusters here (when implemented)
+          event_pixel_hit_count += 4;
 
           // std::cout << "@ " << time_now << " ns:";
           // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
@@ -606,13 +594,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
                               mPixelDeadTime,
                               mPixelActiveTime);
 
-      // Update statistics. We only get pixel digits from MC events,
-      // no traces, so only this counter is used.
-      //chip_pixel_hit_counts[chip_id]++;
-
-      ///@todo Fix this... mNumChips is not initialized correctly for MC events..
-      chip_pixel_hit_counts[0]++;
-
+      event_pixel_hit_count++;
       digit_it++;
     }
   }
@@ -639,18 +621,9 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
   // Write event rate and multiplicity numbers to CSV file
   if(mCreateCSVFile) {
-    mPhysicsEventsCSVFile << t_delta << ";" << n_hits;
-
-    for(int i = 0; i < mNumChips; i++)
-      mPhysicsEventsCSVFile << ";" << chip_trace_hit_counts[i];
-    for(int i = 0; i < mNumChips; i++)
-      mPhysicsEventsCSVFile << ";" << chip_pixel_hit_counts[i];
-
+    mPhysicsEventsCSVFile << t_delta << ";" << event_pixel_hit_count;
     mPhysicsEventsCSVFile << std::endl;
   }
-
-  delete[] chip_trace_hit_counts;
-  delete[] chip_pixel_hit_counts;
 
   return t_delta;
 }
