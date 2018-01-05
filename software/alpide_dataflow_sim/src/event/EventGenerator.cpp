@@ -152,7 +152,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       mRandHitMultiplicityGauss = nullptr;
     }
   } else {
-    QDir monte_carlo_event_dir(settings->value("event/monte_carlo_path").toString());
+    QString monte_carlo_event_path_str = settings->value("event/monte_carlo_path").toString();
+    QDir monte_carlo_event_dir(monte_carlo_event_path_str);
     QStringList name_filters;
 
     name_filters << "*.xml";
@@ -161,12 +162,12 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
     if(MC_xml_files.empty()) {
       std::cout << "Error: No .xml files found in path \"";
-      std::cout << settings->value("event/monte_carlo_path").toString();
+      std::cout << monte_carlo_event_path_str.toStdString();
       std::cout << "\", or path does not exist." << std::endl;
       exit(-1);
     }
 
-    mMonteCarloEvents.readEventXML(monte_carlo_event_dir, MC_xml_files);
+    mMonteCarloEvents.readEventXML(monte_carlo_event_path_str, MC_xml_files);
 
     mNumChips = 1;
 
