@@ -113,32 +113,104 @@ void LinkStats::plotLink(void)
 
 
   //----------------------------------------------------------------------------
-  // Plot link utilization histogram
+  // Plot link utilization histogram (counts of data word types)
   //----------------------------------------------------------------------------
-  TH1D *h5 = new TH1D("h_prot_util",
-                      Form("Protocol utilization link %i:%i%i", mLayer, mStave, mLink),
-                      mProtocolUtilization.size(),
-                      0,
-                      mProtocolUtilization.size()-1);
+  unsigned int num_fields = 0;
 
-  //h5->GetXaxis()->SetTitle("Data word type");
+  // mProtocolUtilization has fields for byte counts for each data word,
+  // as well as counts of each data word type (not taking size of data word into account).
+  // Find out how many fields of the "count" type there are first
+  for(auto prot_util_it = mProtUtilIndex.begin();
+      prot_util_it != mProtUtilIndex.end();
+      prot_util_it++)
+  {
+    std::string field_name = prot_util_it->second;
+    if(field_name.find("count") != std::string::npos) {
+      num_fields++;
+    }
+  }
+
+  TH1D *h5 = new TH1D("h_prot_util_counts",
+                      Form("Protocol utilization (counts) link %i:%i:%i", mLayer, mStave, mLink),
+                      num_fields,
+                      0.5,
+                      num_fields+0.5);
+
   h5->GetYaxis()->SetTitle("Counts");
+
+  unsigned int bin_index = 0;
 
   for(auto prot_util_it = mProtUtilIndex.begin();
       prot_util_it != mProtUtilIndex.end();
       prot_util_it++)
   {
-    unsigned int bin_index = prot_util_it->first + 1;
-    std::string bin_name = prot_util_it->second;
-    h5->Fill(bin_index, mProtocolUtilization[bin_name]);
-    h5->GetXaxis()->SetBinLabel(bin_index, bin_name.c_str());
+    //unsigned int bin_index = prot_util_it->first + 1;
+    std::string field_name = prot_util_it->second;
+    if(field_name.find("count") != std::string::npos) {
+      // Extract name of field minus " (count)".
+      std::string bin_name = field_name.substr(0, field_name.find(" (count)"));
+      h5->Fill(bin_index+1, mProtocolUtilization[field_name]);
+      h5->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
+      bin_index++;
+    }
   }
 
   // Draw labels on X axis vertically
-  h5->LabelsOption("v", "x");
+  //h5->LabelsOption("v", "x");
 
-  //h5->SetStats(true);
+  h5->SetFillColor(33);
+  h5->Draw("BAR1");
   h5->Write();
+
+
+  //----------------------------------------------------------------------------
+  // Plot link utilization histogram (number of bytes per data word type)
+  //----------------------------------------------------------------------------
+  num_fields = 0;
+  // mProtocolUtilization has fields for byte counts for each data word,
+  // as well as counts of each data word type (not taking size of data word into account).
+  // Find out how many fields of the "bytes" type there are first
+  for(auto prot_util_it = mProtUtilIndex.begin();
+      prot_util_it != mProtUtilIndex.end();
+      prot_util_it++)
+  {
+    std::string field_name = prot_util_it->second;
+    if(field_name.find("bytes") != std::string::npos) {
+      num_fields++;
+    }
+  }
+
+  TH1D *h6 = new TH1D("h_prot_util_bytes",
+                      Form("Protocol utilization (bytes) link %i:%i:%i", mLayer, mStave, mLink),
+                      num_fields,
+                      0.5,
+                      num_fields+0.5);
+
+  h6->GetYaxis()->SetTitle("Bytes");
+
+  bin_index = 0;
+
+  for(auto prot_util_it = mProtUtilIndex.begin();
+      prot_util_it != mProtUtilIndex.end();
+      prot_util_it++)
+  {
+    //unsigned int bin_index = prot_util_it->first + 1;
+    std::string field_name = prot_util_it->second;
+    if(field_name.find("bytes") != std::string::npos) {
+      // Extract name of field minus " (bytes)".
+      std::string bin_name = field_name.substr(0, field_name.find(" (bytes)"));
+      h6->Fill(bin_index+1, mProtocolUtilization[field_name]);
+      h6->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
+      bin_index++;
+    }
+  }
+
+  // Draw labels on X axis vertically
+  //h6->LabelsOption("v", "x");
+
+  h6->SetFillColor(33);
+  h6->Draw("BAR1");
+  h6->Write();
 
 
   delete h1;
@@ -146,4 +218,5 @@ void LinkStats::plotLink(void)
   delete h3;
   delete h4;
   delete h5;
+  delete h6;
 }

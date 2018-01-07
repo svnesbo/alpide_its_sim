@@ -838,42 +838,151 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 
 
   //----------------------------------------------------------------------------
-  // Plot link utilization histogram
+  // Plot link utilization histogram (counts of data word types)
   //----------------------------------------------------------------------------
-  TH1D *h13 = new TH1D("h_prot_util",
-                      Form("Protocol utilization RU %i:%i", mLayer, mStave),
-                      mProtocolUtilization.size(),
-                      0,
-                      mProtocolUtilization.size()-1);
+  unsigned int num_fields = 0;
 
-  //h13->GetXaxis()->SetTitle("Data word type");
+  // mProtocolUtilization has fields for byte counts for each data word,
+  // as well as counts of each data word type (not taking size of data word into account).
+  // Find out how many fields of the "count" type there are first
+  for(auto prot_util_it = mProtUtilIndex.begin();
+      prot_util_it != mProtUtilIndex.end();
+      prot_util_it++)
+  {
+    std::string field_name = prot_util_it->second;
+    if(field_name.find("count") != std::string::npos) {
+      num_fields++;
+    }
+  }
+
+  TH1D *h13 = new TH1D("h_prot_util_counts",
+                       Form("Protocol utilization (counts) RU %i:%i", mLayer, mStave),
+                       num_fields,
+                       0.5,
+                       num_fields+0.5);
+
   h13->GetYaxis()->SetTitle("Counts");
+
+  unsigned int bin_index = 0;
 
   for(auto prot_util_it = mProtUtilIndex.begin();
       prot_util_it != mProtUtilIndex.end();
       prot_util_it++)
   {
-    unsigned int bin_index = prot_util_it->first + 1;
-    std::string bin_name = prot_util_it->second;
-    h13->Fill(bin_index, mProtocolUtilization[bin_name]);
-    h13->GetXaxis()->SetBinLabel(bin_index, bin_name.c_str());
+    //unsigned int bin_index = prot_util_it->first + 1;
+    std::string field_name = prot_util_it->second;
+    if(field_name.find("count") != std::string::npos) {
+      // Extract name of field minus " (count)".
+      std::string bin_name = field_name.substr(0, field_name.find(" (count)"));
+      h13->Fill(bin_index+1, mProtocolUtilization[field_name]);
+      h13->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
+      bin_index++;
+    }
   }
 
   // Draw labels on X axis vertically
-  h13->LabelsOption("v", "x");
+  //h13->LabelsOption("v", "x");
 
-  //h13->SetStats(true);
+  h13->SetFillColor(33);
+  h13->Draw("BAR1");
   h13->Write();
-  h13->Draw();
 
-  if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_prot_utilization.png",
+  if(create_png) {
+    c1->SetLogy(0);
+    c1->Print(Form("%s/png/RU_%i_%i_prot_utilization_counts.png",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
-  if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_prot_utilization.pdf",
+
+    c1->SetLogy(1);
+    c1->Print(Form("%s/png/RU_%i_%i_prot_utilization_counts_log.png",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
+  }
+  if(create_pdf) {
+    c1->SetLogy(0);
+    c1->Print(Form("%s/pdf/RU_%i_%i_prot_utilization_counts.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+    c1->SetLogy(1);
+    c1->Print(Form("%s/pdf/RU_%i_%i_prot_utilization_counts_log.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  }
+
+
+  //----------------------------------------------------------------------------
+  // Plot link utilization histogram (number of bytes per data word type)
+  //----------------------------------------------------------------------------
+  num_fields = 0;
+  // mProtocolUtilization has fields for byte counts for each data word,
+  // as well as counts of each data word type (not taking size of data word into account).
+  // Find out how many fields of the "bytes" type there are first
+  for(auto prot_util_it = mProtUtilIndex.begin();
+      prot_util_it != mProtUtilIndex.end();
+      prot_util_it++)
+  {
+    std::string field_name = prot_util_it->second;
+    if(field_name.find("bytes") != std::string::npos) {
+      num_fields++;
+    }
+  }
+
+  TH1D *h14 = new TH1D("h_prot_util_bytes",
+                       Form("Protocol utilization (bytes) RU %i:%i", mLayer, mStave),
+                       num_fields,
+                       0.5,
+                       num_fields+0.5);
+
+  h14->GetYaxis()->SetTitle("Bytes");
+
+  bin_index = 0;
+
+  for(auto prot_util_it = mProtUtilIndex.begin();
+      prot_util_it != mProtUtilIndex.end();
+      prot_util_it++)
+  {
+    //unsigned int bin_index = prot_util_it->first + 1;
+    std::string field_name = prot_util_it->second;
+    if(field_name.find("bytes") != std::string::npos) {
+      // Extract name of field minus " (bytes)".
+      std::string bin_name = field_name.substr(0, field_name.find(" (bytes)"));
+      h14->Fill(bin_index+1, mProtocolUtilization[field_name]);
+      h14->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
+      bin_index++;
+    }
+  }
+
+  // Draw labels on X axis vertically
+  //h14->LabelsOption("v", "x");
+
+  h14->SetFillColor(33);
+  h14->Draw("BAR1");
+  h14->Write();
+
+  if(create_png) {
+    c1->SetLogy(0);
+    c1->Print(Form("%s/png/RU_%i_%i_prot_utilization_bytes.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+    c1->SetLogy(1);
+    c1->Print(Form("%s/png/RU_%i_%i_prot_utilization_bytes_log.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+  }
+  if(create_pdf) {
+    c1->SetLogy(0);
+    c1->Print(Form("%s/pdf/RU_%i_%i_prot_utilization_bytes.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+    c1->SetLogy(1);
+    c1->Print(Form("%s/pdf/RU_%i_%i_prot_utilization_bytes_log.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  }
 
 
   //----------------------------------------------------------------------------
@@ -902,4 +1011,5 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   delete h11;
   delete h12;
   delete h13;
+  delete h14;
 }

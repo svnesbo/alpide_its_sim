@@ -92,12 +92,13 @@ EventXML::EventXML(bool random_event_order, int random_seed)
   mRandEventIdDist = nullptr;
 
 
-  ///@todo Temporary - only for testing until we have real detector geometry in place..
+  ///@todo Temporary code - only works for inner barrel
+  ///@todo replace with detectorPosition and functions from ITS_config.hpp
   //mDetectorPositionList[0] = {0, 0, 0, 4};
   for(unsigned int chip_id = 0; chip_id < 108; chip_id++) {
     unsigned int stave_id = chip_id/9;
     unsigned int module_id = 0;
-    unsigned int module_chip_id = chip_id%12;
+    unsigned int module_chip_id = chip_id%9;
 
     mDetectorPositionList[chip_id] = {0, stave_id, module_id, module_chip_id};
   }
