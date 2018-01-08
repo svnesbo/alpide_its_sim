@@ -14,6 +14,7 @@
 #include "TH1F.h"
 #include "TFile.h"
 #include "TDirectory.h"
+#include "TStyle.h"
 
 
 void LinkStats::plotLink(void)
@@ -43,6 +44,7 @@ void LinkStats::plotLink(void)
     h1->Fill(busy_time_it->mBusyTimeNs);
   }
 
+  gStyle->SetOptStat("men");
   h1->SetStats(true);
   h1->Write();
 
@@ -64,6 +66,7 @@ void LinkStats::plotLink(void)
     h2->Fill(*busy_trigger_it);
   }
 
+  gStyle->SetOptStat("men");
   h2->SetStats(true);
   h2->Write();
 
@@ -86,6 +89,7 @@ void LinkStats::plotLink(void)
     h3->Fill(*busyv_dist_it);
   }
 
+  gStyle->SetOptStat("men");
   h3->SetStats(true);
   h3->Write();
 
@@ -108,6 +112,7 @@ void LinkStats::plotLink(void)
     h4->Fill(*busyv_dist_it);
   }
 
+  gStyle->SetOptStat("men");
   h4->SetStats(true);
   h4->Write();
 
@@ -159,6 +164,7 @@ void LinkStats::plotLink(void)
   //h5->LabelsOption("v", "x");
 
   h5->SetFillColor(33);
+  h5->SetStats(false);
   h5->Draw("BAR1");
   h5->Write();
 
@@ -209,6 +215,7 @@ void LinkStats::plotLink(void)
   //h6->LabelsOption("v", "x");
 
   h6->SetFillColor(33);
+  h6->SetStats(false);
   h6->Draw("BAR1");
   h6->Write();
 

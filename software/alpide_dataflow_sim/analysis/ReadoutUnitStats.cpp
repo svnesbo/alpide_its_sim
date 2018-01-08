@@ -511,10 +511,11 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   //----------------------------------------------------------------------------
   TH2D *h1 = new TH2D("h_busy_map","Busy events",
                               mNumTriggers,0,mNumTriggers-1,
-                              num_data_links*5,0,num_data_links);
+                              num_data_links*5,-0.5,num_data_links-0.5);
 
   h1->GetXaxis()->SetTitle("Trigger ID");
   h1->GetYaxis()->SetTitle("Link ID");
+  h1->GetYaxis()->SetNdivisions(num_data_links);
 
   std::cout << "Plotting data.. " << num_data_links << " links." << std::endl;
 
@@ -527,6 +528,8 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     }
   }
 
+  h1->SetStats(false);
+  c1->Update();
   h1->Draw("COL");
   h1->Write();
 
@@ -546,15 +549,18 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   TH1D *h2 = h1->ProjectionX("h_busy_links");
   h2->GetYaxis()->SetTitle("Busy link count");
   h2->GetXaxis()->SetTitle("Trigger ID");
+
+  h2->SetStats(false);
+  c1->Update();
   h2->Write();
   h2->Draw();
 
   if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_busy_links.png",
+    c1->Print(Form("%s/png/RU_%i_%i_busy_links_count.png",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
   if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_busy_links.pdf",
+    c1->Print(Form("%s/pdf/RU_%i_%i_busy_links_count.pdf",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
 
@@ -564,10 +570,11 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   //----------------------------------------------------------------------------
   TH2D *h3 = new TH2D("h_busyv_map","Busy violation events",
                       mNumTriggers,0,mNumTriggers-1,
-                      num_data_links,0,num_data_links);
+                      num_data_links*5,-0.5,num_data_links-0.5);
 
   h3->GetXaxis()->SetTitle("Trigger ID");
   h3->GetYaxis()->SetTitle("Link ID");
+  h3->GetYaxis()->SetNdivisions(num_data_links);
 
   for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
     for(auto busyv_event_it = mLinkStats[link_id].mBusyVTriggers.begin();
@@ -578,8 +585,10 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     }
   }
 
+  h3->SetStats(false);
+  c1->Update();
   h3->Write();
-  h3->Draw();
+  h3->Draw("COL");
 
   if(create_png)
     c1->Print(Form("%s/png/RU_%i_%i_busyv_map.png",
@@ -597,15 +606,18 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   TH1D *h4 = h3->ProjectionX("h_busyv_links");
   h4->GetYaxis()->SetTitle("Busy violation link count");
   h4->GetXaxis()->SetTitle("Trigger ID");
+
+  h4->SetStats(false);
+  c1->Update();
   h4->Write();
   h4->Draw();
 
   if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_busy_count_vs_trigger.png",
+    c1->Print(Form("%s/png/RU_%i_%i_busyv_links_count.png",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
   if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_busy_count_vs_trigger.pdf",
+    c1->Print(Form("%s/pdf/RU_%i_%i_busyv_links_count.pdf",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
 
@@ -626,7 +638,9 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     h5->Fill(*busy_time_it);
   }
 
+  gStyle->SetOptStat("men"); // mean, num entries, name
   h5->SetStats(true);
+  c1->Update();
   h5->Write();
   h5->Draw();
 
@@ -657,7 +671,9 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     h6->Fill(*busy_trigger_it);
   }
 
+  gStyle->SetOptStat("men"); // mean, num entries, name
   h6->SetStats(true);
+  c1->Update();
   h6->Write();
   h6->Draw();
 
@@ -688,7 +704,9 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     h7->Fill(*busyv_dist_it);
   }
 
+  gStyle->SetOptStat("men");
   h7->SetStats(true);
+  c1->Update();
   h7->Write();
   h7->Draw();
 
@@ -719,7 +737,9 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     h8->Fill(*busyv_dist_it);
   }
 
+  gStyle->SetOptStat("men");
   h8->SetStats(true);
+  c1->Update();
   h8->Write();
   h8->Draw();
 
@@ -746,6 +766,8 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 
   h9->GetYaxis()->SetTitle("Coverage");
   h9->GetXaxis()->SetTitle("Trigger ID");
+  h9->SetStats(false);
+  c1->Update();
   h9->Write();
   h9->Draw();
 
@@ -772,6 +794,8 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 
   h10->GetYaxis()->SetTitle("Coverage");
   h10->GetXaxis()->SetTitle("Trigger ID");
+  h10->SetStats(false);
+  c1->Update();
   h10->Write();
   h10->Draw();
 
@@ -798,6 +822,8 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 
   h11->GetYaxis()->SetTitle("Coverage");
   h11->GetXaxis()->SetTitle("Trigger ID");
+  h11->SetStats(false);
+  c1->Update();
   h11->Write();
   h11->Draw();
 
@@ -824,6 +850,8 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 
   h12->GetYaxis()->SetTitle("Coverage");
   h12->GetXaxis()->SetTitle("Trigger ID");
+  h12->SetStats(false);
+  c1->Update();
   h12->Write();
   h12->Draw();
 
@@ -884,6 +912,8 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   //h13->LabelsOption("v", "x");
 
   h13->SetFillColor(33);
+  h13->SetStats(false);
+  c1->Update();
   h13->Draw("BAR1");
   h13->Write();
 
@@ -957,6 +987,8 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   //h14->LabelsOption("v", "x");
 
   h14->SetFillColor(33);
+  h14->SetStats(false);
+  c1->Update();
   h14->Draw("BAR1");
   h14->Write();
 

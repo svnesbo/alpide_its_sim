@@ -150,6 +150,7 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
 ///@param create_png Set to true to save histograms as png files
 ///@param create_pdf Set to true to save histograms as pdf files
 ///@return Vector with time to next event for, where index corresponds to event number.
+///        Empty vector is returned if something went wrong.
 std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
                                          bool create_png, bool create_pdf)
 {
@@ -164,13 +165,13 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
   std::ofstream summary_file(summary_filename);
   if(!summary_file.is_open()) {
     std::cerr << "Error opening file " << summary_filename << std::endl;
-    exit(-1);
+    return event_time_vec;
   }
 
   std::ifstream csv_file(csv_filename);
   if(!csv_file.is_open()) {
     std::cerr << "Error opening file " << csv_filename << std::endl;
-    exit(-1);
+    return event_time_vec;
   }
 
   // Extract header from CSV file
