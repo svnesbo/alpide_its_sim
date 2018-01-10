@@ -879,7 +879,12 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   {
     std::string field_name = prot_util_it->second;
     if(field_name.find("count") != std::string::npos) {
-      num_fields++;
+      // Ignore COMMA, UNKNOWN and IDLE_TOTAL fields
+      if(field_name.find("COMMA") == std::string::npos &&
+         field_name.find("IDLE_TOTAL") == std::string::npos &&
+         field_name.find("UNKNOWN") == std::string::npos) {
+        num_fields++;
+      }
     }
   }
 
@@ -900,11 +905,16 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     //unsigned int bin_index = prot_util_it->first + 1;
     std::string field_name = prot_util_it->second;
     if(field_name.find("count") != std::string::npos) {
-      // Extract name of field minus " (count)".
-      std::string bin_name = field_name.substr(0, field_name.find(" (count)"));
-      h13->Fill(bin_index+1, mProtocolUtilization[field_name]);
-      h13->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
-      bin_index++;
+      // Ignore COMMA, UNKNOWN and IDLE_TOTAL fields
+      if(field_name.find("COMMA") == std::string::npos &&
+         field_name.find("IDLE_TOTAL") == std::string::npos &&
+         field_name.find("UNKNOWN") == std::string::npos) {
+        // Extract name of field minus " (count)".
+        std::string bin_name = field_name.substr(0, field_name.find(" (count)"));
+        h13->Fill(bin_index+1, mProtocolUtilization[field_name]);
+        h13->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
+        bin_index++;
+      }
     }
   }
 
@@ -914,7 +924,7 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   h13->SetFillColor(33);
   h13->SetStats(false);
   c1->Update();
-  h13->Draw("BAR1");
+  h13->Draw("BAR1 TEXT00");
   h13->Write();
 
   if(create_png) {
@@ -954,7 +964,12 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   {
     std::string field_name = prot_util_it->second;
     if(field_name.find("bytes") != std::string::npos) {
-      num_fields++;
+      // Ignore COMMA, UNKNOWN and IDLE_TOTAL fields
+      if(field_name.find("COMMA") == std::string::npos &&
+         field_name.find("IDLE_TOTAL") == std::string::npos &&
+         field_name.find("UNKNOWN") == std::string::npos) {
+        num_fields++;
+      }
     }
   }
 
@@ -975,11 +990,16 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     //unsigned int bin_index = prot_util_it->first + 1;
     std::string field_name = prot_util_it->second;
     if(field_name.find("bytes") != std::string::npos) {
-      // Extract name of field minus " (bytes)".
-      std::string bin_name = field_name.substr(0, field_name.find(" (bytes)"));
-      h14->Fill(bin_index+1, mProtocolUtilization[field_name]);
-      h14->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
-      bin_index++;
+      // Ignore COMMA, UNKNOWN and IDLE_TOTAL fields
+      if(field_name.find("COMMA") == std::string::npos &&
+         field_name.find("IDLE_TOTAL") == std::string::npos &&
+         field_name.find("UNKNOWN") == std::string::npos) {
+        // Extract name of field minus " (bytes)".
+        std::string bin_name = field_name.substr(0, field_name.find(" (bytes)"));
+        h14->Fill(bin_index+1, mProtocolUtilization[field_name]);
+        h14->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
+        bin_index++;
+      }
     }
   }
 
@@ -989,7 +1009,7 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   h14->SetFillColor(33);
   h14->SetStats(false);
   c1->Update();
-  h14->Draw("BAR1");
+  h14->Draw("BAR1 TEXT00");
   h14->Write();
 
   if(create_png) {

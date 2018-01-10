@@ -131,7 +131,12 @@ void LinkStats::plotLink(void)
   {
     std::string field_name = prot_util_it->second;
     if(field_name.find("count") != std::string::npos) {
-      num_fields++;
+      // Ignore COMMA, UNKNOWN and IDLE_TOTAL fields
+      if(field_name.find("COMMA") == std::string::npos &&
+         field_name.find("IDLE_TOTAL") == std::string::npos &&
+         field_name.find("UNKNOWN") == std::string::npos) {
+        num_fields++;
+      }
     }
   }
 
@@ -152,11 +157,15 @@ void LinkStats::plotLink(void)
     //unsigned int bin_index = prot_util_it->first + 1;
     std::string field_name = prot_util_it->second;
     if(field_name.find("count") != std::string::npos) {
-      // Extract name of field minus " (count)".
-      std::string bin_name = field_name.substr(0, field_name.find(" (count)"));
-      h5->Fill(bin_index+1, mProtocolUtilization[field_name]);
-      h5->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
-      bin_index++;
+      if(field_name.find("COMMA") == std::string::npos &&
+         field_name.find("IDLE_TOTAL") == std::string::npos &&
+         field_name.find("UNKNOWN") == std::string::npos) {
+        // Extract name of field minus " (count)".
+        std::string bin_name = field_name.substr(0, field_name.find(" (count)"));
+        h5->Fill(bin_index+1, mProtocolUtilization[field_name]);
+        h5->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
+        bin_index++;
+      }
     }
   }
 
@@ -165,7 +174,7 @@ void LinkStats::plotLink(void)
 
   h5->SetFillColor(33);
   h5->SetStats(false);
-  h5->Draw("BAR1");
+  h5->Draw("BAR1 TEXT00");
   h5->Write();
 
 
@@ -182,7 +191,12 @@ void LinkStats::plotLink(void)
   {
     std::string field_name = prot_util_it->second;
     if(field_name.find("bytes") != std::string::npos) {
-      num_fields++;
+      // Ignore COMMA, UNKNOWN and IDLE_TOTAL fields
+      if(field_name.find("COMMA") == std::string::npos &&
+         field_name.find("IDLE_TOTAL") == std::string::npos &&
+         field_name.find("UNKNOWN") == std::string::npos) {
+        num_fields++;
+      }
     }
   }
 
@@ -203,11 +217,15 @@ void LinkStats::plotLink(void)
     //unsigned int bin_index = prot_util_it->first + 1;
     std::string field_name = prot_util_it->second;
     if(field_name.find("bytes") != std::string::npos) {
-      // Extract name of field minus " (bytes)".
-      std::string bin_name = field_name.substr(0, field_name.find(" (bytes)"));
-      h6->Fill(bin_index+1, mProtocolUtilization[field_name]);
-      h6->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
-      bin_index++;
+      if(field_name.find("COMMA") == std::string::npos &&
+         field_name.find("IDLE_TOTAL") == std::string::npos &&
+         field_name.find("UNKNOWN") == std::string::npos) {
+        // Extract name of field minus " (bytes)".
+        std::string bin_name = field_name.substr(0, field_name.find(" (bytes)"));
+        h6->Fill(bin_index+1, mProtocolUtilization[field_name]);
+        h6->GetXaxis()->SetBinLabel(bin_index+1, bin_name.c_str());
+        bin_index++;
+      }
     }
   }
 
@@ -216,7 +234,7 @@ void LinkStats::plotLink(void)
 
   h6->SetFillColor(33);
   h6->SetStats(false);
-  h6->Draw("BAR1");
+  h6->Draw("BAR1 TEXT00");
   h6->Write();
 
 
