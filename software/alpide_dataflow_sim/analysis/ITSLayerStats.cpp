@@ -109,6 +109,15 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
     std::cout << mTrigReadoutExclFilteringCoverage[trigger_id] << std::endl;
   }
 
+  h1->GetYaxis()->SetTitle("Coverage");
+  h2->GetYaxis()->SetTitle("Coverage");
+  h3->GetYaxis()->SetTitle("Coverage");
+  h4->GetYaxis()->SetTitle("Coverage");
+  h1->GetXaxis()->SetTitle("Trigger ID");
+  h2->GetXaxis()->SetTitle("Trigger ID");
+  h3->GetXaxis()->SetTitle("Trigger ID");
+  h4->GetXaxis()->SetTitle("Trigger ID");
+
   h1->SetStats(false);
   h2->SetStats(false);
   h3->SetStats(false);
@@ -189,6 +198,15 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
     }
   }
 
+  h5->GetYaxis()->SetTitle("Stave/RU Number");
+  h6->GetYaxis()->SetTitle("Stave/RU Number");
+  h7->GetYaxis()->SetTitle("Stave/RU Number");
+  h8->GetYaxis()->SetTitle("Stave/RU Number");
+  h5->GetXaxis()->SetTitle("Trigger ID");
+  h6->GetXaxis()->SetTitle("Trigger ID");
+  h7->GetXaxis()->SetTitle("Trigger ID");
+  h8->GetXaxis()->SetTitle("Trigger ID");
+
   h5->GetYaxis()->SetNdivisions(num_staves);
   h6->GetYaxis()->SetNdivisions(num_staves);
   h7->GetYaxis()->SetNdivisions(num_staves);
@@ -236,6 +254,70 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
   h7->Write();
   h8->Write();
 
+
+
+  //----------------------------------------------------------------------------
+  // Plot busy and busy violation link counts vs RU number vs trigger ID
+  //----------------------------------------------------------------------------
+  TH2D* h9 = new TH2D(Form("h_busy_link_count_map_layer_%i", layer_num),
+                      Form("Busy Link Count - Layer %i",
+                           layer_num),
+                      num_triggers,0,num_triggers-1,
+                      num_staves, -0.5, num_staves-0.5);
+  TH2D* h10 = new TH2D(Form("h_busyv_link_count_map_layer_%i", layer_num),
+                      Form("Busy Violation Link Count - Layer %i",
+                           layer_num),
+                      num_triggers,0,num_triggers-1,
+                      num_staves, -0.5, num_staves-0.5);
+
+  for(unsigned int stave = 0; stave < num_staves; stave++) {
+    std::vector<unsigned int> RU_busy_link_count = mRUStats[stave].getBusyLinkCount();
+    std::vector<unsigned int> RU_busyv_link_count = mRUStats[stave].getBusyVLinkCount();
+
+    if(RU_busy_link_count.size() != num_triggers || RU_busyv_link_count.size() != num_triggers) {
+      std::cout << "Error: Number of triggers in busy/busyv link count vectors from RU " << stave;
+      std::cout << " does not matched expected number of triggers. " << std::endl;
+      exit(-1);
+    }
+
+    for(uint64_t trigger_id = 0; trigger_id < num_triggers; trigger_id++) {
+      h9->Fill(trigger_id, stave, RU_busy_link_count[trigger_id]);
+      h10->Fill(trigger_id, stave, RU_busyv_link_count[trigger_id]);
+    }
+  }
+
+  h9->GetYaxis()->SetTitle("Stave/RU Number");
+  h10->GetYaxis()->SetTitle("Stave/RU Number");
+  h9->GetXaxis()->SetTitle("Trigger ID");
+  h10->GetXaxis()->SetTitle("Trigger ID");
+
+  h9->GetYaxis()->SetNdivisions(num_staves);
+  h10->GetYaxis()->SetNdivisions(num_staves);
+
+  if(create_png) {
+    h9->Draw("COLZ");
+    c1->Print(Form("%s/png/Layer_%i_busy_link_count_map.png",
+                   path, layer_num));
+
+    h10->Draw("COLZ");
+    c1->Print(Form("%s/png/Layer_%i_busyv_link_count_map.png",
+                   path, layer_num));
+  }
+
+  if(create_pdf) {
+    h9->Draw("COLZ");
+    c1->Print(Form("%s/pdf/Layer_%i_busy_link_count_map.pdf",
+                   path, layer_num));
+
+    h10->Draw("COLZ");
+    c1->Print(Form("%s/pdf/Layer_%i_busyv_link_count_map.pdf",
+                   path, layer_num));
+  }
+
+  h9->Write();
+  h10->Write();
+
+
   delete h1;
   delete h2;
   delete h3;
@@ -244,5 +326,7 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
   delete h6;
   delete h7;
   delete h8;
+  delete h9;
+  delete h10;
   delete c1;
 }

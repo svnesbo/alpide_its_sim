@@ -572,6 +572,13 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
                    mSimDataPath.c_str(),
                    mLayer, mStave));
 
+  mBusyLinkCount.clear();
+
+  // Make a copy of busy link counts. Skip bin 0 (underflow bin)
+  for(unsigned int bin_num = 1; bin_num <= mNumTriggers; bin_num++) {
+    mBusyLinkCount.push_back(h2->GetBinContent(bin_num));
+  }
+
 
   //----------------------------------------------------------------------------
   // Plot busy violation map vs trigger id
@@ -609,7 +616,7 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 
 
   //----------------------------------------------------------------------------
-  // Plot busy link count vs trigger id
+  // Plot busy violation link count vs trigger id
   //----------------------------------------------------------------------------
   TH1D *h4 = h3->ProjectionX("h_busyv_links");
   h4->GetYaxis()->SetTitle("Busy violation link count");
@@ -628,6 +635,13 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
     c1->Print(Form("%s/pdf/RU_%i_%i_busyv_links_count.pdf",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
+
+  mBusyVLinkCount.clear();
+
+  // Make a copy of busy violation link counts. Skip bin 0 (underflow bin)
+  for(unsigned int bin_num = 1; bin_num <= mNumTriggers; bin_num++) {
+    mBusyVLinkCount.push_back(h4->GetBinContent(bin_num));
+  }
 
 
   //----------------------------------------------------------------------------

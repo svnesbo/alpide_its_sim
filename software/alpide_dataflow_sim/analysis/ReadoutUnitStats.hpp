@@ -65,6 +65,15 @@ class ReadoutUnitStats {
   std::vector<uint64_t> mAllBusyVTriggerSequences;
 
 
+  // Number of busy links vs trigger
+  // Initialized in plotRU() is called.
+  std::vector<unsigned int> mBusyLinkCount;
+
+
+  // Number of links with busy violation vs trigger
+  // Initialized in plotRU() is called.
+  std::vector<unsigned int> mBusyVLinkCount;
+
   // Protocol utilization date for each header field, for all links in this RU
   std::map<std::string, unsigned long> mProtocolUtilization;
 
@@ -133,6 +142,12 @@ public:
   }
   uint64_t getNumTriggers(void) const {
     return mNumTriggers;
+  }
+  std::vector<unsigned int> getBusyLinkCount(void) const {
+    return mBusyLinkCount;
+  }
+  std::vector<unsigned int> getBusyVLinkCount (void) const {
+    return mBusyVLinkCount;
   }
   void plotRU(bool create_png, bool create_pdf);
 };
