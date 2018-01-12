@@ -84,10 +84,14 @@ class ReadoutUnitStats {
   // trigger was sent to, and the total number of links minus filtered links/triggers.
   std::vector<double> mTrigSentExclFilteringCoverage;
 
-
   std::vector<double> mTrigReadoutCoverage;
 
   std::vector<double> mTrigReadoutExclFilteringCoverage;
+
+  double mTrigSentMeanCoverage = 0.0;
+  double mTrigSentExclFilteringMeanCoverage = 0.0;
+  double mTrigReadoutMeanCoverage = 0.0;
+  double mTrigReadoutExclFilteringMeanCoverage = 0.0;
 
   // Trigger IDs where there was a mismatch in the
   // trigger filter status. Either all or no links should
@@ -115,7 +119,21 @@ public:
   double getTrigSentExclFilteringCoverage(uint64_t trigger_id) const;
   double getTrigReadoutCoverage(uint64_t trigger_id) const;
   double getTrigReadoutExclFilteringCoverage(uint64_t trigger_id) const;
-  uint64_t getNumTriggers(void) const {return mNumTriggers;}
+  double getTrigSentMeanCoverage(void) const {
+    return mTrigSentMeanCoverage;
+  }
+  double getTrigSentExclFilteringMeanCoverage(void) const {
+    return mTrigSentExclFilteringMeanCoverage;
+  }
+  double getTrigReadoutMeanCoverage(void) const {
+    return mTrigReadoutMeanCoverage;
+  }
+  double getTrigReadoutExclFilteringMeanCoverage(void) const {
+    return mTrigReadoutExclFilteringMeanCoverage;
+  }
+  uint64_t getNumTriggers(void) const {
+    return mNumTriggers;
+  }
   void plotRU(bool create_png, bool create_pdf);
 };
 

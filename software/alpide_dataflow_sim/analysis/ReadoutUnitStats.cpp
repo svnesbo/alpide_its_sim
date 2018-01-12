@@ -17,12 +17,10 @@
 
 #include "TCanvas.h"
 #include "TROOT.h"
-#include "TCanvas.h"
 #include "TProfile.h"
 #include "TH2F.h"
 #include "TH1F.h"
 #include "TStyle.h"
-#include "TCanvas.h"
 #include "TFile.h"
 #include "TDirectory.h"
 
@@ -118,6 +116,9 @@ void ReadoutUnitStats::readTrigActionsFile(std::string file_path_base)
     mTrigSentCoverage[trigger_id] = (double)coverage/num_ctrl_links;
     mTrigSentExclFilteringCoverage[trigger_id] = (double)(coverage+links_filtered)/num_ctrl_links;
 
+    mTrigSentMeanCoverage += mTrigSentCoverage[trigger_id];
+    mTrigSentExclFilteringMeanCoverage += mTrigSentExclFilteringCoverage[trigger_id];
+
     std::cout << "Trigger " << trigger_id << std::endl;
     std::cout << "Coverage: " << mTrigSentCoverage[trigger_id] << std::endl;
     std::cout << "Coverage excluding filtered triggers: "<< mTrigSentExclFilteringCoverage[trigger_id] << std::endl;
@@ -128,6 +129,9 @@ void ReadoutUnitStats::readTrigActionsFile(std::string file_path_base)
 
     trigger_id++;
   }
+
+  mTrigSentMeanCoverage /= mNumTriggers;
+  mTrigSentExclFilteringMeanCoverage /= mNumTriggers;
 
   if(trigger_id != num_triggers) {
     std::cerr << "Error reading " << num_triggers << ", got only " << trigger_id << std::endl;
@@ -316,13 +320,17 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
   for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
     mTrigReadoutCoverage[trig_id] -= (1 - mTrigSentCoverage[trig_id]) * num_data_links_busyv_file;
     mTrigReadoutCoverage[trig_id] /= num_data_links_busyv_file;
+    mTrigReadoutMeanCoverage += mTrigReadoutCoverage[trig_id];
 
     mTrigReadoutExclFilteringCoverage[trig_id] -=
       (1 - mTrigSentExclFilteringCoverage[trig_id]) * num_data_links_busyv_file;
 
     mTrigReadoutExclFilteringCoverage[trig_id] /= num_data_links_busyv_file;
+    mTrigReadoutExclFilteringMeanCoverage += mTrigReadoutExclFilteringCoverage[trig_id];
   }
 
+  mTrigReadoutMeanCoverage /= mNumTriggers;
+  mTrigReadoutExclFilteringMeanCoverage += mNumTriggers;
 }
 
 

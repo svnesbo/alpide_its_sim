@@ -16,7 +16,20 @@ class ITSLayerStats {
   std::vector<ReadoutUnitStats> mRUStats;
 
   // Index: trigger id
-  std::vector<double> mTriggerCoverage;
+  // For each trigger it has the ratio between number of links a
+  // trigger was sent to, and the total number of links,
+  // averaged for all RUs in this layer
+  std::vector<double> mTrigSentCoverage;
+
+  // Index: trigger id
+  // For each trigger it has the ratio between number of links a
+  // trigger was sent to, and the total number of links minus filtered links/triggers,
+  // averaged for all RUs in this layer.
+  std::vector<double> mTrigSentExclFilteringCoverage;
+
+  std::vector<double> mTrigReadoutCoverage;
+
+  std::vector<double> mTrigReadoutExclFilteringCoverage;
 
 public:
   ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
