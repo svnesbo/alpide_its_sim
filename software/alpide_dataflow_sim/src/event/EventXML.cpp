@@ -60,8 +60,12 @@
 ///      </lay>
 ///   </its_detector>
 ///   @endcode
+///
 ///    The data pattern file will be read, and hits from the pattern file
 ///    will be generated on the pixel(s) of the corresponding layer/stave/chip.
+///
+///    The XML file is not required to include lay/sta/mod/chip entries for
+///    layers/staves/modules/chips that does not have any digits.
 ///@}
 
 #include <iostream>
@@ -71,7 +75,14 @@
 using boost::random::uniform_int_distribution;
 
 
-EventXML::EventXML(bool random_event_order, int random_seed)
+///@brief Constructor for EventXML class, which handles a set of events stored in XML files.
+///@param config detectorConfig object which specifies which staves in ITS should
+///              be included. To save time/memory the class will only read data
+///              from the XML files for the chips that are included in the simulation.
+///@param random_event_order True to randomize which event is used, false to get events
+///              in sequential order.
+///@param random_seed Random seed for event sequence randomizer.
+EventXML::EventXML(ITS::detectorConfig config, bool random_event_order, int random_seed)
   : mRandomEventOrder(random_event_order)
   , mRandomSeed(random_seed)
   , mEventCount(0)
@@ -92,15 +103,26 @@ EventXML::EventXML(bool random_event_order, int random_seed)
   mRandEventIdDist = nullptr;
 
 
-  ///@todo Temporary code - only works for inner barrel
-  ///@todo replace with detectorPosition and functions from ITS_config.hpp
-  //mDetectorPositionList[0] = {0, 0, 0, 4};
-  for(unsigned int chip_id = 0; chip_id < 108; chip_id++) {
-    unsigned int stave_id = chip_id/9;
-    unsigned int module_id = 0;
-    unsigned int module_chip_id = chip_id%9;
+  // Construct a list of chips to read from the event files
+  for(unsigned  layer = 0; layer < ITS::N_LAYERS; layer++)
+  {
+    for(unsigned int stave = 0; stave < config.layer[layer].num_staves; stave++)
+    {
+      for(unsigned int module = 0; module < ITS::MODULES_PER_STAVE_IN_LAYER[layer]; module++)
+      {
+        for(unsigned int chip = 0; chip < ITS::CHIPS_PER_MODULE_IN_LAYER[layer]; chip++)
+        {
+          ITS::detectorPosition pos = {layer, stave, module, chip};
+          unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
+          mDetectorPositionList[global_chip_id] = pos;
 
-    mDetectorPositionList[chip_id] = {0, stave_id, module_id, module_chip_id};
+          std::cout << "Added global chip id: " << global_chip_id << std::endl;
+          std::cout << "Layer: " << layer << ", stave: " << stave;
+          std::cout << ", module: " << module << ", local chip id: " << chip;
+          std::cout << std::endl << std::endl;
+        }
+      }
+    }
   }
 }
 
@@ -114,6 +136,10 @@ EventXML::~EventXML()
 }
 
 
+///@brief Get the next event. If the class was constructed with random_event_order
+///       set to true, then this will return a random event from the pool of events.
+///       If not they will be in sequential order.
+///@return Const pointer to EventDigits object for event.
 const EventDigits* EventXML::getNextEvent(void)
 {
   EventDigits* event = nullptr;
@@ -185,7 +211,6 @@ void EventXML::readEventXML(const QString& path, const QStringList& event_filena
 }
 
 
-///@todo Accept a triggerEvent object or something here????
 ///@brief Read a monte carlo event from an XML file
 ///@param event_filename File name and path of .xml file
 void EventXML::readEventXML(const QString& event_filename)

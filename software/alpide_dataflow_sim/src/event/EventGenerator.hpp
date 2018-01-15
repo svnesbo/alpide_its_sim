@@ -85,14 +85,14 @@ private:
 
   int mRandomSeed;
 
-  EventXML mMCPhysicsEvents;
-  EventXML mMCQedNoiseEvents;
+  EventXML* mMCPhysicsEvents = nullptr;
+  EventXML* mMCQedNoiseEvents = nullptr;
 
   bool mRandomHitGeneration;
   int mHitMultiplicityGaussAverage;
   int mHitMultiplicityGaussDeviation;
 
-  unsigned int mNumStaves[ITS::N_LAYERS];
+  ITS::detectorConfig mITSConfig;
   double mHitDensities[ITS::N_LAYERS];
   double mDetectorArea[ITS::N_LAYERS];
   double mHitAverage[ITS::N_LAYERS];

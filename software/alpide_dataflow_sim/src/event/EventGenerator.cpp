@@ -50,6 +50,14 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   mSingleChipSimulation = settings->value("simulation/single_chip").toBool();
   mNumChips = 0;
 
+  mITSConfig.layer[0].num_staves = settings->value("its/layer0_num_staves").toInt();
+  mITSConfig.layer[1].num_staves = settings->value("its/layer1_num_staves").toInt();
+  mITSConfig.layer[2].num_staves = settings->value("its/layer2_num_staves").toInt();
+  mITSConfig.layer[3].num_staves = settings->value("its/layer3_num_staves").toInt();
+  mITSConfig.layer[4].num_staves = settings->value("its/layer4_num_staves").toInt();
+  mITSConfig.layer[5].num_staves = settings->value("its/layer5_num_staves").toInt();
+  mITSConfig.layer[6].num_staves = settings->value("its/layer6_num_staves").toInt();
+
   if(mRandomHitGeneration) {
     // Instantiate event generator object with the desired hit multiplicity distribution
     QString multipl_dist_type = settings->value("event/hit_multiplicity_distribution_type").toString();
@@ -105,21 +113,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
         mHitDensities[5] = settings->value("event/hit_density_layer5").toDouble();
         mHitDensities[6] = settings->value("event/hit_density_layer6").toDouble();
 
-        mNumStaves[0] = settings->value("its/layer0_num_staves").toInt();
-        mNumStaves[1] = settings->value("its/layer1_num_staves").toInt();
-        mNumStaves[2] = settings->value("its/layer2_num_staves").toInt();
-        mNumStaves[3] = settings->value("its/layer3_num_staves").toInt();
-        mNumStaves[4] = settings->value("its/layer4_num_staves").toInt();
-        mNumStaves[5] = settings->value("its/layer5_num_staves").toInt();
-        mNumStaves[6] = settings->value("its/layer6_num_staves").toInt();
-
         for(int layer = 0; layer < ITS::N_LAYERS; layer++) {
-          // mDetectorArea[layer] =
-          //   mNumStaves[layer] *
-          //   ITS::CHIPS_PER_STAVE_IN_LAYER[layer] *
-          //   CHIP_WIDTH_CM *
-          //   CHIP_HEIGHT_CM;
-
           mDetectorArea[layer] =
             ITS::STAVES_PER_LAYER[layer] *
             ITS::CHIPS_PER_STAVE_IN_LAYER[layer] *
@@ -130,7 +124,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
           mMultiplicityScaleFactor[layer] = mHitAverage[layer] / multpl_dist_mean;
 
           // Number of chips to actually simulate
-          mNumChips += mNumStaves[layer] * ITS::CHIPS_PER_STAVE_IN_LAYER[layer];
+          mNumChips += mITSConfig.layer[layer].num_staves * ITS::CHIPS_PER_STAVE_IN_LAYER[layer];
 
           std::cout << "Num chips so far: " << mNumChips << std::endl;
 
@@ -167,7 +161,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       exit(-1);
     }
 
-    mMCPhysicsEvents.readEventXML(monte_carlo_event_path_str, MC_xml_files);
+    mMCPhysicsEvents = new EventXML(mITSConfig);
+    mMCPhysicsEvents->readEventXML(monte_carlo_event_path_str, MC_xml_files);
 
     mNumChips = 1;
 
@@ -195,7 +190,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
         exit(-1);
       }
 
-      mMCQedNoiseEvents.readEventXML(qed_noise_event_path_str, QED_NOISE_xml_files);
+      mMCQedNoiseEvents = new EventXML(mITSConfig);
+      mMCQedNoiseEvents->readEventXML(qed_noise_event_path_str, QED_NOISE_xml_files);
     }
 
     // Discrete and gaussion hit distributions are not used in this case
@@ -216,9 +212,6 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
     mRandChipID[layer] =
       new uniform_int_distribution<int>(0, ITS::CHIPS_PER_MODULE_IN_LAYER[layer]-1);
-
-    // mRandStave[layer] =
-    //   new uniform_int_distribution<int>(0, mNumStaves[layer]-1);
 
     mRandStave[layer] =
       new uniform_int_distribution<int>(0, ITS::STAVES_PER_LAYER[layer]-1);
@@ -545,7 +538,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
         // Skip this layer if no staves are configured for this
         // layer in simulation settings file
-        if(mNumStaves[layer] == 0)
+        if(mITSConfig.layer[layer].num_staves == 0)
           continue;
 
         n_hits = n_hits_raw * mMultiplicityScaleFactor[layer];
@@ -560,7 +553,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
           // Skip hits for staves in this layer other than the first
           // N staves that were defined in the simulation settings file
-          if(rand_stave_id >= mNumStaves[layer])
+          if(rand_stave_id >= mITSConfig.layer[layer].num_staves)
             continue;
 
 
@@ -618,7 +611,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
     } // Detector simulation
 
   } else { // No random hits, use MC generated events
-    const EventDigits* digits = mMCPhysicsEvents.getNextEvent();
+    const EventDigits* digits = mMCPhysicsEvents->getNextEvent();
 
     if(digits == nullptr)
       throw std::runtime_error("EventDigits::getNextEvent() returned no new Monte Carlo event.");
@@ -681,7 +674,7 @@ void EventGenerator::generateNextQedNoiseEvent(void)
 {
   mQedNoiseHitVector.clear();
 
-  const EventDigits* digits = mMCQedNoiseEvents.getNextEvent();
+  const EventDigits* digits = mMCQedNoiseEvents->getNextEvent();
 
   if(digits == nullptr)
     throw std::runtime_error("EventDigits::getNextEvent() returned no new QED/noise MC event.");
