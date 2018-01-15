@@ -115,11 +115,6 @@ EventXML::EventXML(ITS::detectorConfig config, bool random_event_order, int rand
           ITS::detectorPosition pos = {layer, stave, module, chip};
           unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
           mDetectorPositionList[global_chip_id] = pos;
-
-          std::cout << "Added global chip id: " << global_chip_id << std::endl;
-          std::cout << "Layer: " << layer << ", stave: " << stave;
-          std::cout << ", module: " << module << ", local chip id: " << chip;
-          std::cout << std::endl << std::endl;
         }
       }
     }
@@ -206,8 +201,11 @@ bool EventXML::findXMLElementInListById(const QDomNodeList& list, int id, QDomEl
 ///@param event_filenames QStringList of .xml files
 void EventXML::readEventXML(const QString& path, const QStringList& event_filenames)
 {
-  for(int i = 0; i < event_filenames.size(); i++)
+  for(int i = 0; i < event_filenames.size(); i++) {
+    std::cout << "Reading event XML file " << i+1;
+    std::cout << " of " << event_filenames.size() << std::endl;
     readEventXML(path + QString("/") + event_filenames.at(i));
+  }
 }
 
 
@@ -243,24 +241,12 @@ void EventXML::readEventXML(const QString& event_filename)
 
     const ITS::detectorPosition& chip_position = mDetectorPositionList[chip_id];
 
-    std::cout << "Looking for chip ID: " << chip_id << std::endl;
-    std::cout << "Layer: " << chip_position.layer_id;
-    std::cout << "  Stave: " << chip_position.stave_id;
-    std::cout << "  Module: " << chip_position.module_id;
-    std::cout << "  Local chip ID: " << chip_position.stave_chip_id;
-    std::cout << std::endl;
-
     QDomElement chip_element; // Chip element is stored here by locateChipInEventXML().
 
     if(locateChipInEventXML(chip_position, xml_dom_root_element, chip_element)) {
-      // Chip was found, copy hits for this chip to triggerEvent object or something??
-      std::cout << "Chip found in XML event.." << std::endl;
-
       // Digit nodes use the <dig> tag
       QDomNodeList digit_node_list = chip_element.elementsByTagName("dig");
       int digit_count = digit_node_list.size();
-
-      std::cout << "Number of hits for this chip: " << digit_count << std::endl;
 
       for(int digit_it = 0; digit_it < digit_count; digit_it++)
       {
@@ -293,41 +279,41 @@ bool EventXML::locateChipInEventXML(const ITS::detectorPosition& chip_position,
                                     QDomElement& chip_element_out)
 {
   // Search for layer in XML file
+  // ---------------------------------------------------------------------------
   QDomNodeList layer_list = event_xml_dom_root.elementsByTagName("lay");
   QDomElement layer_element;
 
   if(findXMLElementInListById(layer_list, chip_position.layer_id, layer_element) == false)
     return false;
 
-  std::cout << "Layer " << chip_position.layer_id << " found.." << std::endl;
 
   // Search for stave in the layer element in the XML file
+  // ---------------------------------------------------------------------------
   QDomNodeList stave_list = layer_element.elementsByTagName("sta");
   QDomElement stave_element;
 
   if(findXMLElementInListById(stave_list, chip_position.stave_id, stave_element) == false)
     return false;
 
-  std::cout << "Stave " << chip_position.stave_id << " found.." << std::endl;
 
   // Search for module in the layer element in the XML file
+  // ---------------------------------------------------------------------------
   QDomNodeList module_list = stave_element.elementsByTagName("mod");
   QDomElement module_element;
 
   if(findXMLElementInListById(module_list, chip_position.module_id, module_element) == false)
     return false;
 
-  std::cout << "Module " << chip_position.module_id << " found.." << std::endl;
 
   // Search for chip in the layer element in the XML file
+  // ---------------------------------------------------------------------------
   QDomNodeList chip_list = module_element.elementsByTagName("chip");
   QDomElement chip_element;
 
   if(findXMLElementInListById(chip_list, chip_position.stave_chip_id, chip_element) == false)
     return false;
 
-  std::cout << "Chip " << chip_position.stave_chip_id << " found.." << std::endl;
-
   chip_element_out = chip_element;
+
   return true;
 }
