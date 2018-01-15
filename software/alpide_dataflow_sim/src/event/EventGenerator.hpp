@@ -50,13 +50,18 @@ class EventGenerator : sc_core::sc_module
 {
 public: // SystemC signals
   sc_event E_physics_event;
+  sc_event E_qed_noise_event;
 
 private:
-  std::vector<ITS::ITSPixelHit> mHitVector;
+  std::vector<ITS::ITSPixelHit> mEventHitVector;
+  std::vector<ITS::ITSPixelHit> mQedNoiseHitVector;
 
   int mNumChips;
   int mBunchCrossingRateNs;
   int mAverageEventRateNs;
+
+  bool mQedNoiseGenEnable = false;
+  uint64_t mQedNoiseRate = 0;
 
   /// Total number of physics and event frames generated.
   int mPhysicsEventCount = 0;
@@ -80,7 +85,8 @@ private:
 
   int mRandomSeed;
 
-  EventXML mMonteCarloEvents;
+  EventXML mMCPhysicsEvents;
+  EventXML mMCQedNoiseEvents;
 
   bool mRandomHitGeneration;
   int mHitMultiplicityGaussAverage;
@@ -122,19 +128,22 @@ public:
   ~EventGenerator();
   const EventFrame& getNextEventFrame(void);
   const std::vector<ITS::ITSPixelHit>& getLatestPhysicsEvent(void) const;
+  const std::vector<ITS::ITSPixelHit>& getLatestQedNoiseEvent(void) const;
   void setBunchCrossingRate(int rate_ns);
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
   void setPath(const std::string& path) {mDataPath = path;}
   int getPhysicsEventCount(void) const {return mPhysicsEventCount;}
-  void physicsEventMethod(void);
 
 private:
   uint64_t generateNextPhysicsEvent(uint64_t time_now);
+  void generateNextQedNoiseEvent(void);
   void readDiscreteDistributionFile(const char* filename,
                                     std::vector<double> &dist_vector) const;
   double normalizeDiscreteDistribution(std::vector<double> &dist_vector);
   unsigned int getRandomMultiplicity(void);
+  void physicsEventMethod(void);
+  void qedNoiseEventMethod(void);
 };
 
 

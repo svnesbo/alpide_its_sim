@@ -166,6 +166,10 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   sensitive << mEventGen->E_physics_event;
   dont_initialize();
 
+  SC_METHOD(stimuliQedNoiseEventMethod);
+  sensitive << mEventGen->E_qed_noise_event;
+  dont_initialize();
+
   // This method just generates a (VCD traceable) SystemC signal
   // that coincides with the physics event from the event generator
   SC_METHOD(physicsEventSignalMethod);
@@ -233,6 +237,24 @@ void Stimuli::stimuliMainMethod(void)
     next_trigger(50, SC_US);
     simulation_done = true;
   }
+}
+
+
+///@brief SystemC method for feeding QED and noise events that are
+///       not associated with a trigger to the ALPIDE chips.
+void Stimuli::stimuliQedNoiseEventMethod(void)
+{
+    // Get hits for this event, and "feed" them to the ITS detector
+    auto event_hits = mEventGen->getLatestQedNoiseEvent();
+
+    if(mSingleChipSimulation) {
+      for(auto it = event_hits.begin(); it != event_hits.end(); it++)
+        mAlpide->pixelInput(*it);
+    }
+    else {
+      for(auto it = event_hits.begin(); it != event_hits.end(); it++)
+        mITS->pixelInput(*it);
+    }
 }
 
 

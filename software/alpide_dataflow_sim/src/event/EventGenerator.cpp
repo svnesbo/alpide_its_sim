@@ -167,9 +167,36 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       exit(-1);
     }
 
-    mMonteCarloEvents.readEventXML(monte_carlo_event_path_str, MC_xml_files);
+    mMCPhysicsEvents.readEventXML(monte_carlo_event_path_str, MC_xml_files);
 
     mNumChips = 1;
+
+    QString qed_noise_input = settings->value("event/qed_noise_input").toString();
+    if(qed_noise_input == "true") {
+      mQedNoiseGenEnable = true;
+      mQedNoiseRate = settings->value("event/qed_noise_rate").toUInt();
+
+      if(mQedNoiseRate == 0) {
+        std::cout << "Error: QED/Noise rate has to be larger than zero." << std::endl;
+        exit(-1);
+      }
+
+      QString qed_noise_event_path_str = settings->value("event/qed_noise_path").toString();
+      QDir qed_noise_event_dir(qed_noise_event_path_str);
+
+      name_filters << "*.xml";
+
+      QStringList QED_NOISE_xml_files = qed_noise_event_dir.entryList(name_filters);
+
+      if(QED_NOISE_xml_files.empty()) {
+        std::cout << "Error: No .xml files found in path \"";
+        std::cout << qed_noise_event_path_str.toStdString();
+        std::cout << "\", or path does not exist." << std::endl;
+        exit(-1);
+      }
+
+      mMCQedNoiseEvents.readEventXML(qed_noise_event_path_str, QED_NOISE_xml_files);
+    }
 
     // Discrete and gaussion hit distributions are not used in this case
     mRandHitMultiplicityDiscrete = nullptr;
@@ -225,6 +252,9 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   // SystemC declarations / connections / etc.
   //////////////////////////////////////////////////////////////////////////////
   SC_METHOD(physicsEventMethod);
+
+  if(mQedNoiseGenEnable)
+    SC_METHOD(qedNoiseEventMethod);
 }
 
 
@@ -251,12 +281,19 @@ EventGenerator::~EventGenerator()
 }
 
 
-///@brief Get a reference to the next event (if there is one). Note: this function
-///       will keep returning the same event until it has been removed by removeOldestEvent().
+///@brief Get a reference to the next physics event
 ///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
 const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestPhysicsEvent(void) const
 {
-  return mHitVector;
+  return mEventHitVector;
+}
+
+
+///@brief Get a reference to the next QED/Noise event
+///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
+const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestQedNoiseEvent(void) const
+{
+  return mQedNoiseHitVector;
 }
 
 
@@ -446,7 +483,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
   mLastPhysicsEventTimeNs = time_now;
   mPhysicsEventCount++;
 
-  mHitVector.clear();
+  mEventHitVector.clear();
 
   // std::cout << std::endl;
   // std::cout << "@ " << time_now << " ns:";
@@ -493,13 +530,13 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
         // std::cout << " for " << pos << std::endl;
 
         ///@todo Create hits for all chips properly here!!
-        mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+        mEventHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
                                 mPixelDeadTime, mPixelActiveTime);
-        mHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+        mEventHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
                                 mPixelDeadTime, mPixelActiveTime);
-        mHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+        mEventHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
                                 mPixelDeadTime, mPixelActiveTime);
-        mHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+        mEventHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
                                 mPixelDeadTime, mPixelActiveTime);
       }
     } else if(n_hits_raw > 0) { // Generate hits for each layer in ITS detector simulation
@@ -568,28 +605,28 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
           // std::cout << " for " << pos << std::endl;
 
           ///@todo Create hits for all chips properly here!!
-          mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+          mEventHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
                                   mPixelDeadTime, mPixelActiveTime);
-          mHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+          mEventHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
                                   mPixelDeadTime, mPixelActiveTime);
-          mHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+          mEventHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
                                   mPixelDeadTime, mPixelActiveTime);
-          mHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+          mEventHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
                                   mPixelDeadTime, mPixelActiveTime);
         } // Hit generation loop
       } // Layer loop
     } // Detector simulation
 
   } else { // No random hits, use MC generated events
-    const EventDigits* digits = mMonteCarloEvents.getNextEvent();
+    const EventDigits* digits = mMCPhysicsEvents.getNextEvent();
 
     if(digits == nullptr)
       throw std::runtime_error("EventDigits::getNextEvent() returned no new Monte Carlo event.");
 
-    n_hits += digits->size();
-
     auto digit_it = digits->getDigitsIterator();
     auto digit_end_it = digits->getDigitsEndIterator();
+
+    event_pixel_hit_count = digits->size();
 
     while(digit_it != digit_end_it) {
       const int &chip_id = digit_it->first;
@@ -597,12 +634,14 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
       ITS::detectorPosition pos = ITS::chip_id_to_detector_position(chip_id);
 
-      mHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
+      // This takes a digit, which is just a coordinate, and places it in
+      // the hit vector among with timing information for the hit
+      // (ie. when it is over threshold, time over threshold)
+      mEventHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
                               mLastPhysicsEventTimeNs,
                               mPixelDeadTime,
                               mPixelActiveTime);
 
-      event_pixel_hit_count++;
       digit_it++;
     }
   }
@@ -637,13 +676,52 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 }
 
 
-///@brief SystemC controlled method
-///       1) Creating new physics events (hits)
-///       2) Deleting old inactive hits
+///@brief Generate a QED/Noise event
+void EventGenerator::generateNextQedNoiseEvent(void)
+{
+  mQedNoiseHitVector.clear();
+
+  const EventDigits* digits = mMCQedNoiseEvents.getNextEvent();
+
+  if(digits == nullptr)
+    throw std::runtime_error("EventDigits::getNextEvent() returned no new QED/noise MC event.");
+
+  auto digit_it = digits->getDigitsIterator();
+  auto digit_end_it = digits->getDigitsEndIterator();
+
+  while(digit_it != digit_end_it) {
+    const int &chip_id = digit_it->first;
+    const PixelData &pix = digit_it->second;
+
+    ITS::detectorPosition pos = ITS::chip_id_to_detector_position(chip_id);
+
+    // This takes a digit, which is just a coordinate, and places it in
+    // the hit vector among with timing information for the hit
+    // (ie. when it is over threshold, time over threshold)
+    mQedNoiseHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
+                                    mLastPhysicsEventTimeNs,
+                                    mPixelDeadTime,
+                                    mPixelActiveTime);
+
+    digit_it++;
+  }
+}
+
+
+///@brief SystemC controlled method. Creates new physics events (hits)
 void EventGenerator::physicsEventMethod(void)
 {
   uint64_t time_now = sc_time_stamp().value();
   uint64_t t_delta = generateNextPhysicsEvent(time_now);
   E_physics_event.notify();
   next_trigger(t_delta, SC_NS);
+}
+
+
+///@brief SystemC controlled method. Creates new QED/Noise events (hits)
+void EventGenerator::qedNoiseEventMethod(void)
+{
+  generateNextQedNoiseEvent();
+  E_qed_noise_event.notify();
+  next_trigger(mQedNoiseRate, SC_NS);
 }
