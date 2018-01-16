@@ -4,6 +4,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <cmath>
 #include <TFile.h>
 #include <TCanvas.h>
 #include <TROOT.h>
@@ -12,6 +13,8 @@
 #include <TH1I.h>
 #include "ReadoutUnitStats.hpp"
 #include "ITSLayerStats.hpp"
+#include "../src/settings/Settings.hpp"
+
 
 const std::string csv_delim(";");
 
@@ -21,16 +24,53 @@ const float chip_height_cm = 1.5;
 std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
                                          bool create_png, bool create_pdf);
 
-//enum TrigAction {TRIGGER_SENT, TRIGGER_NOT_SENT_BUSY, TRIGGER_FILTERED};
+
 
 int process_readout_trigger_stats(const char* sim_run_data_path,
                                   bool create_png,
                                   bool create_pdf)
 {
+  QString settings_file_path = QString(sim_run_data_path) + "/settings.txt";
+  QSettings *sim_settings = new QSettings(settings_file_path, QSettings::IniFormat);
+
+  unsigned int event_rate_ns = sim_settings->value("event/average_event_rate_ns").toUInt();
+
+  // Round event rate to nearest kilohertz
+  double event_rate_khz = std::round(1.0E6 / event_rate_ns);
+
+  std::cout << "Event rate: " << event_rate_khz << " kHz" << std::endl;
+
+  bool single_chip_mode = sim_settings->value("simulation/single_chip").toBool();
+
+  int staves_in_layer[7];
+
+  staves_in_layer[0] = sim_settings->value("its/layer0_num_staves").toInt();
+  staves_in_layer[1] = sim_settings->value("its/layer1_num_staves").toInt();
+  staves_in_layer[2] = sim_settings->value("its/layer2_num_staves").toInt();
+  staves_in_layer[3] = sim_settings->value("its/layer3_num_staves").toInt();
+  staves_in_layer[4] = sim_settings->value("its/layer4_num_staves").toInt();
+  staves_in_layer[5] = sim_settings->value("its/layer5_num_staves").toInt();
+  staves_in_layer[6] = sim_settings->value("its/layer6_num_staves").toInt();
+
+  bool event_csv_available = sim_settings->value("data_output/write_event_csv").toBool();
+
+  std::cout << "Single chip mode: " << (single_chip_mode ? "true" : "false") << std::endl;
+  std::cout << "Staves layer 0: " << staves_in_layer[0] << std::endl;
+  std::cout << "Staves layer 1: " << staves_in_layer[1] << std::endl;
+  std::cout << "Staves layer 2: " << staves_in_layer[2] << std::endl;
+  std::cout << "Staves layer 3: " << staves_in_layer[3] << std::endl;
+  std::cout << "Staves layer 4: " << staves_in_layer[4] << std::endl;
+  std::cout << "Staves layer 5: " << staves_in_layer[5] << std::endl;
+  std::cout << "Staves layer 6: " << staves_in_layer[6] << std::endl;
+  std::cout << "Event CSV file available: " << (event_csv_available ? "true" : "false") << std::endl;
+
   gROOT->SetBatch(kTRUE);
 
-  std::vector<uint64_t> event_time_vec = process_event_data(sim_run_data_path,
-                                                            create_png, create_pdf);
+  std::vector<uint64_t> event_time_vec;
+
+  if(event_csv_available) {
+    event_time_vec = process_event_data(sim_run_data_path, create_png, create_pdf);
+  }
 
 
   std::string root_filename = sim_run_data_path + std::string("/busy_data.root");
@@ -38,105 +78,29 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
   // Create/recreate root file
   TFile *f = new TFile(root_filename.c_str(), "recreate");
 
+  ITSLayerStats* layers[7];
 
-  /*
-  // Indexing: [layer][stave/RU][link ID][trigger ID]
-  std::vector<std::vector<std::vector<std::vector<TrigAction>>>> trigger_stats;
+  for(int layer_num = 0; layer_num < 7; layer_num++) {
+    if(staves_in_layer[layer_num] > 0) {
+      layers[layer_num] = new ITSLayerStats(layer_num,
+                                            staves_in_layer[layer_num],
+                                            sim_run_data_path,
+                                            create_png,
+                                            create_pdf);
+    }
+  }
 
-  // Map key: trigger ID, vector index: layer, elements in vector: coverage
-  std::map<std::vector<double>> trig_coverage_per_layer;
 
-  // Map key: trigger ID, value: coverage
-  std::map<uint64_t, double> trig_coverage_detector;
-
-  // Map key: trigger ID, value: number of layers with mismatch for this trigger id
-  std::map<uint64_t, uint32_t> trig_filter_mismatch;
-  */
-
-  //ReadoutUnitStats RU(0, 0, sim_run_data_path);
-  //ITSLayerStats ITS_layer(0, 12, sim_run_data_path);
-  ITSLayerStats ITS_layer(0, 12, sim_run_data_path, create_png, create_pdf);
-
+  ///////////
+  // Clean up
+  ///////////
+  for(int layer_num = 0; layer_num < 7; layer_num++) {
+    if(staves_in_layer[layer_num] > 0) {
+      delete layers[layer_num];
+    }
+  }
 
   delete f;
-
-  /*
-
-  // Todo: Check that the sim_run_data_path directory actually exists
-
-  system("mkdir png");
-  system("mkdir pdf");
-
-  TFile *f = new TFile("RU_trigger_stats.root", "recreate");
-
-  size_t csv_file_base_path_start = csv_filename_str.rfind("/");
-
-
-
-  // 1. Open settings file
-  // 2. Get number of staves and layers from settings file
-  // 3. Create DetectorStats object with those parameters
-
-
-
-
-
-
-  // Go through all the RU_<layer>_<stave>_Trigger_stats.csv files,
-  // parse them and construct vector map of trigger stats for all
-  // RUs in all layers. One RU per stave.
-  for(int layer = 0; layer < 7; layer++) {
-    bool last_stave_in_layer = false;
-    int stave_num = 0;
-
-    while(last_stave_in_layer == false) {
-      std::stringstream ss;
-      ss << sim_run_data_path << "/";
-      ss << "RU_" << layer << "_" << stave_num << "_Trigger_stats.csv";
-
-      std::ifstream RU_trig_stats_file(ss.str().c_str());
-
-      if(!RU_trig_stats_file.is_open()) {
-        std::cout << "Could not open file: " << ss.str();
-        std::cout << ". Assuming we reached last RU in this layer.";
-        std::cout << std::endl;
-        last_stave_in_layer = false;
-      } else {
-        std::map<int64_t, TrigAction> RU_trig_stats = getTriggerActions(RU_trig_stats_file);
-        trigger_stats[layer].push_back(RU_trig_stats);
-        stave_num++;
-      }
-    }
-  }
-
-
-  // Coverage calculation in a layer:
-  //
-  // N_active_staves = N_staves - N_filtered_staves
-  //
-  // In principle either all or no staves in a layer (or in the whole detector, in fact) should be filtered.
-  //
-  // RU coverage:
-  // Coverage_RU(trigger_id) = (Number of links with trigger sent) / (Total number of links)
-  //
-  // Layer coverage:
-  // Coverage_layer(trigger_id) = sum(RU coverages) / (Number of RUs in layer)
-  //
-  // Detector coverage:
-  // Coverage_detector(trigger_id) = sum(Layer coverages) / (Number of layers)
-
-  // Process trigger stats data
-  for(int layer = 0; layer < trigger_stats.size(); layer++) {
-    for(int stave = 0; stave < trigger_stats[layer].size; stave++) {
-      std::map<std::vector<double>> trig_coverage_per_layer[layer][]
-      for()
-    }
-
-
-  }
-
-  */
-
 }
 
 

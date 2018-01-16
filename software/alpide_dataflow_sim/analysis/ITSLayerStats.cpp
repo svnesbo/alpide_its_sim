@@ -329,4 +329,7 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
   delete h9;
   delete h10;
   delete c1;
+
+  // Go back to top level directory
+  current_dir->cd();
 }
