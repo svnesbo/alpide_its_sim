@@ -11,9 +11,9 @@
 //#include <TApplication.h>
 #include <TH1F.h>
 #include <TH1I.h>
-#include "ReadoutUnitStats.hpp"
-#include "ITSLayerStats.hpp"
+#include "DetectorStats.hpp"
 #include "../src/settings/Settings.hpp"
+#include "../src/ITS/ITS_constants.hpp"
 
 
 const std::string csv_delim(";");
@@ -42,26 +42,26 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
 
   bool single_chip_mode = sim_settings->value("simulation/single_chip").toBool();
 
-  int staves_in_layer[7];
+  ITS::detectorConfig det_config;
 
-  staves_in_layer[0] = sim_settings->value("its/layer0_num_staves").toInt();
-  staves_in_layer[1] = sim_settings->value("its/layer1_num_staves").toInt();
-  staves_in_layer[2] = sim_settings->value("its/layer2_num_staves").toInt();
-  staves_in_layer[3] = sim_settings->value("its/layer3_num_staves").toInt();
-  staves_in_layer[4] = sim_settings->value("its/layer4_num_staves").toInt();
-  staves_in_layer[5] = sim_settings->value("its/layer5_num_staves").toInt();
-  staves_in_layer[6] = sim_settings->value("its/layer6_num_staves").toInt();
+  det_config.layer[0].num_staves = sim_settings->value("its/layer0_num_staves").toInt();
+  det_config.layer[1].num_staves = sim_settings->value("its/layer1_num_staves").toInt();
+  det_config.layer[2].num_staves = sim_settings->value("its/layer2_num_staves").toInt();
+  det_config.layer[3].num_staves = sim_settings->value("its/layer3_num_staves").toInt();
+  det_config.layer[4].num_staves = sim_settings->value("its/layer4_num_staves").toInt();
+  det_config.layer[5].num_staves = sim_settings->value("its/layer5_num_staves").toInt();
+  det_config.layer[6].num_staves = sim_settings->value("its/layer6_num_staves").toInt();
 
   bool event_csv_available = sim_settings->value("data_output/write_event_csv").toBool();
 
   std::cout << "Single chip mode: " << (single_chip_mode ? "true" : "false") << std::endl;
-  std::cout << "Staves layer 0: " << staves_in_layer[0] << std::endl;
-  std::cout << "Staves layer 1: " << staves_in_layer[1] << std::endl;
-  std::cout << "Staves layer 2: " << staves_in_layer[2] << std::endl;
-  std::cout << "Staves layer 3: " << staves_in_layer[3] << std::endl;
-  std::cout << "Staves layer 4: " << staves_in_layer[4] << std::endl;
-  std::cout << "Staves layer 5: " << staves_in_layer[5] << std::endl;
-  std::cout << "Staves layer 6: " << staves_in_layer[6] << std::endl;
+  std::cout << "Staves layer 0: " << det_config.layer[0].num_staves << std::endl;
+  std::cout << "Staves layer 1: " << det_config.layer[1].num_staves << std::endl;
+  std::cout << "Staves layer 2: " << det_config.layer[2].num_staves << std::endl;
+  std::cout << "Staves layer 3: " << det_config.layer[3].num_staves << std::endl;
+  std::cout << "Staves layer 4: " << det_config.layer[4].num_staves << std::endl;
+  std::cout << "Staves layer 5: " << det_config.layer[5].num_staves << std::endl;
+  std::cout << "Staves layer 6: " << det_config.layer[6].num_staves << std::endl;
   std::cout << "Event CSV file available: " << (event_csv_available ? "true" : "false") << std::endl;
 
   gROOT->SetBatch(kTRUE);
@@ -73,34 +73,9 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
   }
 
 
-  std::string root_filename = sim_run_data_path + std::string("/busy_data.root");
+  DetectorStats its_detector_stats(det_config, event_rate_khz, sim_run_data_path);
 
-  // Create/recreate root file
-  TFile *f = new TFile(root_filename.c_str(), "recreate");
-
-  ITSLayerStats* layers[7];
-
-  for(int layer_num = 0; layer_num < 7; layer_num++) {
-    if(staves_in_layer[layer_num] > 0) {
-      layers[layer_num] = new ITSLayerStats(layer_num,
-                                            staves_in_layer[layer_num],
-                                            sim_run_data_path,
-                                            create_png,
-                                            create_pdf);
-    }
-  }
-
-
-  ///////////
-  // Clean up
-  ///////////
-  for(int layer_num = 0; layer_num < 7; layer_num++) {
-    if(staves_in_layer[layer_num] > 0) {
-      delete layers[layer_num];
-    }
-  }
-
-  delete f;
+  its_detector_stats.plotDetector(create_png, create_pdf);
 }
 
 

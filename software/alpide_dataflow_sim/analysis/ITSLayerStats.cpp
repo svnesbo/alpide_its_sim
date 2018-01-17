@@ -15,29 +15,38 @@
 #include "TH1F.h"
 #include "THStack.h"
 
+
 ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
-                             const char* path,
-                             bool create_png, bool create_pdf)
+                             const char* path)
   : mLayer(layer_num)
+  , mNumStaves(num_staves)
+  , mSimDataPath(path)
+  , mNumTriggers(0)
+{
+  // Create and parse RU data
+  for(unsigned int stave = 0; stave < mNumStaves; stave++) {
+    mRUStats.emplace_back(layer_num, stave, path);
+  }
+}
+
+
+void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
 {
   TDirectory* current_dir = gDirectory;
 
   if(gDirectory == nullptr) {
-    std::cout << "ITSLayerStats::ITSLayerStats() error: gDirectory not initialized." << std::endl;
+    std::cout << "ITSLayerStats::plotLayer() error: gDirectory not initialized." << std::endl;
     exit(-1);
   }
 
   gDirectory->mkdir(Form("Layer_%i", mLayer));
 
   // Create and parse RU data, and generate plots in TFile
-  for(unsigned int stave = 0; stave < num_staves; stave++) {
+  for(unsigned int stave = 0; stave < mNumStaves; stave++) {
     // Keep changing back to this layer's directory,
     // because the plotRU() function changes the current directory.
     current_dir->cd(Form("Layer_%i", mLayer));
-
-    mRUStats.emplace_back(layer_num, stave, path);
-
-    mRUStats.back().plotRU(create_png, create_pdf);
+    mRUStats[stave].plotRU(create_png, create_pdf);
   }
 
   current_dir->cd(Form("Layer_%i", mLayer));
@@ -48,64 +57,64 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
 
 
   // Todo: check that we have the same number of triggers in all RUs?
-  uint64_t num_triggers = mRUStats[0].getNumTriggers();
+  mNumTriggers = mRUStats[0].getNumTriggers();
 
-  mTrigSentCoverage.resize(num_triggers);
-  mTrigSentExclFilteringCoverage.resize(num_triggers);
-  mTrigReadoutCoverage.resize(num_triggers);
-  mTrigReadoutExclFilteringCoverage.resize(num_triggers);
+  mTrigSentCoverage.resize(mNumTriggers);
+  mTrigSentExclFilteringCoverage.resize(mNumTriggers);
+  mTrigReadoutCoverage.resize(mNumTriggers);
+  mTrigReadoutExclFilteringCoverage.resize(mNumTriggers);
 
 
   //----------------------------------------------------------------------------
   // Plot average trigger distribution and readout coverage vs. trigger
   //----------------------------------------------------------------------------
   TH1D *h1 = new TH1D("h_avg_trig_ctrl_link_coverage",
-                      Form("Average Trigger Distribution Coverage - Layer %i", layer_num),
-                      num_triggers,0,num_triggers-1);
+                      Form("Average Trigger Distribution Coverage - Layer %i", mLayer),
+                      mNumTriggers,0,mNumTriggers-1);
   TH1D *h2 = new TH1D("h_avg_trig_ctrl_link_excl_filter_coverage",
-                       Form("Average Trigger Distribution Coverage Excluding Filtering - Layer %i", layer_num),
-                       num_triggers,0,num_triggers-1);
+                       Form("Average Trigger Distribution Coverage Excluding Filtering - Layer %i", mLayer),
+                       mNumTriggers,0,mNumTriggers-1);
   TH1D *h3 = new TH1D("h_avg_trig_readout_coverage",
-                       Form("Average Trigger Readout Coverage - Layer %i", layer_num),
-                       num_triggers,0,num_triggers-1);
+                       Form("Average Trigger Readout Coverage - Layer %i", mLayer),
+                       mNumTriggers,0,mNumTriggers-1);
   TH1D *h4 = new TH1D("h_avg_trig_readout_excl_filter_coverage",
-                       Form("Average Trigger Readout Coverage Excluding Filtering - Layer %i", layer_num),
-                       num_triggers,0,num_triggers-1);
+                       Form("Average Trigger Readout Coverage Excluding Filtering - Layer %i", mLayer),
+                       mNumTriggers,0,mNumTriggers-1);
 
-  for(uint64_t trigger_id = 0; trigger_id < num_triggers; trigger_id++) {
+  for(uint64_t trigger_id = 0; trigger_id < mNumTriggers; trigger_id++) {
     double trig_sent_coverage = 0.0;
     double trig_sent_excl_filter_coverage = 0.0;
     double trig_readout_coverage = 0.0;
     double trig_readout_excl_filter_coverage = 0.0;
-    for(unsigned int stave = 0; stave < num_staves; stave++) {
+    for(unsigned int stave = 0; stave < mNumStaves; stave++) {
       trig_sent_coverage += mRUStats[stave].getTrigSentCoverage(trigger_id);
       trig_sent_excl_filter_coverage += mRUStats[stave].getTrigSentExclFilteringCoverage(trigger_id);
       trig_readout_coverage += mRUStats[stave].getTrigReadoutCoverage(trigger_id);
       trig_readout_excl_filter_coverage += mRUStats[stave].getTrigReadoutExclFilteringCoverage(trigger_id);
     }
 
-    mTrigSentCoverage[trigger_id] = trig_sent_coverage/num_staves;
-    mTrigSentExclFilteringCoverage[trigger_id] = trig_sent_excl_filter_coverage/num_staves;
-    mTrigReadoutCoverage[trigger_id] = trig_sent_coverage/num_staves;
-    mTrigReadoutExclFilteringCoverage[trigger_id] = trig_readout_excl_filter_coverage/num_staves;
+    mTrigSentCoverage[trigger_id] = trig_sent_coverage/mNumStaves;
+    mTrigSentExclFilteringCoverage[trigger_id] = trig_sent_excl_filter_coverage/mNumStaves;
+    mTrigReadoutCoverage[trigger_id] = trig_sent_coverage/mNumStaves;
+    mTrigReadoutExclFilteringCoverage[trigger_id] = trig_readout_excl_filter_coverage/mNumStaves;
 
     h1->Fill(trigger_id, mTrigSentCoverage[trigger_id]);
     h2->Fill(trigger_id, mTrigSentExclFilteringCoverage[trigger_id]);
     h3->Fill(trigger_id, mTrigReadoutCoverage[trigger_id]);
     h4->Fill(trigger_id, mTrigReadoutExclFilteringCoverage[trigger_id]);
 
-    std::cout << "Layer " << layer_num << ", trigger sent" << trigger_id;
-    std::cout << " coverage: " << mTrigSentCoverage[trigger_id] << std::endl;
+    std::cout << "Layer " << mLayer << ", trigger ID " << trigger_id;
+    std::cout << " distribution coverage: " << mTrigSentCoverage[trigger_id] << std::endl;
 
-    std::cout << "Layer " << layer_num << ", trigger sent" << trigger_id;
-    std::cout << " coverage (excluding filtering): ";
+    std::cout << "Layer " << mLayer << ", trigger ID " << trigger_id;
+    std::cout << " distribution coverage (excluding filtering): ";
     std::cout << mTrigSentExclFilteringCoverage[trigger_id] << std::endl;
 
-    std::cout << "Layer " << layer_num << ", trigger readout" << trigger_id;
-    std::cout << " coverage: " << mTrigReadoutCoverage[trigger_id] << std::endl;
+    std::cout << "Layer " << mLayer << ", trigger ID " << trigger_id;
+    std::cout << " readout coverage: " << mTrigReadoutCoverage[trigger_id] << std::endl;
 
-    std::cout << "Layer " << layer_num << ", trigger readout" << trigger_id;
-    std::cout << " coverage (excluding filtering): ";
+    std::cout << "Layer " << mLayer << ", trigger ID " << trigger_id;
+    std::cout << " readout coverage (excluding filtering): ";
     std::cout << mTrigReadoutExclFilteringCoverage[trigger_id] << std::endl;
   }
 
@@ -127,37 +136,37 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
   if(create_png) {
     h1->Draw();
     c1->Print(Form("%s/png/Layer_%i_avg_trig_ctrl_link_coverage.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h2->Draw();
     c1->Print(Form("%s/png/Layer_%i_avg_trig_ctrl_link_excl_filter_coverage.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h3->Draw();
     c1->Print(Form("%s/png/Layer_%i_avg_trig_readout_coverage.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h4->Draw();
     c1->Print(Form("%s/png/Layer_%i_avg_trig_readout_excl_filter_coverage.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
   }
 
   if(create_pdf) {
     h1->Draw();
     c1->Print(Form("%s/pdf/Layer_%i_avg_trig_ctrl_link_coverage.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h2->Draw();
     c1->Print(Form("%s/pdf/Layer_%i_avg_trig_ctrl_link_excl_filter_coverage.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h3->Draw();
     c1->Print(Form("%s/pdf/Layer_%i_avg_trig_readout_coverage.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h4->Draw();
     c1->Print(Form("%s/pdf/Layer_%i_avg_trig_readout_excl_filter_coverage.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
   }
 
   h1->Write();
@@ -169,28 +178,28 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
   //----------------------------------------------------------------------------
   // Plot trigger distribution and readout coverage vs. RU vs. trigger
   //----------------------------------------------------------------------------
-  TH2D* h5 = new TH2D(Form("h_trig_ctrl_link_coverage_layer_%i", layer_num),
+  TH2D* h5 = new TH2D(Form("h_trig_ctrl_link_coverage_layer_%i", mLayer),
                       Form("Trigger Distribution Coverage - Layer %i",
-                           layer_num),
-                      num_triggers,0,num_triggers-1,
-                      num_staves, -0.5, num_staves-0.5);
-  TH2D* h6 = new TH2D(Form("h_trig_ctrl_link_excl_filter_coverage_layer_%i", layer_num),
+                           mLayer),
+                      mNumTriggers,0,mNumTriggers-1,
+                      mNumStaves, -0.5, mNumStaves-0.5);
+  TH2D* h6 = new TH2D(Form("h_trig_ctrl_link_excl_filter_coverage_layer_%i", mLayer),
                       Form("Trigger Distribution Coverage Excluding Filtering - Layer %i",
-                           layer_num),
-                      num_triggers,0,num_triggers-1,
-                      num_staves, -0.5, num_staves-0.5);
-  TH2D* h7 = new TH2D(Form("h_trig_readout_coverage_layer_%i", layer_num),
-                      Form("Trigger Readout Coverage - Layer %i", layer_num),
-                      num_triggers,0,num_triggers-1,
-                      num_staves, -0.5, num_staves-0.5);
-  TH2D* h8 = new TH2D(Form("h_trig_readout_excl_filter_coverage_layer_%i", layer_num),
+                           mLayer),
+                      mNumTriggers,0,mNumTriggers-1,
+                      mNumStaves, -0.5, mNumStaves-0.5);
+  TH2D* h7 = new TH2D(Form("h_trig_readout_coverage_layer_%i", mLayer),
+                      Form("Trigger Readout Coverage - Layer %i", mLayer),
+                      mNumTriggers,0,mNumTriggers-1,
+                      mNumStaves, -0.5, mNumStaves-0.5);
+  TH2D* h8 = new TH2D(Form("h_trig_readout_excl_filter_coverage_layer_%i", mLayer),
                       Form("Trigger Readout Coverage Excluding Filtering - Layer %i",
-                           layer_num),
-                      num_triggers,0,num_triggers-1,
-                      num_staves, -0.5, num_staves-0.5);
+                           mLayer),
+                      mNumTriggers,0,mNumTriggers-1,
+                      mNumStaves, -0.5, mNumStaves-0.5);
 
-  for(unsigned int stave = 0; stave < num_staves; stave++) {
-    for(uint64_t trigger_id = 0; trigger_id < num_triggers; trigger_id++) {
+  for(unsigned int stave = 0; stave < mNumStaves; stave++) {
+    for(uint64_t trigger_id = 0; trigger_id < mNumTriggers; trigger_id++) {
       h5->Fill(trigger_id, stave, mRUStats[stave].getTrigSentCoverage(trigger_id));
       h6->Fill(trigger_id, stave, mRUStats[stave].getTrigSentExclFilteringCoverage(trigger_id));
       h7->Fill(trigger_id, stave, mRUStats[stave].getTrigReadoutCoverage(trigger_id));
@@ -207,46 +216,46 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
   h7->GetXaxis()->SetTitle("Trigger ID");
   h8->GetXaxis()->SetTitle("Trigger ID");
 
-  h5->GetYaxis()->SetNdivisions(num_staves);
-  h6->GetYaxis()->SetNdivisions(num_staves);
-  h7->GetYaxis()->SetNdivisions(num_staves);
-  h8->GetYaxis()->SetNdivisions(num_staves);
+  h5->GetYaxis()->SetNdivisions(mNumStaves);
+  h6->GetYaxis()->SetNdivisions(mNumStaves);
+  h7->GetYaxis()->SetNdivisions(mNumStaves);
+  h8->GetYaxis()->SetNdivisions(mNumStaves);
 
 
   if(create_png) {
     h5->Draw("COLZ");
     c1->Print(Form("%s/png/Layer_%i_trig_ctrl_link_coverage.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h6->Draw("COLZ");
     c1->Print(Form("%s/png/Layer_%i_trig_ctrl_link_excl_filter_coverage.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h7->Draw("COLZ");
     c1->Print(Form("%s/png/Layer_%i_trig_readout_coverage.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h8->Draw("COLZ");
     c1->Print(Form("%s/png/Layer_%i_trig_readout_excl_filter_coverage.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
   }
 
   if(create_pdf) {
     h5->Draw("COLZ");
     c1->Print(Form("%s/pdf/Layer_%i_trig_ctrl_link_coverage.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h6->Draw("COLZ");
     c1->Print(Form("%s/pdf/Layer_%i_trig_ctrl_link_excl_filter_coverage.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h7->Draw("COLZ");
     c1->Print(Form("%s/pdf/Layer_%i_trig_readout_coverage.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h8->Draw("COLZ");
     c1->Print(Form("%s/pdf/Layer_%i_trig_readout_excl_filter_coverage.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
   }
 
   h5->Write();
@@ -259,30 +268,39 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
   //----------------------------------------------------------------------------
   // Plot busy and busy violation link counts vs RU number vs trigger ID
   //----------------------------------------------------------------------------
-  TH2D* h9 = new TH2D(Form("h_busy_link_count_map_layer_%i", layer_num),
+  TH2D* h9 = new TH2D(Form("h_busy_link_count_map_layer_%i", mLayer),
                       Form("Busy Link Count - Layer %i",
-                           layer_num),
-                      num_triggers,0,num_triggers-1,
-                      num_staves, -0.5, num_staves-0.5);
-  TH2D* h10 = new TH2D(Form("h_busyv_link_count_map_layer_%i", layer_num),
+                           mLayer),
+                      mNumTriggers,0,mNumTriggers-1,
+                      mNumStaves, -0.5, mNumStaves-0.5);
+  TH2D* h10 = new TH2D(Form("h_busyv_link_count_map_layer_%i", mLayer),
                       Form("Busy Violation Link Count - Layer %i",
-                           layer_num),
-                      num_triggers,0,num_triggers-1,
-                      num_staves, -0.5, num_staves-0.5);
+                           mLayer),
+                      mNumTriggers,0,mNumTriggers-1,
+                      mNumStaves, -0.5, mNumStaves-0.5);
 
-  for(unsigned int stave = 0; stave < num_staves; stave++) {
+  // Resize and initialize vectors with counts of busy and busyv
+  mBusyLinkCount.clear();
+  mBusyVLinkCount.clear();
+  mBusyLinkCount.resize(mNumTriggers, 0);
+  mBusyVLinkCount.resize(mNumTriggers, 0);
+
+  for(unsigned int stave = 0; stave < mNumStaves; stave++) {
     std::vector<unsigned int> RU_busy_link_count = mRUStats[stave].getBusyLinkCount();
     std::vector<unsigned int> RU_busyv_link_count = mRUStats[stave].getBusyVLinkCount();
 
-    if(RU_busy_link_count.size() != num_triggers || RU_busyv_link_count.size() != num_triggers) {
+    if(RU_busy_link_count.size() != mNumTriggers || RU_busyv_link_count.size() != mNumTriggers) {
       std::cout << "Error: Number of triggers in busy/busyv link count vectors from RU " << stave;
       std::cout << " does not matched expected number of triggers. " << std::endl;
       exit(-1);
     }
 
-    for(uint64_t trigger_id = 0; trigger_id < num_triggers; trigger_id++) {
+    for(uint64_t trigger_id = 0; trigger_id < mNumTriggers; trigger_id++) {
       h9->Fill(trigger_id, stave, RU_busy_link_count[trigger_id]);
       h10->Fill(trigger_id, stave, RU_busyv_link_count[trigger_id]);
+
+      mBusyLinkCount[trigger_id] += RU_busy_link_count[trigger_id];
+      mBusyVLinkCount[trigger_id] += RU_busyv_link_count[trigger_id];
     }
   }
 
@@ -291,27 +309,27 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
   h9->GetXaxis()->SetTitle("Trigger ID");
   h10->GetXaxis()->SetTitle("Trigger ID");
 
-  h9->GetYaxis()->SetNdivisions(num_staves);
-  h10->GetYaxis()->SetNdivisions(num_staves);
+  h9->GetYaxis()->SetNdivisions(mNumStaves);
+  h10->GetYaxis()->SetNdivisions(mNumStaves);
 
   if(create_png) {
     h9->Draw("COLZ");
     c1->Print(Form("%s/png/Layer_%i_busy_link_count_map.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h10->Draw("COLZ");
     c1->Print(Form("%s/png/Layer_%i_busyv_link_count_map.png",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
   }
 
   if(create_pdf) {
     h9->Draw("COLZ");
     c1->Print(Form("%s/pdf/Layer_%i_busy_link_count_map.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
 
     h10->Draw("COLZ");
     c1->Print(Form("%s/pdf/Layer_%i_busyv_link_count_map.pdf",
-                   path, layer_num));
+                   mSimDataPath.c_str(), mLayer));
   }
 
   h9->Write();

@@ -55,6 +55,7 @@ add_sources(
   LinkStats.cpp
   ReadoutUnitStats.cpp
   ITSLayerStats.cpp
+  DetectorStats.cpp
   process_readout_trigger_stats.C
   )
 
