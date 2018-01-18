@@ -35,6 +35,8 @@ namespace ITS {
     sc_vector<StaveInterface> mDetectorStaves[N_LAYERS];
     sc_vector<sc_signal<sc_uint<24>>> s_alpide_data_lines[N_LAYERS];
 
+    detectorConfig mConfig;
+
     unsigned int mNumChips;
 
     void buildDetector(const detectorConfig& config, unsigned int trigger_filter_time);

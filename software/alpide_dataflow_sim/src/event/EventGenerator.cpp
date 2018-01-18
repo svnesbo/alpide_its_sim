@@ -113,7 +113,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
         mHitDensities[5] = settings->value("event/hit_density_layer5").toDouble();
         mHitDensities[6] = settings->value("event/hit_density_layer6").toDouble();
 
-        for(int layer = 0; layer < ITS::N_LAYERS; layer++) {
+        for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
           mDetectorArea[layer] =
             ITS::STAVES_PER_LAYER[layer] *
             ITS::CHIPS_PER_STAVE_IN_LAYER[layer] *
@@ -492,7 +492,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
     if(mSingleChipSimulation && n_hits_raw > 0) {
       n_hits = n_hits_raw * mSingleChipMultiplicityScaleFactor;
 
-      for(int i = 0; i < n_hits; i++) {
+      for(unsigned int i = 0; i < n_hits; i++) {
         unsigned int rand_x1 = (*mRandHitChipX)(mRandHitGen);
         unsigned int rand_y1 = (*mRandHitChipY)(mRandHitGen);
         unsigned int rand_x2, rand_y2;
@@ -548,7 +548,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
         std::cout << " track hits for layer " << layer << "." << std::endl;
 
         // Generate hits here
-        for(int i = 0; i < n_hits; i++) {
+        for(unsigned int i = 0; i < n_hits; i++) {
           unsigned int rand_stave_id = (*mRandStave[layer])(mRandHitGen);
 
           // Skip hits for staves in this layer other than the first

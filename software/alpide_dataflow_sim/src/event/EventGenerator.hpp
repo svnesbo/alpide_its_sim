@@ -64,7 +64,7 @@ private:
   uint64_t mQedNoiseRate = 0;
 
   /// Total number of physics and event frames generated.
-  int mPhysicsEventCount = 0;
+  uint64_t mPhysicsEventCount = 0;
 
   /// Time of the last physics event that was generated.
   int64_t mLastPhysicsEventTimeNs = 0;
@@ -133,7 +133,7 @@ public:
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
   void setPath(const std::string& path) {mDataPath = path;}
-  int getPhysicsEventCount(void) const {return mPhysicsEventCount;}
+  uint64_t getPhysicsEventCount(void) const {return mPhysicsEventCount;}
 
 private:
   uint64_t generateNextPhysicsEvent(uint64_t time_now);

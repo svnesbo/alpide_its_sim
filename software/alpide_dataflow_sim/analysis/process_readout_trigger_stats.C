@@ -13,7 +13,7 @@
 #include <TH1I.h>
 #include "DetectorStats.hpp"
 #include "../src/settings/Settings.hpp"
-#include "../src/ITS/ITS_constants.hpp"
+#include "../src/ITS/ITS_config.hpp"
 
 
 const std::string csv_delim(";");

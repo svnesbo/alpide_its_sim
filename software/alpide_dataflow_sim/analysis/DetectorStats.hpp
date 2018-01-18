@@ -13,7 +13,7 @@
 #include <map>
 #include "ITSLayerStats.hpp"
 #include "../src/settings/Settings.hpp"
-#include "../src/ITS/ITS_constants.hpp"
+#include "../src/ITS/ITS_config.hpp"
 
 class DetectorStats {
   ITS::detectorConfig mConfig;

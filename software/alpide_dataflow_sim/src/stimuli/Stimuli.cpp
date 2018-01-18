@@ -34,18 +34,16 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   mOutputPath = output_path;
 
   // Initialize variables for Stimuli object
-  mNumEvents = settings->value("simulation/n_events").toInt();
+  mNumEvents = settings->value("simulation/n_events").toULongLong();
   mSingleChipSimulation = settings->value("simulation/single_chip").toBool();
   mContinuousMode = settings->value("simulation/continuous_mode").toBool();
-  mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toInt();
-  mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toInt();
-  mTriggerDelayNs = settings->value("event/trigger_delay_ns").toInt();
+  mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toUInt();
+  mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toUInt();
+  mTriggerDelayNs = settings->value("event/trigger_delay_ns").toUInt();
 
-  unsigned int trigger_filter_time = settings->value("event/trigger_filter_time_ns").toInt();
+  unsigned int trigger_filter_time = settings->value("event/trigger_filter_time_ns").toUInt();
   bool trigger_filter_enable = settings->value("event/trigger_filter_enable").toBool();
-  int region_fifo_size = settings->value("alpide/region_fifo_size").toInt();
-  int dmu_fifo_size = settings->value("alpide/dmu_fifo_size").toInt();
-  int dtu_delay = settings->value("alpide/dtu_delay").toInt();
+  int dtu_delay = settings->value("alpide/dtu_delay").toUInt();
   bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
   bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
   bool strobe_extension = settings->value("alpide/strobe_extension_enable").toBool();
@@ -62,8 +60,6 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   std::cout << "Trigger delay (ns): " << mTriggerDelayNs << std::endl;
   std::cout << "Trigger filter time (ns): " << trigger_filter_time << std::endl;
   std::cout << "Trigger filter enabled: " << (trigger_filter_enable ? "true" : "false") << std::endl;
-  std::cout << "Region FIFO size: " << region_fifo_size << std::endl;
-  std::cout << "DMU FIFO size: " << dmu_fifo_size << std::endl;
   std::cout << "DTU delay (clock cycles): " << dtu_delay << std::endl;
   std::cout << "Clustering enabled: " << (enable_clustering ? "true" : "false") << std::endl;
   std::cout << "Matrix readout speed fast: " << (matrix_readout_speed ? "true" : "false") << std::endl;
@@ -116,8 +112,6 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   if(mSingleChipSimulation) {
     mAlpide = new ITS::SingleChip("SingleChip",
                                   0,
-                                  region_fifo_size,
-                                  dmu_fifo_size,
                                   dtu_delay,
                                   mStrobeActiveNs,
                                   strobe_extension,
@@ -150,6 +144,13 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     config.layer[4].num_staves = settings->value("its/layer4_num_staves").toInt();
     config.layer[5].num_staves = settings->value("its/layer5_num_staves").toInt();
     config.layer[6].num_staves = settings->value("its/layer6_num_staves").toInt();
+
+    config.alpide_dtu_delay_cycles = dtu_delay;
+    config.alpide_strobe_length_ns = mStrobeActiveNs;
+    config.alpide_strobe_ext = strobe_extension;
+    config.alpide_cluster_en = enable_clustering;
+    config.alpide_matrix_speed = matrix_readout_speed;
+    config.alpide_continuous_mode = mContinuousMode;
 
     mITS = new ITS::ITSDetector("ITS", config, trigger_filter_time);
     mITS->s_system_clk_in(clock);

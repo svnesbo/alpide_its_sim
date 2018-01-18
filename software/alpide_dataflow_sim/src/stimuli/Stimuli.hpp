@@ -46,11 +46,11 @@ private:
   bool mSingleChipSimulation;
 
   ///@todo Make it a 64-bit int?
-  int mNumEvents;
-  int mNumChips;
-  int mStrobeActiveNs;
-  int mStrobeInactiveNs;
-  int mTriggerDelayNs;
+  uint64_t mNumEvents;
+  unsigned int mNumChips;
+  unsigned int mStrobeActiveNs;
+  unsigned int mStrobeInactiveNs;
+  unsigned int mTriggerDelayNs;
 
 public:
   Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string output_path);

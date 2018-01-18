@@ -17,10 +17,10 @@ using namespace ITS;
 
 
 SingleChip::SingleChip(sc_core::sc_module_name const &name, int chip_id,
-           int region_fifo_size, int dmu_fifo_size, int dtu_delay_cycles,
-           int strobe_length_ns, bool strobe_extension,
-           bool enable_clustering, bool continuous_mode,
-           bool matrix_readout_speed)
+                       int dtu_delay_cycles, int strobe_length_ns,
+                       bool strobe_extension, bool enable_clustering,
+                       bool continuous_mode,
+                       bool matrix_readout_speed)
   : StaveInterface(name, 0, 0, 1, 1)
 {
   socket_control_in[0].register_transport(
@@ -28,8 +28,6 @@ SingleChip::SingleChip(sc_core::sc_module_name const &name, int chip_id,
 
   mChip = std::make_shared<Alpide>("Alpide",
                                    chip_id,
-                                   region_fifo_size,
-                                   dmu_fifo_size,
                                    dtu_delay_cycles,
                                    strobe_length_ns,
                                    strobe_extension,
@@ -73,20 +71,27 @@ void SingleChip::addTraces(sc_trace_file *wf, std::string name_prefix) const
 
 
 InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
-                                   unsigned int layer_id,
-                                   unsigned int stave_id)
+                                   unsigned int layer_id, unsigned int stave_id,
+                                   const ITS::detectorConfig& cfg)
   : StaveInterface(name, layer_id, stave_id, 1, 9)
 {
   socket_control_in[0].register_transport(
     std::bind(&InnerBarrelStave::processCommand, this, std::placeholders::_1));
 
-  for (int i = 0; i < 9; i++) {
-    int chip_id = detector_position_to_chip_id({layer_id, stave_id, 0, i});
+  for (unsigned int i = 0; i < 9; i++) {
+    unsigned int chip_id = detector_position_to_chip_id({layer_id, stave_id, 0, i});
     std::string name = "Chip_" + std::to_string(chip_id);
 
     std::cout << "Creating chip with ID " << chip_id << std::endl;
 
-    mChips.push_back(std::make_shared<Alpide>(name.c_str(), chip_id, 128, 64, 0, 100, false, true, false, true));
+    mChips.push_back(std::make_shared<Alpide>(name.c_str(),
+                                              chip_id,
+                                              cfg.alpide_dtu_delay_cycles,
+                                              cfg.alpide_strobe_length_ns,
+                                              cfg.alpide_strobe_ext,
+                                              cfg.alpide_cluster_en,
+                                              cfg.alpide_continuous_mode,
+                                              cfg.alpide_matrix_speed));
 
     // Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     //        int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
@@ -127,7 +132,7 @@ void InnerBarrelStave::addTraces(sc_trace_file *wf, std::string name_prefix) con
   //addTrace(wf, IB_stave_name_prefix, "socket_control_in", socket_control_in);
   //addTrace(wf, IB_stave_name_prefix, "socket_data_out", socket_data_out);
 
-  for(int i = 0; i < mChips.size(); i++) {
+  for(unsigned int i = 0; i < mChips.size(); i++) {
     std::stringstream ss_chip;
     ss_chip << IB_stave_name_prefix << "Chip_" << i << ".";
     std::string IB_stave_chip_prefix = ss_chip.str();

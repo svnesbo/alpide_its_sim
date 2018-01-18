@@ -173,10 +173,9 @@ private:
   ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
 public:
-  Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-         int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
-         bool strobe_extension, bool enable_clustering, bool continuous_mode,
-         bool matrix_readout_speed);
+  Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
+         int strobe_length_ns, bool strobe_extension, bool enable_clustering,
+         bool continuous_mode, bool matrix_readout_speed);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 

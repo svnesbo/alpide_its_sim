@@ -19,7 +19,6 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] name    SystemC module name
 ///@param[in] chip_id Desired chip id
 ///@param[in] region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
-///@param[in] dmu_fifo_size Depth of DMU (Data Management Unit) FIFO.
 ///@param[in] dtu_delay_cycles Number of clock cycle delays associated with Data Transfer Unit (DTU)
 ///@param[in] strobe_length_ns Strobe length (in nanoseconds)
 ///@param[in] strobe_extension Enable/disable strobe extension
@@ -27,15 +26,14 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] enable_clustering Enable clustering and use of DATA LONG words
 ///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
 ///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
-Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
-               bool strobe_extension, bool enable_clustering, bool continuous_mode,
-               bool matrix_readout_speed)
+Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
+               int strobe_length_ns, bool strobe_extension, bool enable_clustering,
+               bool continuous_mode, bool matrix_readout_speed)
   : sc_core::sc_module(name)
   , s_control_input("s_control_input")
   , s_data_output("s_data_output")
   , s_chip_ready_out("chip_ready_out")
-  , s_dmu_fifo(dmu_fifo_size)
+  , s_dmu_fifo(DMU_FIFO_SIZE)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
   , s_busy_fifo(BUSY_FIFO_SIZE)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
@@ -78,7 +76,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     mRRUs[i] = new RegionReadoutUnit(ss.str().c_str(),
                                      this,
                                      i,
-                                     region_fifo_size,
+                                     REGION_FIFO_SIZE,
                                      matrix_readout_speed,
                                      enable_clustering);
 
