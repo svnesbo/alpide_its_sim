@@ -138,6 +138,8 @@ private:
   uint16_t mBunchCounter;
   uint16_t mStrobeLengthNs;
   uint64_t mStrobeStartTime;
+  uint16_t mMinBusyCycles;
+  uint16_t mBusyCycleCount = 0;
 
   ///@brief Trigger ID counter
   uint64_t mTrigIdCount = 0;
@@ -175,7 +177,7 @@ private:
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
          int strobe_length_ns, bool strobe_extension, bool enable_clustering,
-         bool continuous_mode, bool matrix_readout_speed);
+         bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles = 8);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 

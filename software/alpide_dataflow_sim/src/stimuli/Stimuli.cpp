@@ -47,6 +47,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   bool enable_clustering = settings->value("alpide/clustering_enable").toBool();
   bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
   bool strobe_extension = settings->value("alpide/strobe_extension_enable").toBool();
+  unsigned int min_busy_cycles = settings->value("alpide/minimum_busy_cycles").toUInt();
 
   std::cout << std::endl;
   std::cout << "-------------------------------------------------" << std::endl;
@@ -117,7 +118,8 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
                                   strobe_extension,
                                   enable_clustering,
                                   mContinuousMode,
-                                  matrix_readout_speed);
+                                  matrix_readout_speed,
+                                  min_busy_cycles);
 
     mAlpide->s_system_clk_in(clock);
 
@@ -147,6 +149,7 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
 
     config.alpide_dtu_delay_cycles = dtu_delay;
     config.alpide_strobe_length_ns = mStrobeActiveNs;
+    config.alpide_min_busy_cycles = min_busy_cycles;
     config.alpide_strobe_ext = strobe_extension;
     config.alpide_cluster_en = enable_clustering;
     config.alpide_matrix_speed = matrix_readout_speed;

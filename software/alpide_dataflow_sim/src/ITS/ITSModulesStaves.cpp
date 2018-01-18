@@ -19,8 +19,8 @@ using namespace ITS;
 SingleChip::SingleChip(sc_core::sc_module_name const &name, int chip_id,
                        int dtu_delay_cycles, int strobe_length_ns,
                        bool strobe_extension, bool enable_clustering,
-                       bool continuous_mode,
-                       bool matrix_readout_speed)
+                       bool continuous_mode, bool matrix_readout_speed,
+                       int min_busy_cycles)
   : StaveInterface(name, 0, 0, 1, 1)
 {
   socket_control_in[0].register_transport(
@@ -33,7 +33,8 @@ SingleChip::SingleChip(sc_core::sc_module_name const &name, int chip_id,
                                    strobe_extension,
                                    enable_clustering,
                                    continuous_mode,
-                                   matrix_readout_speed);
+                                   matrix_readout_speed,
+                                   min_busy_cycles);
 
     socket_control_out.bind(mChip->s_control_input);
     mChip->s_data_output(socket_data_out[0]);
@@ -91,7 +92,8 @@ InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
                                               cfg.alpide_strobe_ext,
                                               cfg.alpide_cluster_en,
                                               cfg.alpide_continuous_mode,
-                                              cfg.alpide_matrix_speed));
+                                              cfg.alpide_matrix_speed,
+                                              cfg.alpide_min_busy_cycles));
 
     // Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     //        int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,

@@ -54,7 +54,8 @@ namespace ITS {
     SingleChip(sc_core::sc_module_name const &name, int chip_id,
                int dtu_delay_cycles, int strobe_length_ns,
                bool strobe_extension, bool enable_clustering,
-               bool continuous_mode, bool matrix_readout_speed);
+               bool continuous_mode, bool matrix_readout_speed,
+               int min_busy_cycles);
 
     virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 

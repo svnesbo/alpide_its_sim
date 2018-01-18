@@ -18,7 +18,6 @@ SC_HAS_PROCESS(Alpide);
 ///@brief Constructor for Alpide.
 ///@param[in] name    SystemC module name
 ///@param[in] chip_id Desired chip id
-///@param[in] region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
 ///@param[in] dtu_delay_cycles Number of clock cycle delays associated with Data Transfer Unit (DTU)
 ///@param[in] strobe_length_ns Strobe length (in nanoseconds)
 ///@param[in] strobe_extension Enable/disable strobe extension
@@ -26,9 +25,11 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] enable_clustering Enable clustering and use of DATA LONG words
 ///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
 ///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
+///@param[in] min_busy_cycles Minimum number of cycles that the internal busy signal has to be
+///           asserted before the chip transmits BUSY_ON
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
                int strobe_length_ns, bool strobe_extension, bool enable_clustering,
-               bool continuous_mode, bool matrix_readout_speed)
+               bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles)
   : sc_core::sc_module(name)
   , s_control_input("s_control_input")
   , s_data_output("s_data_output")
@@ -41,6 +42,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   , mContinuousMode(continuous_mode)
   , mStrobeExtensionEnable(strobe_extension)
   , mStrobeLengthNs(strobe_length_ns)
+  , mMinBusyCycles(min_busy_cycles)
 {
   mChipId = chip_id;
   mEnableDtuDelay = dtu_delay_cycles > 0;
@@ -542,11 +544,19 @@ void Alpide::updateBusyStatus(void)
 
   bool new_busy_status = (s_frame_fifo_busy || s_multi_event_buffers_busy);
 
+  // The internal busy signal needs to be asserted for a minimum number of cycles
+  // (mMinBusyCycles, equivalent to reg 0x001B BUSY min width in real chip),
+  // before the busy signal is asserted and BUSY_ON is transmitted.
   if(new_busy_status == true && new_busy_status != s_busy_status) {
-    mBusyTransitions++;
+    if(mBusyCycleCount == mMinBusyCycles) {
+      mBusyTransitions++;
+      s_busy_status = true;
+    }
+    mBusyCycleCount++;
+  } else if(new_busy_status == false) {
+    mBusyCycleCount = 0;
+    s_busy_status = false;
   }
-
-  s_busy_status = new_busy_status;
 }
 
 
