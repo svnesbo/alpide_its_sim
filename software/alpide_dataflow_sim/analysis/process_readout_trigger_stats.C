@@ -146,7 +146,7 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
   std::vector<TH1I*> h_vector;
   for(unsigned int i = 1; i < csv_fields.size(); i++) {
     std::string h_name = std::string("h") + std::to_string(i+1);
-    h_vector.push_back(new TH1I(h_name.c_str(), csv_fields[i].c_str(), 1000, 0, 0));
+    h_vector.push_back(new TH1I(h_name.c_str(), csv_fields[i].c_str(), 1001, 0, 1000));
     std::cout << "Created histogram " << h_name << " : " << csv_fields[i] << std::endl;
   }
 

@@ -229,15 +229,33 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     std::string physics_events_csv_filename = mOutputPath + std::string("/physics_events_data.csv");
     mPhysicsEventsCSVFile.open(physics_events_csv_filename);
     mPhysicsEventsCSVFile << "delta_t;event_pixel_hit_multiplicity";
-    mPhysicsEventsCSVFile << std::endl;
 
-    std::string event_frames_csv_filename = mOutputPath + std::string("/event_frames_data.csv");
-    mEventFramesCSVFile.open(event_frames_csv_filename);
-    mEventFramesCSVFile << "time";
-    mEventFramesCSVFile << ";filtered";
-    for(int i = 0; i < mNumChips; i++)
-      mEventFramesCSVFile << ";chip_" << i << "_pixel_hits";
-    mEventFramesCSVFile << std::endl;
+    if(mITSConfig.layer[0].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_0";
+    if(mITSConfig.layer[1].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_1";
+    if(mITSConfig.layer[2].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_2";
+    if(mITSConfig.layer[3].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_3";
+    if(mITSConfig.layer[4].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_4";
+    if(mITSConfig.layer[5].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_5";
+    if(mITSConfig.layer[6].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_6";
+
+    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+      unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
+      for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
+        for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
+          mPhysicsEventsCSVFile << ";chip_" << chip_id;
+          chip_id++;
+        }
+      }
+    }
+
+    mPhysicsEventsCSVFile << std::endl;
   }
 
 
@@ -269,8 +287,6 @@ EventGenerator::~EventGenerator()
 
   if(mPhysicsEventsCSVFile.is_open())
     mPhysicsEventsCSVFile.close();
-  if(mEventFramesCSVFile.is_open())
-    mEventFramesCSVFile.close();
 }
 
 
@@ -473,6 +489,9 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
   unsigned int n_hits = 0;
   unsigned int n_hits_raw = 0;
 
+  std::map<unsigned int, unsigned int> layer_hits;
+  std::map<unsigned int, unsigned int> chip_hits;
+
   mLastPhysicsEventTimeNs = time_now;
   mPhysicsEventCount++;
 
@@ -593,6 +612,9 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
           ///@todo Account for larger/bigger clusters here (when implemented)
           event_pixel_hit_count += 4;
 
+          layer_hits[layer]++;
+          chip_hits[detector_position_to_chip_id(pos)]++;
+
           // std::cout << "@ " << time_now << " ns:";
           // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
           // std::cout << " for " << pos << std::endl;
@@ -635,6 +657,9 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
                               mPixelDeadTime,
                               mPixelActiveTime);
 
+      layer_hits[pos.layer_id]++;
+      chip_hits[chip_id]++;
+
       digit_it++;
     }
   }
@@ -662,6 +687,15 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
   // Write event rate and multiplicity numbers to CSV file
   if(mCreateCSVFile) {
     mPhysicsEventsCSVFile << t_delta << ";" << event_pixel_hit_count;
+
+    for(auto lay_it = layer_hits.begin(); lay_it != layer_hits.end(); lay_it++) {
+      mPhysicsEventsCSVFile << ";" << lay_it->second;
+    }
+
+    for(auto chip_it = chip_hits.begin(); chip_it != chip_hits.end(); chip_it++) {
+      mPhysicsEventsCSVFile << ";" << chip_it->second;
+    }
+
     mPhysicsEventsCSVFile << std::endl;
   }
 

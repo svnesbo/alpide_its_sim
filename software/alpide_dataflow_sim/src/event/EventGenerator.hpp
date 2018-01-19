@@ -81,7 +81,6 @@ private:
 
   bool mCreateCSVFile = true;
   std::ofstream mPhysicsEventsCSVFile;
-  std::ofstream mEventFramesCSVFile;
 
   int mRandomSeed;
 
