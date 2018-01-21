@@ -322,6 +322,97 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   h10->Write();
 
 
+
+  //----------------------------------------------------------------------------
+  // Plot total number of busy and busy violation event count vs layer
+  //----------------------------------------------------------------------------
+  TH1D *h11 = new TH1D("h_busy_vs_layer",
+                       "Total busy event count vs layer",
+                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+
+  TH1D *h12 = new TH1D("h_busyv_vs_layer",
+                       "Total busy violation event count vs layer",
+                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+
+  h11->GetXaxis()->SetTitle("Layer number");
+  h11->GetYaxis()->SetTitle("Busy event count");
+
+  h12->GetXaxis()->SetTitle("Layer number");
+  h12->GetYaxis()->SetTitle("Busy violation event count");
+
+  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    if(mLayerStats[layer] != nullptr) {
+      h11->Fill(layer, mLayerStats[layer]->getNumBusyEvents());
+      h12->Fill(layer, mLayerStats[layer]->getNumBusyVEvents());
+    }
+  }
+
+  if(create_png) {
+    h11->Draw();
+    c1->Print(Form("%s/png/Detector_busy_event_count_vs_layer.png", mSimRunDataPath.c_str()));
+
+    h12->Draw();
+    c1->Print(Form("%s/png/Detector_busyv_event_count_vs_layer.png", mSimRunDataPath.c_str()));
+  }
+
+  if(create_pdf) {
+    h11->Draw();
+    c1->Print(Form("%s/pdf/Detector_busy_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
+
+    h12->Draw();
+    c1->Print(Form("%s/pdf/Detector_busyv_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
+  }
+
+  h11->Write();
+  h12->Write();
+
+
+
+  //----------------------------------------------------------------------------
+  // Plot average trigger distribution and readout efficiency vs layer
+  //----------------------------------------------------------------------------
+  TH1D *h13 = new TH1D("h_avg_trig_distr_efficiency_vs_layer",
+                       "Average trigger distribution efficiency vs layer",
+                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+
+  TH1D *h14 = new TH1D("h_avg_readout_efficiency_vs_layer",
+                       "Average readout efficiency vs layer",
+                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+
+  h13->GetXaxis()->SetTitle("Layer number");
+  h13->GetYaxis()->SetTitle("Efficiency");
+
+  h14->GetXaxis()->SetTitle("Layer number");
+  h14->GetYaxis()->SetTitle("Efficiency");
+
+  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    if(mLayerStats[layer] != nullptr) {
+      h13->Fill(layer, mLayerStats[layer]->getAvgTrigDistrEfficiency());
+      h14->Fill(layer, mLayerStats[layer]->getAvgTrigReadoutEfficiency());
+    }
+  }
+
+  if(create_png) {
+    h13->Draw();
+    c1->Print(Form("%s/png/Detector_avg_trig_distr_efficiency_vs_layer.png", mSimRunDataPath.c_str()));
+
+    h14->Draw();
+    c1->Print(Form("%s/png/Detector_avg_readout_efficiency_vs_layer.png", mSimRunDataPath.c_str()));
+  }
+
+  if(create_pdf) {
+    h13->Draw();
+    c1->Print(Form("%s/pdf/Detector_avg_trig_distr_efficiency_vs_layer.pdf", mSimRunDataPath.c_str()));
+
+    h14->Draw();
+    c1->Print(Form("%s/pdf/Detector_avg_readout_efficiency_vs_layer.pdf", mSimRunDataPath.c_str()));
+  }
+
+  h13->Write();
+  h14->Write();
+
+
+
   delete h1;
   delete h2;
   delete h3;

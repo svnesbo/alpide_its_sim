@@ -257,8 +257,12 @@ void Alpide::strobeInput(void)
         mTriggersRejected++;
         s_busy_violation = true;
         mBusyViolations++;
-        //s_flushed_incomplete = false;
         s_chip_ready_internal = false;
+
+        // Flushed incomplete flag doesn't matter, in a busy violation
+        // you only get the busy violation flag (see Alpide manual).
+        // The TRU code will set all the other readout flags to zero.
+        // s_flushed_incomplete = false;
       } else if(getNumEvents() == 2) {
         // Flush oldest event to make room if we are becoming full in continuous
         flushOldestEvent();

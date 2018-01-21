@@ -49,7 +49,8 @@ bool parseCommandLine(QCommandLineParser &parser,
                                            "number of events");
 
   const QCommandLineOption triggerModeOption({"m", "trigger_mode"},
-                                             "Specify \"continuous\" or \"triggered\" mode.");
+                                             "Specify \"continuous\" or \"triggered\" mode.",
+                                             "mode");
 
   const QCommandLineOption randomSeedOption({"s", "random_seed"},
                                             "Random seed for random number generators. "

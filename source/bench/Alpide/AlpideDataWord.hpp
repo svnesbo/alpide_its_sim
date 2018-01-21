@@ -95,6 +95,18 @@ const uint8_t READOUT_FLAGS_FLUSHED_INCOMPLETE = 0b00000100;
 const uint8_t READOUT_FLAGS_STROBE_EXTENDED    = 0b00000010;
 const uint8_t READOUT_FLAGS_BUSY_TRANSITION    = 0b00000001;
 
+/// Special combinations of readout flags indicate
+/// readout abort aka. data overrun (see Alpide manual)
+const uint8_t READOUT_FLAGS_ABORT              = READOUT_FLAGS_BUSY_VIOLATION |
+                                                 READOUT_FLAGS_FLUSHED_INCOMPLETE;
+
+/// Special combinations of readout flags indicate
+/// fatal mode (see Alpide manual)
+const uint8_t READOUT_FLAGS_FATAL              = READOUT_FLAGS_BUSY_VIOLATION |
+                                                 READOUT_FLAGS_FLUSHED_INCOMPLETE |
+                                                 READOUT_FLAGS_STROBE_EXTENDED;
+
+
 /// Mask for busy, idle and comma words
 const uint8_t MASK_IDLE_BUSY_COMMA = 0b11111111;
 

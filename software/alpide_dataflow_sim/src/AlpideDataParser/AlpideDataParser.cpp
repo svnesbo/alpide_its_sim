@@ -27,6 +27,17 @@ bool AlpideEventFrame::pixelHitInEvent(PixelData& pixel) const
 }
 
 
+bool AlpideEventFrame::getFatal(void) const
+{
+  return ((mReadoutFlags & READOUT_FLAGS_FATAL) == READOUT_FLAGS_FATAL);
+}
+
+bool AlpideEventFrame::getReadoutAbort(void) const
+{
+  // Readout abort aka. data overrun mode
+  return ((mReadoutFlags & READOUT_FLAGS_ABORT) == READOUT_FLAGS_ABORT);
+}
+
 bool AlpideEventFrame::getBusyViolation(void) const
 {
   return (mReadoutFlags & READOUT_FLAGS_BUSY_VIOLATION) != 0;
@@ -171,10 +182,17 @@ void AlpideEventBuilder::inputDataWord(AlpideDataWord dw)
       mEvents.back().setReadoutFlags(dw.data[2] & 0x0F);
       mEvents.back().setFrameCompleted(true);
 
-      // Maintain a vector of trigger IDs for triggers
-      // that resulted in a busy violation
-      if(mEvents.back().getBusyViolation() == true)
+      // Maintain vectors of trigger IDs for triggers
+      // that resulted in FATAL condition, READOUT ABORT,
+      // BUSY VIOLATION, or FLUSHED INCOMPLETE
+      if(mEvents.back().getFatal() == true)
+        mFatalTriggers.push_back(mEvents.back().getTriggerId());
+      else if(mEvents.back().getReadoutAbort() == true)
+        mReadoutAbortTriggers.push_back(mEvents.back().getTriggerId());
+      else if(mEvents.back().getBusyViolation() == true)
         mBusyViolationTriggers.push_back(mEvents.back().getTriggerId());
+      else if(mEvents.back().getFlushedIncomplete() == true)
+        mFlushedIncomplTriggers.push_back(mEvents.back().getTriggerId());
     }
     break;
 

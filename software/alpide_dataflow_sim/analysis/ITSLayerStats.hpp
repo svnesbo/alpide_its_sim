@@ -9,7 +9,9 @@
 #ifndef ITS_LAYER_STATS_HPP
 #define ITS_LAYER_STATS_HPP
 
+
 #include "ReadoutUnitStats.hpp"
+
 
 class ITSLayerStats {
   unsigned int mLayer;
@@ -45,12 +47,25 @@ class ITSLayerStats {
   // Initialized in plotLayer() is called.
   std::vector<unsigned int> mBusyVLinkCount;
 
+  // Total number of busy events for this layer
+  unsigned int mNumBusyEvents = 0;
+
+  // Total number of busy violation events for this layer
+  unsigned int mNumBusyVEvents = 0;
+
+  double mAvgTrigDistrEfficiency = 0;
+  double mAvgTrigReadoutEfficiency = 0;
+
 public:
   ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
                 const char* path);
   void plotLayer(bool create_png, bool create_pdf);
   double getTriggerCoverage(uint64_t trigger_id) const;
   uint64_t getNumTriggers(void) {return mNumTriggers;}
+  unsigned int getNumBusyEvents(void) {return mNumBusyEvents;}
+  unsigned int getNumBusyVEvents(void) {return mNumBusyVEvents;}
+  double getAvgTrigDistrEfficiency(void) {return mAvgTrigDistrEfficiency;}
+  double getAvgTrigReadoutEfficiency(void) {return mAvgTrigReadoutEfficiency;}
 
   double getTrigSentCoverage(uint64_t trigger_id) const {
     return mTrigSentCoverage[trigger_id];

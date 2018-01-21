@@ -69,6 +69,8 @@ public:
   bool getFrameCompleted(void) const {return mFrameCompleted;}
 
   void setReadoutFlags(uint8_t flags) {mReadoutFlags = flags;}
+  bool getFatal(void) const;
+  bool getReadoutAbort(void) const;
   bool getBusyViolation(void) const;
   bool getFlushedIncomplete(void) const;
   bool getStrobeExtended(void) const;
@@ -100,7 +102,10 @@ private:
 
   unsigned int mCurrentRegion = 0;
   std::map<AlpideDataType, uint64_t> mProtocolStats;
+  std::vector<uint64_t> mFatalTriggers;
+  std::vector<uint64_t> mReadoutAbortTriggers;
   std::vector<uint64_t> mBusyViolationTriggers;
+  std::vector<uint64_t> mFlushedIncomplTriggers;
   std::vector<BusyEvent> mBusyEvents;
   bool mSaveEvents;
 
@@ -135,8 +140,17 @@ public:
   std::map<AlpideDataType, uint64_t> getProtocolStats(void) {
     return mProtocolStats;
   }
+  std::vector<uint64_t> getFatalTriggers(void) {
+    return mFatalTriggers;
+  }
+  std::vector<uint64_t> getReadoutAbortTriggers(void) {
+    return mReadoutAbortTriggers;
+  }
   std::vector<uint64_t> getBusyViolationTriggers(void) {
     return mBusyViolationTriggers;
+  }
+  std::vector<uint64_t> getFlushedIncomplTriggers(void) {
+    return mFlushedIncomplTriggers;
   }
   std::vector<BusyEvent> getBusyEvents(void) {
     return mBusyEvents;

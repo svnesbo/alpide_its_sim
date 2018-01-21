@@ -14,6 +14,7 @@
 #include "TH2F.h"
 #include "TH1F.h"
 #include "THStack.h"
+#include "TArray.h"
 
 
 ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
@@ -98,6 +99,9 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
     mTrigReadoutCoverage[trigger_id] = trig_sent_coverage/mNumStaves;
     mTrigReadoutExclFilteringCoverage[trigger_id] = trig_readout_excl_filter_coverage/mNumStaves;
 
+    mAvgTrigDistrEfficiency += mTrigSentExclFilteringCoverage[trigger_id];
+    mAvgTrigReadoutEfficiency += mTrigReadoutExclFilteringCoverage[trigger_id];
+
     h1->Fill(trigger_id, mTrigSentCoverage[trigger_id]);
     h2->Fill(trigger_id, mTrigSentExclFilteringCoverage[trigger_id]);
     h3->Fill(trigger_id, mTrigReadoutCoverage[trigger_id]);
@@ -117,6 +121,9 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
     std::cout << " readout coverage (excluding filtering): ";
     std::cout << mTrigReadoutExclFilteringCoverage[trigger_id] << std::endl;
   }
+
+  mAvgTrigDistrEfficiency /= mNumTriggers;
+  mAvgTrigReadoutEfficiency /= mNumTriggers;
 
   h1->GetYaxis()->SetTitle("Coverage");
   h2->GetYaxis()->SetTitle("Coverage");
@@ -301,6 +308,9 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
 
       mBusyLinkCount[trigger_id] += RU_busy_link_count[trigger_id];
       mBusyVLinkCount[trigger_id] += RU_busyv_link_count[trigger_id];
+
+      mNumBusyEvents += RU_busy_link_count[trigger_id];
+      mNumBusyVEvents += RU_busyv_link_count[trigger_id];
     }
   }
 

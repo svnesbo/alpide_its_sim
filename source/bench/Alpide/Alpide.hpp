@@ -156,7 +156,15 @@ private:
   ///@brief Number of "positive" busy transitions (ie. chip went into busy state)
   uint64_t mBusyTransitions = 0;
 
+  ///@brief Number of busy violations.
+  ///@todo This counter is currently only increased by the strobeInput() function,
+  ///      for every single strobe/trigger where there are no free MEBs.
+  ///      Since there are other mechanisms for busy (such as frame fifo), and
+  ///      the chip can enter data overrun mode where it sends out empty packages
+  ///      and discards the data, this busy violation count here may not match
+  ///      the number of busy violations the Readout Unit actually sees.
   uint64_t mBusyViolations = 0;
+
   uint64_t mFlushedIncompleteCount = 0;
 
   uint64_t mEventIdCount = 0;

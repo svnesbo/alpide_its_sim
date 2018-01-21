@@ -548,6 +548,147 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   busyv_events_file.close();
 
 
+  // ------------------------------------------------------
+  // Write binary data file with flushed incomplete  events
+  // ------------------------------------------------------
+  // File format (same as for busyv basically):
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "flushed incomplete events"
+  //       Data (for each flushed incomplete event)
+  //          uint64_t: trigger ID for flushed incomplete
+
+  std::string flush_events_filename = output_path + std::string("_flush_events.dat");
+  ofstream flush_events_file(flush_events_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!flush_events_file.is_open()) {
+    std::cerr << "Error opening flushed incomplete events file: ";
+    std::cerr << flush_events_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing flushed incomplete events to file:\n\"";
+    std::cout << flush_events_filename << "\"" << std::endl;
+  }
+
+
+  // Write number of data links to file header
+  flush_events_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write flushed incomplete events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<uint64_t> flush_events = mDataLinkParsers[link_id]->getFlushedIncomplTriggers();
+    uint64_t num_flush_events = flush_events.size();
+    flush_events_file.write((char*)&num_flush_events, sizeof(uint64_t));
+
+    for(auto flush_event_it = flush_events.begin();
+        flush_event_it != flush_events.end();
+        flush_event_it++)
+    {
+      uint64_t flush_trigger_id = *flush_event_it;
+      flush_events_file.write((char*)&flush_trigger_id, sizeof(uint64_t));
+    }
+  }
+  flush_events_file.close();
+
+
+  // ---------------------------------------------------------------
+  // Write binary data file with readout abort (data overrun) events
+  // ---------------------------------------------------------------
+  // File format (same as for busyv basically):
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "readout abort events"
+  //       Data (for each trigger chip was in readout abort)
+  //          uint64_t: trigger ID for readout abort event
+
+  std::string ro_abort_event_filename = output_path + std::string("_ro_abort_event.dat");
+  ofstream ro_abort_event_file(ro_abort_event_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!ro_abort_event_file.is_open()) {
+    std::cerr << "Error opening readout abort events file: ";
+    std::cerr << ro_abort_event_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing readout abort events to file:\n\"";
+    std::cout << ro_abort_event_filename << "\"" << std::endl;
+  }
+
+
+  // Write number of data links to file header
+  ro_abort_event_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write readout abort events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<uint64_t> ro_abort_event = mDataLinkParsers[link_id]->getReadoutAbortTriggers();
+    uint64_t num_ro_abort_event = ro_abort_event.size();
+    ro_abort_event_file.write((char*)&num_ro_abort_event, sizeof(uint64_t));
+
+    for(auto readout_abort_it = ro_abort_event.begin();
+        readout_abort_it != ro_abort_event.end();
+        readout_abort_it++)
+    {
+      uint64_t ro_abort_trigger_id = *readout_abort_it;
+      ro_abort_event_file.write((char*)&ro_abort_trigger_id, sizeof(uint64_t));
+    }
+  }
+  ro_abort_event_file.close();
+
+
+  // ------------------------------------------------------
+  // Write binary data file with fatal events
+  // ------------------------------------------------------
+  // File format (same as for busyv basically):
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "fatal events"
+  //       Data (for each trigger chip was in fatal mode)
+  //          uint64_t: trigger ID for fatal event
+
+  std::string fatal_event_filename = output_path + std::string("_fatal_event.dat");
+  ofstream fatal_event_file(fatal_event_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!fatal_event_file.is_open()) {
+    std::cerr << "Error opening fatal events events file: ";
+    std::cerr << fatal_event_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing readout fatal events to file:\n\"";
+    std::cout << fatal_event_filename << "\"" << std::endl;
+  }
+
+
+  // Write number of data links to file header
+  fatal_event_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write fatal events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<uint64_t> fatal_event = mDataLinkParsers[link_id]->getFatalTriggers();
+    uint64_t num_fatal_event = fatal_event.size();
+    fatal_event_file.write((char*)&num_fatal_event, sizeof(uint64_t));
+
+    for(auto fatal_it = fatal_event.begin();
+        fatal_it != fatal_event.end();
+        fatal_it++)
+    {
+      uint64_t fatal_trigger_id = *fatal_it;
+      fatal_event_file.write((char*)&fatal_trigger_id, sizeof(uint64_t));
+    }
+  }
+  fatal_event_file.close();
+
+
   // Write file with trigger summary
   // -----------------------------------------------------
   csv_filename = output_path + std::string("_Trigger_summary.csv");

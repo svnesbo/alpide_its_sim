@@ -264,6 +264,8 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
     uint64_t num_busyv_events = 0;
     busyv_file.read((char*)&num_busyv_events, sizeof(uint64_t));
 
+    std::cout << "Number of busyv events: " << num_busyv_events << std::endl;
+
     uint64_t busyv_sequence_count = 0;
 
     // Resize vector and initialize each element to number of data links
