@@ -96,7 +96,7 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
 
     mTrigSentCoverage[trigger_id] = trig_sent_coverage/mNumStaves;
     mTrigSentExclFilteringCoverage[trigger_id] = trig_sent_excl_filter_coverage/mNumStaves;
-    mTrigReadoutCoverage[trigger_id] = trig_sent_coverage/mNumStaves;
+    mTrigReadoutCoverage[trigger_id] = trig_readout_coverage/mNumStaves;
     mTrigReadoutExclFilteringCoverage[trigger_id] = trig_readout_excl_filter_coverage/mNumStaves;
 
     mAvgTrigDistrEfficiency += mTrigSentExclFilteringCoverage[trigger_id];

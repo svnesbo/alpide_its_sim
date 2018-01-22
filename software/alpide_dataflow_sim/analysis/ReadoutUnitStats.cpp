@@ -14,6 +14,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <algorithm>
 
 #include "TCanvas.h"
 #include "TROOT.h"
@@ -155,17 +156,29 @@ void ReadoutUnitStats::readTrigActionsFile(std::string file_path_base)
 ///       found with the various busy event data.
 ///       Expects readTrigActionsFile() to have been called first, because the
 ///       mTrigSentCoverage vector needs to have been set up for some of the calculations here.
+///@todo  Should have added a function for reading the busyv/flush/ro_abort/fatal
+///       event files, since they all share the same format, but that required
+///       some structural changes and I was too lazy to do it..
 ///@param file_path_base Path to simulation run data directory
 void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
 {
   std::stringstream ss_busy_events;
   std::stringstream ss_busyv_events;
+  std::stringstream ss_flush_events;
+  std::stringstream ss_abort_events;
+  std::stringstream ss_fatal_events;
 
   ss_busy_events  << file_path_base << "_busy_events.dat";
   ss_busyv_events << file_path_base << "_busyv_events.dat";
+  ss_flush_events << file_path_base << "_flush_events.dat";
+  ss_abort_events << file_path_base << "_ro_abort_events.dat";
+  ss_fatal_events << file_path_base << "_fatal_events.dat";
 
   std::string busy_events_filename = ss_busy_events.str();
   std::string busyv_events_filename = ss_busyv_events.str();
+  std::string flush_events_filename = ss_flush_events.str();
+  std::string abort_events_filename = ss_abort_events.str();
+  std::string fatal_events_filename = ss_fatal_events.str();
 
   std::cout << "Opening file: " << busy_events_filename << std::endl;
   std::ifstream busy_file(busy_events_filename, std::ios_base::in | std::ios_base::binary);
@@ -183,16 +196,49 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
     exit(-1);
   }
 
+  std::cout << "Opening file: " << flush_events_filename << std::endl;
+  std::ifstream flush_file(flush_events_filename, std::ios_base::in | std::ios_base::binary);
+
+  if(!flush_file.is_open()) {
+    std::cerr << "Error opening file " << flush_events_filename << std::endl;
+    exit(-1);
+  }
+
+  std::cout << "Opening file: " << abort_events_filename << std::endl;
+  std::ifstream abort_file(abort_events_filename, std::ios_base::in | std::ios_base::binary);
+
+  if(!abort_file.is_open()) {
+    std::cerr << "Error opening file " << abort_events_filename << std::endl;
+    exit(-1);
+  }
+
+  std::cout << "Opening file: " << fatal_events_filename << std::endl;
+  std::ifstream fatal_file(fatal_events_filename, std::ios_base::in | std::ios_base::binary);
+
+  if(!fatal_file.is_open()) {
+    std::cerr << "Error opening file " << fatal_events_filename << std::endl;
+    exit(-1);
+  }
+
   uint8_t num_data_links_busy_file = 0;
   uint8_t num_data_links_busyv_file = 0;
+  uint8_t num_data_links_flush_file = 0;
+  uint8_t num_data_links_abort_file = 0;
+  uint8_t num_data_links_fatal_file = 0;
 
   busy_file.read((char*)&num_data_links_busy_file, sizeof(uint8_t));
   busyv_file.read((char*)&num_data_links_busyv_file, sizeof(uint8_t));
+  flush_file.read((char*)&num_data_links_flush_file, sizeof(uint8_t));
+  abort_file.read((char*)&num_data_links_abort_file, sizeof(uint8_t));
+  fatal_file.read((char*)&num_data_links_fatal_file, sizeof(uint8_t));
 
-  if(num_data_links_busy_file != num_data_links_busyv_file) {
-    std::cerr << "Error: " << num_data_links_busy_file << " data links in busy file,";
-    std::cerr << " does not equal " << num_data_links_busyv_file << " data links in busyv file";
-    std::cerr << std::endl;
+  if(num_data_links_busy_file != num_data_links_busyv_file ||
+     num_data_links_busy_file != num_data_links_flush_file ||
+     num_data_links_busy_file != num_data_links_abort_file ||
+     num_data_links_busy_file != num_data_links_fatal_file)
+  {
+    std::cerr << "Error: number of data links in busy/busyv/flush/abort/fatal ";
+    std::cerr << "files does not match." << std::endl;
     exit(-1);
   }
 
@@ -214,6 +260,11 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
     // Number of busy events for this link
     uint64_t num_busy_events = 0;
     busy_file.read((char*)&num_busy_events, sizeof(uint64_t));
+
+
+    //--------------------------------------------------------------------------
+    // Read busy event file
+    //--------------------------------------------------------------------------
 
     // Iterate through busy events for this link
     for(uint64_t event_count = 0; event_count < num_busy_events; event_count++) {
@@ -259,6 +310,10 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
       std::cout << "\tBusy off trigger: " << busy_off_trigger << std::endl;
     }
 
+
+    //--------------------------------------------------------------------------
+    // Read busy violation event file
+    //--------------------------------------------------------------------------
 
     // Number of busy violation events for this link
     uint64_t num_busyv_events = 0;
@@ -306,7 +361,7 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
 
       mLinkStats.back().mBusyVTriggers.push_back(busyv_trigger_id);
 
-      std::cout << "Busy violation " << event_count << std::endl;
+      std::cout << "Busy violation event " << event_count << std::endl;
       std::cout << "\tTrigger id: " << busyv_trigger_id << std::endl ;
     }
 
@@ -315,6 +370,162 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
       mLinkStats.back().mBusyVTriggerSequences.push_back(busyv_sequence_count);
       mAllBusyVTriggerSequences.push_back(busyv_sequence_count);
     }
+
+
+    //--------------------------------------------------------------------------
+    // Read flushed incomplete event file
+    //--------------------------------------------------------------------------
+
+    // Number of busy violation events for this link
+    uint64_t num_flush_events = 0;
+    flush_file.read((char*)&num_flush_events, sizeof(uint64_t));
+
+    std::cout << "Number of flushed incomplete events: ";
+    std::cout << num_flush_events << std::endl;
+
+    uint64_t flush_sequence_count = 0;
+
+    // Iterate through flushed incomplete events for this link
+    for(uint64_t event_count = 0; event_count < num_flush_events; event_count++) {
+      uint64_t flush_trigger_id = 0;
+
+      flush_file.read((char*)&flush_trigger_id, sizeof(uint64_t));
+
+      // Subtract one link per trigger id, for each flush event
+      mTrigReadoutCoverage[flush_trigger_id]--;
+      mTrigReadoutExclFilteringCoverage[flush_trigger_id]--;
+
+      // If this is not the first flushed incomplete event, calculate how
+      // many triggers since the previous flushed event, and calculate
+      // lengths of flushed incomplete sequences
+      if(event_count > 0) {
+        uint64_t prev_flush_trigger = mLinkStats.back().mFlushTriggers.back();
+        uint64_t flush_distance = flush_trigger_id - prev_flush_trigger;
+
+        // Keep track of flush incomplete distances per link, and for all links
+        mLinkStats.back().mFlushTriggerDistances.push_back(flush_distance);
+        mAllFlushTriggerDistances.push_back(flush_distance);
+
+        if(flush_sequence_count > 0 && flush_distance > 1) {
+          // Keep track of flush incomplete sequences per link and for all links
+          mLinkStats.back().mFlushTriggerSequences.push_back(flush_sequence_count);
+          mAllFlushTriggerSequences.push_back(flush_sequence_count);
+
+          flush_sequence_count = 0;
+        }
+      }
+
+      flush_sequence_count++;
+
+      mLinkStats.back().mFlushTriggers.push_back(flush_trigger_id);
+
+      std::cout << "Flushed incomplete event " << event_count << std::endl;
+      std::cout << "\tTrigger id: " << flush_trigger_id << std::endl ;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Read readout abort event file
+    //--------------------------------------------------------------------------
+
+    // Number of readout abort events for this link
+    uint64_t num_abort_events = 0;
+    abort_file.read((char*)&num_abort_events, sizeof(uint64_t));
+
+    std::cout << "Number of readout abort events: ";
+    std::cout << num_abort_events << std::endl;
+
+    uint64_t abort_sequence_count = 0;
+
+    // Iterate through flushed incomplete events for this link
+    for(uint64_t event_count = 0; event_count < num_abort_events; event_count++) {
+      uint64_t abort_trigger_id = 0;
+
+      abort_file.read((char*)&abort_trigger_id, sizeof(uint64_t));
+
+      // Subtract one link per trigger id, for each readout abort event
+      mTrigReadoutCoverage[abort_trigger_id]--;
+      mTrigReadoutExclFilteringCoverage[abort_trigger_id]--;
+
+      // If this is not the first readout abort event, calculate how
+      // many triggers since the readout abort event, and calculate
+      // lengths of readout abort sequences
+      if(event_count > 0) {
+        uint64_t prev_abort_trigger = mLinkStats.back().mAbortTriggers.back();
+        uint64_t abort_distance = abort_trigger_id - prev_abort_trigger;
+
+        // Keep track of readout abort distances per link, and for all links
+        mLinkStats.back().mAbortTriggerDistances.push_back(abort_distance);
+        mAllAbortTriggerDistances.push_back(abort_distance);
+
+        if(abort_sequence_count > 0 && abort_distance > 1) {
+          // Keep track of abort sequences per link and for all links
+          mLinkStats.back().mAbortTriggerSequences.push_back(abort_sequence_count);
+          mAllAbortTriggerSequences.push_back(abort_sequence_count);
+
+          abort_sequence_count = 0;
+        }
+      }
+
+      abort_sequence_count++;
+
+      mLinkStats.back().mAbortTriggers.push_back(abort_trigger_id);
+
+      std::cout << "Readout abort event " << event_count << std::endl;
+      std::cout << "\tTrigger id: " << abort_trigger_id << std::endl ;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Read fatal event file
+    //--------------------------------------------------------------------------
+
+    // Number of fatal events for this link
+    uint64_t num_fatal_events = 0;
+    fatal_file.read((char*)&num_fatal_events, sizeof(uint64_t));
+
+    std::cout << "Number of fatal events: ";
+    std::cout << num_fatal_events << std::endl;
+
+    uint64_t fatal_sequence_count = 0;
+
+    // Iterate through fatal events for this link
+    for(uint64_t event_count = 0; event_count < num_fatal_events; event_count++) {
+      uint64_t fatal_trigger_id = 0;
+
+      fatal_file.read((char*)&fatal_trigger_id, sizeof(uint64_t));
+
+      // Subtract one link per trigger id, for each fatal event
+      mTrigReadoutCoverage[fatal_trigger_id]--;
+      mTrigReadoutExclFilteringCoverage[fatal_trigger_id]--;
+
+      // If this is not the first fatal event, calculate how
+      // many triggers since the last fatal event, and calculate
+      // lengths of fatal sequences
+      if(event_count > 0) {
+        uint64_t prev_fatal_trigger = mLinkStats.back().mFatalTriggers.back();
+        uint64_t fatal_distance = fatal_trigger_id - prev_fatal_trigger;
+
+        // Keep track of fatal distances per link, and for all links
+        mLinkStats.back().mFatalTriggerDistances.push_back(fatal_distance);
+        mAllFatalTriggerDistances.push_back(fatal_distance);
+
+        if(fatal_sequence_count > 0 && fatal_distance > 1) {
+          // Keep track of fatal sequences per link and for all links
+          mLinkStats.back().mFatalTriggerSequences.push_back(fatal_sequence_count);
+          mAllFatalTriggerSequences.push_back(fatal_sequence_count);
+
+          fatal_sequence_count = 0;
+        }
+      }
+
+      fatal_sequence_count++;
+
+      mLinkStats.back().mFatalTriggers.push_back(fatal_trigger_id);
+
+      std::cout << "Fatal event " << event_count << std::endl;
+      std::cout << "\tTrigger id: " << fatal_trigger_id << std::endl ;
+    }
   } // iterate through each data link
 
 
@@ -322,12 +533,13 @@ void ReadoutUnitStats::readBusyEventFiles(std::string file_path_base)
   for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
     mTrigReadoutCoverage[trig_id] -= (1 - mTrigSentCoverage[trig_id]) * num_data_links_busyv_file;
     mTrigReadoutCoverage[trig_id] /= num_data_links_busyv_file;
-    mTrigReadoutMeanCoverage += mTrigReadoutCoverage[trig_id];
 
     mTrigReadoutExclFilteringCoverage[trig_id] -=
       (1 - mTrigSentExclFilteringCoverage[trig_id]) * num_data_links_busyv_file;
 
     mTrigReadoutExclFilteringCoverage[trig_id] /= num_data_links_busyv_file;
+
+    mTrigReadoutMeanCoverage += mTrigReadoutCoverage[trig_id];
     mTrigReadoutExclFilteringMeanCoverage += mTrigReadoutExclFilteringCoverage[trig_id];
   }
 
@@ -498,6 +710,135 @@ double ReadoutUnitStats::getTrigReadoutExclFilteringCoverage(uint64_t trigger_id
 }
 
 
+void ReadoutUnitStats::plotEventMapCount(const char* h_name, const char* title,
+                                         const std::vector<std::vector<uint64_t>*> &events,
+                                         std::vector<unsigned int>& link_count_vec_out,
+                                         bool create_png, bool create_pdf)
+{
+  TCanvas* c = new TCanvas();
+  c->cd();
+
+  unsigned int num_data_links = events.size();
+
+  //----------------------------------------------------------------------------
+  // Plot event map vs trigger id
+  //----------------------------------------------------------------------------
+  TH2D *h1 = new TH2D(Form("%s_map", h_name), Form("%s event map", title),
+                      mNumTriggers,0,mNumTriggers-1,
+                      num_data_links*5,-0.5,num_data_links-0.5);
+
+  h1->GetXaxis()->SetTitle("Trigger ID");
+  h1->GetYaxis()->SetTitle("Link ID");
+  h1->GetYaxis()->SetNdivisions(num_data_links);
+
+  for(unsigned int link_id = 0; link_id < events.size(); link_id++) {
+    for(auto event_it = events[link_id]->begin();
+        event_it != events[link_id]->end();
+        event_it++)
+    {
+      h1->Fill(*event_it, link_id, 1);
+    }
+  }
+
+  h1->SetStats(false);
+  c->Update();
+  h1->Write();
+  h1->Draw("COL");
+
+  if(create_png)
+    c->Print(Form("%s/png/RU_%i_%i_%s_map.png",
+                  mSimDataPath.c_str(),
+                  mLayer, mStave, h_name));
+
+  if(create_pdf)
+    c->Print(Form("%s/pdf/RU_%i_%i_%s_map.pdf",
+                  mSimDataPath.c_str(),
+                  mLayer, mStave, h_name));
+
+
+  //----------------------------------------------------------------------------
+  // Plot event link count vs trigger id
+  //----------------------------------------------------------------------------
+  TH1D *h2 = h1->ProjectionX(Form("%s_links", h_name));
+  h2->GetYaxis()->SetTitle(Form("%s link count", title));
+  h2->GetXaxis()->SetTitle("Trigger ID");
+
+  h2->SetStats(false);
+  c->Update();
+  h2->Write();
+  h2->Draw();
+
+  if(create_png)
+    c->Print(Form("%s/png/RU_%i_%i_%s_link_count.png",
+                  mSimDataPath.c_str(),
+                  mLayer, mStave, h_name));
+
+  if(create_pdf)
+    c->Print(Form("%s/pdf/RU_%i_%i_%s_link_count.pdf",
+                  mSimDataPath.c_str(),
+                  mLayer, mStave, h_name));
+
+
+  link_count_vec_out.clear();
+
+  // Make a copy of event link counts. Skip bin 0 (underflow bin)
+  for(unsigned int bin_num = 1; bin_num <= mNumTriggers; bin_num++) {
+    link_count_vec_out.push_back(h2->GetBinContent(bin_num));
+  }
+
+  delete h1;
+  delete h2;
+  delete c;
+}
+
+
+void ReadoutUnitStats::plotEventDistribution(const char* h_name, const char* title,
+                                             const char* x_title, const char* y_title,
+                                             std::vector<uint64_t> &event_distr,
+                                             unsigned int num_bins,
+                                             bool create_png, bool create_pdf)
+{
+  TCanvas* c = new TCanvas();
+  c->cd();
+
+  uint64_t max_val = 0;
+  std::vector<uint64_t>::iterator max_val_it =
+    std::max_element(event_distr.begin(), event_distr.end());
+
+  // Just draw an empty plot if vector was empty
+  if(max_val_it != event_distr.end())
+    max_val = *max_val_it;
+
+  TH1D *h = new TH1D(h_name, title, num_bins, 0, max_val);
+
+  h->GetXaxis()->SetTitle(x_title);
+  h->GetYaxis()->SetTitle(y_title);
+
+  for(auto it = event_distr.begin(); it != event_distr.end(); it++)
+  {
+    h->Fill(*it);
+  }
+
+  gStyle->SetOptStat("men"); // mean, num entries, name
+  h->SetStats(true);
+  c->Update();
+  h->Write();
+  h->Draw();
+
+  if(create_png)
+    c->Print(Form("%s/png/RU_%i_%i_%s.png",
+                  mSimDataPath.c_str(),
+                  mLayer, mStave, h_name));
+  if(create_pdf)
+    c->Print(Form("%s/ppdf/RU_%i_%i_%s.pdf",
+                  mSimDataPath.c_str(),
+                  mLayer, mStave, h_name));
+
+  delete h;
+  delete c;
+}
+
+
 void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 {
   unsigned int num_data_links = mLinkStats.size();
@@ -583,203 +924,141 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 
 
   //----------------------------------------------------------------------------
-  // Plot busy violation map vs trigger id
+  // Plot busyv/flush/abort/fatal maps and link counts vs trigger id
   //----------------------------------------------------------------------------
-  TH2D *h3 = new TH2D("h_busyv_map","Busy violation events",
-                      mNumTriggers,0,mNumTriggers-1,
-                      num_data_links*5,-0.5,num_data_links-0.5);
 
-  h3->GetXaxis()->SetTitle("Trigger ID");
-  h3->GetYaxis()->SetTitle("Link ID");
-  h3->GetYaxis()->SetNdivisions(num_data_links);
+  std::vector<std::vector<uint64_t>*> busyv_vec;
+  std::vector<std::vector<uint64_t>*> flush_vec;
+  std::vector<std::vector<uint64_t>*> abort_vec;
+  std::vector<std::vector<uint64_t>*> fatal_vec;
+
 
   for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
-    for(auto busyv_event_it = mLinkStats[link_id].mBusyVTriggers.begin();
-        busyv_event_it != mLinkStats[link_id].mBusyVTriggers.end();
-        busyv_event_it++)
-    {
-      h3->Fill(*busyv_event_it, link_id, 1);
-    }
+    busyv_vec.push_back(&mLinkStats[link_id].mBusyVTriggers);
+    flush_vec.push_back(&mLinkStats[link_id].mFlushTriggers);
+    abort_vec.push_back(&mLinkStats[link_id].mAbortTriggers);
+    fatal_vec.push_back(&mLinkStats[link_id].mFatalTriggers);
   }
 
-  h3->SetStats(false);
-  c1->Update();
-  h3->Write();
-  h3->Draw("COL");
-
-  if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_busyv_map.png",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
-  if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_busyv_map.pdf",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
+  plotEventMapCount("h_busyv", "Busy violation", busyv_vec,
+                    mBusyVLinkCount, create_png, create_pdf);
+  plotEventMapCount("h_flush", "Flushed incomplete", flush_vec,
+                    mFlushLinkCount, create_png, create_pdf);
+  plotEventMapCount("h_abort", "Readout abort", abort_vec,
+                    mAbortLinkCount, create_png, create_pdf);
+  plotEventMapCount("h_fatal", "Fatal mode", fatal_vec,
+                    mFatalLinkCount, create_png, create_pdf);
 
 
-  //----------------------------------------------------------------------------
-  // Plot busy violation link count vs trigger id
-  //----------------------------------------------------------------------------
-  TH1D *h4 = h3->ProjectionX("h_busyv_links");
-  h4->GetYaxis()->SetTitle("Busy violation link count");
-  h4->GetXaxis()->SetTitle("Trigger ID");
-
-  h4->SetStats(false);
-  c1->Update();
-  h4->Write();
-  h4->Draw();
-
-  if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_busyv_links_count.png",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
-  if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_busyv_links_count.pdf",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
-
-  mBusyVLinkCount.clear();
-
-  // Make a copy of busy violation link counts. Skip bin 0 (underflow bin)
-  for(unsigned int bin_num = 1; bin_num <= mNumTriggers; bin_num++) {
-    mBusyVLinkCount.push_back(h4->GetBinContent(bin_num));
-  }
+  c1->cd();
 
 
   //----------------------------------------------------------------------------
   // Plot busy time distribution
   //----------------------------------------------------------------------------
-  TH1D *h5 = new TH1D("h_busy_time",
-                      Form("Busy time RU %i:%i", mLayer, mStave),
-                      50,0,100000);
-  h5->GetXaxis()->SetTitle("Time [ns]");
-  h5->GetYaxis()->SetTitle("Counts");
+  /* TH1D *h5 = new TH1D("h_busy_time", */
+  /*                     Form("Busy time RU %i:%i", mLayer, mStave), */
+  /*                     50,0,100000); */
+  /* h5->GetXaxis()->SetTitle("Time [ns]"); */
+  /* h5->GetYaxis()->SetTitle("Counts"); */
 
-  for(auto busy_time_it = mAllBusyTime.begin();
-      busy_time_it != mAllBusyTime.end();
-      busy_time_it++)
-  {
-    h5->Fill(*busy_time_it);
-  }
+  /* for(auto busy_time_it = mAllBusyTime.begin(); */
+  /*     busy_time_it != mAllBusyTime.end(); */
+  /*     busy_time_it++) */
+  /* { */
+  /*   h5->Fill(*busy_time_it); */
+  /* } */
 
-  gStyle->SetOptStat("men"); // mean, num entries, name
-  h5->SetStats(true);
-  c1->Update();
-  h5->Write();
-  h5->Draw();
+  /* gStyle->SetOptStat("men"); // mean, num entries, name */
+  /* h5->SetStats(true); */
+  /* c1->Update(); */
+  /* h5->Write(); */
+  /* h5->Draw(); */
 
-  if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_busy_time.png",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
-  if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_busy_time.pdf",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
+  /* if(create_png) */
+  /*   c1->Print(Form("%s/png/RU_%i_%i_busy_time.png", */
+  /*                  mSimDataPath.c_str(), */
+  /*                  mLayer, mStave)); */
+  /* if(create_pdf) */
+  /*   c1->Print(Form("%s/pdf/RU_%i_%i_busy_time.pdf", */
+  /*                  mSimDataPath.c_str(), */
+  /*                  mLayer, mStave)); */
+
+  //----------------------------------------------------------------------------
+  // Plot busy length distribution (time)
+  //----------------------------------------------------------------------------
+  plotEventDistribution("h_busy_time",
+                        Form("Busy time RU %i:%i", mLayer, mStave),
+                        "Time [ns]", "Counts", mAllBusyTime, 100,
+                        create_png, create_pdf);
 
 
   //----------------------------------------------------------------------------
   // Plot busy trigger length distribution
   //----------------------------------------------------------------------------
-  TH1D *h6 = new TH1D("h_busy_trigger",
-                      Form("Busy trigger length RU %i:%i", mLayer, mStave),
-                      64,0,64);
-
-  h6->GetXaxis()->SetTitle("Number of triggers");
-  h6->GetYaxis()->SetTitle("Counts");
-
-  for(auto busy_trigger_it = mAllBusyTriggerLengths.begin();
-      busy_trigger_it != mAllBusyTriggerLengths.end();
-      busy_trigger_it++)
-  {
-    h6->Fill(*busy_trigger_it);
-  }
-
-  gStyle->SetOptStat("men"); // mean, num entries, name
-  h6->SetStats(true);
-  c1->Update();
-  h6->Write();
-  h6->Draw();
-
-  if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_busy_trig_len.png",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
-  if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_busy_trig_len.pdf",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
+  plotEventDistribution("h_busy_trig_len",
+                        Form("Busy trigger length RU %i:%i", mLayer, mStave),
+                        "Number of triggers", "Counts", mAllBusyTriggerLengths,
+                        100, create_png, create_pdf);
 
 
   //----------------------------------------------------------------------------
-  // Plot busy violation trigger distance distribution
+  // Plot busyv/flush/abort/fatal trigger distance distribution
   //----------------------------------------------------------------------------
-  TH1D *h7 = new TH1D("h_busyv_distance",
-                      Form("Busy violation distances RU %i:%i", mLayer, mStave),
-                      50,0,50);
+  plotEventDistribution("h_busyv_distance",
+                        Form("Busy violation distances RU %i:%i", mLayer, mStave),
+                        "BusyV trigger distance", "Counts", mAllBusyVTriggerDistances,
+                        100, create_png, create_pdf);
 
-  h7->GetXaxis()->SetTitle("Busy violation trigger distance");
-  h7->GetYaxis()->SetTitle("Counts");
+  plotEventDistribution("h_flush_distance",
+                        Form("Flushed incomplete distances RU %i:%i", mLayer, mStave),
+                        "Flush incompl. trigger distance", "Counts", mAllFlushTriggerDistances,
+                        100, create_png, create_pdf);
 
-  for(auto busyv_dist_it = mAllBusyVTriggerDistances.begin();
-      busyv_dist_it != mAllBusyVTriggerDistances.end();
-      busyv_dist_it++)
-  {
-    h7->Fill(*busyv_dist_it);
-  }
+  plotEventDistribution("h_abort_distance",
+                        Form("Readout abort distances RU %i:%i", mLayer, mStave),
+                        "Readout abort trigger distance", "Counts", mAllAbortTriggerDistances,
+                        100, create_png, create_pdf);
 
-  gStyle->SetOptStat("men");
-  h7->SetStats(true);
-  c1->Update();
-  h7->Write();
-  h7->Draw();
-
-  if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_busyv_distance.png",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
-  if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_busyv_distance.pdf",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
+  plotEventDistribution("h_fatal_distance",
+                        Form("Fatal mode distances RU %i:%i", mLayer, mStave),
+                        "Fatal trigger distance", "Counts", mAllFatalTriggerDistances,
+                        100, create_png, create_pdf);
 
 
   //----------------------------------------------------------------------------
-  // Plot busy violation trigger sequence distribution
+  // Plot busyv/flush/abort/fatal trigger sequence distribution
   //----------------------------------------------------------------------------
-  TH1D *h8 = new TH1D("h_busyv_sequence",
-                      Form("Busy violation sequences RU %i:%i", mLayer, mStave),
-                      50,0,50);
+  plotEventDistribution("h_busyv_sequence",
+                        Form("Busy violation sequences RU %i:%i", mLayer, mStave),
+                        "BusyV trigger sequence length", "Counts",
+                        mAllBusyVTriggerSequences,
+                        100, create_png, create_pdf);
 
-  h8->GetXaxis()->SetTitle("Busy violation trigger sequence length");
-  h8->GetYaxis()->SetTitle("Counts");
+  plotEventDistribution("h_flush_sequence",
+                        Form("Flushed incomplete sequences RU %i:%i", mLayer, mStave),
+                        "Flushed incompl. trigger sequence length", "Counts",
+                        mAllFlushTriggerSequences,
+                        100, create_png, create_pdf);
 
-  for(auto busyv_dist_it = mAllBusyVTriggerSequences.begin();
-      busyv_dist_it != mAllBusyVTriggerSequences.end();
-      busyv_dist_it++)
-  {
-    h8->Fill(*busyv_dist_it);
-  }
+  plotEventDistribution("h_abort_sequence",
+                        Form("Readout abort sequences RU %i:%i", mLayer, mStave),
+                        "Readout abort trigger sequence length", "Counts",
+                        mAllAbortTriggerSequences,
+                        100, create_png, create_pdf);
 
-  gStyle->SetOptStat("men");
-  h8->SetStats(true);
-  c1->Update();
-  h8->Write();
-  h8->Draw();
-
-  if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_busyv_sequence.png",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
-  if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_busyv_sequence.pdf",
-                   mSimDataPath.c_str(),
-                   mLayer, mStave));
+  plotEventDistribution("h_fatal_sequence",
+                        Form("Fatal mode sequences RU %i:%i", mLayer, mStave),
+                        "Fatal trigger sequence length", "Counts",
+                        mAllFatalTriggerSequences,
+                        100, create_png, create_pdf);
 
 
   //----------------------------------------------------------------------------
   // Plot triggers sent coverage vs. trigger ID
   //----------------------------------------------------------------------------
+  c1->cd();
+
   TH1D *h9 = new TH1D("h_trig_ctrl_link_coverage",
                       Form("Alpide Trigger Control Link Coverage - RU %i:%i", mLayer, mStave),
                       mNumTriggers,0,mNumTriggers-1);
@@ -1076,12 +1355,6 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   delete c1;
   delete h1;
   delete h2;
-  delete h3;
-  delete h4;
-  delete h5;
-  delete h6;
-  delete h7;
-  delete h8;
   delete h9;
   delete h10;
   delete h11;

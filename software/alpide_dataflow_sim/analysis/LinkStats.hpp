@@ -25,12 +25,21 @@ struct LinkStats {
   unsigned int mStave; // Stave id
   unsigned int mLink;  // Link id
 
-  // Triggers that had busy violations
-  std::vector<uint64_t> mBusyVTriggers;
-
   // Triggers for which the link was busy
   // (regardless of for how long in time it was actually busy)
   std::vector<uint64_t> mBusyTriggers;
+
+  // Triggers that had busy violations
+  std::vector<uint64_t> mBusyVTriggers;
+
+  // Triggers that had flushed incomplete
+  std::vector<uint64_t> mFlushTriggers;
+
+  // Triggers that the chip was in readout abort mode
+  std::vector<uint64_t> mAbortTriggers;
+
+  // Triggers that the chip was in fatal mode
+  std::vector<uint64_t> mFatalTriggers;
 
   // Distribution of for how many triggers the busy signals is asserted
   // ie. busy_off_trigger_id - busy_on_trigger_id
@@ -40,9 +49,33 @@ struct LinkStats {
   // numbers of triggers between busy violations
   std::vector<uint64_t> mBusyVTriggerDistances;
 
-  // Distribution of numbers of triggers with
-  // busy violations in a sequence of busy violations
+  // Distribution of space/distance in
+  // numbers of triggers between flushed incompletes
+  std::vector<uint64_t> mFlushTriggerDistances;
+
+  // Distribution of space/distance in
+  // numbers of triggers between readout abort events
+  std::vector<uint64_t> mAbortTriggerDistances;
+
+  // Distribution of space/distance in
+  // numbers of triggers between fatal events
+  std::vector<uint64_t> mFatalTriggerDistances;
+
+  // Distribution of how long sequences of busy violations
+  // we have, in terms of triggers.
   std::vector<uint64_t> mBusyVTriggerSequences;
+
+  // Distribution of how long sequences of flushed incompletes
+  // we have, in terms of triggers.
+  std::vector<uint64_t> mFlushTriggerSequences;
+
+  // Distribution of how long sequences of readout abort
+  // events we have, in terms of triggers.
+  std::vector<uint64_t> mAbortTriggerSequences;
+
+  // Distribution of how long sequences of fatal mode
+  // events we have, in terms of triggers.
+  std::vector<uint64_t> mFatalTriggerSequences;
 
   // When, in time, that the link was busy
   std::vector<BusyTime> mBusyTime;

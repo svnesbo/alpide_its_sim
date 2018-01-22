@@ -609,7 +609,7 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   //       Data (for each trigger chip was in readout abort)
   //          uint64_t: trigger ID for readout abort event
 
-  std::string ro_abort_event_filename = output_path + std::string("_ro_abort_event.dat");
+  std::string ro_abort_event_filename = output_path + std::string("_ro_abort_events.dat");
   ofstream ro_abort_event_file(ro_abort_event_filename, std::ios_base::out | std::ios_base::binary);
 
   if(!ro_abort_event_file.is_open()) {
@@ -656,7 +656,7 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   //       Data (for each trigger chip was in fatal mode)
   //          uint64_t: trigger ID for fatal event
 
-  std::string fatal_event_filename = output_path + std::string("_fatal_event.dat");
+  std::string fatal_event_filename = output_path + std::string("_fatal_events.dat");
   ofstream fatal_event_file(fatal_event_filename, std::ios_base::out | std::ios_base::binary);
 
   if(!fatal_event_file.is_open()) {

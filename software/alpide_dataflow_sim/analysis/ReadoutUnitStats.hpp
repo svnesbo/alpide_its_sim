@@ -59,11 +59,40 @@ class ReadoutUnitStats {
   // This vector has contributions from all of this RUs links
   std::vector<uint64_t> mAllBusyVTriggerDistances;
 
-  // Distribution of numbers of triggers with
-  // busy violations in a sequence of busy violations
+  // Distribution of space/distance in
+  // numbers of triggers between flush incomplete events
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllFlushTriggerDistances;
+
+  // Distribution of space/distance in
+  // numbers of triggers between readout abort events
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllAbortTriggerDistances;
+
+  // Distribution of space/distance in
+  // numbers of triggers between fatal events
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllFatalTriggerDistances;
+
+  // Distribution of how long sequences of busy violations
+  // we have, in terms of triggers.
   // This vector has contributions from all of this RUs links
   std::vector<uint64_t> mAllBusyVTriggerSequences;
 
+  // Distribution of how long sequences of flushed incomplete
+  // we have, in terms of triggers.
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllFlushTriggerSequences;
+
+  // Distribution of how long sequences of readout abort
+  // we have, in terms of triggers.
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllAbortTriggerSequences;
+
+  // Distribution of how long sequences of fatal mode
+  // we have, in terms of triggers.
+  // This vector has contributions from all of this RUs links
+  std::vector<uint64_t> mAllFatalTriggerSequences;
 
   // Number of busy links vs trigger
   // Initialized in plotRU() is called.
@@ -73,6 +102,18 @@ class ReadoutUnitStats {
   // Number of links with busy violation vs trigger
   // Initialized in plotRU() is called.
   std::vector<unsigned int> mBusyVLinkCount;
+
+  // Number of links with flushed incomplete vs trigger
+  // Initialized in plotRU() is called.
+  std::vector<unsigned int> mFlushLinkCount;
+
+  // Number of links with readout abort vs trigger
+  // Initialized in plotRU() is called.
+  std::vector<unsigned int> mAbortLinkCount;
+
+  // Number of links with fatal mode vs trigger
+  // Initialized in plotRU() is called.
+  std::vector<unsigned int> mFatalLinkCount;
 
   // Protocol utilization date for each header field, for all links in this RU
   std::map<std::string, unsigned long> mProtocolUtilization;
@@ -121,6 +162,15 @@ class ReadoutUnitStats {
   void readTrigActionsFile(std::string file_path_base);
   void readBusyEventFiles(std::string file_path_base);
   void readProtocolUtilizationFile(std::string file_path_base);
+  void plotEventMapCount(const char* h_name, const char* title,
+                         const std::vector<std::vector<uint64_t>*> &events,
+                         std::vector<unsigned int>& link_count_vec_out,
+                         bool create_png, bool create_pdf);
+  void plotEventDistribution(const char* h_name, const char* title,
+                             const char* x_title, const char* y_title,
+                             std::vector<uint64_t> &event_distr,
+                             unsigned int num_bins,
+                             bool create_png, bool create_pdf);
 
 public:
   ReadoutUnitStats(unsigned int layer, unsigned int stave, const char* path);

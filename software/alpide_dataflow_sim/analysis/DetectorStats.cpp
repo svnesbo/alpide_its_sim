@@ -102,7 +102,7 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
     mTrigSentCoverage[trigger_id] = trig_sent_coverage/mNumLayers;
     mTrigSentExclFilteringCoverage[trigger_id] = trig_sent_excl_filter_coverage/mNumLayers;
-    mTrigReadoutCoverage[trigger_id] = trig_sent_coverage/mNumLayers;
+    mTrigReadoutCoverage[trigger_id] = trig_readout_coverage/mNumLayers;
     mTrigReadoutExclFilteringCoverage[trigger_id] = trig_readout_excl_filter_coverage/mNumLayers;
 
     h1->Fill(trigger_id, mTrigSentCoverage[trigger_id]);
