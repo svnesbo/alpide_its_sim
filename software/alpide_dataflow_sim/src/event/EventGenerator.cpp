@@ -686,14 +686,24 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
   // Write event rate and multiplicity numbers to CSV file
   if(mCreateCSVFile) {
+    // Write time to next event, and multiplicity for the whole event
     mPhysicsEventsCSVFile << t_delta << ";" << event_pixel_hit_count;
 
-    for(auto lay_it = layer_hits.begin(); lay_it != layer_hits.end(); lay_it++) {
-      mPhysicsEventsCSVFile << ";" << lay_it->second;
+    // Write multiplicity for whole layers of detectors (of included layers)
+    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+      if(mITSConfig.layer[layer].num_staves > 0)
+        mPhysicsEventsCSVFile << ";" << layer_hits[layer];
     }
 
-    for(auto chip_it = chip_hits.begin(); chip_it != chip_hits.end(); chip_it++) {
-      mPhysicsEventsCSVFile << ";" << chip_it->second;
+    // Write multiplicity for the chips that were included in the simulation
+    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+      unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
+      for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
+        for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
+          mPhysicsEventsCSVFile << ";" << chip_hits[chip_id];
+          chip_id++;
+        }
+      }
     }
 
     mPhysicsEventsCSVFile << std::endl;
