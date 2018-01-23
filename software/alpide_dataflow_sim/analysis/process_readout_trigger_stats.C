@@ -76,6 +76,8 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
   DetectorStats its_detector_stats(det_config, event_rate_khz, sim_run_data_path);
 
   its_detector_stats.plotDetector(create_png, create_pdf);
+
+  return 0;
 }
 
 
@@ -142,15 +144,10 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
     }
   }
 
-  TH1I* h0 = new TH1I("h0", "#Deltat", 100, 0, 0);
-  std::vector<TH1I*> h_vector;
-  for(unsigned int i = 1; i < csv_fields.size(); i++) {
-    std::string h_name = std::string("h") + std::to_string(i+1);
-    h_vector.push_back(new TH1I(h_name.c_str(), csv_fields[i].c_str(), 1001, 0, 1000));
-    std::cout << "Created histogram " << h_name << " : " << csv_fields[i] << std::endl;
-  }
 
   long value;
+  std::vector<std::vector<unsigned int>> multipl_vec;
+  multipl_vec.resize(csv_fields.size()-1);
 
   csv_file.setf(std::ios::skipws);
   while(csv_file.good()) {
@@ -179,15 +176,59 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
 
       // First column has time between events
       if(i == 0) {
-        h0->Fill(value);
         event_time_vec.push_back(value);
       }
       else { // The next column has multiplicities
-        h_vector[i-1]->Fill(value);
+        multipl_vec[i-1].push_back(value);
       }
       i++;
 
       current_position = next_position;
+    }
+  }
+
+  // Find maximum time between events,
+  // and initialize histogram to that size.
+  unsigned int max_time = 0;
+  std::vector<uint64_t>::iterator max_time_it =
+    std::max_element(event_time_vec.begin(), event_time_vec.end());
+
+  if(max_time_it != event_time_vec.end())
+    max_time = *max_time_it;
+
+  TH1I* h0 = new TH1I("h0", "#Deltat", max_time+1, 0, max_time);
+  for(auto time_it = event_time_vec.begin();
+      time_it != event_time_vec.end();
+      time_it++)
+  {
+    h0->Fill(*time_it);
+  }
+
+
+  // Create a vector of histograms with an entry
+  // for each multiplicity field in the CSV file
+  std::vector<TH1I*> h_vector;
+  for(unsigned int i = 1; i < csv_fields.size(); i++) {
+    std::string h_name = std::string("h") + std::to_string(i);
+
+    // Find maximum multiplicity value,
+    // and initialize histogram to that size
+    unsigned int max_val = 0;
+    std::vector<unsigned int>::iterator max_val_it =
+      std::max_element(multipl_vec[i-1].begin(), multipl_vec[i-1].end());
+
+    // Just draw an empty plot if vector was empty
+    if(max_val_it != multipl_vec[i-1].end())
+      max_val = *max_val_it;
+
+    h_vector.push_back(new TH1I(h_name.c_str(), csv_fields[i].c_str(), max_val+1, 0, max_val));
+    std::cout << "Created histogram " << h_name << " : " << csv_fields[i] << std::endl;
+
+    for(auto multipl_it = multipl_vec[i-1].begin();
+        multipl_it != multipl_vec[i-1].end();
+        multipl_it++)
+    {
+      h_vector.back()->Fill(*multipl_it);
     }
   }
 
@@ -197,9 +238,9 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
   h0->Write();
 
   if(create_png)
-    c1->Print("png/event_rate.png", "png");
+    c1->Print(Form("%s/png/event_rate.png", sim_run_data_path.c_str()), "png");
   if(create_pdf)
-    c1->Print("pdf/event_rate.pdf", "pdf");
+    c1->Print(Form("%s/pdf/event_rate.pdf", sim_run_data_path.c_str()), "pdf");
 
   summary_file << "Mean delta t: " << h0->GetMean() << " ns" << std::endl;
   summary_file << "Average event rate: " << (int(1.0E9) / h0->GetMean()) / 1000 << " kHz" << std::endl;
@@ -211,22 +252,18 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
     (*it)->Draw();
     (*it)->Write();
     std::string plot_title = (*it)->GetTitle();
-    std::string plot_file_linear_png = sim_run_data_path + "png/" + plot_title + std::string("-linear.png");
-    std::string plot_file_linear_pdf = sim_run_data_path + "pdf/" + plot_title + std::string("-linear.pdf");
-    std::string plot_file_log_png = sim_run_data_path + "png/" + plot_title + std::string("-log.png");
-    std::string plot_file_log_pdf = sim_run_data_path + "pdf/" + plot_title + std::string("-log.pdf");
 
     c2->SetLogy(0);
     if(create_png)
-      c2->Print(plot_file_linear_png.c_str(), "png");
+      c2->Print(Form("%s/png/%s-linear.png", sim_run_data_path.c_str(), plot_title.c_str()), "png");
     if(create_pdf)
-      c2->Print(plot_file_linear_pdf.c_str(), "pdf");
+      c2->Print(Form("%s/pdf/%s-linear.pdf", sim_run_data_path.c_str(), plot_title.c_str()), "pdf");
 
     c2->SetLogy(1);
     if(create_png)
-      c2->Print(plot_file_log_png.c_str(), "png");
+      c2->Print(Form("%s/png/%s-log.png", sim_run_data_path.c_str(), plot_title.c_str()), "png");
     if(create_pdf)
-      c2->Print(plot_file_log_pdf.c_str(), "pdf");
+      c2->Print(Form("%s/pdf/%s-log.pdf", sim_run_data_path.c_str(), plot_title.c_str()), "pdf");
 
     summary_file << std::endl;
     summary_file << plot_title << ": " << std::endl;
