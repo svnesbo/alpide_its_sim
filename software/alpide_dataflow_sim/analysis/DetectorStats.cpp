@@ -265,7 +265,8 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
 
   //----------------------------------------------------------------------------
-  // Plot busy and busy violation link counts vs Layer number vs trigger ID
+  // Plot busy, busyv, flush incompl, ro abort and fatal mode
+  // link counts vs Layer number vs trigger ID
   //----------------------------------------------------------------------------
   TH2D* h9 = new TH2D("h_busy_link_count_map_detector",
                       "Busy Link Count - Detector",
@@ -275,14 +276,35 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
                       "Busy Violation Link Count - Detector",
                       num_triggers,0,num_triggers-1,
                        ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+  TH2D* h11 = new TH2D("h_flush_link_count_map_detector",
+                       "Flushed Incomplete Link Count - Detector",
+                       num_triggers,0,num_triggers-1,
+                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+  TH2D* h12 = new TH2D("h_abort_link_count_map_detector",
+                       "Readout Abort Link Count - Detector",
+                       num_triggers,0,num_triggers-1,
+                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+  TH2D* h13 = new TH2D("h_fatal_link_count_map_detector",
+                       "Fatal Mode Link Count - Detector",
+                       num_triggers,0,num_triggers-1,
+                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
 
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
     if(mLayerStats[layer] != nullptr) {
       std::vector<unsigned int> Layer_busy_link_count = mLayerStats[layer]->getBusyLinkCount();
       std::vector<unsigned int> Layer_busyv_link_count = mLayerStats[layer]->getBusyVLinkCount();
+      std::vector<unsigned int> Layer_flush_link_count = mLayerStats[layer]->getFlushLinkCount();
+      std::vector<unsigned int> Layer_abort_link_count = mLayerStats[layer]->getAbortLinkCount();
+      std::vector<unsigned int> Layer_fatal_link_count = mLayerStats[layer]->getFatalLinkCount();
 
-      if(Layer_busy_link_count.size() != num_triggers || Layer_busyv_link_count.size() != num_triggers) {
-        std::cout << "Error: Number of triggers in busy/busyv link count vectors from Layer " << layer;
+      if(Layer_busy_link_count.size() != num_triggers ||
+         Layer_busyv_link_count.size() != num_triggers ||
+         Layer_flush_link_count.size( )!= num_triggers ||
+         Layer_abort_link_count.size( )!= num_triggers ||
+         Layer_fatal_link_count.size( )!= num_triggers)
+      {
+        std::cout << "Error: Number of triggers in busy/busyv/flush/abort/fatal";
+        std::cout << "link count vectors from Layer " << layer;
         std::cout << " does not matched expected number of triggers. " << std::endl;
         exit(-1);
       }
@@ -290,17 +312,29 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
       for(uint64_t trigger_id = 0; trigger_id < num_triggers; trigger_id++) {
         h9->Fill(trigger_id, layer, Layer_busy_link_count[trigger_id]);
         h10->Fill(trigger_id, layer, Layer_busyv_link_count[trigger_id]);
+        h11->Fill(trigger_id, layer, Layer_flush_link_count[trigger_id]);
+        h12->Fill(trigger_id, layer, Layer_abort_link_count[trigger_id]);
+        h13->Fill(trigger_id, layer, Layer_fatal_link_count[trigger_id]);
       }
     }
   }
 
   h9->GetYaxis()->SetTitle("Layer Number");
   h10->GetYaxis()->SetTitle("Layer Number");
+  h11->GetYaxis()->SetTitle("Layer Number");
+  h12->GetYaxis()->SetTitle("Layer Number");
+  h13->GetYaxis()->SetTitle("Layer Number");
   h9->GetXaxis()->SetTitle("Trigger ID");
   h10->GetXaxis()->SetTitle("Trigger ID");
+  h11->GetXaxis()->SetTitle("Trigger ID");
+  h12->GetXaxis()->SetTitle("Trigger ID");
+  h13->GetXaxis()->SetTitle("Trigger ID");
 
   h9->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
   h10->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
+  h11->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
+  h12->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
+  h13->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
 
   if(create_png) {
     h9->Draw("COLZ");
@@ -308,6 +342,15 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
     h10->Draw("COLZ");
     c1->Print(Form("%s/png/Detector_busyv_link_count_map.png", mSimRunDataPath.c_str()));
+
+    h11->Draw("COLZ");
+    c1->Print(Form("%s/png/Detector_flush_link_count_map.png", mSimRunDataPath.c_str()));
+
+    h12->Draw("COLZ");
+    c1->Print(Form("%s/png/Detector_abort_link_count_map.png", mSimRunDataPath.c_str()));
+
+    h13->Draw("COLZ");
+    c1->Print(Form("%s/png/Detector_fatal_link_count_map.png", mSimRunDataPath.c_str()));
   }
 
   if(create_pdf) {
@@ -316,100 +359,155 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
     h10->Draw("COLZ");
     c1->Print(Form("%s/pdf/Detector_busyv_link_count_map.pdf", mSimRunDataPath.c_str()));
+
+    h11->Draw("COLZ");
+    c1->Print(Form("%s/pdf/Detector_flush_link_count_map.pdf", mSimRunDataPath.c_str()));
+
+    h12->Draw("COLZ");
+    c1->Print(Form("%s/pdf/Detector_abort_link_count_map.pdf", mSimRunDataPath.c_str()));
+
+    h13->Draw("COLZ");
+    c1->Print(Form("%s/pdf/Detector_fatal_link_count_map.pdf", mSimRunDataPath.c_str()));
   }
 
   h9->Write();
   h10->Write();
+  h11->Write();
+  h12->Write();
+  h13->Write();
 
 
 
   //----------------------------------------------------------------------------
-  // Plot total number of busy and busy violation event count vs layer
+  // Plot total number of busy, busyv, flush incompl, ro abort and fatal mode
+  // event count vs layer
   //----------------------------------------------------------------------------
-  TH1D *h11 = new TH1D("h_busy_vs_layer",
+  TH1D *h14 = new TH1D("h_busy_vs_layer",
                        "Total busy event count vs layer",
                        ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
 
-  TH1D *h12 = new TH1D("h_busyv_vs_layer",
+  TH1D *h15 = new TH1D("h_busyv_vs_layer",
                        "Total busy violation event count vs layer",
                        ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
 
-  h11->GetXaxis()->SetTitle("Layer number");
-  h11->GetYaxis()->SetTitle("Busy event count");
+  TH1D *h16 = new TH1D("h_flush_vs_layer",
+                       "Total flushed incomplete event count vs layer",
+                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
 
-  h12->GetXaxis()->SetTitle("Layer number");
-  h12->GetYaxis()->SetTitle("Busy violation event count");
+  TH1D *h17 = new TH1D("h_abort_vs_layer",
+                       "Total readout abort event count vs layer",
+                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+
+  TH1D *h18 = new TH1D("h_fatal_vs_layer",
+                       "Total fatal mode event count vs layer",
+                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+
+  h14->GetXaxis()->SetTitle("Layer number");
+  h15->GetXaxis()->SetTitle("Layer number");
+  h16->GetXaxis()->SetTitle("Layer number");
+  h17->GetXaxis()->SetTitle("Layer number");
+  h18->GetXaxis()->SetTitle("Layer number");
+
+  h14->GetYaxis()->SetTitle("Busy event count");
+  h15->GetYaxis()->SetTitle("Busy violation event count");
+  h16->GetYaxis()->SetTitle("Flushed incomplete event count");
+  h17->GetYaxis()->SetTitle("Readout abort event count");
+  h18->GetYaxis()->SetTitle("Fatal mode event count");
 
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
     if(mLayerStats[layer] != nullptr) {
-      h11->Fill(layer, mLayerStats[layer]->getNumBusyEvents());
-      h12->Fill(layer, mLayerStats[layer]->getNumBusyVEvents());
+      h14->Fill(layer, mLayerStats[layer]->getNumBusyEvents());
+      h15->Fill(layer, mLayerStats[layer]->getNumBusyVEvents());
+      h16->Fill(layer, mLayerStats[layer]->getNumFlushEvents());
+      h17->Fill(layer, mLayerStats[layer]->getNumAbortEvents());
+      h18->Fill(layer, mLayerStats[layer]->getNumFatalEvents());
     }
   }
 
   if(create_png) {
-    h11->Draw();
+    h14->Draw();
     c1->Print(Form("%s/png/Detector_busy_event_count_vs_layer.png", mSimRunDataPath.c_str()));
 
-    h12->Draw();
+    h15->Draw();
     c1->Print(Form("%s/png/Detector_busyv_event_count_vs_layer.png", mSimRunDataPath.c_str()));
+
+    h16->Draw();
+    c1->Print(Form("%s/png/Detector_flush_event_count_vs_layer.png", mSimRunDataPath.c_str()));
+
+    h17->Draw();
+    c1->Print(Form("%s/png/Detector_abort_event_count_vs_layer.png", mSimRunDataPath.c_str()));
+
+    h18->Draw();
+    c1->Print(Form("%s/png/Detector_fatal_event_count_vs_layer.png", mSimRunDataPath.c_str()));
   }
 
   if(create_pdf) {
-    h11->Draw();
+    h14->Draw();
     c1->Print(Form("%s/pdf/Detector_busy_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
 
-    h12->Draw();
+    h15->Draw();
     c1->Print(Form("%s/pdf/Detector_busyv_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
+
+    h16->Draw();
+    c1->Print(Form("%s/pdf/Detector_flush_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
+
+    h17->Draw();
+    c1->Print(Form("%s/pdf/Detector_abort_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
+
+    h18->Draw();
+    c1->Print(Form("%s/pdf/Detector_fatal_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
   }
 
-  h11->Write();
-  h12->Write();
+  h14->Write();
+  h15->Write();
+  h16->Write();
+  h17->Write();
+  h18->Write();
 
 
 
   //----------------------------------------------------------------------------
   // Plot average trigger distribution and readout efficiency vs layer
   //----------------------------------------------------------------------------
-  TH1D *h13 = new TH1D("h_avg_trig_distr_efficiency_vs_layer",
+  TH1D *h19 = new TH1D("h_avg_trig_distr_efficiency_vs_layer",
                        "Average trigger distribution efficiency vs layer",
                        ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
 
-  TH1D *h14 = new TH1D("h_avg_readout_efficiency_vs_layer",
+  TH1D *h20 = new TH1D("h_avg_readout_efficiency_vs_layer",
                        "Average readout efficiency vs layer",
                        ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
 
-  h13->GetXaxis()->SetTitle("Layer number");
-  h13->GetYaxis()->SetTitle("Efficiency");
+  h19->GetXaxis()->SetTitle("Layer number");
+  h19->GetYaxis()->SetTitle("Efficiency");
 
-  h14->GetXaxis()->SetTitle("Layer number");
-  h14->GetYaxis()->SetTitle("Efficiency");
+  h20->GetXaxis()->SetTitle("Layer number");
+  h20->GetYaxis()->SetTitle("Efficiency");
 
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
     if(mLayerStats[layer] != nullptr) {
-      h13->Fill(layer, mLayerStats[layer]->getAvgTrigDistrEfficiency());
-      h14->Fill(layer, mLayerStats[layer]->getAvgTrigReadoutEfficiency());
+      h19->Fill(layer, mLayerStats[layer]->getAvgTrigDistrEfficiency());
+      h20->Fill(layer, mLayerStats[layer]->getAvgTrigReadoutEfficiency());
     }
   }
 
   if(create_png) {
-    h13->Draw();
+    h19->Draw();
     c1->Print(Form("%s/png/Detector_avg_trig_distr_efficiency_vs_layer.png", mSimRunDataPath.c_str()));
 
-    h14->Draw();
+    h20->Draw();
     c1->Print(Form("%s/png/Detector_avg_readout_efficiency_vs_layer.png", mSimRunDataPath.c_str()));
   }
 
   if(create_pdf) {
-    h13->Draw();
+    h19->Draw();
     c1->Print(Form("%s/pdf/Detector_avg_trig_distr_efficiency_vs_layer.pdf", mSimRunDataPath.c_str()));
 
-    h14->Draw();
+    h20->Draw();
     c1->Print(Form("%s/pdf/Detector_avg_readout_efficiency_vs_layer.pdf", mSimRunDataPath.c_str()));
   }
 
-  h13->Write();
-  h14->Write();
+  h19->Write();
+  h20->Write();
 
 
 
@@ -423,6 +521,16 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   delete h8;
   delete h9;
   delete h10;
+  delete h11;
+  delete h12;
+  delete h13;
+  delete h14;
+  delete h15;
+  delete h16;
+  delete h17;
+  delete h18;
+  delete h19;
+  delete h20;
   delete c1;
   delete f;
 }

@@ -42,16 +42,40 @@ class ITSLayerStats {
   // Initialized in plotLayer() is called.
   std::vector<unsigned int> mBusyLinkCount;
 
-
   // Number of links with busy violation vs trigger
   // Initialized in plotLayer() is called.
   std::vector<unsigned int> mBusyVLinkCount;
+
+  // Number of links with flushed incomplete vs trigger
+  // Initialized in plotLayer() is called.
+  std::vector<unsigned int> mFlushLinkCount;
+
+  // Number of links in readout abort vs trigger
+  // Initialized in plotLayer() is called.
+  std::vector<unsigned int> mAbortLinkCount;
+
+  // Number of links in fatal mode vs trigger
+  // Initialized in plotLayer() is called.
+  std::vector<unsigned int> mFatalLinkCount;
 
   // Total number of busy events for this layer
   unsigned int mNumBusyEvents = 0;
 
   // Total number of busy violation events for this layer
   unsigned int mNumBusyVEvents = 0;
+
+  // Total number of flushed incomplete events for this layer
+  unsigned int mNumFlushEvents = 0;
+
+  // Total number of readout abort events for this layer
+  // Each trigger a link is in readout abort counts as a
+  // "readout abort event".
+  unsigned int mNumAbortEvents = 0;
+
+  // Total number of fatal mode events for this layer
+  // Each trigger a link is in fatal mode counts as a
+  // "fatal mode event".
+  unsigned int mNumFatalEvents = 0;
 
   double mAvgTrigDistrEfficiency = 0;
   double mAvgTrigReadoutEfficiency = 0;
@@ -64,6 +88,9 @@ public:
   uint64_t getNumTriggers(void) {return mNumTriggers;}
   unsigned int getNumBusyEvents(void) {return mNumBusyEvents;}
   unsigned int getNumBusyVEvents(void) {return mNumBusyVEvents;}
+  unsigned int getNumFlushEvents(void) {return mNumFlushEvents;}
+  unsigned int getNumAbortEvents(void) {return mNumAbortEvents;}
+  unsigned int getNumFatalEvents(void) {return mNumFatalEvents;}
   double getAvgTrigDistrEfficiency(void) {return mAvgTrigDistrEfficiency;}
   double getAvgTrigReadoutEfficiency(void) {return mAvgTrigReadoutEfficiency;}
 
@@ -84,6 +111,15 @@ public:
   }
   std::vector<unsigned int> getBusyVLinkCount (void) const {
     return mBusyVLinkCount;
+  }
+  std::vector<unsigned int> getFlushLinkCount (void) const {
+    return mFlushLinkCount;
+  }
+  std::vector<unsigned int> getAbortLinkCount (void) const {
+    return mAbortLinkCount;
+  }
+  std::vector<unsigned int> getFatalLinkCount (void) const {
+    return mFatalLinkCount;
   }
 };
 

@@ -199,6 +199,16 @@ public:
   std::vector<unsigned int> getBusyVLinkCount (void) const {
     return mBusyVLinkCount;
   }
+  std::vector<unsigned int> getFlushLinkCount (void) const {
+    return mFlushLinkCount;
+  }
+  std::vector<unsigned int> getAbortLinkCount (void) const {
+    return mAbortLinkCount;
+  }
+  std::vector<unsigned int> getFatalLinkCount (void) const {
+    return mFatalLinkCount;
+  }
+
   void plotRU(bool create_png, bool create_pdf);
 };
 

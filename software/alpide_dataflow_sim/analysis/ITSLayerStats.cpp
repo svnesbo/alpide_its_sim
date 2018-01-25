@@ -285,16 +285,40 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
                            mLayer),
                       mNumTriggers,0,mNumTriggers-1,
                       mNumStaves, -0.5, mNumStaves-0.5);
+  TH2D* h11 = new TH2D(Form("h_flush_link_count_map_layer_%i", mLayer),
+                       Form("Flushed Incomplete Link Count - Layer %i",
+                            mLayer),
+                       mNumTriggers,0,mNumTriggers-1,
+                       mNumStaves, -0.5, mNumStaves-0.5);
+  TH2D* h12 = new TH2D(Form("h_abort_link_count_map_layer_%i", mLayer),
+                       Form("Readout Abort Link Count - Layer %i",
+                            mLayer),
+                       mNumTriggers,0,mNumTriggers-1,
+                       mNumStaves, -0.5, mNumStaves-0.5);
+  TH2D* h13 = new TH2D(Form("h_fatal_link_count_map_layer_%i", mLayer),
+                       Form("Fatal Mode Link Count - Layer %i",
+                            mLayer),
+                       mNumTriggers,0,mNumTriggers-1,
+                       mNumStaves, -0.5, mNumStaves-0.5);
 
   // Resize and initialize vectors with counts of busy and busyv
   mBusyLinkCount.clear();
   mBusyVLinkCount.clear();
+  mFlushLinkCount.clear();
+  mAbortLinkCount.clear();
+  mFatalLinkCount.clear();
   mBusyLinkCount.resize(mNumTriggers, 0);
   mBusyVLinkCount.resize(mNumTriggers, 0);
+  mFlushLinkCount.resize(mNumTriggers, 0);
+  mAbortLinkCount.resize(mNumTriggers, 0);
+  mFatalLinkCount.resize(mNumTriggers, 0);
 
   for(unsigned int stave = 0; stave < mNumStaves; stave++) {
     std::vector<unsigned int> RU_busy_link_count = mRUStats[stave].getBusyLinkCount();
     std::vector<unsigned int> RU_busyv_link_count = mRUStats[stave].getBusyVLinkCount();
+    std::vector<unsigned int> RU_flush_link_count = mRUStats[stave].getFlushLinkCount();
+    std::vector<unsigned int> RU_abort_link_count = mRUStats[stave].getAbortLinkCount();
+    std::vector<unsigned int> RU_fatal_link_count = mRUStats[stave].getFatalLinkCount();
 
     if(RU_busy_link_count.size() != mNumTriggers || RU_busyv_link_count.size() != mNumTriggers) {
       std::cout << "Error: Number of triggers in busy/busyv link count vectors from RU " << stave;
@@ -305,22 +329,40 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
     for(uint64_t trigger_id = 0; trigger_id < mNumTriggers; trigger_id++) {
       h9->Fill(trigger_id, stave, RU_busy_link_count[trigger_id]);
       h10->Fill(trigger_id, stave, RU_busyv_link_count[trigger_id]);
+      h11->Fill(trigger_id, stave, RU_flush_link_count[trigger_id]);
+      h12->Fill(trigger_id, stave, RU_abort_link_count[trigger_id]);
+      h13->Fill(trigger_id, stave, RU_fatal_link_count[trigger_id]);
 
       mBusyLinkCount[trigger_id] += RU_busy_link_count[trigger_id];
       mBusyVLinkCount[trigger_id] += RU_busyv_link_count[trigger_id];
+      mFlushLinkCount[trigger_id] += RU_flush_link_count[trigger_id];
+      mAbortLinkCount[trigger_id] += RU_abort_link_count[trigger_id];
+      mFatalLinkCount[trigger_id] += RU_fatal_link_count[trigger_id];
 
       mNumBusyEvents += RU_busy_link_count[trigger_id];
       mNumBusyVEvents += RU_busyv_link_count[trigger_id];
+      mNumFlushEvents += RU_flush_link_count[trigger_id];
+      mNumAbortEvents += RU_abort_link_count[trigger_id];
+      mNumFatalEvents += RU_fatal_link_count[trigger_id];
     }
   }
 
   h9->GetYaxis()->SetTitle("Stave/RU Number");
   h10->GetYaxis()->SetTitle("Stave/RU Number");
+  h11->GetYaxis()->SetTitle("Stave/RU Number");
+  h12->GetYaxis()->SetTitle("Stave/RU Number");
+  h13->GetYaxis()->SetTitle("Stave/RU Number");
   h9->GetXaxis()->SetTitle("Trigger ID");
   h10->GetXaxis()->SetTitle("Trigger ID");
+  h11->GetXaxis()->SetTitle("Trigger ID");
+  h12->GetXaxis()->SetTitle("Trigger ID");
+  h13->GetXaxis()->SetTitle("Trigger ID");
 
   h9->GetYaxis()->SetNdivisions(mNumStaves);
   h10->GetYaxis()->SetNdivisions(mNumStaves);
+  h11->GetYaxis()->SetNdivisions(mNumStaves);
+  h12->GetYaxis()->SetNdivisions(mNumStaves);
+  h13->GetYaxis()->SetNdivisions(mNumStaves);
 
   if(create_png) {
     h9->Draw("COLZ");
@@ -329,6 +371,18 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
 
     h10->Draw("COLZ");
     c1->Print(Form("%s/png/Layer_%i_busyv_link_count_map.png",
+                   mSimDataPath.c_str(), mLayer));
+
+    h11->Draw("COLZ");
+    c1->Print(Form("%s/png/Layer_%i_flush_link_count_map.png",
+                   mSimDataPath.c_str(), mLayer));
+
+    h12->Draw("COLZ");
+    c1->Print(Form("%s/png/Layer_%i_abort_link_count_map.png",
+                   mSimDataPath.c_str(), mLayer));
+
+    h13->Draw("COLZ");
+    c1->Print(Form("%s/png/Layer_%i_fatal_link_count_map.png",
                    mSimDataPath.c_str(), mLayer));
   }
 
@@ -340,11 +394,49 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
     h10->Draw("COLZ");
     c1->Print(Form("%s/pdf/Layer_%i_busyv_link_count_map.pdf",
                    mSimDataPath.c_str(), mLayer));
+
+    h11->Draw("COLZ");
+    c1->Print(Form("%s/pdf/Layer_%i_flush_link_count_map.pdf",
+                   mSimDataPath.c_str(), mLayer));
+
+    h12->Draw("COLZ");
+    c1->Print(Form("%s/pdf/Layer_%i_abort_link_count_map.pdf",
+                   mSimDataPath.c_str(), mLayer));
+
+    h13->Draw("COLZ");
+    c1->Print(Form("%s/pdf/Layer_%i_fatal_link_count_map.pdf",
+                   mSimDataPath.c_str(), mLayer));
   }
 
   h9->Write();
   h10->Write();
+  h11->Write();
+  h12->Write();
+  h13->Write();
 
+  TArrayD avg_trig_efficiency(1);
+  TArrayD avg_readout_efficiency(1);
+  TArrayI num_busy_events(1);
+  TArrayI num_busyv_events(1);
+  TArrayI num_flush_events(1);
+  TArrayI num_abort_events(1);
+  TArrayI num_fatal_events(1);
+
+  avg_trig_efficiency[0] = getAvgTrigDistrEfficiency();
+  avg_readout_efficiency[0] = getAvgTrigReadoutEfficiency();
+  num_busy_events[0] = getNumBusyEvents();
+  num_busyv_events[0] = getNumBusyVEvents();
+  num_flush_events[0] = getNumFlushEvents();
+  num_abort_events[0] = getNumAbortEvents();
+  num_fatal_events[0] = getNumFatalEvents();
+
+  current_dir->WriteObject(&avg_trig_efficiency, "avg_trig_efficiency");
+  current_dir->WriteObject(&avg_readout_efficiency, "avg_readout_efficiency");
+  current_dir->WriteObject(&num_busy_events, "num_busy_events");
+  current_dir->WriteObject(&num_busyv_events, "num_busyv_events");
+  current_dir->WriteObject(&num_flush_events, "num_flush_events");
+  current_dir->WriteObject(&num_abort_events, "num_abort_events");
+  current_dir->WriteObject(&num_fatal_events, "num_fatal_events");
 
   delete h1;
   delete h2;
@@ -356,6 +448,9 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
   delete h8;
   delete h9;
   delete h10;
+  delete h11;
+  delete h12;
+  delete h13;
   delete c1;
 
   // Go back to top level directory
