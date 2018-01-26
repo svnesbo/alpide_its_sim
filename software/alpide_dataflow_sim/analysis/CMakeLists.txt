@@ -65,6 +65,10 @@ target_link_libraries(process_readout_trigger_stats ${ROOT_LIBRARIES})
 set_target_properties(process_readout_trigger_stats PROPERTIES LINKER_LANGUAGE CXX)
 qt5_use_modules(process_readout_trigger_stats Core Xml)
 
+add_executable(compare_simulations compare_simulations.C)
+target_link_libraries(compare_simulations ${ROOT_LIBRARIES})
+set_target_properties(compare_simulations PROPERTIES LINKER_LANGUAGE CXX)
+
 # add a target to generate API documentation with Doxygen
 #find_package(Doxygen)
 #if(DOXYGEN_FOUND)

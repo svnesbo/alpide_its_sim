@@ -760,6 +760,7 @@ void ReadoutUnitStats::plotEventMapCount(const char* h_name, const char* title,
   // Plot event link count vs trigger id
   //----------------------------------------------------------------------------
   TH1D *h2 = h1->ProjectionX(Form("%s_links", h_name));
+  h2->SetTitle(Form("%s event count", title));
   h2->GetYaxis()->SetTitle(Form("%s link count", title));
   h2->GetXaxis()->SetTitle("Trigger ID");
 

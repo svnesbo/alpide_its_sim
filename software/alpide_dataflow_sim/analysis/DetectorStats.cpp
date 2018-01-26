@@ -424,37 +424,47 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
     }
   }
 
+  h14->SetFillColor(33);
+  h15->SetFillColor(33);
+  h16->SetFillColor(33);
+  h17->SetFillColor(33);
+  h14->SetStats(false);
+  h15->SetStats(false);
+  h16->SetStats(false);
+  h17->SetStats(false);
+  c1->Update();
+
   if(create_png) {
-    h14->Draw();
+    h14->Draw("BAR1");
     c1->Print(Form("%s/png/Detector_busy_event_count_vs_layer.png", mSimRunDataPath.c_str()));
 
-    h15->Draw();
+    h15->Draw("BAR1");
     c1->Print(Form("%s/png/Detector_busyv_event_count_vs_layer.png", mSimRunDataPath.c_str()));
 
-    h16->Draw();
+    h16->Draw("BAR1");
     c1->Print(Form("%s/png/Detector_flush_event_count_vs_layer.png", mSimRunDataPath.c_str()));
 
-    h17->Draw();
+    h17->Draw("BAR1");
     c1->Print(Form("%s/png/Detector_abort_event_count_vs_layer.png", mSimRunDataPath.c_str()));
 
-    h18->Draw();
+    h18->Draw("BAR1");
     c1->Print(Form("%s/png/Detector_fatal_event_count_vs_layer.png", mSimRunDataPath.c_str()));
   }
 
   if(create_pdf) {
-    h14->Draw();
+    h14->Draw("BAR1");
     c1->Print(Form("%s/pdf/Detector_busy_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
 
-    h15->Draw();
+    h15->Draw("BAR1");
     c1->Print(Form("%s/pdf/Detector_busyv_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
 
-    h16->Draw();
+    h16->Draw("BAR1");
     c1->Print(Form("%s/pdf/Detector_flush_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
 
-    h17->Draw();
+    h17->Draw("BAR1");
     c1->Print(Form("%s/pdf/Detector_abort_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
 
-    h18->Draw();
+    h18->Draw("BAR1");
     c1->Print(Form("%s/pdf/Detector_fatal_event_count_vs_layer.pdf", mSimRunDataPath.c_str()));
   }
 
@@ -490,25 +500,34 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
     }
   }
 
+  h19->SetFillColor(33);
+  h20->SetFillColor(33);
+  h19->SetStats(false);
+  h20->SetStats(false);
+  c1->Update();
+
   if(create_png) {
-    h19->Draw();
+    h19->Draw("BAR1");
     c1->Print(Form("%s/png/Detector_avg_trig_distr_efficiency_vs_layer.png", mSimRunDataPath.c_str()));
 
-    h20->Draw();
+    h20->Draw("BAR1");
     c1->Print(Form("%s/png/Detector_avg_readout_efficiency_vs_layer.png", mSimRunDataPath.c_str()));
   }
 
   if(create_pdf) {
-    h19->Draw();
+    h19->Draw("BAR1");
     c1->Print(Form("%s/pdf/Detector_avg_trig_distr_efficiency_vs_layer.pdf", mSimRunDataPath.c_str()));
 
-    h20->Draw();
+    h20->Draw("BAR1");
     c1->Print(Form("%s/pdf/Detector_avg_readout_efficiency_vs_layer.pdf", mSimRunDataPath.c_str()));
   }
 
   h19->Write();
   h20->Write();
 
+
+  TNamed event_rate("event_rate_khz", Form("%d", mEventRateKhz));
+  event_rate.Write();
 
 
   delete h1;
