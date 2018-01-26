@@ -16,8 +16,8 @@
 
 #define MAX_SIMS 12
 
-unsigned int colors[MAX_SIMS] = {kRed, kGreen, kBlue, kYellow, kMagenta, kCyan,
-                                 kOrange, kSpring, kTeal, kAzure, kViolet, kPink};
+unsigned int colors[MAX_SIMS] = {kRed, kGreen, kBlue, kOrange, kMagenta, kPink,
+                                 kSpring, kTeal, kAzure, kViolet, kCyan, kYellow};
 
 
 void plot_efficiency(const std::map<unsigned int, TFile*> &root_files,
@@ -48,12 +48,25 @@ void plot_efficiency(const std::map<unsigned int, TFile*> &root_files,
   unsigned int sim_counter = 0;
 
   for(auto sim_it = root_files.begin(); sim_it != root_files.end(); sim_it++) {
+    unsigned int sim_event_rate_khz = sim_it->first;
+    std::string plot_title;
+
+    if(sim_event_rate_khz >= 1000) {
+      plot_title = std::to_string((double)sim_event_rate_khz/1000);
+      // 2 digits after comma is fine
+      plot_title = plot_title.substr(0,4);
+      plot_title += " MHz";
+    } else {
+      plot_title = std::to_string(sim_event_rate_khz);
+      plot_title += " kHz";
+    }
+
     h_trig_eff_vec.push_back(new TH1D(Form("h_trigger_efficiency_%d", sim_counter),
-                                      "Average trigger distribution efficiency",
+                                      plot_title.c_str(),
                                       num_bins,-0.5,ITS::N_LAYERS-0.5));
 
     h_rdo_eff_vec.push_back(new TH1D(Form("h_readout_efficiency_%d", sim_counter),
-                                     "Average readout efficiency",
+                                     plot_title.c_str(),
                                      num_bins,-0.5,ITS::N_LAYERS-0.5));
 
     h_trig_eff_vec.back()->GetXaxis()->SetTitle("Layer number");
@@ -111,10 +124,12 @@ void plot_efficiency(const std::map<unsigned int, TFile*> &root_files,
 
   hs_trig->Draw("NOSTACKB");
   hs_trig->GetXaxis()->SetNdivisions(ITS::N_LAYERS);
+  c1->BuildLegend();
   c1->Print("h_trigger_efficiency.png");
 
   hs_rdo->Draw("NOSTACKB");
   hs_rdo->GetXaxis()->SetNdivisions(ITS::N_LAYERS);
+  c1->BuildLegend();
   c1->Print("h_readout_efficiency.png");
 
 
