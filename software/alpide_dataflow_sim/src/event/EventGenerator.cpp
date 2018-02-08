@@ -169,7 +169,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     QString qed_noise_input = settings->value("event/qed_noise_input").toString();
     if(qed_noise_input == "true") {
       mQedNoiseGenEnable = true;
-      mQedNoiseRate = settings->value("event/qed_noise_rate").toUInt();
+      mQedNoiseRate = settings->value("event/qed_noise_rate_ns").toUInt();
 
       if(mQedNoiseRate == 0) {
         std::cout << "Error: QED/Noise rate has to be larger than zero." << std::endl;
