@@ -16,7 +16,7 @@
 class ITSLayerStats {
   unsigned int mLayer;
   unsigned int mNumStaves;
-  unsigned int mEventRateKhz;
+  unsigned long mSimTimeNs;
   std::string mSimDataPath;
 
   std::vector<ReadoutUnitStats> mRUStats;
@@ -86,7 +86,7 @@ class ITSLayerStats {
 
 public:
   ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
-                unsigned int event_rate_khz, const char* path);
+                unsigned long sim_time_ns, const char* path);
   void plotLayer(bool create_png, bool create_pdf);
   double getTriggerCoverage(uint64_t trigger_id) const;
   uint64_t getNumTriggers(void) {return mNumTriggers;}

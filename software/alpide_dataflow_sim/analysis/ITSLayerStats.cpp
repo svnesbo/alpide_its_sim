@@ -17,17 +17,23 @@
 #include "TArray.h"
 
 
+///@brief Constructor for ITSLayerStats
+///@param layer_num ITS Layer number
+///@param num_staves Number of staves simulated in this layer
+///@param sim_time_ns Simulation time (in nanoseconds). 
+///       Used for data rate calculations.
+///@param path Path to simulation data directory
 ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
-                             unsigned int event_rate_khz, const char* path)
+                             unsigned long sim_time_ns, const char* path)
   : mLayer(layer_num)
   , mNumStaves(num_staves)
-  , mEventRateKhz(event_rate_khz)
+  , mSimTimeNs(sim_time_ns)
   , mSimDataPath(path)
   , mNumTriggers(0)
 {
   // Create and parse RU data
   for(unsigned int stave = 0; stave < mNumStaves; stave++) {
-    mRUStats.emplace_back(layer_num, stave, event_rate_khz, path);
+    mRUStats.emplace_back(layer_num, stave, sim_time_ns, path);
     mProtocolRatesMbps.push_back(mRUStats.back().getProtocolRateMbps());
     mDataRatesMbps.push_back(mRUStats.back().getDataRateMbps());
   }

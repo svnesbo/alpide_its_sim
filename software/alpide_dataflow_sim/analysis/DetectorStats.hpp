@@ -18,6 +18,7 @@
 class DetectorStats {
   ITS::detectorConfig mConfig;
   unsigned int mEventRateKhz;
+  unsigned long mSimTimeNs;
   unsigned int mNumLayers;
   std::string mSimRunDataPath;
   std::vector<ITSLayerStats*> mLayerStats;
@@ -40,7 +41,8 @@ class DetectorStats {
 
 public:
   DetectorStats(ITS::detectorConfig config,
-                unsigned int event_rate_khz,
+		unsigned int event_rate_khz,
+                unsigned long sim_time_ns,
                 const char* sim_run_data_path);
 
   void plotDetector(bool create_png, bool create_pdf);

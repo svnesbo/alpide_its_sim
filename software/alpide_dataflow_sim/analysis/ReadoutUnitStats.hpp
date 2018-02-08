@@ -155,7 +155,7 @@ class ReadoutUnitStats {
   unsigned int mNumCtrlLinks;
   unsigned int mLayer;
   unsigned int mStave;
-  unsigned int mEventRateKhz;
+  unsigned long mSimTimeNs;
 
   double mDataRateMbps;
   double mProtocolRateMbps;
@@ -179,7 +179,7 @@ class ReadoutUnitStats {
 
 public:
   ReadoutUnitStats(unsigned int layer, unsigned int stave,
-                   unsigned int event_rate_khz, const char* path);
+                   unsigned long sim_time_ns, const char* path);
   double getTrigSentCoverage(uint64_t trigger_id) const;
   double getTrigSentExclFilteringCoverage(uint64_t trigger_id) const;
   double getTrigReadoutCoverage(uint64_t trigger_id) const;

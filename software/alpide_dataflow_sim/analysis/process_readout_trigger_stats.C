@@ -21,6 +21,7 @@ const std::string csv_delim(";");
 const float chip_width_cm = 3.0;
 const float chip_height_cm = 1.5;
 
+unsigned long get_num_events_simulated(std::string sim_run_data_path);
 std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
                                          bool create_png, bool create_pdf);
 
@@ -72,12 +73,56 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
     event_time_vec = process_event_data(sim_run_data_path, create_png, create_pdf);
   }
 
+  unsigned long num_physics_events = get_num_events_simulated(sim_run_data_path);
+  unsigned long sim_time_ns = event_rate_ns*num_physics_events;
 
-  DetectorStats its_detector_stats(det_config, event_rate_khz, sim_run_data_path);
+  std::cout << "Num physics_events: " << num_physics_events << std::endl;
+  std::cout << "Event rate (ns): " << event_rate_ns << std::endl;
+  std::cout << "Sim time (ns): " << sim_time_ns << std::endl;
+
+
+  DetectorStats its_detector_stats(det_config, event_rate_khz,
+                                   sim_time_ns, sim_run_data_path);
 
   its_detector_stats.plotDetector(create_png, create_pdf);
 
   return 0;
+}
+
+
+///@brief Get the number of physics events actually simulated.
+///       Will exit if simulation_info.txt file can not be opened,
+///       or if there is a problem reading the file.
+unsigned long get_num_events_simulated(std::string sim_run_data_path)
+{
+  std::string sim_info_filename = sim_run_data_path + "/simulation_info.txt";
+
+  std::ifstream sim_info_file(sim_info_filename);
+  if(!sim_info_file.is_open()) {
+    std::cerr << "Error opening file " << sim_info_filename << std::endl;
+    exit(-1);
+  }
+
+  // Number of events simulated should be on the second line
+  std::string events_simulated_str;
+  std::getline(sim_info_file, events_simulated_str);
+  std::getline(sim_info_file, events_simulated_str);
+
+  if(events_simulated_str.find("Number of physics events simulated: ") == std::string::npos) {
+    std::cout << "Error: number of physics events simulated not found in ";
+    std::cout << sim_info_filename << std::endl;
+    exit(-1);
+  }
+
+  size_t text_len = strlen("Number of physics events simulated: ");
+  std::string num_events_str = events_simulated_str.substr(text_len);
+  unsigned long num_events = std::stoul(num_events_str);
+  if(num_events == 0) {
+    std::cout << "Error: no events simulated?" << std::endl;
+    exit(-1);
+  }
+
+  return num_events;
 }
 
 

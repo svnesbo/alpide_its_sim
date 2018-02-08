@@ -17,11 +17,18 @@
 #include "THStack.h"
 
 
+///@brief Constructor for DetectorStats class.
+///@param event_rate_khz Interaction event rate in kilohertz
+///@param sim_time_ns Simulation time (in nanoseconds).
+///                   Used for data rate calculations.
+///@param sim_run_data_path Path to directory with simulation data.
 DetectorStats::DetectorStats(ITS::detectorConfig config,
                              unsigned int event_rate_khz,
+			     unsigned long sim_time_ns,
                              const char* sim_run_data_path)
   : mConfig(config)
   , mEventRateKhz(event_rate_khz)
+  , mSimTimeNs(sim_time_ns)
   , mSimRunDataPath(sim_run_data_path)
 {
   mNumLayers = 0;
@@ -32,7 +39,7 @@ DetectorStats::DetectorStats(ITS::detectorConfig config,
     if(config.layer[layer_num].num_staves > 0) {
       mLayerStats[layer_num] = new ITSLayerStats(layer_num,
                                                  config.layer[layer_num].num_staves,
-                                                 event_rate_khz,
+                                                 sim_time_ns,
                                                  sim_run_data_path);
       mNumLayers++;
     }
@@ -550,14 +557,14 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
       auto data_rates = mLayerStats[layer]->getDataRatesMbps();
       unsigned int num_staves = data_rates.size();
       for(unsigned int stave = 0; stave < num_staves; stave++) {
-        h21->Fill(layer, (data_rates[stave]+rand()%1000)/num_staves);
+        h21->Fill(layer, data_rates[stave]/num_staves);
         std::cout << "Layer " << layer << " data rate: " << data_rates[stave] << " Mbps" << std::endl;
       }
 
       auto protocol_rates = mLayerStats[layer]->getProtocolRatesMbps();
       num_staves = protocol_rates.size(); // Should really be same as data_rates.size()
       for(unsigned int stave = 0; stave < num_staves; stave++) {
-        h22->Fill(layer, (protocol_rates[stave]+rand()%100)/num_staves);
+        h22->Fill(layer, protocol_rates[stave]/num_staves);
         std::cout << "Layer " << layer << " protocol rate: " << protocol_rates[stave] << " Mbps" << std::endl;
       }
     }
@@ -598,7 +605,6 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
   TNamed event_rate("event_rate_khz", Form("%d", mEventRateKhz));
   event_rate.Write();
-
 
   delete h1;
   delete h2;

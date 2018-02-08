@@ -26,11 +26,17 @@
 #include "TDirectory.h"
 
 
+///@brief Constructor for ITSLayerStats
+///@param layer_num ITS Layer number
+///@param num_staves Number of staves simulated in this layer
+///@param sim_time_ns Simulation time (in nanoseconds).
+///                   Used to calculate data rates.
+///@param path Path to simulation data directory
 ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave,
-                                   unsigned int event_rate_khz, const char* path)
+                                   unsigned long sim_time_ns, const char* path)
   : mLayer(layer)
   , mStave(stave)
-  , mEventRateKhz(event_rate_khz)
+  , mSimTimeNs(sim_time_ns)
   , mSimDataPath(path)
 {
   std::stringstream ss_file_path_base;
@@ -686,7 +692,7 @@ void ReadoutUnitStats::calcDataRates(void)
   protocol_bytes += mProtocolUtilization["BUSY_ON (bytes)"];
   protocol_bytes += mProtocolUtilization["BUSY_OFF (bytes)"];
 
-  double sim_time = mNumTriggers*(1.0/(mEventRateKhz*1000));
+  double sim_time = mSimTimeNs/(1.0E9);
 
   std::cout << "data_bytes: " << data_bytes << std::endl;
   std::cout << "protocol_bytes: " << protocol_bytes << std::endl;
