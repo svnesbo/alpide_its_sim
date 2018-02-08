@@ -32,6 +32,7 @@ DetectorStats::DetectorStats(ITS::detectorConfig config,
     if(config.layer[layer_num].num_staves > 0) {
       mLayerStats[layer_num] = new ITSLayerStats(layer_num,
                                                  config.layer[layer_num].num_staves,
+                                                 event_rate_khz,
                                                  sim_run_data_path);
       mNumLayers++;
     }
@@ -524,6 +525,75 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
   h19->Write();
   h20->Write();
+
+
+  //----------------------------------------------------------------------------
+  // Plot data rates (data and protocol, separately and combined)
+  // TODO: Plot standard deviation as error bars?
+  //----------------------------------------------------------------------------
+  TH1D *h21 = new TH1D("h_data_rates",
+                       "Data",
+                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+
+  TH1D *h22 = new TH1D("h_protocol_rates",
+                       "Protocol",
+                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+
+  h21->GetXaxis()->SetTitle("Layer number");
+  h21->GetYaxis()->SetTitle("Data rate [Mpbs]");
+
+  h22->GetXaxis()->SetTitle("Layer number");
+  h22->GetYaxis()->SetTitle("Data rate [Mpbs]");
+
+  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    if(mLayerStats[layer] != nullptr) {
+      auto data_rates = mLayerStats[layer]->getDataRatesMbps();
+      unsigned int num_staves = data_rates.size();
+      for(unsigned int stave = 0; stave < num_staves; stave++) {
+        h21->Fill(layer, (data_rates[stave]+rand()%1000)/num_staves);
+        std::cout << "Layer " << layer << " data rate: " << data_rates[stave] << " Mbps" << std::endl;
+      }
+
+      auto protocol_rates = mLayerStats[layer]->getProtocolRatesMbps();
+      num_staves = protocol_rates.size(); // Should really be same as data_rates.size()
+      for(unsigned int stave = 0; stave < num_staves; stave++) {
+        h22->Fill(layer, (protocol_rates[stave]+rand()%100)/num_staves);
+        std::cout << "Layer " << layer << " protocol rate: " << protocol_rates[stave] << " Mbps" << std::endl;
+      }
+    }
+  }
+
+  h21->SetFillColor(34);
+  h22->SetFillColor(33);
+  h21->SetStats(false);
+  h22->SetStats(false);
+  c1->Update();
+
+  THStack *hs1 = new THStack("hs_data_rates_vs_layer", "Average RU Data Rates vs Layer");
+  hs1->Add(h21);
+  hs1->Add(h22);
+
+  if(create_png) {
+    hs1->Draw("BAR1");
+    hs1->GetXaxis()->SetTitle("Layer number");
+    hs1->GetYaxis()->SetTitle("Data rate [Mpbs]");
+    c1->BuildLegend();
+    c1->Print(Form("%s/png/Detector_avg_data_rates_vs_layer.png", mSimRunDataPath.c_str()));
+  }
+
+  if(create_pdf) {
+    hs1->Draw("BAR1");
+    hs1->GetXaxis()->SetTitle("Layer number");
+    hs1->GetYaxis()->SetTitle("Data rate [Mpbs]");
+    c1->BuildLegend();
+    c1->Print(Form("%s/png/Detector_avg_data_rates_vs_layer.pdf", mSimRunDataPath.c_str()));
+  }
+
+  h21->Write();
+  h22->Write();
+
+
+
 
 
   TNamed event_rate("event_rate_khz", Form("%d", mEventRateKhz));

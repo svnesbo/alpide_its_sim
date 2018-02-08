@@ -18,15 +18,18 @@
 
 
 ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
-                             const char* path)
+                             unsigned int event_rate_khz, const char* path)
   : mLayer(layer_num)
   , mNumStaves(num_staves)
+  , mEventRateKhz(event_rate_khz)
   , mSimDataPath(path)
   , mNumTriggers(0)
 {
   // Create and parse RU data
   for(unsigned int stave = 0; stave < mNumStaves; stave++) {
-    mRUStats.emplace_back(layer_num, stave, path);
+    mRUStats.emplace_back(layer_num, stave, event_rate_khz, path);
+    mProtocolRatesMbps.push_back(mRUStats.back().getProtocolRateMbps());
+    mDataRatesMbps.push_back(mRUStats.back().getDataRateMbps());
   }
 }
 

@@ -80,7 +80,7 @@ struct LinkStats {
   // When, in time, that the link was busy
   std::vector<BusyTime> mBusyTime;
 
-  // Protocol utilization date for each header field
+  // Protocol utilization data for each header field
   std::map<std::string, unsigned long> mProtocolUtilization;
 
   // Index in CSV file versus header field

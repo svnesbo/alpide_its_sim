@@ -16,6 +16,7 @@
 class ITSLayerStats {
   unsigned int mLayer;
   unsigned int mNumStaves;
+  unsigned int mEventRateKhz;
   std::string mSimDataPath;
 
   std::vector<ReadoutUnitStats> mRUStats;
@@ -80,9 +81,12 @@ class ITSLayerStats {
   double mAvgTrigDistrEfficiency = 0;
   double mAvgTrigReadoutEfficiency = 0;
 
+  std::vector<double> mDataRatesMbps;
+  std::vector<double> mProtocolRatesMbps;
+
 public:
   ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
-                const char* path);
+                unsigned int event_rate_khz, const char* path);
   void plotLayer(bool create_png, bool create_pdf);
   double getTriggerCoverage(uint64_t trigger_id) const;
   uint64_t getNumTriggers(void) {return mNumTriggers;}
@@ -120,6 +124,12 @@ public:
   }
   std::vector<unsigned int> getFatalLinkCount (void) const {
     return mFatalLinkCount;
+  }
+  std::vector<double> getDataRatesMbps(void) const {
+    return mDataRatesMbps;
+  }
+  std::vector<double> getProtocolRatesMbps(void) const {
+    return mProtocolRatesMbps;
   }
 };
 

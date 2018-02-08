@@ -155,6 +155,10 @@ class ReadoutUnitStats {
   unsigned int mNumCtrlLinks;
   unsigned int mLayer;
   unsigned int mStave;
+  unsigned int mEventRateKhz;
+
+  double mDataRateMbps;
+  double mProtocolRateMbps;
 
   std::string mSimDataPath;
 
@@ -162,6 +166,7 @@ class ReadoutUnitStats {
   void readTrigActionsFile(std::string file_path_base);
   void readBusyEventFiles(std::string file_path_base);
   void readProtocolUtilizationFile(std::string file_path_base);
+  void calcDataRates(void);
   void plotEventMapCount(const char* h_name, const char* title,
                          const std::vector<std::vector<uint64_t>*> &events,
                          std::vector<unsigned int>& link_count_vec_out,
@@ -173,7 +178,8 @@ class ReadoutUnitStats {
                              bool create_png, bool create_pdf);
 
 public:
-  ReadoutUnitStats(unsigned int layer, unsigned int stave, const char* path);
+  ReadoutUnitStats(unsigned int layer, unsigned int stave,
+                   unsigned int event_rate_khz, const char* path);
   double getTrigSentCoverage(uint64_t trigger_id) const;
   double getTrigSentExclFilteringCoverage(uint64_t trigger_id) const;
   double getTrigReadoutCoverage(uint64_t trigger_id) const;
@@ -207,6 +213,12 @@ public:
   }
   std::vector<unsigned int> getFatalLinkCount (void) const {
     return mFatalLinkCount;
+  }
+  double getDataRateMbps(void) const {
+    return mDataRateMbps;
+  }
+  double getProtocolRateMbps(void) const {
+    return mProtocolRateMbps;
   }
 
   void plotRU(bool create_png, bool create_pdf);

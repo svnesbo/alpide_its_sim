@@ -26,9 +26,11 @@
 #include "TDirectory.h"
 
 
-ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave, const char* path)
+ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave,
+                                   unsigned int event_rate_khz, const char* path)
   : mLayer(layer)
   , mStave(stave)
+  , mEventRateKhz(event_rate_khz)
   , mSimDataPath(path)
 {
   std::stringstream ss_file_path_base;
@@ -37,6 +39,7 @@ ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave, const
   readTrigActionsFile(ss_file_path_base.str());
   readBusyEventFiles(ss_file_path_base.str());
   readProtocolUtilizationFile(ss_file_path_base.str());
+  calcDataRates();
 }
 
 
@@ -667,6 +670,33 @@ void ReadoutUnitStats::readProtocolUtilizationFile(std::string file_path_base)
     }
     std::cout << std::endl << std::endl;
   }
+}
+
+
+///@brief Calculate data rates (protocol and data separately) in Mbps
+void ReadoutUnitStats::calcDataRates(void)
+{
+  unsigned long data_bytes = mProtocolUtilization["DATA_SHORT (bytes)"];
+  data_bytes += mProtocolUtilization["DATA_LONG (bytes)"];
+  data_bytes += mProtocolUtilization["REGION_HEADER (bytes)"];
+
+  unsigned long protocol_bytes = mProtocolUtilization["CHIP_HEADER (bytes)"];
+  protocol_bytes += mProtocolUtilization["CHIP_TRAILER (bytes)"];
+  protocol_bytes += mProtocolUtilization["CHIP_EMPTY_FRAME (bytes)"];
+  protocol_bytes += mProtocolUtilization["BUSY_ON (bytes)"];
+  protocol_bytes += mProtocolUtilization["BUSY_OFF (bytes)"];
+
+  double sim_time = mNumTriggers*(1.0/(mEventRateKhz*1000));
+
+  std::cout << "data_bytes: " << data_bytes << std::endl;
+  std::cout << "protocol_bytes: " << protocol_bytes << std::endl;
+  std::cout << "sim_time: " << sim_time << std::endl;
+
+  mDataRateMbps = 8*(data_bytes/sim_time)/(1024*1024);
+  mProtocolRateMbps = 8*(protocol_bytes/sim_time)/(1024*1024);
+
+  std::cout << "mDataRateMbps: " << mDataRateMbps << std::endl;
+  std::cout << "mProtocolRateMbps: " << mProtocolRateMbps << std::endl;
 }
 
 
