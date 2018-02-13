@@ -52,12 +52,13 @@ macro (add_sources)
 
 
 add_sources(
+  misc.cpp
   LinkStats.cpp
   ReadoutUnitStats.cpp
   ITSLayerStats.cpp
   DetectorStats.cpp
   process_readout_trigger_stats.C
-  )
+)
 
 add_executable(process_readout_trigger_stats ${SRCS})
 target_link_libraries(process_readout_trigger_stats Qt5Core)

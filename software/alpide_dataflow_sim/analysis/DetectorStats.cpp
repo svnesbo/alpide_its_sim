@@ -15,6 +15,7 @@
 #include "TH2F.h"
 #include "TH1F.h"
 #include "THStack.h"
+#include "misc.h"
 
 
 ///@brief Constructor for DetectorStats class.
@@ -81,18 +82,18 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   //----------------------------------------------------------------------------
   // Plot average trigger distribution and readout coverage vs. trigger
   //----------------------------------------------------------------------------
-  TH1D *h1 = new TH1D("h_avg_trig_ctrl_link_coverage_detector",
-                      "Average Trigger Distribution Coverage - Detector",
-                      num_triggers,0,num_triggers-1);
-  TH1D *h2 = new TH1D("h_avg_trig_ctrl_link_excl_filter_coverage_detector",
-                      "Average Trigger Distribution Coverage Excluding Filtering - Detector",
-                       num_triggers,0,num_triggers-1);
-  TH1D *h3 = new TH1D("h_avg_trig_readout_coverage_detector",
-                       "Average Trigger Readout Coverage - Detector",
-                       num_triggers,0,num_triggers-1);
-  TH1D *h4 = new TH1D("h_avg_trig_readout_excl_filter_coverage_detector",
-                       "Average Trigger Readout Coverage Excluding Filtering - Detector",
-                       num_triggers,0,num_triggers-1);
+  TH1D *h1 = new TH1D("h_avg_trig_ctrl_link_efficiency_detector",
+                      "Average Trigger Distribution Efficiency - Detector",
+                      num_triggers,0,num_triggers);
+  TH1D *h2 = new TH1D("h_avg_trig_ctrl_link_excl_filter_efficiency_detector",
+                      "Average Trigger Distribution Efficiency Excluding Filtering - Detector",
+                       num_triggers,0,num_triggers);
+  TH1D *h3 = new TH1D("h_avg_trig_readout_efficiency_detector",
+                       "Average Trigger Readout Efficiency - Detector",
+                       num_triggers,0,num_triggers);
+  TH1D *h4 = new TH1D("h_avg_trig_readout_excl_filter_efficiency_detector",
+                       "Average Trigger Readout Efficiency Excluding Filtering - Detector",
+                       num_triggers,0,num_triggers);
 
   for(uint64_t trigger_id = 0; trigger_id < num_triggers; trigger_id++) {
     double trig_sent_coverage = 0.0;
@@ -134,10 +135,15 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
     std::cout << mTrigReadoutExclFilteringCoverage[trigger_id] << std::endl;
   }
 
-  h1->GetYaxis()->SetTitle("Coverage");
-  h2->GetYaxis()->SetTitle("Coverage");
-  h3->GetYaxis()->SetTitle("Coverage");
-  h4->GetYaxis()->SetTitle("Coverage");
+  scale_eff_plot_y_range(h1);
+  scale_eff_plot_y_range(h2);
+  scale_eff_plot_y_range(h3);
+  scale_eff_plot_y_range(h4);
+
+  h1->GetYaxis()->SetTitle("Efficiency");
+  h2->GetYaxis()->SetTitle("Efficiency");
+  h3->GetYaxis()->SetTitle("Efficiency");
+  h4->GetYaxis()->SetTitle("Efficiency");
   h1->GetXaxis()->SetTitle("Trigger ID");
   h2->GetXaxis()->SetTitle("Trigger ID");
   h3->GetXaxis()->SetTitle("Trigger ID");
@@ -151,30 +157,30 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
   if(create_png) {
     h1->Draw();
-    c1->Print(Form("%s/png/Detector_avg_trig_ctrl_link_coverage.png", mSimRunDataPath.c_str()));
+    c1->Print(Form("%s/png/Detector_avg_trig_ctrl_link_efficiency.png", mSimRunDataPath.c_str()));
 
     h2->Draw();
-    c1->Print(Form("%s/png/Detector_avg_trig_ctrl_link_excl_filter_coverage.png", mSimRunDataPath.c_str()));
+    c1->Print(Form("%s/png/Detector_avg_trig_ctrl_link_excl_filter_efficiency.png", mSimRunDataPath.c_str()));
 
     h3->Draw();
-    c1->Print(Form("%s/png/Detector_avg_trig_readout_coverage.png", mSimRunDataPath.c_str()));
+    c1->Print(Form("%s/png/Detector_avg_trig_readout_efficiency.png", mSimRunDataPath.c_str()));
 
     h4->Draw();
-    c1->Print(Form("%s/png/Detector_avg_trig_readout_excl_filter_coverage.png", mSimRunDataPath.c_str()));
+    c1->Print(Form("%s/png/Detector_avg_trig_readout_excl_filter_efficiency.png", mSimRunDataPath.c_str()));
   }
 
   if(create_pdf) {
     h1->Draw();
-    c1->Print(Form("%s/pdf/Detector_avg_trig_ctrl_link_coverage.pdf", mSimRunDataPath.c_str()));
+    c1->Print(Form("%s/pdf/Detector_avg_trig_ctrl_link_efficiency.pdf", mSimRunDataPath.c_str()));
 
     h2->Draw();
-    c1->Print(Form("%s/pdf/Detector_avg_trig_ctrl_link_excl_filter_coverage.pdf", mSimRunDataPath.c_str()));
+    c1->Print(Form("%s/pdf/Detector_avg_trig_ctrl_link_excl_filter_efficiency.pdf", mSimRunDataPath.c_str()));
 
     h3->Draw();
-    c1->Print(Form("%s/pdf/Detector_avg_trig_readout_coverage.pdf", mSimRunDataPath.c_str()));
+    c1->Print(Form("%s/pdf/Detector_avg_trig_readout_efficiency.pdf", mSimRunDataPath.c_str()));
 
     h4->Draw();
-    c1->Print(Form("%s/pdf/Detector_avg_trig_readout_excl_filter_coverage.pdf", mSimRunDataPath.c_str()));
+    c1->Print(Form("%s/pdf/Detector_avg_trig_readout_excl_filter_efficiency.pdf", mSimRunDataPath.c_str()));
   }
 
   h1->Write();
@@ -184,22 +190,22 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
 
   //----------------------------------------------------------------------------
-  // Plot trigger distribution and readout coverage vs. RU vs. trigger
+  // Plot trigger distribution and readout efficiency vs. RU vs. trigger
   //----------------------------------------------------------------------------
-  TH2D* h5 = new TH2D("h_trig_ctrl_link_coverage_detector",
-                      "Trigger Distribution Coverage - Detector",
+  TH2D* h5 = new TH2D("h_trig_ctrl_link_efficiency_detector",
+                      "Trigger Distribution Efficiency - Detector",
                       num_triggers,0,num_triggers-1,
                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
-  TH2D* h6 = new TH2D("h_trig_ctrl_link_excl_filter_coverage_detector",
-                      "Trigger Distribution Coverage Excluding Filtering - Detector",
+  TH2D* h6 = new TH2D("h_trig_ctrl_link_excl_filter_efficiency_detector",
+                      "Trigger Distribution Efficiency Excluding Filtering - Detector",
                       num_triggers,0,num_triggers-1,
                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
-  TH2D* h7 = new TH2D("h_trig_readout_coverage_detector",
-                      "Trigger Readout Coverage - Detector",
+  TH2D* h7 = new TH2D("h_trig_readout_efficiency_detector",
+                      "Trigger Readout Efficiency - Detector",
                       num_triggers,0,num_triggers-1,
                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
-  TH2D* h8 = new TH2D("h_trig_readout_excl_filter_coverage_detector",
-                      "Trigger Readout Coverage Excluding Filtering - Detector",
+  TH2D* h8 = new TH2D("h_trig_readout_excl_filter_efficiency_detector",
+                      "Trigger Readout Efficiency Excluding Filtering - Detector",
                       num_triggers,0,num_triggers-1,
                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
 
@@ -214,6 +220,11 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
     }
   }
 
+  scale_eff_plot_y_range(h5);
+  scale_eff_plot_y_range(h6);
+  scale_eff_plot_y_range(h7);
+  scale_eff_plot_y_range(h8);
+
   h5->GetYaxis()->SetTitle("Layer number");
   h6->GetYaxis()->SetTitle("Layer number");
   h7->GetYaxis()->SetTitle("Layer number");
@@ -223,6 +234,11 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   h7->GetXaxis()->SetTitle("Trigger ID");
   h8->GetXaxis()->SetTitle("Trigger ID");
 
+  h5->SetStats(false);
+  h6->SetStats(false);
+  h7->SetStats(false);
+  h8->SetStats(false);
+
   h5->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
   h6->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
   h7->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
@@ -231,37 +247,37 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
   if(create_png) {
     h5->Draw("COLZ");
-    c1->Print(Form("%s/png/Detector_trig_ctrl_link_coverage.png",
+    c1->Print(Form("%s/png/Detector_trig_ctrl_link_efficiency.png",
                    mSimRunDataPath.c_str()));
 
     h6->Draw("COLZ");
-    c1->Print(Form("%s/png/Detector_trig_ctrl_link_excl_filter_coverage.png",
+    c1->Print(Form("%s/png/Detector_trig_ctrl_link_excl_filter_efficiency.png",
                    mSimRunDataPath.c_str()));
 
     h7->Draw("COLZ");
-    c1->Print(Form("%s/png/Detector_trig_readout_coverage.png",
+    c1->Print(Form("%s/png/Detector_trig_readout_efficiency.png",
                    mSimRunDataPath.c_str()));
 
     h8->Draw("COLZ");
-    c1->Print(Form("%s/png/Detector_trig_readout_excl_filter_coverage.png",
+    c1->Print(Form("%s/png/Detector_trig_readout_excl_filter_efficiency.png",
                    mSimRunDataPath.c_str()));
   }
 
   if(create_pdf) {
     h5->Draw("COLZ");
-    c1->Print(Form("%s/pdf/Detector_trig_ctrl_link_coverage.pdf",
+    c1->Print(Form("%s/pdf/Detector_trig_ctrl_link_efficiency.pdf",
                    mSimRunDataPath.c_str()));
 
     h6->Draw("COLZ");
-    c1->Print(Form("%s/pdf/Detector_trig_ctrl_link_excl_filter_coverage.pdf",
+    c1->Print(Form("%s/pdf/Detector_trig_ctrl_link_excl_filter_efficiency.pdf",
                    mSimRunDataPath.c_str()));
 
     h7->Draw("COLZ");
-    c1->Print(Form("%s/pdf/Detector_trig_readout_coverage.pdf",
+    c1->Print(Form("%s/pdf/Detector_trig_readout_efficiency.pdf",
                    mSimRunDataPath.c_str()));
 
     h8->Draw("COLZ");
-    c1->Print(Form("%s/pdf/Detector_trig_readout_excl_filter_coverage.pdf",
+    c1->Print(Form("%s/pdf/Detector_trig_readout_excl_filter_efficiency.pdf",
                    mSimRunDataPath.c_str()));
   }
 
@@ -337,6 +353,12 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   h11->GetXaxis()->SetTitle("Trigger ID");
   h12->GetXaxis()->SetTitle("Trigger ID");
   h13->GetXaxis()->SetTitle("Trigger ID");
+
+  h9->SetStats(false);
+  h10->SetStats(false);
+  h11->SetStats(false);
+  h12->SetStats(false);
+  h13->SetStats(false);
 
   h9->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
   h10->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
@@ -436,10 +458,12 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   h15->SetFillColor(33);
   h16->SetFillColor(33);
   h17->SetFillColor(33);
+  h18->SetFillColor(33);
   h14->SetStats(false);
   h15->SetStats(false);
   h16->SetStats(false);
   h17->SetStats(false);
+  h18->SetStats(false);
   c1->Update();
 
   if(create_png) {
@@ -507,6 +531,9 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
       h20->Fill(layer, mLayerStats[layer]->getAvgTrigReadoutEfficiency());
     }
   }
+
+  scale_eff_plot_y_range(h19);
+  scale_eff_plot_y_range(h20);
 
   h19->SetFillColor(33);
   h20->SetFillColor(33);

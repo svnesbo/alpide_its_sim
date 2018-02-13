@@ -25,6 +25,8 @@
 #include "TFile.h"
 #include "TDirectory.h"
 
+#include "misc.h"
+
 
 ///@brief Constructor for ITSLayerStats
 ///@param layer_num ITS Layer number
@@ -698,8 +700,8 @@ void ReadoutUnitStats::calcDataRates(void)
   std::cout << "protocol_bytes: " << protocol_bytes << std::endl;
   std::cout << "sim_time: " << sim_time << std::endl;
 
-  mDataRateMbps = 8*(data_bytes/sim_time)/(1024*1024);
-  mProtocolRateMbps = 8*(protocol_bytes/sim_time)/(1024*1024);
+  mDataRateMbps = 8*(data_bytes/sim_time)/(1E6);
+  mProtocolRateMbps = 8*(protocol_bytes/sim_time)/(1E6);
 
   std::cout << "mDataRateMbps: " << mDataRateMbps << std::endl;
   std::cout << "mProtocolRateMbps: " << mProtocolRateMbps << std::endl;
@@ -1092,19 +1094,21 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
 
 
   //----------------------------------------------------------------------------
-  // Plot triggers sent coverage vs. trigger ID
+  // Plot triggers sent efficiency vs. trigger ID
   //----------------------------------------------------------------------------
   c1->cd();
 
-  TH1D *h9 = new TH1D("h_trig_ctrl_link_coverage",
-                      Form("Alpide Trigger Control Link Coverage - RU %i:%i", mLayer, mStave),
-                      mNumTriggers,0,mNumTriggers-1);
+  TH1D *h9 = new TH1D("h_trig_ctrl_link_efficiency",
+                      Form("Alpide Trigger Control Link Efficiency - RU %i:%i", mLayer, mStave),
+                      mNumTriggers,0,mNumTriggers);
 
   for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
     h9->Fill(trig_id, mTrigSentCoverage[trig_id]);
   }
 
-  h9->GetYaxis()->SetTitle("Coverage");
+  scale_eff_plot_y_range(h9);
+
+  h9->GetYaxis()->SetTitle("Efficiency");
   h9->GetXaxis()->SetTitle("Trigger ID");
   h9->SetStats(false);
   c1->Update();
@@ -1112,27 +1116,29 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   h9->Draw();
 
   if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_trig_ctrl_link_coverage.png",
+    c1->Print(Form("%s/png/RU_%i_%i_trig_ctrl_link_efficiency.png",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
   if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_trig_ctrl_link_coverage.pdf",
+    c1->Print(Form("%s/pdf/RU_%i_%i_trig_ctrl_link_efficiency.pdf",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
-  // Plot triggers sent coverage vs. trigger ID, excluding filtered triggers
+  // Plot triggers sent efficiency vs. trigger ID, excluding filtered triggers
   //----------------------------------------------------------------------------
-  TH1D *h10 = new TH1D("h_trig_ctrl_link_excl_filter_coverage",
-                       Form("Alpide Trigger Control Link Coverage Excluding Filtering - RU %i:%i", mLayer, mStave),
-                       mNumTriggers,0,mNumTriggers-1);
+  TH1D *h10 = new TH1D("h_trig_ctrl_link_excl_filter_efficiency",
+                       Form("Alpide Trigger Control Link Efficiency Excluding Filtering - RU %i:%i", mLayer, mStave),
+                       mNumTriggers,0,mNumTriggers);
 
   for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
     h10->Fill(trig_id, mTrigSentExclFilteringCoverage[trig_id]);
   }
 
-  h10->GetYaxis()->SetTitle("Coverage");
+  scale_eff_plot_y_range(h10);
+
+  h10->GetYaxis()->SetTitle("Efficiency");
   h10->GetXaxis()->SetTitle("Trigger ID");
   h10->SetStats(false);
   c1->Update();
@@ -1140,27 +1146,29 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   h10->Draw();
 
   if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_trig_ctrl_link_excl_filter_coverage.png",
+    c1->Print(Form("%s/png/RU_%i_%i_trig_ctrl_link_excl_filter_efficiency.png",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
   if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_trig_ctrl_link_excl_filter_coverage.pdf",
+    c1->Print(Form("%s/pdf/RU_%i_%i_trig_ctrl_link_excl_filter_efficiency.pdf",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
-  // Plot trigger readout coverage vs. trigger ID
+  // Plot trigger readout efficiency vs. trigger ID
   //----------------------------------------------------------------------------
-  TH1D *h11 = new TH1D("h_trig_readout_coverage",
-                       Form("Alpide Trigger Readout Coverage - RU %i:%i", mLayer, mStave),
-                       mNumTriggers,0,mNumTriggers-1);
+  TH1D *h11 = new TH1D("h_trig_readout_efficiency",
+                       Form("Alpide Trigger Readout Efficiency - RU %i:%i", mLayer, mStave),
+                       mNumTriggers,0,mNumTriggers);
 
   for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
     h11->Fill(trig_id, mTrigReadoutCoverage[trig_id]);
   }
 
-  h11->GetYaxis()->SetTitle("Coverage");
+  scale_eff_plot_y_range(h11);
+
+  h11->GetYaxis()->SetTitle("Efficiency");
   h11->GetXaxis()->SetTitle("Trigger ID");
   h11->SetStats(false);
   c1->Update();
@@ -1168,27 +1176,29 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   h11->Draw();
 
   if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_trig_readout_coverage.png",
+    c1->Print(Form("%s/png/RU_%i_%i_trig_readout_efficiency.png",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
   if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_trig_readout_coverage.pdf",
+    c1->Print(Form("%s/pdf/RU_%i_%i_trig_readout_efficiency.pdf",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
 
 
   //----------------------------------------------------------------------------
-  // Plot trigger readout (excluding trigger filtering) coverage vs. trigger ID
+  // Plot trigger readout (excluding trigger filtering) efficiency vs. trigger ID
   //----------------------------------------------------------------------------
-  TH1D *h12 = new TH1D("h_trig_readout_excl_filter_coverage",
-                       Form("Alpide Trigger Readout Coverage Excluding Filtering - RU %i:%i", mLayer, mStave),
-                       mNumTriggers,0,mNumTriggers-1);
+  TH1D *h12 = new TH1D("h_trig_readout_excl_filter_efficiency",
+                       Form("Alpide Trigger Readout Efficiency Excluding Filtering - RU %i:%i", mLayer, mStave),
+                       mNumTriggers,0,mNumTriggers);
 
   for(uint64_t trig_id = 0; trig_id < mNumTriggers; trig_id++) {
-    h12->Fill(trig_id, mTrigReadoutExclFilteringCoverage[trig_id]);
+    h12->Fill(trig_id+0.5, mTrigReadoutExclFilteringCoverage[trig_id]);
   }
 
-  h12->GetYaxis()->SetTitle("Coverage");
+  scale_eff_plot_y_range(h12);
+
+  h12->GetYaxis()->SetTitle("Efficiency");
   h12->GetXaxis()->SetTitle("Trigger ID");
   h12->SetStats(false);
   c1->Update();
@@ -1196,11 +1206,11 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   h12->Draw();
 
   if(create_png)
-    c1->Print(Form("%s/png/RU_%i_%i_trig_readout_excl_filter_coverage.png",
+    c1->Print(Form("%s/png/RU_%i_%i_trig_readout_excl_filter_efficiency.png",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
   if(create_pdf)
-    c1->Print(Form("%s/pdf/RU_%i_%i_trig_readout_excl_filter_coverage.pdf",
+    c1->Print(Form("%s/pdf/RU_%i_%i_trig_readout_excl_filter_efficiency.pdf",
                    mSimDataPath.c_str(),
                    mLayer, mStave));
 

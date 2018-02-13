@@ -15,12 +15,13 @@
 #include "TH1F.h"
 #include "THStack.h"
 #include "TArray.h"
+#include "misc.h"
 
 
 ///@brief Constructor for ITSLayerStats
 ///@param layer_num ITS Layer number
 ///@param num_staves Number of staves simulated in this layer
-///@param sim_time_ns Simulation time (in nanoseconds). 
+///@param sim_time_ns Simulation time (in nanoseconds).
 ///       Used for data rate calculations.
 ///@param path Path to simulation data directory
 ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
@@ -78,18 +79,18 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
   //----------------------------------------------------------------------------
   // Plot average trigger distribution and readout coverage vs. trigger
   //----------------------------------------------------------------------------
-  TH1D *h1 = new TH1D("h_avg_trig_ctrl_link_coverage",
-                      Form("Average Trigger Distribution Coverage - Layer %i", mLayer),
-                      mNumTriggers,0,mNumTriggers-1);
-  TH1D *h2 = new TH1D("h_avg_trig_ctrl_link_excl_filter_coverage",
-                       Form("Average Trigger Distribution Coverage Excluding Filtering - Layer %i", mLayer),
-                       mNumTriggers,0,mNumTriggers-1);
-  TH1D *h3 = new TH1D("h_avg_trig_readout_coverage",
-                       Form("Average Trigger Readout Coverage - Layer %i", mLayer),
-                       mNumTriggers,0,mNumTriggers-1);
-  TH1D *h4 = new TH1D("h_avg_trig_readout_excl_filter_coverage",
-                       Form("Average Trigger Readout Coverage Excluding Filtering - Layer %i", mLayer),
-                       mNumTriggers,0,mNumTriggers-1);
+  TH1D *h1 = new TH1D("h_avg_trig_ctrl_link_efficiency",
+                      Form("Average Trigger Distribution Efficiency - Layer %i", mLayer),
+                      mNumTriggers,0,mNumTriggers);
+  TH1D *h2 = new TH1D("h_avg_trig_ctrl_link_excl_filter_efficiency",
+                       Form("Average Trigger Distribution Efficiency Excluding Filtering - Layer %i", mLayer),
+                       mNumTriggers,0,mNumTriggers);
+  TH1D *h3 = new TH1D("h_avg_trig_readout_efficiency",
+                       Form("Average Trigger Readout Efficiency - Layer %i", mLayer),
+                       mNumTriggers,0,mNumTriggers);
+  TH1D *h4 = new TH1D("h_avg_trig_readout_excl_filter_efficiency",
+                       Form("Average Trigger Readout Efficiency Excluding Filtering - Layer %i", mLayer),
+                       mNumTriggers,0,mNumTriggers);
 
   for(uint64_t trigger_id = 0; trigger_id < mNumTriggers; trigger_id++) {
     double trig_sent_coverage = 0.0;
@@ -134,10 +135,15 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
   mAvgTrigDistrEfficiency /= mNumTriggers;
   mAvgTrigReadoutEfficiency /= mNumTriggers;
 
-  h1->GetYaxis()->SetTitle("Coverage");
-  h2->GetYaxis()->SetTitle("Coverage");
-  h3->GetYaxis()->SetTitle("Coverage");
-  h4->GetYaxis()->SetTitle("Coverage");
+  scale_eff_plot_y_range(h1);
+  scale_eff_plot_y_range(h2);
+  scale_eff_plot_y_range(h3);
+  scale_eff_plot_y_range(h4);
+
+  h1->GetYaxis()->SetTitle("Efficiency");
+  h2->GetYaxis()->SetTitle("Efficiency");
+  h3->GetYaxis()->SetTitle("Efficiency");
+  h4->GetYaxis()->SetTitle("Efficiency");
   h1->GetXaxis()->SetTitle("Trigger ID");
   h2->GetXaxis()->SetTitle("Trigger ID");
   h3->GetXaxis()->SetTitle("Trigger ID");
@@ -151,37 +157,37 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
 
   if(create_png) {
     h1->Draw();
-    c1->Print(Form("%s/png/Layer_%i_avg_trig_ctrl_link_coverage.png",
+    c1->Print(Form("%s/png/Layer_%i_avg_trig_ctrl_link_efficiency.png",
                    mSimDataPath.c_str(), mLayer));
 
     h2->Draw();
-    c1->Print(Form("%s/png/Layer_%i_avg_trig_ctrl_link_excl_filter_coverage.png",
+    c1->Print(Form("%s/png/Layer_%i_avg_trig_ctrl_link_excl_filter_efficiency.png",
                    mSimDataPath.c_str(), mLayer));
 
     h3->Draw();
-    c1->Print(Form("%s/png/Layer_%i_avg_trig_readout_coverage.png",
+    c1->Print(Form("%s/png/Layer_%i_avg_trig_readout_efficiency.png",
                    mSimDataPath.c_str(), mLayer));
 
     h4->Draw();
-    c1->Print(Form("%s/png/Layer_%i_avg_trig_readout_excl_filter_coverage.png",
+    c1->Print(Form("%s/png/Layer_%i_avg_trig_readout_excl_filter_efficiency.png",
                    mSimDataPath.c_str(), mLayer));
   }
 
   if(create_pdf) {
     h1->Draw();
-    c1->Print(Form("%s/pdf/Layer_%i_avg_trig_ctrl_link_coverage.pdf",
+    c1->Print(Form("%s/pdf/Layer_%i_avg_trig_ctrl_link_efficiency.pdf",
                    mSimDataPath.c_str(), mLayer));
 
     h2->Draw();
-    c1->Print(Form("%s/pdf/Layer_%i_avg_trig_ctrl_link_excl_filter_coverage.pdf",
+    c1->Print(Form("%s/pdf/Layer_%i_avg_trig_ctrl_link_excl_filter_efficiency.pdf",
                    mSimDataPath.c_str(), mLayer));
 
     h3->Draw();
-    c1->Print(Form("%s/pdf/Layer_%i_avg_trig_readout_coverage.pdf",
+    c1->Print(Form("%s/pdf/Layer_%i_avg_trig_readout_efficiency.pdf",
                    mSimDataPath.c_str(), mLayer));
 
     h4->Draw();
-    c1->Print(Form("%s/pdf/Layer_%i_avg_trig_readout_excl_filter_coverage.pdf",
+    c1->Print(Form("%s/pdf/Layer_%i_avg_trig_readout_excl_filter_efficiency.pdf",
                    mSimDataPath.c_str(), mLayer));
   }
 
@@ -192,26 +198,26 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
 
 
   //----------------------------------------------------------------------------
-  // Plot trigger distribution and readout coverage vs. RU vs. trigger
+  // Plot trigger distribution and readout efficiency vs. RU vs. trigger
   //----------------------------------------------------------------------------
-  TH2D* h5 = new TH2D(Form("h_trig_ctrl_link_coverage_layer_%i", mLayer),
-                      Form("Trigger Distribution Coverage - Layer %i",
+  TH2D* h5 = new TH2D(Form("h_trig_ctrl_link_efficiency_layer_%i", mLayer),
+                      Form("Trigger Distribution Efficiency - Layer %i",
                            mLayer),
-                      mNumTriggers,0,mNumTriggers-1,
+                      mNumTriggers,0,mNumTriggers,
                       mNumStaves, -0.5, mNumStaves-0.5);
-  TH2D* h6 = new TH2D(Form("h_trig_ctrl_link_excl_filter_coverage_layer_%i", mLayer),
-                      Form("Trigger Distribution Coverage Excluding Filtering - Layer %i",
+  TH2D* h6 = new TH2D(Form("h_trig_ctrl_link_excl_filter_efficiency_layer_%i", mLayer),
+                      Form("Trigger Distribution Efficiency Excluding Filtering - Layer %i",
                            mLayer),
-                      mNumTriggers,0,mNumTriggers-1,
+                      mNumTriggers,0,mNumTriggers,
                       mNumStaves, -0.5, mNumStaves-0.5);
-  TH2D* h7 = new TH2D(Form("h_trig_readout_coverage_layer_%i", mLayer),
-                      Form("Trigger Readout Coverage - Layer %i", mLayer),
-                      mNumTriggers,0,mNumTriggers-1,
+  TH2D* h7 = new TH2D(Form("h_trig_readout_efficiency_layer_%i", mLayer),
+                      Form("Trigger Readout Efficiency - Layer %i", mLayer),
+                      mNumTriggers,0,mNumTriggers,
                       mNumStaves, -0.5, mNumStaves-0.5);
-  TH2D* h8 = new TH2D(Form("h_trig_readout_excl_filter_coverage_layer_%i", mLayer),
-                      Form("Trigger Readout Coverage Excluding Filtering - Layer %i",
+  TH2D* h8 = new TH2D(Form("h_trig_readout_excl_filter_efficiency_layer_%i", mLayer),
+                      Form("Trigger Readout Efficiency Excluding Filtering - Layer %i",
                            mLayer),
-                      mNumTriggers,0,mNumTriggers-1,
+                      mNumTriggers,0,mNumTriggers,
                       mNumStaves, -0.5, mNumStaves-0.5);
 
   for(unsigned int stave = 0; stave < mNumStaves; stave++) {
@@ -232,6 +238,11 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
   h7->GetXaxis()->SetTitle("Trigger ID");
   h8->GetXaxis()->SetTitle("Trigger ID");
 
+  h5->SetStats(false);
+  h6->SetStats(false);
+  h7->SetStats(false);
+  h8->SetStats(false);
+
   h5->GetYaxis()->SetNdivisions(mNumStaves);
   h6->GetYaxis()->SetNdivisions(mNumStaves);
   h7->GetYaxis()->SetNdivisions(mNumStaves);
@@ -240,37 +251,37 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
 
   if(create_png) {
     h5->Draw("COLZ");
-    c1->Print(Form("%s/png/Layer_%i_trig_ctrl_link_coverage.png",
+    c1->Print(Form("%s/png/Layer_%i_trig_ctrl_link_efficiency.png",
                    mSimDataPath.c_str(), mLayer));
 
     h6->Draw("COLZ");
-    c1->Print(Form("%s/png/Layer_%i_trig_ctrl_link_excl_filter_coverage.png",
+    c1->Print(Form("%s/png/Layer_%i_trig_ctrl_link_excl_filter_efficiency.png",
                    mSimDataPath.c_str(), mLayer));
 
     h7->Draw("COLZ");
-    c1->Print(Form("%s/png/Layer_%i_trig_readout_coverage.png",
+    c1->Print(Form("%s/png/Layer_%i_trig_readout_efficiency.png",
                    mSimDataPath.c_str(), mLayer));
 
     h8->Draw("COLZ");
-    c1->Print(Form("%s/png/Layer_%i_trig_readout_excl_filter_coverage.png",
+    c1->Print(Form("%s/png/Layer_%i_trig_readout_excl_filter_efficiency.png",
                    mSimDataPath.c_str(), mLayer));
   }
 
   if(create_pdf) {
     h5->Draw("COLZ");
-    c1->Print(Form("%s/pdf/Layer_%i_trig_ctrl_link_coverage.pdf",
+    c1->Print(Form("%s/pdf/Layer_%i_trig_ctrl_link_efficiency.pdf",
                    mSimDataPath.c_str(), mLayer));
 
     h6->Draw("COLZ");
-    c1->Print(Form("%s/pdf/Layer_%i_trig_ctrl_link_excl_filter_coverage.pdf",
+    c1->Print(Form("%s/pdf/Layer_%i_trig_ctrl_link_excl_filter_efficiency.pdf",
                    mSimDataPath.c_str(), mLayer));
 
     h7->Draw("COLZ");
-    c1->Print(Form("%s/pdf/Layer_%i_trig_readout_coverage.pdf",
+    c1->Print(Form("%s/pdf/Layer_%i_trig_readout_efficiency.pdf",
                    mSimDataPath.c_str(), mLayer));
 
     h8->Draw("COLZ");
-    c1->Print(Form("%s/pdf/Layer_%i_trig_readout_excl_filter_coverage.pdf",
+    c1->Print(Form("%s/pdf/Layer_%i_trig_readout_excl_filter_efficiency.pdf",
                    mSimDataPath.c_str(), mLayer));
   }
 
@@ -366,6 +377,12 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
   h11->GetXaxis()->SetTitle("Trigger ID");
   h12->GetXaxis()->SetTitle("Trigger ID");
   h13->GetXaxis()->SetTitle("Trigger ID");
+
+  h9->SetStats(false);
+  h10->SetStats(false);
+  h11->SetStats(false);
+  h12->SetStats(false);
+  h13->SetStats(false);
 
   h9->GetYaxis()->SetNdivisions(mNumStaves);
   h10->GetYaxis()->SetNdivisions(mNumStaves);
