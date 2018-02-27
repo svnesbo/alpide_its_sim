@@ -8,6 +8,7 @@
 
 #include "DetectorStats.hpp"
 #include <iostream>
+#include <fstream>
 #include <tuple>
 #include "TFile.h"
 #include "TDirectory.h"
@@ -25,7 +26,7 @@
 ///@param sim_run_data_path Path to directory with simulation data.
 DetectorStats::DetectorStats(ITS::detectorConfig config,
                              unsigned int event_rate_khz,
-			     unsigned long sim_time_ns,
+                             unsigned long sim_time_ns,
                              const char* sim_run_data_path)
   : mConfig(config)
   , mEventRateKhz(event_rate_khz)
@@ -69,6 +70,36 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   }
 
 
+  //----------------------------------------------------------------------------
+  // Save busy/busyv/flush/etc counts for each layer to CSV file
+  //----------------------------------------------------------------------------
+  std::string busy_count_filename = mSimRunDataPath + "/busy_count.csv";
+  std::ofstream busy_count_file(busy_count_filename);
+  if(!busy_count_file.is_open()) {
+    std::cerr << "Error opening file " << busy_count_filename << std::endl;
+    return;
+  }
+
+  busy_count_file << "Num_triggers; " << num_triggers << std::endl << std::endl;;
+  busy_count_file << "Layer; BUSY; BUSYV; FLUSH; ABORT; FATAL" << std::endl;
+
+  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    if(mLayerStats[layer] != nullptr) {
+      busy_count_file << layer << "; ";
+      busy_count_file << mLayerStats[layer]->getNumBusyEvents() << "; ";
+      busy_count_file << mLayerStats[layer]->getNumBusyVEvents() << "; ";
+      busy_count_file << mLayerStats[layer]->getNumFlushEvents() << "; ";
+      busy_count_file << mLayerStats[layer]->getNumAbortEvents() << "; ";
+      busy_count_file << mLayerStats[layer]->getNumFatalEvents() << std::endl;
+    }
+  }
+
+  busy_count_file.close();
+
+
+  //----------------------------------------------------------------------------
+  // Prepare to start plotting stuff for the whole detector
+  //----------------------------------------------------------------------------
   TCanvas* c1 = new TCanvas();
   c1->cd();
 
