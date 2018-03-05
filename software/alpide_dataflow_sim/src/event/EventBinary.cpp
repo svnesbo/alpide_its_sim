@@ -20,28 +20,40 @@
 ///@param random_event_order True to randomize which event is used, false to get events
 ///              in sequential order.
 ///@param random_seed Random seed for event sequence randomizer.
-EventBinary::EventBinary(ITS::detectorConfig config, bool random_event_order, int random_seed)
-  : EventBase(config, random_event_order, random_seed)
+EventBinary::EventBinary(ITS::detectorConfig config,
+                         const QString& path,
+                         const QStringList& event_filenames,
+                         bool random_event_order,
+                         int random_seed,
+                         bool load_all)
+  : EventBase(config,
+              path,
+              event_filenames,
+              random_event_order,
+              random_seed,
+              load_all)
 {
+  if(load_all)
+    readEventFiles();
 }
 
 
-///@brief Read a list of event input data files
-///@param path Path of directory that holds data files
-///@param event_filenames QStringList of data files
-void EventBinary::readEventFiles(const QString& path, const QStringList& event_filenames)
+///@brief Read the whole list of event files into memory
+void EventBinary::readEventFiles()
 {
-  for(int i = 0; i < event_filenames.size(); i++) {
+  for(int i = 0; i < mEventFileNames.size(); i++) {
     std::cout << "Reading event binary data file " << i+1;
-    std::cout << " of " << event_filenames.size() << std::endl;
-    readEventFile(path + QString("/") + event_filenames.at(i));
+    std::cout << " of " << mEventFileNames.size() << std::endl;
+    EventDigits* event = readEventFile(mEventPath + QString("/") + mEventFileNames.at(i));
+    mEvents.push_back(event);
   }
 }
 
 
 ///@brief Read a monte carlo event from a binary data file
 ///@param event_filename File name and path of binary data file
-void EventBinary::readEventFile(const QString& event_filename)
+///@return Pointer to EventDigits object with the event that was read from file
+EventDigits* EventBinary::readEventFile(const QString& event_filename)
 {
   std::ifstream event_file(event_filename.toStdString(),
                            std::ios_base::in | std::ios_base::binary);
@@ -80,14 +92,14 @@ void EventBinary::readEventFile(const QString& event_filename)
   }
 
 
-  if(done == true && event_file.good())
-    mEvents.push_back(event);
-  else {
+  if(done != true || event_file.good() == false) {
     std::cerr << "Error: reading file " << event_filename.toStdString();
     std::cerr << " ended unexpectedly" << std::endl;
     delete event;
     exit(-1);
   }
+
+  return event;
 }
 
 

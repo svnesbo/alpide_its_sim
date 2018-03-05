@@ -39,11 +39,16 @@ private:
                        std::uint8_t stave_id,
                        std::uint8_t mod_id);
 
+  void readEventFiles();
+  EventDigits* readEventFile(const QString& event_filename);
+
 public:
-  EventBinary(ITS::detectorConfig config, bool random_event_order = true, int random_seed = 0);
-  void readEventFiles(const QString& path, const QStringList& event_filenames);
-  void readEventFile(const QString& event_filename);
-  const EventDigits* getNextEvent(void);
+  EventBinary(ITS::detectorConfig config,
+              const QString& path,
+              const QStringList& event_filenames,
+              bool random_event_order = true,
+              int random_seed = 0,
+              bool load_all = false);
 };
 
 

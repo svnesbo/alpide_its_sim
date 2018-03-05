@@ -47,22 +47,34 @@ protected:
 
   std::vector<EventDigits*> mEvents;
 
+  EventDigits* mSingleEvent = nullptr;
+
+  QString mEventPath;
+  QStringList mEventFileNames;
+
   bool mRandomEventOrder;
   int mRandomSeed;
   int mEventCount;
   int mPreviousEvent;
-  bool mEventCountChanged;
+
+  /// Load all events to memory if true, read one at a time from file if false
+  bool mLoadAllEvents;
 
   boost::random::mt19937 mRandEventIdGen;
   boost::random::uniform_int_distribution<int> *mRandEventIdDist;
 
-  void updateEventIdDistribution(void);
+  void createEventIdDistribution(void);
 
 public:
-  EventBase(ITS::detectorConfig config, bool random_event_order = true, int random_seed = 0);
+  EventBase(ITS::detectorConfig config,
+            const QString& path,
+            const QStringList& event_filenames,
+            bool random_event_order = true,
+            int random_seed = 0,
+            bool load_all = false);
   ~EventBase();
-  virtual void readEventFiles(const QString& path, const QStringList& event_filenames) = 0;
-  virtual void readEventFile(const QString& event_filename) = 0;
+  virtual void readEventFiles() = 0;
+  virtual EventDigits* readEventFile(const QString& event_filename) = 0;
   const EventDigits* getNextEvent(void);
 };
 

@@ -79,9 +79,21 @@
 ///@param random_event_order True to randomize which event is used, false to get events
 ///              in sequential order.
 ///@param random_seed Random seed for event sequence randomizer.
-EventXML::EventXML(ITS::detectorConfig config, bool random_event_order, int random_seed)
-  : EventBase(config, random_event_order, random_seed)
+EventXML::EventXML(ITS::detectorConfig config,
+                   const QString& path,
+                   const QStringList& event_filenames,
+                   bool random_event_order,
+                   int random_seed,
+                   bool load_all)
+  : EventBase(config,
+              path,
+              event_filenames,
+              random_event_order,
+              random_seed,
+              load_all)
 {
+  if(load_all)
+    readEventFiles();
 }
 
 
@@ -106,22 +118,22 @@ bool EventXML::findXMLElementInListById(const QDomNodeList& list, int id, QDomEl
 }
 
 
-///@brief Read a list of .xml input files
-///@param path Path of directory that holds .xml files
-///@param event_filenames QStringList of .xml files
-void EventXML::readEventFiles(const QString& path, const QStringList& event_filenames)
+///@brief Read the whole list of event files into memory
+void EventXML::readEventFiles()
 {
-  for(int i = 0; i < event_filenames.size(); i++) {
+  for(int i = 0; i < mEventFileNames.size(); i++) {
     std::cout << "Reading event XML file " << i+1;
-    std::cout << " of " << event_filenames.size() << std::endl;
-    readEventFile(path + QString("/") + event_filenames.at(i));
+    std::cout << " of " << mEventFileNames.size() << std::endl;
+    EventDigits* event = readEventFile(mEventPath + QString("/") + mEventFileNames.at(i));
+    mEvents.push_back(event);
   }
 }
 
 
 ///@brief Read a monte carlo event from an XML file
 ///@param event_filename File name and path of .xml file
-void EventXML::readEventFile(const QString& event_filename)
+///@return Pointer to EventDigits object with the event that was read from file
+EventDigits* EventXML::readEventFile(const QString& event_filename)
 {
   QDomDocument xml_dom_document;
   QFile event_file(event_filename);
@@ -133,7 +145,8 @@ void EventXML::readEventFile(const QString& event_filename)
   if (!event_file.open(QIODevice::ReadOnly))
   {
     std::cerr<<"Cannot open xml file: "<< event_filename.toStdString() << std::endl;
-    ///@todo Error handling...
+    delete event;
+    exit(-1);
   }
 
   if (!xml_dom_document.setContent(&event_file, &qdom_error_msg))
@@ -141,7 +154,8 @@ void EventXML::readEventFile(const QString& event_filename)
     event_file.close();
     std::cerr << "Cannot load xml file: "<< event_filename.toStdString() << std::endl;
     std::cerr << "Error message: " << qdom_error_msg.toStdString() << std::endl;
-    ///@todo Error handling...
+    delete event;
+    exit(-1);
   }
 
   QDomElement xml_dom_root_element = xml_dom_document.documentElement();
@@ -173,7 +187,7 @@ void EventXML::readEventFile(const QString& event_filename)
     }
   }
 
-  mEvents.push_back(event);
+  return event;
 }
 
 

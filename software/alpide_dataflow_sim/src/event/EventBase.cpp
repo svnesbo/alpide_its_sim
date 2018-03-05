@@ -15,14 +15,25 @@ using boost::random::uniform_int_distribution;
 ///@brief Constructor for EventBase class
 ///@param config detectorConfig object which specifies which staves in ITS should
 ///              be included.
+///@param path Path to event files
+///@param event_filenames String list of event file names
 ///@param random_event_order True to randomize which event is used, false to get events
 ///              in sequential order.
 ///@param random_seed Random seed for event sequence randomizer.
-EventBase::EventBase(ITS::detectorConfig config, bool random_event_order, int random_seed)
-  : mRandomEventOrder(random_event_order)
+///@param load_all If set to true, load all event files into memory. If not they are read
+///                from file as they are used, and do not persist in memory.
+EventBase::EventBase(ITS::detectorConfig config,
+                     const QString& path,
+                     const QStringList& event_filenames,
+                     bool random_event_order,
+                     int random_seed,
+                     bool load_all)
+  : mEventPath(path)
+  , mEventFileNames(event_filenames)
+  , mRandomEventOrder(random_event_order)
   , mRandomSeed(random_seed)
   , mEventCount(0)
-  , mEventCountChanged(true)
+  , mLoadAllEvents(load_all)
 {
   if(mRandomSeed == 0) {
     boost::random::random_device r;
@@ -55,6 +66,8 @@ EventBase::EventBase(ITS::detectorConfig config, bool random_event_order, int ra
       }
     }
   }
+
+  createEventIdDistribution();
 }
 
 
@@ -62,6 +75,9 @@ EventBase::~EventBase()
 {
   for(unsigned int i = 0; i < mEvents.size(); i++)
     delete mEvents[i];
+
+  if(mSingleEvent != nullptr)
+    delete mSingleEvent;
 
   delete mRandEventIdDist;
 }
@@ -76,36 +92,43 @@ const EventDigits* EventBase::getNextEvent(void)
   EventDigits* event = nullptr;
   int next_event_index;
 
-  if(mEvents.empty() == false) {
-    if(mRandomEventOrder) {
-      if(mEventCountChanged)
-        updateEventIdDistribution();
 
-      // Generate random event here
-      next_event_index = (*mRandEventIdDist)(mRandEventIdGen);
-    } else { // Sequential event order if not random
-      mPreviousEvent++;
-      mPreviousEvent = mPreviousEvent % mEvents.size();
-      next_event_index = mPreviousEvent;
-    }
-
-    event = mEvents[next_event_index];
-
-    std::cout << "MC Event number: " << next_event_index << std::endl;
+  if(mRandomEventOrder) {
+    // Generate random event here
+    next_event_index = (*mRandEventIdDist)(mRandEventIdGen);
+  } else { // Sequential event order if not random
+    mPreviousEvent++;
+    mPreviousEvent = mPreviousEvent % mEventFileNames.size();
+    next_event_index = mPreviousEvent;
   }
+
+  if(mLoadAllEvents) {
+    if(mEvents.empty() == false) {
+      event = mEvents[next_event_index];
+    } else {
+      std::cout << "Error: No MC events loaded into memory." << std::endl;
+      exit(-1);
+    }
+  } else {
+    if(mSingleEvent != nullptr)
+      delete mSingleEvent;
+
+    mSingleEvent = readEventFile(mEventFileNames.at(next_event_index));
+    event = mSingleEvent;
+  }
+
+  std::cout << "MC Event number: " << next_event_index << std::endl;
 
   return event;
 }
 
 
-///@brief When number of events has changed, update the uniform random distribution used to
-///       pick event ID, so that the new event IDs are included in the distribution.
-void EventBase::updateEventIdDistribution(void)
+///@brief Create a uniform random distribution used to pick event ID,
+///       with a range that matches the number of available events.
+void EventBase::createEventIdDistribution(void)
 {
   if(mRandEventIdDist != nullptr)
     delete mRandEventIdDist;
 
   mRandEventIdDist = new uniform_int_distribution<int>(0, mEvents.size()-1);
-
-  mEventCountChanged = false;
 }

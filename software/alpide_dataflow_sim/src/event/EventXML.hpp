@@ -18,12 +18,16 @@ class EventXML : public EventBase {
   bool locateChipInEventXML(const ITS::detectorPosition& chip_position,
                             const QDomElement& event_xml_dom_root,
                             QDomElement& chip_element_out);
+  void readEventFiles();
+  EventDigits* readEventFile(const QString& event_filename);
 
 public:
-  EventXML(ITS::detectorConfig config, bool random_event_order = true, int random_seed = 0);
-  void readEventFiles(const QString& path, const QStringList& event_filenames);
-  void readEventFile(const QString& event_filename);
-  const EventDigits* getNextEvent(void);
+  EventXML(ITS::detectorConfig config,
+           const QString& path,
+           const QStringList& event_filenames,
+           bool random_event_order = true,
+           int random_seed = 0,
+           bool load_all = false);
 };
 
 
