@@ -1,0 +1,71 @@
+/**
+ * @file   EventBase.hpp
+ * @author Simon Voigt Nesbo
+ * @date   March 5, 2018
+ * @brief  Class for handling events from AliRoot MC simulations, stored in an XML file
+ */
+
+#ifndef EVENT_BASE_H
+#define EVENT_BASE_H
+
+#include <map>
+#include <QString>
+#include <QStringList>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+#include "Alpide/Hit.hpp"
+#include "../ITS/ITS_config.hpp"
+
+class EventDigits {
+  // Vector index: hit/digit number
+  // Pair: <Chip ID, pixel hit coords>
+  std::vector<std::pair<int, PixelData>> mHitDigits;
+
+public:
+  void addHit(int chip_id, int col, int row) {
+    mHitDigits.push_back(std::pair<int, PixelData>(chip_id, PixelData(col, row)));
+  }
+//  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsIterator(void) const {
+  auto getDigitsIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
+  {
+    return mHitDigits.begin();
+  }
+//  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsEndIterator(void) const {
+  auto getDigitsEndIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
+  {
+    return mHitDigits.end();
+  }
+
+  size_t size(void) const {return mHitDigits.size();}
+};
+
+
+class EventBase {
+protected:
+  // Maps a detector position to each unique chip id
+  std::map<unsigned int, ITS::detectorPosition> mDetectorPositionList;
+
+  std::vector<EventDigits*> mEvents;
+
+  bool mRandomEventOrder;
+  int mRandomSeed;
+  int mEventCount;
+  int mPreviousEvent;
+  bool mEventCountChanged;
+
+  boost::random::mt19937 mRandEventIdGen;
+  boost::random::uniform_int_distribution<int> *mRandEventIdDist;
+
+  void updateEventIdDistribution(void);
+
+public:
+  EventBase(ITS::detectorConfig config, bool random_event_order = true, int random_seed = 0);
+  ~EventBase();
+  virtual void readEventFiles(const QString& path, const QStringList& event_filenames) = 0;
+  virtual void readEventFile(const QString& event_filename) = 0;
+  const EventDigits* getNextEvent(void);
+};
+
+
+
+#endif /* EVENT_BASE_H */

@@ -69,10 +69,7 @@
 ///@}
 
 #include <iostream>
-#include <boost/random/random_device.hpp>
 #include "EventXML.hpp"
-
-using boost::random::uniform_int_distribution;
 
 
 ///@brief Constructor for EventXML class, which handles a set of events stored in XML files.
@@ -83,95 +80,8 @@ using boost::random::uniform_int_distribution;
 ///              in sequential order.
 ///@param random_seed Random seed for event sequence randomizer.
 EventXML::EventXML(ITS::detectorConfig config, bool random_event_order, int random_seed)
-  : mRandomEventOrder(random_event_order)
-  , mRandomSeed(random_seed)
-  , mEventCount(0)
-  , mEventCountChanged(true)
+  : EventBase(config, random_event_order, random_seed)
 {
-  if(mRandomSeed == 0) {
-    boost::random::random_device r;
-
-    std::cout << "Boost random_device entropy: " << r.entropy() << std::endl;
-
-    unsigned int random_seed = r();
-    mRandEventIdGen.seed(random_seed);
-    std::cout << "Random event ID generator random seed: " << random_seed << std::endl;
-  } else {
-    mRandEventIdGen.seed(mRandomSeed);
-  }
-
-  mRandEventIdDist = nullptr;
-
-
-  // Construct a list of chips to read from the event files
-  for(unsigned  layer = 0; layer < ITS::N_LAYERS; layer++)
-  {
-    for(unsigned int stave = 0; stave < config.layer[layer].num_staves; stave++)
-    {
-      for(unsigned int module = 0; module < ITS::MODULES_PER_STAVE_IN_LAYER[layer]; module++)
-      {
-        for(unsigned int chip = 0; chip < ITS::CHIPS_PER_MODULE_IN_LAYER[layer]; chip++)
-        {
-          ITS::detectorPosition pos = {layer, stave, module, chip};
-          unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
-          mDetectorPositionList[global_chip_id] = pos;
-        }
-      }
-    }
-  }
-}
-
-
-EventXML::~EventXML()
-{
-  for(unsigned int i = 0; i < mEvents.size(); i++)
-    delete mEvents[i];
-
-  delete mRandEventIdDist;
-}
-
-
-///@brief Get the next event. If the class was constructed with random_event_order
-///       set to true, then this will return a random event from the pool of events.
-///       If not they will be in sequential order.
-///@return Const pointer to EventDigits object for event.
-const EventDigits* EventXML::getNextEvent(void)
-{
-  EventDigits* event = nullptr;
-  int next_event_index;
-
-  if(mEvents.empty() == false) {
-    if(mRandomEventOrder) {
-      if(mEventCountChanged)
-        updateEventIdDistribution();
-
-      // Generate random event here
-      next_event_index = (*mRandEventIdDist)(mRandEventIdGen);
-    } else { // Sequential event order if not random
-      mPreviousEvent++;
-      mPreviousEvent = mPreviousEvent % mEvents.size();
-      next_event_index = mPreviousEvent;
-    }
-
-    event = mEvents[next_event_index];
-
-    std::cout << "XML Event number: " << next_event_index << std::endl;
-  }
-
-  return event;
-}
-
-
-///@brief When number of events has changed, update the uniform random distribution used to
-///       pick event ID, so that the new event IDs are included in the distribution.
-void EventXML::updateEventIdDistribution(void)
-{
-  if(mRandEventIdDist != nullptr)
-    delete mRandEventIdDist;
-
-  mRandEventIdDist = new uniform_int_distribution<int>(0, mEvents.size()-1);
-
-  mEventCountChanged = false;
 }
 
 
@@ -199,19 +109,19 @@ bool EventXML::findXMLElementInListById(const QDomNodeList& list, int id, QDomEl
 ///@brief Read a list of .xml input files
 ///@param path Path of directory that holds .xml files
 ///@param event_filenames QStringList of .xml files
-void EventXML::readEventXML(const QString& path, const QStringList& event_filenames)
+void EventXML::readEventFiles(const QString& path, const QStringList& event_filenames)
 {
   for(int i = 0; i < event_filenames.size(); i++) {
     std::cout << "Reading event XML file " << i+1;
     std::cout << " of " << event_filenames.size() << std::endl;
-    readEventXML(path + QString("/") + event_filenames.at(i));
+    readEventFile(path + QString("/") + event_filenames.at(i));
   }
 }
 
 
 ///@brief Read a monte carlo event from an XML file
 ///@param event_filename File name and path of .xml file
-void EventXML::readEventXML(const QString& event_filename)
+void EventXML::readEventFile(const QString& event_filename)
 {
   QDomDocument xml_dom_document;
   QFile event_file(event_filename);

@@ -11,7 +11,7 @@
 #define EVENT_GENERATOR_HPP
 
 #include "Alpide/EventFrame.hpp"
-#include "EventXML.hpp"
+#include "EventBase.hpp"
 #include "../ITS/ITSPixelHit.hpp"
 #include "../ITS/ITS_constants.hpp"
 
@@ -84,8 +84,8 @@ private:
 
   int mRandomSeed;
 
-  EventXML* mMCPhysicsEvents = nullptr;
-  EventXML* mMCQedNoiseEvents = nullptr;
+  EventBase* mMCPhysicsEvents = nullptr;
+  EventBase* mMCQedNoiseEvents = nullptr;
 
   bool mRandomHitGeneration;
   int mHitMultiplicityGaussAverage;
