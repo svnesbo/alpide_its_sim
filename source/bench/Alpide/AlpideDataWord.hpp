@@ -25,6 +25,34 @@
 using std::uint8_t;
 
 
+/// Enumerations used to easily identify the type of data word stored
+/// in the AlpideDataWord objects, to avoid having to parse it.
+///
+/// Not to be confused with the DW_<data word type> constants below, which
+/// are the actual data words used on the serial link. These DW_ words are
+/// mixed with data bits making it hard to parse them.
+///
+/// Note that the region trailer word should never appear in the output data
+/// stream, they are only used internally in the ALPIDE chip.
+enum AlpideDataType {ALPIDE_IDLE,
+                     ALPIDE_CHIP_HEADER1,
+                     ALPIDE_CHIP_HEADER2,
+                     ALPIDE_CHIP_TRAILER,
+                     ALPIDE_CHIP_EMPTY_FRAME1,
+                     ALPIDE_CHIP_EMPTY_FRAME2,
+                     ALPIDE_REGION_HEADER,
+                     ALPIDE_REGION_TRAILER,
+                     ALPIDE_DATA_SHORT1,
+                     ALPIDE_DATA_SHORT2,
+                     ALPIDE_DATA_LONG1,
+                     ALPIDE_DATA_LONG2,
+                     ALPIDE_DATA_LONG3,
+                     ALPIDE_BUSY_ON,
+                     ALPIDE_BUSY_OFF,
+                     ALPIDE_COMMA,
+                     ALPIDE_UNKNOWN};
+
+
 /// Alpide Data format and valid data words (from Alpide manual)
 /// Data word             | Header bits | Parameter bits
 /// --------------------- | ----------- | --------------
@@ -67,6 +95,18 @@ const uint8_t READOUT_FLAGS_FLUSHED_INCOMPLETE = 0b00000100;
 const uint8_t READOUT_FLAGS_STROBE_EXTENDED    = 0b00000010;
 const uint8_t READOUT_FLAGS_BUSY_TRANSITION    = 0b00000001;
 
+/// Special combinations of readout flags indicate
+/// readout abort aka. data overrun (see Alpide manual)
+const uint8_t READOUT_FLAGS_ABORT              = READOUT_FLAGS_BUSY_VIOLATION |
+                                                 READOUT_FLAGS_FLUSHED_INCOMPLETE;
+
+/// Special combinations of readout flags indicate
+/// fatal mode (see Alpide manual)
+const uint8_t READOUT_FLAGS_FATAL              = READOUT_FLAGS_BUSY_VIOLATION |
+                                                 READOUT_FLAGS_FLUSHED_INCOMPLETE |
+                                                 READOUT_FLAGS_STROBE_EXTENDED;
+
+
 /// Mask for busy, idle and comma words
 const uint8_t MASK_IDLE_BUSY_COMMA = 0b11111111;
 
@@ -85,14 +125,19 @@ struct FrameStartFifoWord {
   bool busy_violation;
   uint16_t BC_for_frame; // Bunch counter
 
+  ///@brief Not part of the start frame fifo word in the real chip.
+  uint64_t trigger_id;
+
   inline bool operator==(const FrameStartFifoWord& rhs) const {
     return (this->busy_violation == rhs.busy_violation &&
-            this->BC_for_frame == rhs.BC_for_frame);
+            this->BC_for_frame == rhs.BC_for_frame &&
+            this->trigger_id == rhs.trigger_id);
   }
 
   inline FrameStartFifoWord& operator=(const FrameStartFifoWord& rhs) {
     busy_violation = rhs.busy_violation;
     BC_for_frame = rhs.BC_for_frame;
+    trigger_id = rhs.trigger_id;
     return *this;
   }
 
@@ -113,6 +158,8 @@ struct FrameStartFifoWord {
 
 
 /// Data word stored in FRAME END FIFO
+///@todo Move strobe_extended to FrameStartFifoWord,
+///      although it technically belongs here..
 struct FrameEndFifoWord {
   bool flushed_incomplete;
   bool strobe_extended;
@@ -149,26 +196,35 @@ struct FrameEndFifoWord {
 };
 
 
-///@brief The FIFOs in the Alpide chip are 24 bits, or 3 bytes, wide. This is a base class for the
-///       data words that holds 3 bytes, and is used as the data type in the SystemC FIFO templates.
-///       This class shouldn't be used on its own, the various types of data words are implemented
-///       in derived classes.
+///@brief The FIFOs in the Alpide chip are 24 bits, or 3 bytes, wide.
+///       This is a base class for the data words that holds 3 bytes,
+///       and is used as the data type in the SystemC FIFO templates.
+///       This class shouldn't be used on its own, the various types
+///       of data words are implemented in derived classes.
+///       The data_type variable is used to more easily tell what
+///       kind of data word this is, without parsing the data.
+///       Virtual functions could have been used for this in the
+///       derived classes, but it was done this way since virtual
+///       functions are a bit slow and would be very frequently called.
 class AlpideDataWord
 {
 public:
   uint8_t data[3];
 
+  ///@brief data_type is used to prevent having to fully parse
+  ///       the binary data to know what kind of data word it is
+  AlpideDataType data_type[3] = {ALPIDE_UNKNOWN,
+                                 ALPIDE_UNKNOWN,
+                                 ALPIDE_UNKNOWN};
+
+  ///@brief trigger_id is only used by chip header / empty frame words
+  ///       Does not exist in the real Alpide data stream.
+  uint64_t trigger_id;
+
   inline bool operator==(const AlpideDataWord& rhs) const {
     return (this->data[0] == rhs.data[0] &&
             this->data[1] == rhs.data[1] &&
             this->data[2] == rhs.data[2]);
-  }
-
-  inline AlpideDataWord& operator=(const AlpideDataWord& rhs) {
-    data[0] = rhs.data[0];
-    data[1] = rhs.data[1];
-    data[2] = rhs.data[2];
-    return *this;
   }
 
   inline friend void sc_trace(sc_trace_file *tf, const AlpideDataWord& dw,
@@ -197,6 +253,10 @@ public:
     data[2] = DW_IDLE;
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
+
+    data_type[0] = ALPIDE_IDLE;
+    data_type[1] = ALPIDE_IDLE;
+    data_type[2] = ALPIDE_IDLE;
   }
 };
 
@@ -204,16 +264,28 @@ public:
 class AlpideChipHeader : public AlpideDataWord
 {
 public:
-  AlpideChipHeader(uint8_t chip_id, uint16_t bunch_counter) {
+  AlpideChipHeader(uint8_t chip_id, uint16_t bunch_counter, uint64_t trig_id) {
+    // Technically trigger ID is not part of this data word,
+    // but is added for convenience in the simulation model.
+    trigger_id = trig_id;
+
     // Mask out bits 10:3 of the bunch counter
     uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
 
     data[2] = DW_CHIP_HEADER | (chip_id & 0x0F);
     data[1] = bc_masked;
     data[0] = DW_IDLE;
+
+    data_type[2] = ALPIDE_CHIP_HEADER1;
+    data_type[1] = ALPIDE_CHIP_HEADER2;
+    data_type[0] = ALPIDE_IDLE;
   }
   AlpideChipHeader(uint8_t chip_id, FrameStartFifoWord& frame_start)
-    : AlpideChipHeader(chip_id, frame_start.BC_for_frame) {}
+    : AlpideChipHeader(chip_id,
+                       frame_start.BC_for_frame,
+                       frame_start.trigger_id)
+    {
+    }
 };
 
 
@@ -224,6 +296,10 @@ public:
     data[2] = DW_CHIP_TRAILER | (readout_flags & 0x0F);
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
+
+    data_type[2] = ALPIDE_CHIP_TRAILER;
+    data_type[1] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
   AlpideChipTrailer(FrameStartFifoWord frame_start,
                     FrameEndFifoWord frame_end,
@@ -250,6 +326,10 @@ public:
       | (frame_end.busy_transition ? READOUT_FLAGS_BUSY_TRANSITION : 0);
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
+
+    data_type[2] = ALPIDE_CHIP_TRAILER;
+    data_type[1] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
@@ -257,16 +337,30 @@ public:
 class AlpideChipEmptyFrame : public AlpideDataWord
 {
 public:
-  AlpideChipEmptyFrame(uint8_t chip_id, uint16_t bunch_counter) {
-    // Mask out bits 10:3 of the bunch counter
-    uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
+  AlpideChipEmptyFrame(uint8_t chip_id,
+                       uint16_t bunch_counter,
+                       uint64_t trig_id)
+    {
+      // Technically trigger ID is not part of this data word,
+      // but is added for convenience in the simulation model.
+      trigger_id = trig_id;
 
-    data[2] = DW_CHIP_EMPTY_FRAME | (chip_id & 0x0F);
-    data[1] = bc_masked;
-    data[0] = DW_IDLE;
-  }
+      // Mask out bits 10:3 of the bunch counter
+      uint16_t bc_masked = (bunch_counter & 0x7F8) >> 3;
+
+      data[2] = DW_CHIP_EMPTY_FRAME | (chip_id & 0x0F);
+      data[1] = bc_masked;
+      data[0] = DW_IDLE;
+
+      data_type[2] = ALPIDE_CHIP_EMPTY_FRAME1;
+      data_type[1] = ALPIDE_CHIP_EMPTY_FRAME2;
+      data_type[0] = ALPIDE_IDLE;
+    }
   AlpideChipEmptyFrame(uint8_t chip_id, FrameStartFifoWord& frame_start)
-    : AlpideChipEmptyFrame(chip_id, frame_start.BC_for_frame) {}
+    : AlpideChipEmptyFrame(chip_id,
+                           frame_start.BC_for_frame,
+                           frame_start.trigger_id)
+    {}
 };
 
 
@@ -277,6 +371,10 @@ public:
     data[2] = DW_REGION_HEADER | (region_id & 0x1F);
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
+
+    data_type[2] = ALPIDE_REGION_HEADER;
+    data_type[1] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
@@ -289,6 +387,10 @@ public:
     data[2] = DW_REGION_TRAILER;
     data[1] = DW_REGION_TRAILER;
     data[0] = DW_REGION_TRAILER;
+
+    data_type[2] = ALPIDE_REGION_TRAILER;
+    data_type[1] = ALPIDE_REGION_TRAILER;
+    data_type[0] = ALPIDE_REGION_TRAILER;
   }
 };
 
@@ -300,6 +402,10 @@ public:
     data[2] = DW_DATA_SHORT | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
     data[1] = addr & 0xFF;
     data[0] = DW_IDLE;
+
+    data_type[2] = ALPIDE_DATA_SHORT1;
+    data_type[1] = ALPIDE_DATA_SHORT2;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
@@ -311,6 +417,10 @@ public:
     data[2] = DW_DATA_LONG | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
     data[1] = addr & 0xFF;
     data[0] = hitmap & 0x7F;
+
+    data_type[2] = ALPIDE_DATA_LONG1;
+    data_type[1] = ALPIDE_DATA_LONG2;
+    data_type[0] = ALPIDE_DATA_LONG3;
   }
 };
 
@@ -322,6 +432,10 @@ public:
     data[2] = DW_BUSY_ON;
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
+
+    data_type[2] = ALPIDE_BUSY_ON;
+    data_type[1] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
@@ -333,10 +447,17 @@ public:
     data[2] = DW_BUSY_OFF;
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
+
+    data_type[2] = ALPIDE_BUSY_OFF;
+    data_type[1] = ALPIDE_IDLE;
+    data_type[0] = ALPIDE_IDLE;
   }
 };
 
 
+///@brief Included, but not really used. Should this even
+///       appear on the serial data stream, or is it only
+///       after encoding?
 class AlpideComma : public AlpideDataWord
 {
 public:
@@ -344,6 +465,10 @@ public:
     data[2] = DW_COMMA;
     data[1] = DW_COMMA;
     data[0] = DW_COMMA;
+
+    data_type[2] = ALPIDE_COMMA;
+    data_type[1] = ALPIDE_COMMA;
+    data_type[0] = ALPIDE_COMMA;
   }
 };
 

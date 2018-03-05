@@ -50,6 +50,14 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   mSingleChipSimulation = settings->value("simulation/single_chip").toBool();
   mNumChips = 0;
 
+  mITSConfig.layer[0].num_staves = settings->value("its/layer0_num_staves").toInt();
+  mITSConfig.layer[1].num_staves = settings->value("its/layer1_num_staves").toInt();
+  mITSConfig.layer[2].num_staves = settings->value("its/layer2_num_staves").toInt();
+  mITSConfig.layer[3].num_staves = settings->value("its/layer3_num_staves").toInt();
+  mITSConfig.layer[4].num_staves = settings->value("its/layer4_num_staves").toInt();
+  mITSConfig.layer[5].num_staves = settings->value("its/layer5_num_staves").toInt();
+  mITSConfig.layer[6].num_staves = settings->value("its/layer6_num_staves").toInt();
+
   if(mRandomHitGeneration) {
     // Instantiate event generator object with the desired hit multiplicity distribution
     QString multipl_dist_type = settings->value("event/hit_multiplicity_distribution_type").toString();
@@ -105,21 +113,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
         mHitDensities[5] = settings->value("event/hit_density_layer5").toDouble();
         mHitDensities[6] = settings->value("event/hit_density_layer6").toDouble();
 
-        mNumStaves[0] = settings->value("its/layer0_num_staves").toInt();
-        mNumStaves[1] = settings->value("its/layer1_num_staves").toInt();
-        mNumStaves[2] = settings->value("its/layer2_num_staves").toInt();
-        mNumStaves[3] = settings->value("its/layer3_num_staves").toInt();
-        mNumStaves[4] = settings->value("its/layer4_num_staves").toInt();
-        mNumStaves[5] = settings->value("its/layer5_num_staves").toInt();
-        mNumStaves[6] = settings->value("its/layer6_num_staves").toInt();
-
-        for(int layer = 0; layer < ITS::N_LAYERS; layer++) {
-          // mDetectorArea[layer] =
-          //   mNumStaves[layer] *
-          //   ITS::CHIPS_PER_STAVE_IN_LAYER[layer] *
-          //   CHIP_WIDTH_CM *
-          //   CHIP_HEIGHT_CM;
-
+        for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
           mDetectorArea[layer] =
             ITS::STAVES_PER_LAYER[layer] *
             ITS::CHIPS_PER_STAVE_IN_LAYER[layer] *
@@ -130,7 +124,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
           mMultiplicityScaleFactor[layer] = mHitAverage[layer] / multpl_dist_mean;
 
           // Number of chips to actually simulate
-          mNumChips += mNumStaves[layer] * ITS::CHIPS_PER_STAVE_IN_LAYER[layer];
+          mNumChips += mITSConfig.layer[layer].num_staves * ITS::CHIPS_PER_STAVE_IN_LAYER[layer];
 
           std::cout << "Num chips so far: " << mNumChips << std::endl;
 
@@ -152,14 +146,53 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       mRandHitMultiplicityGauss = nullptr;
     }
   } else {
-    QDir monte_carlo_event_dir("config/monte_carlo_events/PbPb/");
+    QString monte_carlo_event_path_str = settings->value("event/monte_carlo_path").toString();
+    QDir monte_carlo_event_dir(monte_carlo_event_path_str);
     QStringList name_filters;
 
     name_filters << "*.xml";
 
     QStringList MC_xml_files = monte_carlo_event_dir.entryList(name_filters);
 
-    mMonteCarloEvents.readEventXML("config/monte_carlo_events/PbPb/", MC_xml_files);
+    if(MC_xml_files.empty()) {
+      std::cout << "Error: No .xml files found in path \"";
+      std::cout << monte_carlo_event_path_str.toStdString();
+      std::cout << "\", or path does not exist." << std::endl;
+      exit(-1);
+    }
+
+    mMCPhysicsEvents = new EventXML(mITSConfig);
+    mMCPhysicsEvents->readEventXML(monte_carlo_event_path_str, MC_xml_files);
+
+    mNumChips = 1;
+
+    QString qed_noise_input = settings->value("event/qed_noise_input").toString();
+    if(qed_noise_input == "true") {
+      mQedNoiseGenEnable = true;
+      mQedNoiseRate = settings->value("event/qed_noise_rate_ns").toUInt();
+
+      if(mQedNoiseRate == 0) {
+        std::cout << "Error: QED/Noise rate has to be larger than zero." << std::endl;
+        exit(-1);
+      }
+
+      QString qed_noise_event_path_str = settings->value("event/qed_noise_path").toString();
+      QDir qed_noise_event_dir(qed_noise_event_path_str);
+
+      name_filters << "*.xml";
+
+      QStringList QED_NOISE_xml_files = qed_noise_event_dir.entryList(name_filters);
+
+      if(QED_NOISE_xml_files.empty()) {
+        std::cout << "Error: No .xml files found in path \"";
+        std::cout << qed_noise_event_path_str.toStdString();
+        std::cout << "\", or path does not exist." << std::endl;
+        exit(-1);
+      }
+
+      mMCQedNoiseEvents = new EventXML(mITSConfig);
+      mMCQedNoiseEvents->readEventXML(qed_noise_event_path_str, QED_NOISE_xml_files);
+    }
 
     // Discrete and gaussion hit distributions are not used in this case
     mRandHitMultiplicityDiscrete = nullptr;
@@ -180,9 +213,6 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     mRandChipID[layer] =
       new uniform_int_distribution<int>(0, ITS::CHIPS_PER_MODULE_IN_LAYER[layer]-1);
 
-    // mRandStave[layer] =
-    //   new uniform_int_distribution<int>(0, mNumStaves[layer]-1);
-
     mRandStave[layer] =
       new uniform_int_distribution<int>(0, ITS::STAVES_PER_LAYER[layer]-1);
   }
@@ -198,20 +228,34 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   if(mCreateCSVFile) {
     std::string physics_events_csv_filename = mOutputPath + std::string("/physics_events_data.csv");
     mPhysicsEventsCSVFile.open(physics_events_csv_filename);
-    mPhysicsEventsCSVFile << "delta_t;hit_multiplicity";
-    for(int i = 0; i < mNumChips; i++)
-      mPhysicsEventsCSVFile << ";chip_" << i << "_trace_hits";
-    for(int i = 0; i < mNumChips; i++)
-      mPhysicsEventsCSVFile << ";chip_" << i << "_pixel_hits";
-    mPhysicsEventsCSVFile << std::endl;
+    mPhysicsEventsCSVFile << "delta_t;event_pixel_hit_multiplicity";
 
-    std::string event_frames_csv_filename = mOutputPath + std::string("/event_frames_data.csv");
-    mEventFramesCSVFile.open(event_frames_csv_filename);
-    mEventFramesCSVFile << "time";
-    mEventFramesCSVFile << ";filtered";
-    for(int i = 0; i < mNumChips; i++)
-      mEventFramesCSVFile << ";chip_" << i << "_pixel_hits";
-    mEventFramesCSVFile << std::endl;
+    if(mITSConfig.layer[0].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_0";
+    if(mITSConfig.layer[1].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_1";
+    if(mITSConfig.layer[2].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_2";
+    if(mITSConfig.layer[3].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_3";
+    if(mITSConfig.layer[4].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_4";
+    if(mITSConfig.layer[5].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_5";
+    if(mITSConfig.layer[6].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_6";
+
+    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+      unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
+      for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
+        for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
+          mPhysicsEventsCSVFile << ";chip_" << chip_id;
+          chip_id++;
+        }
+      }
+    }
+
+    mPhysicsEventsCSVFile << std::endl;
   }
 
 
@@ -219,6 +263,9 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
   // SystemC declarations / connections / etc.
   //////////////////////////////////////////////////////////////////////////////
   SC_METHOD(physicsEventMethod);
+
+  if(mQedNoiseGenEnable)
+    SC_METHOD(qedNoiseEventMethod);
 }
 
 
@@ -240,17 +287,22 @@ EventGenerator::~EventGenerator()
 
   if(mPhysicsEventsCSVFile.is_open())
     mPhysicsEventsCSVFile.close();
-  if(mEventFramesCSVFile.is_open())
-    mEventFramesCSVFile.close();
 }
 
 
-///@brief Get a reference to the next event (if there is one). Note: this function
-///       will keep returning the same event until it has been removed by removeOldestEvent().
+///@brief Get a reference to the next physics event
 ///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
 const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestPhysicsEvent(void) const
 {
-  return mHitVector;
+  return mEventHitVector;
+}
+
+
+///@brief Get a reference to the next QED/Noise event
+///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
+const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestQedNoiseEvent(void) const
+{
+  return mQedNoiseHitVector;
 }
 
 
@@ -432,18 +484,18 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 ///@return The number of clock cycles until this event will actually occur
 uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 {
+  unsigned int event_pixel_hit_count = 0;
   int64_t t_delta, t_delta_cycles;
   unsigned int n_hits = 0;
   unsigned int n_hits_raw = 0;
 
-  // Initialize array to 0. http://stackoverflow.com/a/2204380/6444574
-  int *chip_trace_hit_counts = new int[mNumChips]();
-  int *chip_pixel_hit_counts = new int[mNumChips]();
+  std::map<unsigned int, unsigned int> layer_hits;
+  std::map<unsigned int, unsigned int> chip_hits;
 
   mLastPhysicsEventTimeNs = time_now;
   mPhysicsEventCount++;
 
-  mHitVector.clear();
+  mEventHitVector.clear();
 
   // std::cout << std::endl;
   // std::cout << "@ " << time_now << " ns:";
@@ -459,7 +511,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
     if(mSingleChipSimulation && n_hits_raw > 0) {
       n_hits = n_hits_raw * mSingleChipMultiplicityScaleFactor;
 
-      for(int i = 0; i < n_hits; i++) {
+      for(unsigned int i = 0; i < n_hits; i++) {
         unsigned int rand_x1 = (*mRandHitChipX)(mRandHitGen);
         unsigned int rand_y1 = (*mRandHitChipY)(mRandHitGen);
         unsigned int rand_x2, rand_y2;
@@ -482,22 +534,21 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
         ITS::detectorPosition pos = {0, 0, 0, 0};
 
 
-        ///@todo Account larger/bigger clusters here (when implemented)
-        chip_pixel_hit_counts[0] += 4;
-        chip_trace_hit_counts[0]++;
+        ///@todo Account for larger/bigger clusters here (when implemented)
+        event_pixel_hit_count += 4;
 
         // std::cout << "@ " << time_now << " ns:";
         // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
         // std::cout << " for " << pos << std::endl;
 
         ///@todo Create hits for all chips properly here!!
-        mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+        mEventHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
                                 mPixelDeadTime, mPixelActiveTime);
-        mHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+        mEventHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
                                 mPixelDeadTime, mPixelActiveTime);
-        mHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+        mEventHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
                                 mPixelDeadTime, mPixelActiveTime);
-        mHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+        mEventHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
                                 mPixelDeadTime, mPixelActiveTime);
       }
     } else if(n_hits_raw > 0) { // Generate hits for each layer in ITS detector simulation
@@ -506,7 +557,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
         // Skip this layer if no staves are configured for this
         // layer in simulation settings file
-        if(mNumStaves[layer] == 0)
+        if(mITSConfig.layer[layer].num_staves == 0)
           continue;
 
         n_hits = n_hits_raw * mMultiplicityScaleFactor[layer];
@@ -516,12 +567,12 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
         std::cout << " track hits for layer " << layer << "." << std::endl;
 
         // Generate hits here
-        for(int i = 0; i < n_hits; i++) {
+        for(unsigned int i = 0; i < n_hits; i++) {
           unsigned int rand_stave_id = (*mRandStave[layer])(mRandHitGen);
 
           // Skip hits for staves in this layer other than the first
           // N staves that were defined in the simulation settings file
-          if(rand_stave_id >= mNumStaves[layer])
+          if(rand_stave_id >= mITSConfig.layer[layer].num_staves)
             continue;
 
 
@@ -558,40 +609,39 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
                                        rand_module_id,
                                        rand_chip_id};
 
-          unsigned int unique_chip_id = ITS::detector_position_to_chip_id(pos);
+          ///@todo Account for larger/bigger clusters here (when implemented)
+          event_pixel_hit_count += 4;
 
-
-          ///@todo Account larger/bigger clusters here (when implemented)
-          chip_pixel_hit_counts[unique_chip_id] += 4;
-          chip_trace_hit_counts[unique_chip_id]++;
+          layer_hits[layer]++;
+          chip_hits[detector_position_to_chip_id(pos)]++;
 
           // std::cout << "@ " << time_now << " ns:";
           // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
           // std::cout << " for " << pos << std::endl;
 
           ///@todo Create hits for all chips properly here!!
-          mHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
+          mEventHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
                                   mPixelDeadTime, mPixelActiveTime);
-          mHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
+          mEventHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
                                   mPixelDeadTime, mPixelActiveTime);
-          mHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
+          mEventHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
                                   mPixelDeadTime, mPixelActiveTime);
-          mHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
+          mEventHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
                                   mPixelDeadTime, mPixelActiveTime);
         } // Hit generation loop
       } // Layer loop
     } // Detector simulation
 
   } else { // No random hits, use MC generated events
-    const EventDigits* digits = mMonteCarloEvents.getNextEvent();
+    const EventDigits* digits = mMCPhysicsEvents->getNextEvent();
 
     if(digits == nullptr)
       throw std::runtime_error("EventDigits::getNextEvent() returned no new Monte Carlo event.");
 
-    n_hits += digits->size();
-
     auto digit_it = digits->getDigitsIterator();
     auto digit_end_it = digits->getDigitsEndIterator();
+
+    event_pixel_hit_count = digits->size();
 
     while(digit_it != digit_end_it) {
       const int &chip_id = digit_it->first;
@@ -599,14 +649,16 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
       ITS::detectorPosition pos = ITS::chip_id_to_detector_position(chip_id);
 
-      mHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
+      // This takes a digit, which is just a coordinate, and places it in
+      // the hit vector among with timing information for the hit
+      // (ie. when it is over threshold, time over threshold)
+      mEventHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
                               mLastPhysicsEventTimeNs,
                               mPixelDeadTime,
                               mPixelActiveTime);
 
-      // Update statistics. We only get pixel digits from MC events,
-      // no traces, so only this counter is used.
-      chip_pixel_hit_counts[chip_id]++;
+      layer_hits[pos.layer_id]++;
+      chip_hits[chip_id]++;
 
       digit_it++;
     }
@@ -634,30 +686,79 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
   // Write event rate and multiplicity numbers to CSV file
   if(mCreateCSVFile) {
-    mPhysicsEventsCSVFile << t_delta << ";" << n_hits;
+    // Write time to next event, and multiplicity for the whole event
+    mPhysicsEventsCSVFile << t_delta << ";" << event_pixel_hit_count;
 
-    for(int i = 0; i < mNumChips; i++)
-      mPhysicsEventsCSVFile << ";" << chip_trace_hit_counts[i];
-    for(int i = 0; i < mNumChips; i++)
-      mPhysicsEventsCSVFile << ";" << chip_pixel_hit_counts[i];
+    // Write multiplicity for whole layers of detectors (of included layers)
+    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+      if(mITSConfig.layer[layer].num_staves > 0)
+        mPhysicsEventsCSVFile << ";" << layer_hits[layer];
+    }
+
+    // Write multiplicity for the chips that were included in the simulation
+    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+      unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
+      for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
+        for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
+          mPhysicsEventsCSVFile << ";" << chip_hits[chip_id];
+          chip_id++;
+        }
+      }
+    }
 
     mPhysicsEventsCSVFile << std::endl;
   }
-
-  delete[] chip_trace_hit_counts;
-  delete[] chip_pixel_hit_counts;
 
   return t_delta;
 }
 
 
-///@brief SystemC controlled method
-///       1) Creating new physics events (hits)
-///       2) Deleting old inactive hits
+///@brief Generate a QED/Noise event
+void EventGenerator::generateNextQedNoiseEvent(void)
+{
+  mQedNoiseHitVector.clear();
+
+  const EventDigits* digits = mMCQedNoiseEvents->getNextEvent();
+
+  if(digits == nullptr)
+    throw std::runtime_error("EventDigits::getNextEvent() returned no new QED/noise MC event.");
+
+  auto digit_it = digits->getDigitsIterator();
+  auto digit_end_it = digits->getDigitsEndIterator();
+
+  while(digit_it != digit_end_it) {
+    const int &chip_id = digit_it->first;
+    const PixelData &pix = digit_it->second;
+
+    ITS::detectorPosition pos = ITS::chip_id_to_detector_position(chip_id);
+
+    // This takes a digit, which is just a coordinate, and places it in
+    // the hit vector among with timing information for the hit
+    // (ie. when it is over threshold, time over threshold)
+    mQedNoiseHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
+                                    mLastPhysicsEventTimeNs,
+                                    mPixelDeadTime,
+                                    mPixelActiveTime);
+
+    digit_it++;
+  }
+}
+
+
+///@brief SystemC controlled method. Creates new physics events (hits)
 void EventGenerator::physicsEventMethod(void)
 {
   uint64_t time_now = sc_time_stamp().value();
   uint64_t t_delta = generateNextPhysicsEvent(time_now);
   E_physics_event.notify();
   next_trigger(t_delta, SC_NS);
+}
+
+
+///@brief SystemC controlled method. Creates new QED/Noise events (hits)
+void EventGenerator::qedNoiseEventMethod(void)
+{
+  generateNextQedNoiseEvent();
+  E_qed_noise_event.notify();
+  next_trigger(mQedNoiseRate, SC_NS);
 }

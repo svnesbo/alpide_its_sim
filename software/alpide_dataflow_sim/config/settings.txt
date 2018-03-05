@@ -1,12 +1,10 @@
 [alpide]
 clustering_enable=true
-dmu_fifo_size=64
 dtu_delay=10
 matrix_readout_speed_fast=true
+minimum_busy_cycles=8
 pixel_shaping_active_time_ns=6000
 pixel_shaping_dead_time_ns=200
-region_fifo_size=128
-region_size=32
 strobe_extension_enable=false
 
 [data_output]
@@ -17,7 +15,6 @@ write_vcd_clock=false
 [event]
 average_event_rate_ns=10000
 bunch_crossing_rate_ns=25
-hit_density_min_bias_per_cm2=19
 hit_density_layer0=18.6
 hit_density_layer1=12.2
 hit_density_layer2=9.1
@@ -25,21 +22,26 @@ hit_density_layer3=2.8
 hit_density_layer4=2.7
 hit_density_layer5=2.6
 hit_density_layer6=2.6
+hit_density_min_bias_per_cm2=19
 hit_multiplicity_distribution_file=config/multipl_dist_raw_bins.txt
 hit_multiplicity_distribution_type=discrete
 hit_multiplicity_gauss_avg=2000
 hit_multiplicity_gauss_stddev=350
+monte_carlo_path=config/monte_carlo_events/pp/
+qed_noise_input=false
+qed_noise_path=config/monte_carlo_events/QED
+qed_noise_rate_ns=250
 random_hit_generation=true
 strobe_active_length_ns=100
-strobe_inactive_length_ns=200
+strobe_inactive_length_ns=100
 trigger_delay_ns=930
 trigger_filter_enable=true
 trigger_filter_time_ns=1230
 
 [its]
-layer0_num_staves=12
-layer1_num_staves=16
-layer2_num_staves=20
+layer0_num_staves=2
+layer1_num_staves=2
+layer2_num_staves=2
 layer3_num_staves=0
 layer4_num_staves=0
 layer5_num_staves=0
@@ -47,6 +49,6 @@ layer6_num_staves=0
 
 [simulation]
 continuous_mode=false
-n_events=10
+n_events=1000
 random_seed=0
 single_chip=false

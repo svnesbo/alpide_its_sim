@@ -57,6 +57,10 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
 
 
   defaultSettings["event/random_hit_generation"] = DEFAULT_EVENT_RANDOM_HIT_GENERATION;
+  defaultSettings["event/monte_carlo_path"] = DEFAULT_EVENT_MONTE_CARLO_PATH;
+  defaultSettings["event/qed_noise_path"] = DEFAULT_EVENT_QED_NOISE_PATH;
+  defaultSettings["event/qed_noise_input"] = DEFAULT_EVENT_QED_NOISE_INPUT;
+  defaultSettings["event/qed_noise_rate_ns"] = DEFAULT_EVENT_QED_NOISE_RATE_NS;
   defaultSettings["event/hit_multiplicity_distribution_type"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_TYPE;
   defaultSettings["event/hit_multiplicity_distribution_file"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_FILE;
   defaultSettings["event/hit_multiplicity_gauss_avg"] = DEFAULT_EVENT_HIT_MULTIPLICITY_GAUSS_AVG;
@@ -78,14 +82,12 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["event/strobe_inactive_length_ns"] = DEFAULT_EVENT_STROBE_INACTIVE_LENGTH_NS;
 
   defaultSettings["alpide/clustering_enable"] = DEFAULT_ALPIDE_CLUSTERING_ENABLE;
-  defaultSettings["alpide/region_fifo_size"] = DEFAULT_ALPIDE_REGION_FIFO_SIZE;
-  defaultSettings["alpide/dmu_fifo_size"] = DEFAULT_ALPIDE_DMU_FIFO_SIZE;
   defaultSettings["alpide/dtu_delay"] = DEFAULT_ALPIDE_DTU_DELAY;
-  defaultSettings["alpide/region_size"] = DEFAULT_ALPIDE_REGION_SIZE;
   defaultSettings["alpide/pixel_shaping_dead_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_DEAD_TIME_NS;
   defaultSettings["alpide/pixel_shaping_active_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_ACTIVE_TIME_NS;
   defaultSettings["alpide/matrix_readout_speed_fast"] = DEFAULT_ALPIDE_MATRIX_READOUT_SPEED_FAST;
   defaultSettings["alpide/strobe_extension_enable"] = DEFAULT_ALPIDE_STROBE_EXTENSION_ENABLE;
+  defaultSettings["alpide/minimum_busy_cycles"] = DEFAULT_ALPIDE_MINIMUM_BUSY_CYCLES;
 
   defaultSettings["its/layer0_num_staves"] = DEFAULT_ITS_LAYER0_NUM_STAVES;
   defaultSettings["its/layer1_num_staves"] = DEFAULT_ITS_LAYER1_NUM_STAVES;

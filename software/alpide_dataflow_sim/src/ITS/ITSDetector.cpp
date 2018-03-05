@@ -10,6 +10,7 @@
 
 #include "ITSDetector.hpp"
 #include "ITSSimulationStats.hpp"
+#include "ITS_creator.hpp"
 #include <misc/vcd_trace.hpp>
 
 using namespace ITS;
@@ -24,6 +25,7 @@ ITSDetector::ITSDetector(sc_core::sc_module_name name,
                          const detectorConfig& config,
                          unsigned int trigger_filter_time)
   : sc_core::sc_module(name)
+  , mConfig(config)
 {
   verifyDetectorConfig(config);
   buildDetector(config, trigger_filter_time);
@@ -80,7 +82,7 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
     // Create sc_vectors with ReadoutUnit and Staves for this layer
     mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id, trigger_filter_time));
-    mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id));
+    mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id, mConfig));
 
     unsigned int n_data_lines_per_stave =
       DATA_LINKS_PER_LAYER[lay_id]/STAVES_PER_LAYER[lay_id];

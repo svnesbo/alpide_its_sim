@@ -41,11 +41,14 @@ public:
   ControlTargetSocket s_control_input;
   DataInitiatorSocket s_data_output;
 
-  ///@brief Indicates that the chip is ready to accept hits and setPixel() can be called.
-  //sc_out<bool> s_chip_ready_out;
+  ///@brief Obsolete: don't use.
+  /// Used to indicate that the chip is ready to accept hits and
+  /// setPixel() could be called.
   sc_export<sc_signal<bool>> s_chip_ready_out;
 
-  sc_export<sc_signal<sc_uint<24>>> s_serial_data_out_exp;
+  ///@brief Serial data output. This is an alternative
+  ///       representation of the data on s_data_output.
+  sc_export<sc_signal<AlpideDataWord>> s_serial_data_out_exp;
 
 private:
   sc_signal<sc_uint<8>> s_fromu_readout_state;
@@ -89,7 +92,7 @@ private:
   sc_fifo<AlpideDataWord> s_dmu_fifo;
 
   sc_signal<sc_uint<24>> s_serial_data_dtu_input_debug;
-  sc_signal<sc_uint<24>> s_serial_data_out;
+  sc_signal<AlpideDataWord> s_serial_data_out;
 
   ///@brief FIFO used to represent the encoding delay in the DTU
   sc_fifo<AlpideDataWord> s_dtu_delay_fifo;
@@ -131,9 +134,18 @@ private:
   bool mEnableDtuDelay;
   bool mStrobeActive;
   bool mStrobeExtensionEnable;
+  bool mStrobeExtended = false;
   uint16_t mBunchCounter;
   uint16_t mStrobeLengthNs;
   uint64_t mStrobeStartTime;
+  uint16_t mMinBusyCycles;
+  uint16_t mBusyCycleCount = 0;
+
+  ///@brief Trigger ID counter
+  uint64_t mTrigIdCount = 0;
+
+  ///@brief Trigger ID for the currently active strobe
+  uint64_t mTrigIdForStrobe = 0;
 
   ///@brief Number of triggers that are accepted by the chip
   uint64_t mTriggersAccepted = 0;
@@ -144,7 +156,15 @@ private:
   ///@brief Number of "positive" busy transitions (ie. chip went into busy state)
   uint64_t mBusyTransitions = 0;
 
+  ///@brief Number of busy violations.
+  ///@todo This counter is currently only increased by the strobeInput() function,
+  ///      for every single strobe/trigger where there are no free MEBs.
+  ///      Since there are other mechanisms for busy (such as frame fifo), and
+  ///      the chip can enter data overrun mode where it sends out empty packages
+  ///      and discards the data, this busy violation count here may not match
+  ///      the number of busy violations the Readout Unit actually sees.
   uint64_t mBusyViolations = 0;
+
   uint64_t mFlushedIncompleteCount = 0;
 
   uint64_t mEventIdCount = 0;
@@ -163,10 +183,9 @@ private:
   ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
 public:
-  Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-         int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
-         bool strobe_extension, bool enable_clustering, bool continuous_mode,
-         bool matrix_readout_speed);
+  Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
+         int strobe_length_ns, bool strobe_extension, bool enable_clustering,
+         bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles = 8);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 

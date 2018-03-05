@@ -13,7 +13,7 @@
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 #include "Alpide/Hit.hpp"
-#include "../ITS/ITSDetector.hpp"
+#include "../ITS/ITS_config.hpp"
 
 class EventDigits {
   // Vector index: hit/digit number
@@ -61,7 +61,7 @@ class EventXML {
   void updateEventIdDistribution(void);
 
 public:
-  EventXML(bool random_event_order = true, int random_seed = 0);
+  EventXML(ITS::detectorConfig config, bool random_event_order = true, int random_seed = 0);
   ~EventXML();
   void readEventXML(const QString& path, const QStringList& event_filenames);
   void readEventXML(const QString& event_filename);

@@ -13,6 +13,7 @@
 
 #include <Alpide/Alpide.hpp>
 #include <Alpide/AlpideInterface.hpp>
+#include "ITS_config.hpp"
 
 namespace ITS {
   struct StaveInterface : public sc_module {
@@ -48,13 +49,13 @@ namespace ITS {
 
   struct SingleChip : public StaveInterface
   {
-    sc_export<sc_signal<sc_uint<24>>> s_alpide_data_out_exp;
+    sc_export<sc_signal<AlpideDataWord>> s_alpide_data_out_exp;
 
     SingleChip(sc_core::sc_module_name const &name, int chip_id,
-               int region_fifo_size, int dmu_fifo_size, int dtu_delay_cycles,
-               int strobe_length_ns, bool strobe_extension,
-               bool enable_clustering, bool continuous_mode,
-               bool matrix_readout_speed);
+               int dtu_delay_cycles, int strobe_length_ns,
+               bool strobe_extension, bool enable_clustering,
+               bool continuous_mode, bool matrix_readout_speed,
+               int min_busy_cycles);
 
     virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
@@ -79,8 +80,8 @@ namespace ITS {
   struct InnerBarrelStave : public StaveInterface
   {
     InnerBarrelStave(sc_core::sc_module_name const &name,
-                     unsigned int layer_id,
-                     unsigned int stave_id);
+                     unsigned int layer_id, unsigned int stave_id,
+                     const detectorConfig& cfg);
 
     virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
@@ -117,7 +118,8 @@ namespace ITS {
   struct MBOBStave : public StaveInterface
   {
     MBOBStave(sc_core::sc_module_name const &name,
-              unsigned int layer_id, unsigned int stave_id)
+              unsigned int layer_id, unsigned int stave_id,
+              const detectorConfig& cfg)
       : StaveInterface(name, layer_id, stave_id, N_HALF_MODULES, N_HALF_MODULES) {}
 
     virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const

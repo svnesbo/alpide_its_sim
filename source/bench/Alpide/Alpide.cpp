@@ -3,6 +3,8 @@
  * @author Simon Voigt Nesbo
  * @date   December 12, 2016
  * @brief  Source file for Alpide class.
+ * @todo   Finish strobe extension. See comments in triggerMethod()
+ *         and in AlpideDataWord.hpp.
  */
 
 #include "Alpide.hpp"
@@ -16,8 +18,6 @@ SC_HAS_PROCESS(Alpide);
 ///@brief Constructor for Alpide.
 ///@param[in] name    SystemC module name
 ///@param[in] chip_id Desired chip id
-///@param[in] region_fifo_size Depth of Region Readout Unit (RRU) FIFOs
-///@param[in] dmu_fifo_size Depth of DMU (Data Management Unit) FIFO.
 ///@param[in] dtu_delay_cycles Number of clock cycle delays associated with Data Transfer Unit (DTU)
 ///@param[in] strobe_length_ns Strobe length (in nanoseconds)
 ///@param[in] strobe_extension Enable/disable strobe extension
@@ -25,15 +25,16 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] enable_clustering Enable clustering and use of DATA LONG words
 ///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
 ///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
-Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-               int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
-               bool strobe_extension, bool enable_clustering, bool continuous_mode,
-               bool matrix_readout_speed)
+///@param[in] min_busy_cycles Minimum number of cycles that the internal busy signal has to be
+///           asserted before the chip transmits BUSY_ON
+Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
+               int strobe_length_ns, bool strobe_extension, bool enable_clustering,
+               bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles)
   : sc_core::sc_module(name)
   , s_control_input("s_control_input")
   , s_data_output("s_data_output")
   , s_chip_ready_out("chip_ready_out")
-  , s_dmu_fifo(dmu_fifo_size)
+  , s_dmu_fifo(DMU_FIFO_SIZE)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
   , s_busy_fifo(BUSY_FIFO_SIZE)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
@@ -41,6 +42,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
   , mContinuousMode(continuous_mode)
   , mStrobeExtensionEnable(strobe_extension)
   , mStrobeLengthNs(strobe_length_ns)
+  , mMinBusyCycles(min_busy_cycles)
 {
   mChipId = chip_id;
   mEnableDtuDelay = dtu_delay_cycles > 0;
@@ -76,7 +78,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     mRRUs[i] = new RegionReadoutUnit(ss.str().c_str(),
                                      this,
                                      i,
-                                     region_fifo_size,
+                                     REGION_FIFO_SIZE,
                                      matrix_readout_speed,
                                      enable_clustering);
 
@@ -152,15 +154,17 @@ void Alpide::mainMethod(void)
   frameReadout();
   dataTransmission();
   updateBusyStatus();
-
-  // For the stimuli class to work properly this needs to be delayed one clock cycle
-  //s_chip_ready_out = s_chip_ready_internal;
 }
 
 
 ControlResponsePayload Alpide::processCommand(ControlRequestPayload const &request)
 {
   if (request.opcode == 0x55) {
+    // Increase trigger ID counter. See sendTrigger() in ReadoutUnit.cpp for details.
+    // This use of the data field in the control word is only used as a convenient
+    // way of having a synchronized trigger ID in the Alpide and RU in these simulations,
+    // it does not happen in the real system.
+    mTrigIdCount += request.data;
     SC_REPORT_INFO_VERB(name(), "Received Trigger", sc_core::SC_DEBUG);
     E_trigger.notify();
   } else {
@@ -185,10 +189,22 @@ void Alpide::triggerMethod(void)
   if(s_strobe_n.read() == true) {
     // Strobe not active - start new interval
     //s_strobe_n = false;
+    mStrobeExtended = false;
     E_strobe_interval_done.notify(0, SC_NS);
   } else if(s_strobe_n.read() == false) {
     // Strobe already active
     if(mStrobeExtensionEnable) {
+      ///@todo Strobe extension must be tied to the readout flags
+      ///      With the current architecture this is hard to do,
+      ///      because the strobe_extended flag is correctly implemented
+      ///      in FrameEndFifoWord, but the FrameEndFifoWord is not
+      ///      created before the MEB has been read out by RRUs.
+      ///      By then we could have gotten a new strobe, which would
+      ///      overwrite this flag. If we simply cheat and move the
+      ///      strobe_extended flag to FrameStartFifoWord, we can set it
+      ///      in FrameStartFifoWord based on this flag at the end of
+      ///      the strobe interval.
+      mStrobeExtended = true;
       E_strobe_interval_done.cancel();
       E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
     } else {
@@ -203,6 +219,7 @@ void Alpide::strobeDurationMethod(void)
   if(s_strobe_n.read() == true) {
     // Strobe was inactive - start of strobing interval
     s_strobe_n = false;
+    mTrigIdForStrobe = mTrigIdCount;
     E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
   } else {
     // Strobe was active - end of strobing interval
@@ -240,8 +257,12 @@ void Alpide::strobeInput(void)
         mTriggersRejected++;
         s_busy_violation = true;
         mBusyViolations++;
-        //s_flushed_incomplete = false;
         s_chip_ready_internal = false;
+
+        // Flushed incomplete flag doesn't matter, in a busy violation
+        // you only get the busy violation flag (see Alpide manual).
+        // The TRU code will set all the other readout flags to zero.
+        // s_flushed_incomplete = false;
       } else if(getNumEvents() == 2) {
         // Flush oldest event to make room if we are becoming full in continuous
         flushOldestEvent();
@@ -290,7 +311,10 @@ void Alpide::strobeInput(void)
     s_chip_ready_internal = false;
     mStrobeActive = false;
 
-    FrameStartFifoWord frame_start_data = {s_busy_violation, mBunchCounter};
+    FrameStartFifoWord frame_start_data = {s_busy_violation,
+                                           mBunchCounter,
+                                           mTrigIdForStrobe};
+
     int frame_start_fifo_size = s_frame_start_fifo.used();
     bool frame_start_fifo_empty = !s_frame_start_fifo.nb_can_get();
     bool frame_start_fifo_full = !s_frame_start_fifo.nb_can_put();
@@ -464,6 +488,7 @@ void Alpide::dataTransmission(void)
   }
 
 
+  // Read data from DTU FIFO output, or IDLE if FIFO is empty.
   if(mEnableDtuDelay) {
     s_dtu_delay_fifo.nb_write(dw_dtu_fifo_input);
     if(s_dtu_delay_fifo.nb_read(dw_dtu_fifo_output) == false) {
@@ -481,12 +506,7 @@ void Alpide::dataTransmission(void)
   // Debug signal of DTU FIFO input just for adding to VCD trace
   s_serial_data_dtu_input_debug = data_dtu_input;
 
-  data_out =
-    dw_dtu_fifo_output.data[2] << 16 |
-    dw_dtu_fifo_output.data[1] << 8 |
-    dw_dtu_fifo_output.data[0];
-
-  s_serial_data_out = data_out;
+  s_serial_data_out = dw_dtu_fifo_output;
 
   // Data initiator socket output
   DataPayload socket_dw;
@@ -528,11 +548,19 @@ void Alpide::updateBusyStatus(void)
 
   bool new_busy_status = (s_frame_fifo_busy || s_multi_event_buffers_busy);
 
+  // The internal busy signal needs to be asserted for a minimum number of cycles
+  // (mMinBusyCycles, equivalent to reg 0x001B BUSY min width in real chip),
+  // before the busy signal is asserted and BUSY_ON is transmitted.
   if(new_busy_status == true && new_busy_status != s_busy_status) {
-    mBusyTransitions++;
+    if(mBusyCycleCount == mMinBusyCycles) {
+      mBusyTransitions++;
+      s_busy_status = true;
+    }
+    mBusyCycleCount++;
+  } else if(new_busy_status == false) {
+    mBusyCycleCount = 0;
+    s_busy_status = false;
   }
-
-  s_busy_status = new_busy_status;
 }
 
 

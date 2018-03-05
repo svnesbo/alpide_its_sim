@@ -159,14 +159,21 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
   }
 }
 
+
 ///@brief SystemC process/method that implements the state machine that
 ///       determines if the region is valid (has data this frame)
 ///       Note: should run on Alpide system clock frequency.
 void RegionReadoutUnit::regionValidFSM(void)
 {
-  AlpideDataWord dw = {0, 0, 0};
+// Ignore warning about uninitialized dw
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+  AlpideDataWord dw;
+#pragma GCC diagnostic pop
+
   bool region_fifo_empty = s_region_fifo.used() == 0;
   bool region_data_is_trailer = false;
+
 
   if(!region_fifo_empty) {
     s_region_fifo.nb_peek(dw);

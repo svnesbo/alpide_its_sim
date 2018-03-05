@@ -26,64 +26,63 @@
 #pragma GCC diagnostic pop
 
 
-/// Enumerations used to identify the meaning of the different bytes in the
-/// data stream from the Alpide chip. Not to be confused with the definitions
-/// in alpide_data_format.h which are used to initialize the 24-bit FIFO words.
-/// The region trailer word should never appear in the data stream, they
-/// are only used internally in the ALPIDE chip.
-enum AlpideDataTypes {ALPIDE_IDLE,
-                      ALPIDE_CHIP_HEADER1,
-                      ALPIDE_CHIP_HEADER2,
-                      ALPIDE_CHIP_TRAILER,
-                      ALPIDE_CHIP_EMPTY_FRAME1,
-                      ALPIDE_CHIP_EMPTY_FRAME2,
-                      ALPIDE_REGION_HEADER,
-                      ALPIDE_REGION_TRAILER,
-                      ALPIDE_DATA_SHORT1,
-                      ALPIDE_DATA_SHORT2,
-                      ALPIDE_DATA_LONG1,
-                      ALPIDE_DATA_LONG2,
-                      ALPIDE_DATA_LONG3,
-                      ALPIDE_BUSY_ON,
-                      ALPIDE_BUSY_OFF,
-                      ALPIDE_COMMA,
-                      ALPIDE_UNKNOWN};
+struct BusyEvent {
+  uint64_t mBusyOnTime;
+  uint64_t mBusyOffTime;
+  uint64_t mBusyOnTriggerId;
+  uint64_t mBusyOffTriggerId;
 
-
-struct ProtocolStats {
-  // Counters for statistics
-  long mCommaCount = 0;
-  long mIdleCount = 0;        // "Dedicated" idle word (ie. 24-bit data word starts with IDLE)
-  long mIdleByteCount = 0;    // Idle word byte counts
-  long mBusyOnCount = 0;
-  long mBusyOffCount = 0;
-  long mDataShortCount = 0;
-  long mDataLongCount = 0;
-  long mRegionHeaderCount = 0;
-  long mRegionTrailerCount = 0; // Should never appear in data stream
-  long mChipHeaderCount = 0;
-  long mChipTrailerCount = 0;
-  long mChipEmptyFrameCount = 0;
-  long mUnknownNonHeaderWordCount = 0;
-  long mUnknownDataWordCount = 0;
+  BusyEvent(uint64_t busy_on_time, uint64_t busy_off_time,
+            uint64_t busy_on_trigger, uint64_t busy_off_trigger)
+    : mBusyOnTime(busy_on_time)
+    , mBusyOffTime(busy_off_time)
+    , mBusyOnTriggerId(busy_on_trigger)
+    , mBusyOffTriggerId(busy_off_trigger)
+  {}
 };
 
 
 struct AlpideDataParsed {
-  AlpideDataTypes data[3];
+  AlpideDataType data[3];
 };
 
 
 class AlpideEventFrame {
 private:
   std::set<PixelData> mPixelDataSet;
-  bool mFrameCompleted;
+
+  ///@brief Indicates that we got the CHIP_TRAILER word,
+  ///       and received all the data there is for this frame
+  bool mFrameCompleted = false;
+
+  // Readout status flags from ALPIDE CHIP_TRAILER word
+  uint8_t mReadoutFlags;
+
+  uint8_t mChipId = 0;
+  uint64_t mTriggerId = 0;
+  uint16_t mBunchCounterValue = 0;
 
 public:
-  AlpideEventFrame() : mFrameCompleted(false) {}
+  AlpideEventFrame() {}
   bool pixelHitInEvent(PixelData& pixel) const;
   void setFrameCompleted(bool val) {mFrameCompleted = val;}
   bool getFrameCompleted(void) const {return mFrameCompleted;}
+
+  void setReadoutFlags(uint8_t flags) {mReadoutFlags = flags;}
+  bool getFatal(void) const;
+  bool getReadoutAbort(void) const;
+  bool getBusyViolation(void) const;
+  bool getFlushedIncomplete(void) const;
+  bool getStrobeExtended(void) const;
+  bool getBusyTransition(void) const;
+
+  void setChipId(uint8_t id) {mChipId = id;}
+  void setTriggerId(uint64_t trigger_id) {mTriggerId = trigger_id;}
+  void setBunchCounterValue(uint16_t bc_val) {mBunchCounterValue = bc_val;}
+  uint8_t getChipId(void) const {return mChipId;}
+  uint64_t getTriggerId(void) const {return mTriggerId;}
+  uint16_t getBunchCounterValue(void) const {return mBunchCounterValue;}
+
   unsigned int getEventSize(void) const {return mPixelDataSet.size();}
   void addPixelHit(const PixelData& pixel) {
     mPixelDataSet.insert(pixel);
@@ -102,23 +101,62 @@ private:
   std::vector<AlpideEventFrame> mEvents;
 
   unsigned int mCurrentRegion = 0;
-  ProtocolStats mStats;
+  std::map<AlpideDataType, uint64_t> mProtocolStats;
+  std::vector<uint64_t> mFatalTriggers;
+  std::vector<uint64_t> mReadoutAbortTriggers;
+  std::vector<uint64_t> mBusyViolationTriggers;
+  std::vector<uint64_t> mFlushedIncomplTriggers;
+  std::vector<BusyEvent> mBusyEvents;
   bool mSaveEvents;
+
+  ///@brief Current trigger ID, should be updated by e.g. ReadoutUnit.
+  ///       Not to be confused with the trigger ID for an event that
+  ///       is read out. Basically just used to have current trigger ID
+  ///       in mBusyEvents.
+  uint64_t mCurrentTriggerId = 0;
 
 protected:
   bool mBusyStatus = false;
   bool mBusyStatusChanged = false;
+  bool mIncludeHitData;
+  bool mFastParserEnable;
 
 public:
-  unsigned int getNumEvents(void) const;
-  const AlpideEventFrame* getNextEvent(void) const;
+  AlpideEventBuilder(bool save_events = true,
+                     bool include_hit_data = false,
+                     bool use_fast_parser = true);
+
+  void setCurrentTriggerId(uint64_t trigger_id) {
+    mCurrentTriggerId = trigger_id;
+  }
+
   void popEvent(void);
   void inputDataWord(AlpideDataWord dw);
   AlpideDataParsed parseDataWord(AlpideDataWord dw);
-  AlpideEventBuilder(bool save_events) : mSaveEvents(save_events) {}
-  ProtocolStats getProtocolStats(void) {return mStats;}
+
+  unsigned int getNumEvents(void) const;
+  const AlpideEventFrame* getNextEvent(void) const;
+
+  std::map<AlpideDataType, uint64_t> getProtocolStats(void) {
+    return mProtocolStats;
+  }
+  std::vector<uint64_t> getFatalTriggers(void) {
+    return mFatalTriggers;
+  }
+  std::vector<uint64_t> getReadoutAbortTriggers(void) {
+    return mReadoutAbortTriggers;
+  }
+  std::vector<uint64_t> getBusyViolationTriggers(void) {
+    return mBusyViolationTriggers;
+  }
+  std::vector<uint64_t> getFlushedIncomplTriggers(void) {
+    return mFlushedIncomplTriggers;
+  }
+  std::vector<BusyEvent> getBusyEvents(void) {
+    return mBusyEvents;
+  }
 private:
-  AlpideDataTypes parseNonHeaderBytes(uint8_t data);
+  AlpideDataType parseNonHeaderBytes(uint8_t data);
 };
 
 
@@ -126,7 +164,7 @@ private:
 class AlpideDataParser : sc_core::sc_module, public AlpideEventBuilder {
 public:
   // SystemC signals
-  sc_in<sc_uint<24> > s_serial_data_in;
+  sc_in<AlpideDataWord> s_serial_data_in;
   sc_in_clk s_clk_in;
   sc_export<sc_signal<bool>> s_link_busy_out;
 
@@ -136,7 +174,7 @@ private:
   void parserInputProcess(void);
 
 public:
-  AlpideDataParser(sc_core::sc_module_name name, bool save_events = true);
+  AlpideDataParser(sc_core::sc_module_name name, bool save_events = false);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 

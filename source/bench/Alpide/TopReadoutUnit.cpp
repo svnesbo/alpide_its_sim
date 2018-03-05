@@ -222,6 +222,9 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
       s_frame_start_fifo_output->nb_get(mCurrentFrameStartWord);
       s_frame_end_fifo_output->nb_get(mCurrentFrameEndWord);
 
+      // The fatal and abort parameters tell the AlpideChipTrailer constructor
+      // to overwrite the readout flags with the special combination of readout
+      // flags that indicate abort/fatal (see Alpide manual)
       data_out = AlpideChipTrailer(mCurrentFrameStartWord,
                                    mCurrentFrameEndWord,
                                    s_fatal_state_in,

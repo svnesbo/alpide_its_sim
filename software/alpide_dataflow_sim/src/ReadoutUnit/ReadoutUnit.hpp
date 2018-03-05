@@ -28,7 +28,9 @@
 
 #define NUM_ALPIDE_DATA_LINKS 28
 
-enum TriggerAction {TRIGGER_SENT, TRIGGER_NOT_SENT_BUSY, TRIGGER_FILTERED};
+const uint8_t TRIGGER_SENT = 0;
+const uint8_t TRIGGER_NOT_SENT_BUSY = 1;
+const uint8_t TRIGGER_FILTERED = 2;
 
 
 class ReadoutUnit : public sc_core::sc_module {
@@ -41,7 +43,7 @@ public:
   sc_event_queue E_trigger_in;
 
   ///@todo Make this a vector/array somehow, to cater for many chips..
-  std::vector<sc_in<sc_uint<24>>> s_serial_data_input;
+  std::vector<sc_in<AlpideDataWord>> s_serial_data_input;
 
   // Busy in and out signals for busy daisy chain
   sc_port<sc_fifo_in_if<BusyLinkWord>> s_busy_in;
@@ -64,15 +66,18 @@ private:
   bool mBusyDaisyChainMaster;
   uint64_t mLastTriggerTime;
   uint64_t mTriggerIdCount = 0;
+  uint64_t mPreviousTriggerId = 0;
   uint64_t mTriggersFilteredCount = 0;
 
   // One entry per control link.
   // Should be same size as s_alpide_control_output.
   std::vector<uint64_t> mTriggersSentCount;
 
-  // Map holds the trigger action taken per event ID
+  // Map holds the trigger action taken per event ID per control link
   // One map per control link in the vector
-  std::vector<std::map<uint64_t, TriggerAction>> mTriggerActionMaps;
+  // Valid values for the uint8_t:
+  // TRIGGER_SENT, TRIGGER_NOT_SENT_BUSY, TRIGGER_FILTERED.
+  std::vector<std::map<uint64_t, uint8_t>> mTriggerActionMaps;
 
 
   std::vector<std::shared_ptr<AlpideDataParser>> mDataLinkParsers;

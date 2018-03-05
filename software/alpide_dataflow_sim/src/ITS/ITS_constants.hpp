@@ -9,6 +9,8 @@
 #ifndef ITS_CONSTANTS_HPP
 #define ITS_CONSTANTS_HPP
 
+#include <iostream>
+
 namespace ITS {
 
   static const unsigned int N_LAYERS = 7;
@@ -153,22 +155,6 @@ namespace ITS {
     STAVES_PER_LAYER[6]*MODULES_PER_OB_STAVE*CTRL_LINKS_PER_FULL_MODULE
   };
 
-
-  // static const unsigned int CHIPS_PER_LAYER = {108,
-  //                                              144,
-  //                                              180,
-  //                                              2688,
-  //                                              3360,
-  //                                              8232,
-  //                                              9408};
-
-  // static const unsigned int LINKS_PER_LAYER = {108,
-  //                                              144,
-  //                                              180,
-  //                                              384,
-  //                                              480,
-  //                                              1176,
-  //                                              1344};
 }
 
 #endif

@@ -109,7 +109,15 @@ void ReadoutUnit::sendTrigger(void)
   trigger_word.opcode = 0x55; // Trigger
   trigger_word.chipId = 0x00;
   trigger_word.address = 0x0000;
-  trigger_word.data = 0x0000;
+
+  // Tell the Alpide how much it should increase its trigger ID count with.
+  // The trigger ID counts up without skipping any values in the RU,
+  // but since not all triggers are distributed to the Alpide, to have a
+  // synchronized trigger ID across we need to tell it how much to increase
+  // the trigger ID with.
+  // Since the data in this socket is only 16 bits, we can not send the
+  // full trigger ID.
+  trigger_word.data = mTriggerIdCount-mPreviousTriggerId;
 
   std::string msg = "Send Trigger at: " + sc_core::sc_time_stamp().to_string();
   SC_REPORT_INFO_VERB(name(),msg.c_str(),sc_core::SC_DEBUG);
@@ -117,6 +125,11 @@ void ReadoutUnit::sendTrigger(void)
   uint64_t time_now = sc_time_stamp().value();
   bool filter_trigger = (time_now - mLastTriggerTime) < mTriggerFilterTimeNs;
 
+  // Update current trigger ID in the data parsers
+  for(unsigned int i = 0; i < mDataLinkParsers.size(); i++)
+    mDataLinkParsers[i]->setCurrentTriggerId(mTriggerIdCount);
+
+  // Issue triggers on ALPIDE control links (unless trigger is being filtered)
   for(unsigned int i = 0; i < s_alpide_control_output.size(); i++) {
     if(filter_trigger) {
       // Filter triggers that come too close in time
@@ -127,6 +140,7 @@ void ReadoutUnit::sendTrigger(void)
       s_alpide_control_output[i]->transport(trigger_word);
       mTriggersSentCount[i]++;
       mTriggerActionMaps[i][mTriggerIdCount] = TRIGGER_SENT;
+      mPreviousTriggerId = mTriggerIdCount;
       mLastTriggerTime = time_now;
     } else {
       mTriggerActionMaps[i][mTriggerIdCount] = TRIGGER_NOT_SENT_BUSY;
@@ -264,69 +278,415 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     std::cout << csv_filename << "\"" << std::endl;
   }
 
-  prot_stats_csv_file << "Link ID; COMMA; IDLE_FULL; IDLE_BYTES; ";
-  prot_stats_csv_file << "BUSY_ON; BUSY_OFF; DATA_SHORT; DATA_LONG; ";
-  prot_stats_csv_file << "REGION_HEADER; REGION_TRAILER; CHIP_HEADER; ";
-  prot_stats_csv_file << "CHIP_TRAILER; CHIP_EMPTY_FRAME; UNKNOWN_NON_HEADER; ";
-  prot_stats_csv_file << "UNKNOWN_DATA_WORD" << std::endl;
+  prot_stats_csv_file << "Link ID;";
+  prot_stats_csv_file << "COMMA (bytes);";
+  prot_stats_csv_file << "IDLE_TOTAL (bytes);";
+  prot_stats_csv_file << "IDLE_PURE (bytes);";
+  prot_stats_csv_file << "IDLE_FILLER (bytes);";
+  prot_stats_csv_file << "BUSY_ON (bytes);";
+  prot_stats_csv_file << "BUSY_OFF (bytes);";
+  prot_stats_csv_file << "DATA_SHORT (bytes);";
+  prot_stats_csv_file << "DATA_LONG (bytes);";
+  prot_stats_csv_file << "REGION_HEADER (bytes);";
+  prot_stats_csv_file << "REGION_TRAILER (bytes);";
+  prot_stats_csv_file << "CHIP_HEADER (bytes);";
+  prot_stats_csv_file << "CHIP_TRAILER (bytes);";
+  prot_stats_csv_file << "CHIP_EMPTY_FRAME (bytes);";
+  prot_stats_csv_file << "UNKNOWN (bytes);";
+  prot_stats_csv_file << "IDLE_TOTAL (count);";
+  prot_stats_csv_file << "IDLE_PURE (count);";
+  prot_stats_csv_file << "IDLE_FILLER (count);";
+  prot_stats_csv_file << "BUSY_ON (count);";
+  prot_stats_csv_file << "BUSY_OFF (count);";
+  prot_stats_csv_file << "DATA_SHORT (count);";
+  prot_stats_csv_file << "DATA_LONG (count);";
+  prot_stats_csv_file << "REGION_HEADER (count);";
+  prot_stats_csv_file << "REGION_TRAILER (count);";
+  prot_stats_csv_file << "CHIP_HEADER (count);";
+  prot_stats_csv_file << "CHIP_TRAILER (count);";
+  prot_stats_csv_file << "CHIP_EMPTY_FRAME (count);";
+  prot_stats_csv_file << std::endl;
 
   for(unsigned int i = 0; i < mDataLinkParsers.size(); i++) {
-    ProtocolStats stats = mDataLinkParsers[i]->getProtocolStats();
+    auto stats = mDataLinkParsers[i]->getProtocolStats();
+
+    // Calculate total number of bytes used by data words,
+    // and counts of each type of data word
+    uint64_t comma_bytes = stats[ALPIDE_COMMA];
+
+    uint64_t idle_total_bytes = stats[ALPIDE_IDLE];
+    uint64_t idle_total_count = idle_total_bytes;
+
+    uint64_t chip_header_bytes = stats[ALPIDE_CHIP_HEADER1] +
+                                 stats[ALPIDE_CHIP_HEADER2];
+    uint64_t chip_header_count = chip_header_bytes/2;
+
+    uint64_t chip_empty_frame_bytes = stats[ALPIDE_CHIP_EMPTY_FRAME1] +
+                                      stats[ALPIDE_CHIP_EMPTY_FRAME2];
+    uint64_t chip_empty_frame_count = chip_empty_frame_bytes/2;
+
+    uint64_t data_short_bytes = stats[ALPIDE_DATA_SHORT1] +
+                                stats[ALPIDE_DATA_SHORT2];
+    uint64_t data_short_count = data_short_bytes/2;
+
+    uint64_t data_long_bytes = stats[ALPIDE_DATA_LONG1] +
+                               stats[ALPIDE_DATA_LONG2] +
+                               stats[ALPIDE_DATA_LONG3];
+    uint64_t data_long_count = data_long_bytes/3;
+
+    uint64_t chip_trailer_bytes = stats[ALPIDE_CHIP_TRAILER];
+    uint64_t chip_trailer_count = chip_trailer_bytes;
+
+    uint64_t region_header_bytes = stats[ALPIDE_REGION_HEADER];
+    uint64_t region_header_count = region_header_bytes;
+
+    uint64_t region_trailer_bytes = stats[ALPIDE_REGION_TRAILER];
+    uint64_t region_trailer_count = region_trailer_bytes;
+
+    uint64_t busy_on_bytes = stats[ALPIDE_BUSY_ON];
+    uint64_t busy_on_count = busy_on_bytes;
+
+    uint64_t busy_off_bytes = stats[ALPIDE_BUSY_OFF];
+    uint64_t busy_off_count = busy_off_bytes;
+
+    uint64_t unknown_bytes = stats[ALPIDE_UNKNOWN];
+
+
+    // Calculate number of IDLE "filler" bytes, ie. the IDLE words
+    // that fill empty gaps in other data words
+    uint64_t idle_filler_bytes = chip_header_count;
+    idle_filler_bytes += 2*chip_trailer_count;
+    idle_filler_bytes += chip_empty_frame_count;
+    idle_filler_bytes += 2*region_header_count;
+
+    // Region trailer is triplicated
+    idle_filler_bytes += 0*region_trailer_count;
+
+    idle_filler_bytes += data_short_count;
+    idle_filler_bytes += 2*busy_on_count;
+    idle_filler_bytes += 2*busy_off_count;
+
+    uint64_t idle_filler_count = idle_filler_bytes;
+
+    uint64_t idle_pure_bytes = idle_total_bytes-idle_filler_bytes;
+    uint64_t idle_pure_count = idle_pure_bytes;
 
     prot_stats_csv_file << i << ";";
-    prot_stats_csv_file << stats.mCommaCount << ";";
-    prot_stats_csv_file << stats.mIdleCount << ";";
-    prot_stats_csv_file << stats.mIdleByteCount << ";";
-    prot_stats_csv_file << stats.mBusyOnCount << ";";
-    prot_stats_csv_file << stats.mBusyOffCount << ";";
-    prot_stats_csv_file << stats.mDataShortCount << ";";
-    prot_stats_csv_file << stats.mDataLongCount << ";";
-    prot_stats_csv_file << stats.mRegionHeaderCount << ";";
-    prot_stats_csv_file << stats.mRegionTrailerCount << ";";
-    prot_stats_csv_file << stats.mChipHeaderCount << ";";
-    prot_stats_csv_file << stats.mChipTrailerCount << ";";
-    prot_stats_csv_file << stats.mChipEmptyFrameCount << ";";
-    prot_stats_csv_file << stats.mUnknownNonHeaderWordCount << ";";
-    prot_stats_csv_file << stats.mUnknownDataWordCount << std::endl;
+
+    prot_stats_csv_file << comma_bytes << ";";
+    prot_stats_csv_file << idle_total_bytes << ";";
+    prot_stats_csv_file << idle_pure_bytes << ";";
+    prot_stats_csv_file << idle_filler_bytes << ";";
+    prot_stats_csv_file << busy_on_bytes << ";";
+    prot_stats_csv_file << busy_off_bytes << ";";
+    prot_stats_csv_file << data_short_bytes << ";";
+    prot_stats_csv_file << data_long_bytes << ";";
+    prot_stats_csv_file << region_header_bytes << ";";
+    prot_stats_csv_file << region_trailer_bytes << ";";
+    prot_stats_csv_file << chip_header_bytes << ";";
+    prot_stats_csv_file << chip_trailer_bytes << ";";
+    prot_stats_csv_file << chip_empty_frame_bytes << ";";
+    prot_stats_csv_file << unknown_bytes << ";";
+
+    prot_stats_csv_file << idle_total_count << ";";
+    prot_stats_csv_file << idle_pure_count << ";";
+    prot_stats_csv_file << idle_filler_count << ";";
+    prot_stats_csv_file << busy_on_count << ";";
+    prot_stats_csv_file << busy_off_count << ";";
+    prot_stats_csv_file << data_short_count << ";";
+    prot_stats_csv_file << data_long_count << ";";
+    prot_stats_csv_file << region_header_count << ";";
+    prot_stats_csv_file << region_trailer_count << ";";
+    prot_stats_csv_file << chip_header_count << ";";
+    prot_stats_csv_file << chip_trailer_count << ";";
+    prot_stats_csv_file << chip_empty_frame_count << std::endl;
   }
   prot_stats_csv_file.close();
 
 
-  // Write file with trigger stats
   // -----------------------------------------------------
-  csv_filename = output_path + std::string("_Trigger_stats.csv");
-  ofstream trigger_stats_csv_file(csv_filename);
+  // Write binary data file with trigger actions
+  // -----------------------------------------------------
+  // File format:
+  //
+  //   Header:
+  //   uint64_t: number of triggers
+  //   uint8_t:  number of control links
+  //
+  //   For each trigger ID:
+  //     Control link 0:
+  //       uint8_t: link action
+  //     Control link 1:
+  //       uint8_t: link action
+  //     ...
+  //     Control link n-1:
+  //       uint8_t: link action
 
-  if(!trigger_stats_csv_file.is_open()) {
-    std::cerr << "Error opening trigger stats file: " << csv_filename << std::endl;
+  std::string trig_actions_filename = output_path + std::string("_trigger_actions.dat");
+  ofstream trig_actions_file(trig_actions_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!trig_actions_file.is_open()) {
+    std::cerr << "Error opening trigger actions file: " << trig_actions_filename << std::endl;
     return;
   } else {
-    std::cout << "Writing trigger stats to file:\n\"";
-    std::cout << csv_filename << "\"" << std::endl;
+    std::cout << "Writing trigger actions to file:\n\"";
+    std::cout << trig_actions_filename << "\"" << std::endl;
   }
 
-  // Write header to CSV file
-  trigger_stats_csv_file << "Trigger ID";
-  for(uint64_t link_id = 0; link_id < mTriggerActionMaps.size(); link_id++) {
-    trigger_stats_csv_file << "; Link " << link_id << " action";
-  }
-  trigger_stats_csv_file << std::endl;
 
-  // Write action for each link, for each trigger, to csv file
+  // Write number of triggers and number of control links to file header
+  uint64_t num_triggers = mTriggerIdCount;
+  uint8_t num_ctrl_links = s_alpide_control_output.size();
+  trig_actions_file.write((char*)&num_triggers, sizeof(uint64_t));
+  trig_actions_file.write((char*)&num_ctrl_links, sizeof(uint8_t));
+
+  // Write action for each link, for each trigger
   for(uint64_t trigger_id = 0; trigger_id < mTriggerIdCount; trigger_id++) {
-    trigger_stats_csv_file << trigger_id;
     for(uint64_t link_id = 0; link_id < mTriggerActionMaps.size(); link_id++) {
-      if(mTriggerActionMaps[link_id].at(trigger_id) == TRIGGER_SENT)
-        trigger_stats_csv_file << "; SENT";
-      else if(mTriggerActionMaps[link_id].at(trigger_id) == TRIGGER_NOT_SENT_BUSY)
-        trigger_stats_csv_file << "; BUSY";
-      else
-        trigger_stats_csv_file << "; FILTER";
+      uint8_t link_action = mTriggerActionMaps[link_id].at(trigger_id);
+      trig_actions_file.write((char*)&link_action, sizeof(uint8_t));
     }
-    trigger_stats_csv_file << std::endl;
+  }
+  trig_actions_file.close();
+
+
+  // -----------------------------------------------------
+  // Write binary data file with busy events
+  // -----------------------------------------------------
+  // File format:
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "busy events"
+  //       Data (for each busy event)
+  //          uint64_t: time of BUSY_ON
+  //          uint64_t: time of BUSY_OFF
+  //          uint64_t: trigger ID when BUSY_ON occured
+  //          uint64_t: trigger ID when BUSY_OFF occured
+
+  std::string busy_events_filename = output_path + std::string("_busy_events.dat");
+  ofstream busy_events_file(busy_events_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!busy_events_file.is_open()) {
+    std::cerr << "Error opening busy events file: " << busy_events_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing busy events to file:\n\"";
+    std::cout << busy_events_filename << "\"" << std::endl;
   }
 
-  trigger_stats_csv_file.close();
+
+  // Write number of data links to file header
+  uint8_t num_data_links = s_alpide_data_input.size();
+  busy_events_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write busy events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<BusyEvent> busy_events = mDataLinkParsers[link_id]->getBusyEvents();
+    uint64_t num_busy_events = busy_events.size();
+    busy_events_file.write((char*)&num_busy_events, sizeof(uint64_t));
+
+    for(auto busy_event_it = busy_events.begin();
+        busy_event_it != busy_events.end();
+        busy_event_it++)
+    {
+      busy_events_file.write((char*)&(busy_event_it->mBusyOnTime), sizeof(uint64_t));
+      busy_events_file.write((char*)&(busy_event_it->mBusyOffTime), sizeof(uint64_t));
+      busy_events_file.write((char*)&(busy_event_it->mBusyOnTriggerId), sizeof(uint64_t));
+      busy_events_file.write((char*)&(busy_event_it->mBusyOffTriggerId), sizeof(uint64_t));
+    }
+  }
+  busy_events_file.close();
+
+
+  // -----------------------------------------------------
+  // Write binary data file with busy violation events
+  // -----------------------------------------------------
+  // File format:
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "busy violation events"
+  //       Data (for each busy violation event)
+  //          uint64_t: trigger ID for busy violation
+
+  std::string busyv_events_filename = output_path + std::string("_busyv_events.dat");
+  ofstream busyv_events_file(busyv_events_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!busyv_events_file.is_open()) {
+    std::cerr << "Error opening busy violation events file: " << busyv_events_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing busy violation events to file:\n\"";
+    std::cout << busyv_events_filename << "\"" << std::endl;
+  }
+
+
+  // Write number of data links to file header
+  busyv_events_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write busy events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<uint64_t> busyv_events = mDataLinkParsers[link_id]->getBusyViolationTriggers();
+    uint64_t num_busyv_events = busyv_events.size();
+    busyv_events_file.write((char*)&num_busyv_events, sizeof(uint64_t));
+
+    for(auto busy_event_it = busyv_events.begin();
+        busy_event_it != busyv_events.end();
+        busy_event_it++)
+    {
+      uint64_t busyv_trigger_id = *busy_event_it;
+      busyv_events_file.write((char*)&busyv_trigger_id, sizeof(uint64_t));
+    }
+  }
+  busyv_events_file.close();
+
+
+  // ------------------------------------------------------
+  // Write binary data file with flushed incomplete  events
+  // ------------------------------------------------------
+  // File format (same as for busyv basically):
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "flushed incomplete events"
+  //       Data (for each flushed incomplete event)
+  //          uint64_t: trigger ID for flushed incomplete
+
+  std::string flush_events_filename = output_path + std::string("_flush_events.dat");
+  ofstream flush_events_file(flush_events_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!flush_events_file.is_open()) {
+    std::cerr << "Error opening flushed incomplete events file: ";
+    std::cerr << flush_events_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing flushed incomplete events to file:\n\"";
+    std::cout << flush_events_filename << "\"" << std::endl;
+  }
+
+
+  // Write number of data links to file header
+  flush_events_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write flushed incomplete events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<uint64_t> flush_events = mDataLinkParsers[link_id]->getFlushedIncomplTriggers();
+    uint64_t num_flush_events = flush_events.size();
+    flush_events_file.write((char*)&num_flush_events, sizeof(uint64_t));
+
+    for(auto flush_event_it = flush_events.begin();
+        flush_event_it != flush_events.end();
+        flush_event_it++)
+    {
+      uint64_t flush_trigger_id = *flush_event_it;
+      flush_events_file.write((char*)&flush_trigger_id, sizeof(uint64_t));
+    }
+  }
+  flush_events_file.close();
+
+
+  // ---------------------------------------------------------------
+  // Write binary data file with readout abort (data overrun) events
+  // ---------------------------------------------------------------
+  // File format (same as for busyv basically):
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "readout abort events"
+  //       Data (for each trigger chip was in readout abort)
+  //          uint64_t: trigger ID for readout abort event
+
+  std::string ro_abort_event_filename = output_path + std::string("_ro_abort_events.dat");
+  ofstream ro_abort_event_file(ro_abort_event_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!ro_abort_event_file.is_open()) {
+    std::cerr << "Error opening readout abort events file: ";
+    std::cerr << ro_abort_event_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing readout abort events to file:\n\"";
+    std::cout << ro_abort_event_filename << "\"" << std::endl;
+  }
+
+
+  // Write number of data links to file header
+  ro_abort_event_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write readout abort events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<uint64_t> ro_abort_event = mDataLinkParsers[link_id]->getReadoutAbortTriggers();
+    uint64_t num_ro_abort_event = ro_abort_event.size();
+    ro_abort_event_file.write((char*)&num_ro_abort_event, sizeof(uint64_t));
+
+    for(auto readout_abort_it = ro_abort_event.begin();
+        readout_abort_it != ro_abort_event.end();
+        readout_abort_it++)
+    {
+      uint64_t ro_abort_trigger_id = *readout_abort_it;
+      ro_abort_event_file.write((char*)&ro_abort_trigger_id, sizeof(uint64_t));
+    }
+  }
+  ro_abort_event_file.close();
+
+
+  // ------------------------------------------------------
+  // Write binary data file with fatal events
+  // ------------------------------------------------------
+  // File format (same as for busyv basically):
+  //
+  //   Header:
+  //   uint8_t:  number of data links
+  //
+  //   For each data link:
+  //       Header:
+  //          uint64_t: Number of "fatal events"
+  //       Data (for each trigger chip was in fatal mode)
+  //          uint64_t: trigger ID for fatal event
+
+  std::string fatal_event_filename = output_path + std::string("_fatal_events.dat");
+  ofstream fatal_event_file(fatal_event_filename, std::ios_base::out | std::ios_base::binary);
+
+  if(!fatal_event_file.is_open()) {
+    std::cerr << "Error opening fatal events events file: ";
+    std::cerr << fatal_event_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing readout fatal events to file:\n\"";
+    std::cout << fatal_event_filename << "\"" << std::endl;
+  }
+
+
+  // Write number of data links to file header
+  fatal_event_file.write((char*)&num_data_links, sizeof(uint8_t));
+
+  // Write fatal events for each link
+  for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
+    std::vector<uint64_t> fatal_event = mDataLinkParsers[link_id]->getFatalTriggers();
+    uint64_t num_fatal_event = fatal_event.size();
+    fatal_event_file.write((char*)&num_fatal_event, sizeof(uint64_t));
+
+    for(auto fatal_it = fatal_event.begin();
+        fatal_it != fatal_event.end();
+        fatal_it++)
+    {
+      uint64_t fatal_trigger_id = *fatal_it;
+      fatal_event_file.write((char*)&fatal_trigger_id, sizeof(uint64_t));
+    }
+  }
+  fatal_event_file.close();
 
 
   // Write file with trigger summary
