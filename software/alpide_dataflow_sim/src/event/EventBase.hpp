@@ -37,6 +37,14 @@ public:
   }
 
   size_t size(void) const {return mHitDigits.size();}
+
+  void printEvent(void) {
+    for(auto it = mHitDigits.begin(); it != mHitDigits.end(); it++) {
+      std::cout << "Chip  " << it->first << "  ";
+      std::cout << it->second.getCol() << ":";
+      std::cout << it->second.getRow() << std::endl;
+    }
+  }
 };
 
 
