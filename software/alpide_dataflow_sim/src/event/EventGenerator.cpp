@@ -6,6 +6,8 @@
  */
 
 #include "EventGenerator.hpp"
+#include "EventXML.hpp"
+#include "EventBinary.hpp"
 #include "../ITS/ITS_config.hpp"
 #include "Alpide/alpide_constants.hpp"
 #include <boost/current_function.hpp>
@@ -146,23 +148,36 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       mRandHitMultiplicityGauss = nullptr;
     }
   } else {
+    QString monte_carlo_file_type = settings->value("event/monte_carlo_file_type").toString();
     QString monte_carlo_event_path_str = settings->value("event/monte_carlo_path").toString();
     QDir monte_carlo_event_dir(monte_carlo_event_path_str);
     QStringList name_filters;
 
-    name_filters << "*.xml";
+    if(monte_carlo_file_type == "xml") {
+      name_filters << "*.xml";
+      QStringList MC_files = monte_carlo_event_dir.entryList(name_filters);
 
-    QStringList MC_xml_files = monte_carlo_event_dir.entryList(name_filters);
+      mMCPhysicsEvents = new EventXML(mITSConfig,
+                                      monte_carlo_event_path_str,
+                                      MC_files,
+                                      true,
+                                      mRandomSeed);
+    }
+    else if(monte_carlo_file_type == "binary") {
+      name_filters << "*.dat";
+      QStringList MC_files = monte_carlo_event_dir.entryList(name_filters);
 
-    if(MC_xml_files.empty()) {
-      std::cout << "Error: No .xml files found in path \"";
-      std::cout << monte_carlo_event_path_str.toStdString();
-      std::cout << "\", or path does not exist." << std::endl;
+      mMCPhysicsEvents = new EventBinary(mITSConfig,
+                                         monte_carlo_event_path_str,
+                                         MC_files,
+                                         true,
+                                         mRandomSeed);
+    }
+    else {
+      std::cerr << "Error: Unknown MC event format \"";
+      std::cerr << monte_carlo_file_type.toStdString() << "\"";
       exit(-1);
     }
-
-    mMCPhysicsEvents = new EventXML(mITSConfig);
-    mMCPhysicsEvents->readEventXML(monte_carlo_event_path_str, MC_xml_files);
 
     mNumChips = 1;
 
@@ -179,19 +194,31 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       QString qed_noise_event_path_str = settings->value("event/qed_noise_path").toString();
       QDir qed_noise_event_dir(qed_noise_event_path_str);
 
-      name_filters << "*.xml";
+      if(monte_carlo_file_type == "xml") {
+        name_filters << "*.xml";
+        QStringList QED_noise_event_files = qed_noise_event_dir.entryList(name_filters);
 
-      QStringList QED_NOISE_xml_files = qed_noise_event_dir.entryList(name_filters);
+        mMCQedNoiseEvents = new EventXML(mITSConfig,
+                                         qed_noise_event_path_str,
+                                         QED_noise_event_files,
+                                         true,
+                                         mRandomSeed);
+      }
+      else if(monte_carlo_file_type == "binary") {
+        name_filters << "*.dat";
+        QStringList QED_noise_event_files = qed_noise_event_dir.entryList(name_filters);
 
-      if(QED_NOISE_xml_files.empty()) {
-        std::cout << "Error: No .xml files found in path \"";
-        std::cout << qed_noise_event_path_str.toStdString();
-        std::cout << "\", or path does not exist." << std::endl;
+        mMCQedNoiseEvents = new EventBinary(mITSConfig,
+                                            qed_noise_event_path_str,
+                                            QED_noise_event_files,
+                                            true,
+                                            mRandomSeed);
+      }
+      else {
+        std::cerr << "Error: Unknown MC event format \"";
+        std::cerr << monte_carlo_file_type.toStdString() << "\"";
         exit(-1);
       }
-
-      mMCQedNoiseEvents = new EventXML(mITSConfig);
-      mMCQedNoiseEvents->readEventXML(qed_noise_event_path_str, QED_NOISE_xml_files);
     }
 
     // Discrete and gaussion hit distributions are not used in this case

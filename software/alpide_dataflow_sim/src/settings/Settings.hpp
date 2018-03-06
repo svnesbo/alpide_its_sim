@@ -31,6 +31,7 @@
 
 #define DEFAULT_EVENT_RANDOM_HIT_GENERATION "true"
 #define DEFAULT_EVENT_MONTE_CARLO_PATH "config/monte_carlo_events/PbPb"
+#define DEFAULT_EVENT_MONTE_CARLO_FILE_TYPE "xml"
 #define DEFAULT_EVENT_QED_NOISE_PATH "config/monte_carlo_events/QED"
 #define DEFAULT_EVENT_QED_NOISE_INPUT "false"
 #define DEFAULT_EVENT_QED_NOISE_RATE_NS "250"

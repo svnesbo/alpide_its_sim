@@ -10,62 +10,24 @@
 
 #include <QString>
 #include <QtXml/QtXml>
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_int_distribution.hpp>
-#include "Alpide/Hit.hpp"
-#include "../ITS/ITS_config.hpp"
-
-class EventDigits {
-  // Vector index: hit/digit number
-  // Pair: <Chip ID, pixel hit coords>
-  std::vector<std::pair<int, PixelData>> mHitDigits;
-
-public:
-  void addHit(int chip_id, int col, int row) {
-    mHitDigits.push_back(std::pair<int, PixelData>(chip_id, PixelData(col, row)));
-  }
-//  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsIterator(void) const {
-  auto getDigitsIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
-  {
-    return mHitDigits.begin();
-  }
-//  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsEndIterator(void) const {
-  auto getDigitsEndIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
-  {
-    return mHitDigits.end();
-  }
-
-  size_t size(void) const {return mHitDigits.size();}
-};
+#include "EventBase.hpp"
 
 
-class EventXML {
-  // Maps a detector position to each unique chip id
-  std::map<unsigned int, ITS::detectorPosition> mDetectorPositionList;
-
-  std::vector<EventDigits*> mEvents;
-
-  bool mRandomEventOrder;
-  int mRandomSeed;
-  int mEventCount;
-  int mPreviousEvent;
-  bool mEventCountChanged;
-
-  boost::random::mt19937 mRandEventIdGen;
-  boost::random::uniform_int_distribution<int> *mRandEventIdDist;
-
+class EventXML : public EventBase {
   bool findXMLElementInListById(const QDomNodeList& list, int id, QDomElement& element_out);
   bool locateChipInEventXML(const ITS::detectorPosition& chip_position,
                             const QDomElement& event_xml_dom_root,
                             QDomElement& chip_element_out);
-  void updateEventIdDistribution(void);
+  void readEventFiles();
+  EventDigits* readEventFile(const QString& event_filename);
 
 public:
-  EventXML(ITS::detectorConfig config, bool random_event_order = true, int random_seed = 0);
-  ~EventXML();
-  void readEventXML(const QString& path, const QStringList& event_filenames);
-  void readEventXML(const QString& event_filename);
-  const EventDigits* getNextEvent(void);
+  EventXML(ITS::detectorConfig config,
+           const QString& path,
+           const QStringList& event_filenames,
+           bool random_event_order = true,
+           int random_seed = 0,
+           bool load_all = false);
 };
 
 

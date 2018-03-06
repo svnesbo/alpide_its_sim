@@ -70,6 +70,8 @@ add_sources(
   src/ITS/ITSSimulationStats.cpp
   src/ReadoutUnit/ReadoutUnit.cpp
   src/event/EventGenerator.cpp
+  src/event/EventBase.cpp
+  src/event/EventBinary.cpp
   src/event/EventXML.cpp
   src/settings/Settings.cpp
   src/settings/parse_cmdline_args.cpp
