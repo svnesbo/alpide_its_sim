@@ -159,7 +159,9 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
       mMCPhysicsEvents = new EventXML(mITSConfig,
                                       monte_carlo_event_path_str,
-                                      MC_files);
+                                      MC_files,
+                                      true,
+                                      mRandomSeed);
     }
     else if(monte_carlo_file_type == "binary") {
       name_filters << "*.dat";
@@ -167,7 +169,9 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
       mMCPhysicsEvents = new EventBinary(mITSConfig,
                                          monte_carlo_event_path_str,
-                                         MC_files);
+                                         MC_files,
+                                         true,
+                                         mRandomSeed);
     }
     else {
       std::cerr << "Error: Unknown MC event format \"";
@@ -196,7 +200,9 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
         mMCQedNoiseEvents = new EventXML(mITSConfig,
                                          qed_noise_event_path_str,
-                                         QED_noise_event_files);
+                                         QED_noise_event_files,
+                                         true,
+                                         mRandomSeed);
       }
       else if(monte_carlo_file_type == "binary") {
         name_filters << "*.dat";
@@ -204,7 +210,9 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
         mMCQedNoiseEvents = new EventBinary(mITSConfig,
                                             qed_noise_event_path_str,
-                                            QED_noise_event_files);
+                                            QED_noise_event_files,
+                                            true,
+                                            mRandomSeed);
       }
       else {
         std::cerr << "Error: Unknown MC event format \"";
