@@ -113,7 +113,7 @@ const EventDigits* EventBase::getNextEvent(void)
     if(mSingleEvent != nullptr)
       delete mSingleEvent;
 
-    mSingleEvent = readEventFile(mEventFileNames.at(next_event_index));
+    mSingleEvent = readEventFile(mEventPath + QString("/") + mEventFileNames.at(next_event_index));
     event = mSingleEvent;
   }
 
@@ -130,5 +130,5 @@ void EventBase::createEventIdDistribution(void)
   if(mRandEventIdDist != nullptr)
     delete mRandEventIdDist;
 
-  mRandEventIdDist = new uniform_int_distribution<int>(0, mEvents.size()-1);
+  mRandEventIdDist = new uniform_int_distribution<int>(0, mEventFileNames.size()-1);
 }

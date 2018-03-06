@@ -196,7 +196,7 @@ void EventBinary::readChip(std::string event_filename,
   uint16_t col, row;
   bool done = false;
 
-  event_file.read((char*)&chip_id, sizeof(uint16_t));
+  event_file.read((char*)&chip_id, sizeof(uint8_t));
 
   ITS::detectorPosition pos = {layer_id, stave_id, mod_id, chip_id};
   unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
