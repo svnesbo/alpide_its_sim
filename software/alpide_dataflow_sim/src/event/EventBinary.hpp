@@ -17,27 +17,29 @@
 
 class EventBinary : public EventBase {
 private:
-  static void readLayer(std::string event_filename,
-                        std::ifstream& event_file,
-                        EventDigits* event);
+  void readLayer(std::string event_filename,
+                 std::ifstream& event_file,
+                 EventDigits* event);
 
-  static void readStave(std::string event_filename,
-                        std::ifstream& event_file,
-                        EventDigits* event,
-                        std::uint8_t layer_id);
+  void readStave(std::string event_filename,
+                 std::ifstream& event_file,
+                 EventDigits* event,
+                 std::uint8_t layer_id);
 
-  static void readModule(std::string event_filename,
-                         std::ifstream& event_file,
-                         EventDigits* event,
-                         std::uint8_t layer_id,
-                         std::uint8_t stave_id);
+  void readModule(std::string event_filename,
+                  std::ifstream& event_file,
+                  EventDigits* event,
+                  std::uint8_t layer_id,
+                  std::uint8_t stave_id,
+                  bool skip);
 
-  static void readChip(std::string event_filename,
-                       std::ifstream& event_file,
-                       EventDigits* event,
-                       std::uint8_t layer_id,
-                       std::uint8_t stave_id,
-                       std::uint8_t mod_id);
+  void readChip(std::string event_filename,
+                std::ifstream& event_file,
+                EventDigits* event,
+                std::uint8_t layer_id,
+                std::uint8_t stave_id,
+                std::uint8_t mod_id,
+                bool skip);
 
   void readEventFiles();
   EventDigits* readEventFile(const QString& event_filename);

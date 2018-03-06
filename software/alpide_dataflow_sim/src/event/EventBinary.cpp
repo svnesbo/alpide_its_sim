@@ -137,14 +137,20 @@ void EventBinary::readStave(std::string event_filename,
   uint8_t code_id;
   uint8_t stave_id;
   bool done = false;
+  bool skip_stave = false;
 
   event_file.read((char*)&stave_id, sizeof(uint8_t));
+
+  // Skip stave if not included in simulation
+  if(stave_id >= mConfig.layer[layer_id].num_staves)
+    skip_stave = true;
 
   while(done == false && event_file.good()) {
     event_file.read((char*)&code_id, sizeof(uint8_t));
 
     if(code_id == MODULE_START) {
-      readModule(event_filename, event_file, event, layer_id, stave_id);
+      readModule(event_filename, event_file, event,
+                 layer_id, stave_id, skip_stave);
     } else if(code_id == STAVE_END) {
       done = true;
     } else {
@@ -160,7 +166,8 @@ void EventBinary::readModule(std::string event_filename,
                              std::ifstream& event_file,
                              EventDigits* event,
                              std::uint8_t layer_id,
-                             std::uint8_t stave_id)
+                             std::uint8_t stave_id,
+                             bool skip)
 {
   uint8_t code_id;
   uint8_t mod_id;
@@ -172,7 +179,8 @@ void EventBinary::readModule(std::string event_filename,
     event_file.read((char*)&code_id, sizeof(uint8_t));
 
     if(code_id == CHIP_START) {
-      readChip(event_filename, event_file, event, layer_id, stave_id, mod_id);
+      readChip(event_filename, event_file, event,
+               layer_id, stave_id, mod_id, skip);
     } else if(code_id == MODULE_END) {
       done = true;
     } else {
@@ -189,7 +197,8 @@ void EventBinary::readChip(std::string event_filename,
                            EventDigits* event,
                            std::uint8_t layer_id,
                            std::uint8_t stave_id,
-                           std::uint8_t mod_id)
+                           std::uint8_t mod_id,
+                           bool skip)
 {
   uint8_t code_id;
   uint8_t chip_id;
@@ -207,7 +216,10 @@ void EventBinary::readChip(std::string event_filename,
     if(code_id == DIGIT) {
       event_file.read((char*)&col, sizeof(uint16_t));
       event_file.read((char*)&row, sizeof(uint16_t));
-      event->addHit(global_chip_id, col, row);
+
+      if(skip == false) {
+        event->addHit(global_chip_id, col, row);
+      }
     } else if(code_id == CHIP_END) {
       done = true;
     } else {

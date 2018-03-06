@@ -50,6 +50,8 @@ public:
 
 class EventBase {
 protected:
+  ITS::detectorConfig mConfig;
+
   // Maps a detector position to each unique chip id
   std::map<unsigned int, ITS::detectorPosition> mDetectorPositionList;
 

@@ -28,7 +28,8 @@ EventBase::EventBase(ITS::detectorConfig config,
                      bool random_event_order,
                      int random_seed,
                      bool load_all)
-  : mEventPath(path)
+  : mConfig(config)
+  , mEventPath(path)
   , mEventFileNames(event_filenames)
   , mRandomEventOrder(random_event_order)
   , mRandomSeed(random_seed)
