@@ -112,6 +112,10 @@ private:
   /// Used with mMatrixReadoutSpeed to implement a delay when readout out pixel matrix.
   bool mMatrixReadoutCounter;
 
+  /// Indicates that the RRU was/is IDLE
+  /// (Used to disable sensitivity to clock to save simulation time);
+  bool mIdle;
+
   /// Corresponds to pixel address in DATA SHORT/LONG words, in priority encoder order
   std::uint16_t mPixelHitBaseAddr;
 
@@ -145,8 +149,8 @@ public:
                     unsigned int region_num, unsigned int fifo_size,
                     bool matrix_readout_speed, bool cluster_enable);
   void regionReadoutProcess(void);
-  void regionMatrixReadoutFSM(void);
-  void regionValidFSM(void);
+  bool regionMatrixReadoutFSM(void);
+  bool regionValidFSM(void);
   void regionHeaderFSM(void);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };

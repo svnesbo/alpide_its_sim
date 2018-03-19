@@ -30,6 +30,7 @@ RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
   , mRegionHeader(region_num)
   , mRegionId(region_num)
   , mMatrixReadoutSpeed(matrix_readout_speed)
+  , mIdle(false)
   , mFifoSizeLimit(fifo_size)
   , mClusteringEnabled(cluster_enable)
   , mPixelMatrix(matrix)
@@ -48,13 +49,22 @@ RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
 ///       Region Readout Unit (RRU). NOTE: Should run at system clock frequency (40MHz).
 void RegionReadoutUnit::regionReadoutProcess(void)
 {
+  if(mIdle) {
+    // Revert to static sensitivity (clocked), and wait till next clock cycle
+    // because dynamic sensitivity to signal changes triggers the method
+    // before the signals would be clocked in
+    next_trigger();
+    mIdle = false;
+    return;
+  }
+
   AlpideDataWord data_out;
   s_region_fifo_size = s_region_fifo.used();
   s_region_fifo_empty_out = (s_region_fifo.used() == 0);
 
 
-  regionMatrixReadoutFSM();
-  regionValidFSM();
+  mIdle =  regionMatrixReadoutFSM();
+  mIdle &= regionValidFSM();
   regionHeaderFSM();
 
   // Update region data output
@@ -70,14 +80,28 @@ void RegionReadoutUnit::regionReadoutProcess(void)
     if(s_region_fifo.nb_get(data_out))
        s_region_data_out = data_out;
   }
+
+
+  // If the RRU is idle, use dynamic sensitivity to wake up on the
+  // signals that would bring it out of idle, in order to save simulation time.
+  if(mIdle) {
+    next_trigger(s_readout_abort_in.value_changed_event() |
+                 s_frame_readout_start_in.value_changed_event() |
+                 s_region_event_start_in.value_changed_event());
+  }
 }
 
 
-void RegionReadoutUnit::regionMatrixReadoutFSM(void)
+///@brief SystemC process/method that implements the state machine that
+///       controls readout from the multi event buffers into the region's FIFOs
+///       Note: should run on Alpide system clock frequency.
+///@return Idle state. True if FSM is in idle and will be idle the next state.
+bool RegionReadoutUnit::regionMatrixReadoutFSM(void)
 {
   bool region_fifo_full = (s_region_fifo.size() - s_region_fifo.used()) == 0;
   bool matrix_readout_ready = false;
   bool region_matrix_empty = false;
+  bool idle_state = false;
 
   // The Alpide has a choice of two different matrix priority encoder readout speeds:
   // 1/2 of 40MHz clock, or 1/4 of 40MHz clock
@@ -96,6 +120,7 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
       flushRegionFifo();
       s_region_matrix_empty_debug = false;
       s_rru_readout_state = RO_FSM::IDLE;
+      idle_state = true;
     }
     else if(s_frame_readout_start_in) {
       s_region_matrix_empty_debug = region_matrix_empty = mPixelMatrix->regionEmpty(mRegionId);
@@ -111,6 +136,7 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
     else {
       s_region_matrix_empty_debug = false;
       s_rru_readout_state = RO_FSM::IDLE;
+      idle_state = true;
     }
     break;
 
@@ -157,13 +183,16 @@ void RegionReadoutUnit::regionMatrixReadoutFSM(void)
     }
     break;
   }
+
+  return idle_state;
 }
 
 
 ///@brief SystemC process/method that implements the state machine that
 ///       determines if the region is valid (has data this frame)
 ///       Note: should run on Alpide system clock frequency.
-void RegionReadoutUnit::regionValidFSM(void)
+///@return Idle state. True if FSM is in idle and will be idle the next state.
+bool RegionReadoutUnit::regionValidFSM(void)
 {
 // Ignore warning about uninitialized dw
 #pragma GCC diagnostic push
@@ -173,6 +202,7 @@ void RegionReadoutUnit::regionValidFSM(void)
 
   bool region_fifo_empty = s_region_fifo.used() == 0;
   bool region_data_is_trailer = false;
+  bool idle_state = false;
 
 
   if(!region_fifo_empty) {
@@ -187,6 +217,9 @@ void RegionReadoutUnit::regionValidFSM(void)
 
     if(s_region_event_start_in && !s_readout_abort_in)
       s_rru_valid_state = VALID_FSM::EMPTY;
+    else
+      idle_state = true;
+
     break;
 
   case VALID_FSM::EMPTY:
@@ -226,6 +259,8 @@ void RegionReadoutUnit::regionValidFSM(void)
     s_rru_valid_state = VALID_FSM::IDLE;
     break;
   }
+
+  return idle_state;
 }
 
 
