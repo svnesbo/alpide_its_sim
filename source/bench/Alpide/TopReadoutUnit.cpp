@@ -16,10 +16,11 @@ SC_HAS_PROCESS(TopReadoutUnit);
 TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id)
   : sc_core::sc_module(name)
   , mChipId(chip_id)
+  , mIdle(false)
 {
   s_tru_state = IDLE;
 
-  SC_METHOD(topRegionReadoutProcess);
+  SC_METHOD(topRegionReadoutMethod);
   sensitive_pos << s_clk_in;
 }
 
@@ -60,8 +61,19 @@ bool TopReadoutUnit::getAllRegionsEmpty(void)
 ///       explanation.
 ///@todo Update state machine pictures with Alpide documentation + simplified FSM diagram
 ///@image html TRU_state_machine.png
-void TopReadoutUnit::topRegionReadoutProcess(void)
+void TopReadoutUnit::topRegionReadoutMethod(void)
 {
+  // If we were idle with dynamic sensitivity enabled,
+  // revert back to static sensitivity now that something happened.
+  // Skip one clock cycle since dynamic sensitivity would make us
+  // trigger the cycle before we would have registered the change
+  // if we were sensitive to the clock.
+  if(mIdle) {
+    next_trigger(); // Revert to static sensitivity
+    mIdle = false;
+    return;
+  }
+
   AlpideDataWord data_out;
 
   // Busy violation bit is included in frame start word
@@ -112,6 +124,12 @@ void TopReadoutUnit::topRegionReadoutProcess(void)
     if(!frame_start_fifo_empty) {
       s_frame_start_fifo_output->nb_peek(mCurrentFrameStartWord);
       s_tru_state = WAIT_REGION_DATA;
+    } else {
+      // If we are idle, and will remain idle, change to dynamic sensitivity
+      // and wait for something to be added to the frame start fifo,
+      // and save simulation time by not triggering on every clock cycle.
+      next_trigger(s_frame_start_fifo_output->ok_to_peek());
+      mIdle = true;
     }
     break;
 
