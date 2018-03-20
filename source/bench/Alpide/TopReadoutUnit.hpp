@@ -31,7 +31,7 @@
 
 /// The TopReadoutUnit (TRU) class is a simple representation of the TRU in the Alpide chip.
 /// It should be connected to the Region Readout Unit (RRU) in the Alpide object,
-/// and will be responsible for reading out from the RRUs with the topRegionReadoutProcess,
+/// and will be responsible for reading out from the RRUs with the topRegionReadoutMethod,
 /// which should run at the system clock (40MHz).
 class TopReadoutUnit : sc_core::sc_module
 {
@@ -72,6 +72,10 @@ private:
   FrameStartFifoWord mCurrentFrameStartWord;
   FrameEndFifoWord mCurrentFrameEndWord;
 
+  /// Indicates that the TRU was/is IDLE
+  /// (Used to disable sensitivity to clock to save simulation time);
+  bool mIdle;
+
   enum TRU_state_t {
     EMPTY = 0,
     IDLE = 1,
@@ -83,7 +87,7 @@ private:
     CHIP_TRAILER = 7
   };
 
-  void topRegionReadoutProcess(void);
+  void topRegionReadoutMethod(void);
   bool getNextRegion(unsigned int& region_out);
   bool getAllRegionsEmpty(void);
 
