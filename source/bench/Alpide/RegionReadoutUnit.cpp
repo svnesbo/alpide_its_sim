@@ -58,10 +58,8 @@ void RegionReadoutUnit::regionReadoutProcess(void)
     return;
   }
 
-  AlpideDataWord data_out;
   s_region_fifo_size = s_region_fifo.used();
   s_region_fifo_empty_out = (s_region_fifo.used() == 0);
-
 
   mIdle =  regionMatrixReadoutFSM();
   mIdle &= regionValidFSM();
@@ -69,6 +67,7 @@ void RegionReadoutUnit::regionReadoutProcess(void)
 
   // Update region data output
   if(s_region_event_pop_in) { // Always pop region trailer when pop is asserted
+    AlpideDataWord data_out;
     if(s_region_fifo.nb_get(data_out))
        s_region_data_out = data_out;
   }
@@ -77,6 +76,7 @@ void RegionReadoutUnit::regionReadoutProcess(void)
     s_region_data_out = mRegionHeader;
   }
   else if(s_region_data_read_in) {
+    AlpideDataWord data_out;
     if(s_region_fifo.nb_get(data_out))
        s_region_data_out = data_out;
   }
