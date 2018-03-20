@@ -65,7 +65,7 @@ protected:
   bool mRandomEventOrder;
   int mRandomSeed;
   int mEventCount;
-  int mPreviousEvent;
+  int mNextEvent;
 
   /// Load all events to memory if true, read one at a time from file if false
   bool mLoadAllEvents;

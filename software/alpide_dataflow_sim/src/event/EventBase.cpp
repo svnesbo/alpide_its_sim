@@ -34,6 +34,7 @@ EventBase::EventBase(ITS::detectorConfig config,
   , mRandomEventOrder(random_event_order)
   , mRandomSeed(random_seed)
   , mEventCount(0)
+  , mNextEvent(0)
   , mLoadAllEvents(load_all)
 {
   if(mRandomSeed == 0) {
@@ -91,21 +92,21 @@ EventBase::~EventBase()
 const EventDigits* EventBase::getNextEvent(void)
 {
   EventDigits* event = nullptr;
-  int next_event_index;
+  int current_event_index;
 
 
   if(mRandomEventOrder) {
     // Generate random event here
-    next_event_index = (*mRandEventIdDist)(mRandEventIdGen);
+    current_event_index = (*mRandEventIdDist)(mRandEventIdGen);
   } else { // Sequential event order if not random
-    mPreviousEvent++;
-    mPreviousEvent = mPreviousEvent % mEventFileNames.size();
-    next_event_index = mPreviousEvent;
+    current_event_index = mNextEvent;
+    mNextEvent++;
+    mNextEvent = mNextEvent % mEventFileNames.size();
   }
 
   if(mLoadAllEvents) {
     if(mEvents.empty() == false) {
-      event = mEvents[next_event_index];
+      event = mEvents[current_event_index];
     } else {
       std::cout << "Error: No MC events loaded into memory." << std::endl;
       exit(-1);
@@ -114,11 +115,11 @@ const EventDigits* EventBase::getNextEvent(void)
     if(mSingleEvent != nullptr)
       delete mSingleEvent;
 
-    mSingleEvent = readEventFile(mEventPath + QString("/") + mEventFileNames.at(next_event_index));
+    mSingleEvent = readEventFile(mEventPath + QString("/") + mEventFileNames.at(current_event_index));
     event = mSingleEvent;
   }
 
-  std::cout << "MC Event number: " << next_event_index << std::endl;
+  std::cout << "MC Event number: " << current_event_index << std::endl;
 
   return event;
 }

@@ -55,69 +55,77 @@ void EventBinary::readEventFiles()
 ///@return Pointer to EventDigits object with the event that was read from file
 EventDigits* EventBinary::readEventFile(const QString& event_filename)
 {
-  std::ifstream event_file(event_filename.toStdString(),
-                           std::ios_base::in | std::ios_base::binary);
-
-  if(!event_file.is_open()) {
-    std::cerr << "Error: opening file " << event_filename.toStdString() << std::endl;
-    exit(-1);
-  }
-
   std::uint8_t code_id;
+  std::ifstream event_file(event_filename.toStdString(),
+                           std::ios_base::in | std::ios_base::ate);
+  std::streamsize size = event_file.tellg();
+  event_file.seekg(0, std::ios::beg);
 
-  event_file.read((char*)&code_id, sizeof(uint8_t));
+  mFileBuffer.clear();
+  mFileBuffer.resize(size);
+  mFileBufferIdx = 0;
 
-  if(code_id != DETECTOR_START) {
-    std::cerr << "Error: file " << event_filename.toStdString();
-    std::cerr << " did not start with DETECTOR_START code." << std::endl;
-    exit(-1);
-  }
+  if(event_file.read((char*)mFileBuffer.data(), size))
+  {
+    code_id = mFileBuffer[mFileBufferIdx++];
 
-  EventDigits* event = new EventDigits();
-  bool done = false;
-
-  while(done == false && event_file.good()) {
-    event_file.read((char*)&code_id, sizeof(uint8_t));
-
-    if(code_id == LAYER_START) {
-      readLayer(event_filename.toStdString(), event_file, event);
-    } else if(code_id == DETECTOR_END) {
-      done = true;
-    } else {
-      std::cerr << "Error: unexpected code " << std::hex << code_id;
-      std::cerr << " in file " << event_filename.toStdString() << std::endl;
-      delete event;
+    if(code_id != DETECTOR_START) {
+      std::cerr << "Error: file " << event_filename.toStdString();
+      std::cerr << " did not start with DETECTOR_START code." << std::endl;
       exit(-1);
     }
+
+    EventDigits* event = new EventDigits();
+    bool done = false;
+
+    while(done == false && mFileBufferIdx < mFileBuffer.size()) {
+      code_id = mFileBuffer[mFileBufferIdx++];
+
+      if(code_id == LAYER_START) {
+        done = readLayer(event_filename.toStdString(), event);
+      } else if(code_id == DETECTOR_END) {
+        done = true;
+      } else {
+        std::cerr << "Error: unexpected code " << std::hex << code_id;
+        std::cerr << " in file " << event_filename.toStdString() << std::endl;
+        delete event;
+        exit(-1);
+      }
+    }
+    return event;
+  } 
+  else {
+    std::cerr << "Error reading from file " << event_filename.toStdString() << std::endl;
+    exit(-1);    
   }
 
-
-  if(done != true || event_file.good() == false) {
-    std::cerr << "Error: reading file " << event_filename.toStdString();
-    std::cerr << " ended unexpectedly" << std::endl;
-    delete event;
-    exit(-1);
-  }
-
-  return event;
+  return nullptr;
 }
 
 
-void EventBinary::readLayer(std::string event_filename,
-                            std::ifstream& event_file,
-                            EventDigits* event)
+bool EventBinary::readLayer(std::string event_filename, EventDigits* event)
 {
-  uint8_t code_id;
-  uint8_t layer_id;
-  bool done = false;
+  bool done = true;
+  std::uint8_t code_id;
+  std::uint8_t layer_id = mFileBuffer[mFileBufferIdx++];
+ 
+  // Stop reading the event file if we have read all the layers
+  // that are included in the simulation,
+  for(std::uint8_t layer = layer_id; layer < ITS::N_LAYERS; layer++) {
+    if(mConfig.layer[layer].num_staves > 0) {
+      done = false;
+      break;
+    }
+  }
 
-  event_file.read((char*)&layer_id, sizeof(uint8_t));
+  if(done)
+    return true;
 
-  while(done == false && event_file.good()) {
-    event_file.read((char*)&code_id, sizeof(uint8_t));
+  while(done == false && mFileBufferIdx < mFileBuffer.size()) {
+    code_id = mFileBuffer[mFileBufferIdx++];
 
     if(code_id == STAVE_START) {
-      readStave(event_filename, event_file, event, layer_id);
+      readStave(event_filename, event, layer_id);
     } else if(code_id == LAYER_END) {
       done = true;
     } else {
@@ -126,31 +134,30 @@ void EventBinary::readLayer(std::string event_filename,
       exit(-1);
     }
   }
+
+  // Not done yet, have to check next layer
+  return false;
 }
 
 
 void EventBinary::readStave(std::string event_filename,
-                            std::ifstream& event_file,
                             EventDigits* event,
                             std::uint8_t layer_id)
 {
-  uint8_t code_id;
-  uint8_t stave_id;
   bool done = false;
   bool skip_stave = false;
-
-  event_file.read((char*)&stave_id, sizeof(uint8_t));
+  std::uint8_t code_id;
+  std::uint8_t stave_id = mFileBuffer[mFileBufferIdx++];
 
   // Skip stave if not included in simulation
   if(stave_id >= mConfig.layer[layer_id].num_staves)
     skip_stave = true;
 
-  while(done == false && event_file.good()) {
-    event_file.read((char*)&code_id, sizeof(uint8_t));
+  while(done == false && mFileBufferIdx < mFileBuffer.size()) {
+    code_id = mFileBuffer[mFileBufferIdx++];
 
     if(code_id == MODULE_START) {
-      readModule(event_filename, event_file, event,
-                 layer_id, stave_id, skip_stave);
+      readModule(event_filename, event, layer_id, stave_id, skip_stave);
     } else if(code_id == STAVE_END) {
       done = true;
     } else {
@@ -163,24 +170,20 @@ void EventBinary::readStave(std::string event_filename,
 
 
 void EventBinary::readModule(std::string event_filename,
-                             std::ifstream& event_file,
                              EventDigits* event,
                              std::uint8_t layer_id,
                              std::uint8_t stave_id,
                              bool skip)
 {
-  uint8_t code_id;
-  uint8_t mod_id;
   bool done = false;
+  std::uint8_t code_id;
+  std::uint8_t mod_id  = mFileBuffer[mFileBufferIdx++];
 
-  event_file.read((char*)&mod_id, sizeof(uint8_t));
-
-  while(done == false && event_file.good()) {
-    event_file.read((char*)&code_id, sizeof(uint8_t));
+  while(done == false && mFileBufferIdx < mFileBuffer.size()) {
+    code_id = mFileBuffer[mFileBufferIdx++];
 
     if(code_id == CHIP_START) {
-      readChip(event_filename, event_file, event,
-               layer_id, stave_id, mod_id, skip);
+      readChip(event_filename, event, layer_id, stave_id, mod_id, skip);
     } else if(code_id == MODULE_END) {
       done = true;
     } else {
@@ -193,32 +196,36 @@ void EventBinary::readModule(std::string event_filename,
 
 
 void EventBinary::readChip(std::string event_filename,
-                           std::ifstream& event_file,
                            EventDigits* event,
                            std::uint8_t layer_id,
                            std::uint8_t stave_id,
                            std::uint8_t mod_id,
                            bool skip)
 {
-  uint8_t code_id;
-  uint8_t chip_id;
-  uint16_t col, row;
   bool done = false;
-
-  event_file.read((char*)&chip_id, sizeof(uint8_t));
+  std::uint16_t col, row;
+  std::uint8_t code_id;
+  std::uint8_t chip_id = mFileBuffer[mFileBufferIdx++];
 
   ITS::detectorPosition pos = {layer_id, stave_id, mod_id, chip_id};
   unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
 
-  while(done == false && event_file.good()) {
-    event_file.read((char*)&code_id, sizeof(uint8_t));
+  while(done == false && mFileBufferIdx < mFileBuffer.size()) {
+    code_id = mFileBuffer[mFileBufferIdx++];
 
     if(code_id == DIGIT) {
-      event_file.read((char*)&col, sizeof(uint16_t));
-      event_file.read((char*)&row, sizeof(uint16_t));
-
       if(skip == false) {
+        std::uint8_t* col_ptr = (mFileBuffer.data()+mFileBufferIdx);
+        col = *((std::uint16_t*) col_ptr);
+        mFileBufferIdx += 2;
+
+        std::uint8_t* row_ptr = (mFileBuffer.data()+mFileBufferIdx);
+        row = *((std::uint16_t*) row_ptr);
+        mFileBufferIdx += 2;
+
         event->addHit(global_chip_id, col, row);
+      } else {
+        mFileBufferIdx += 4;
       }
     } else if(code_id == CHIP_END) {
       done = true;

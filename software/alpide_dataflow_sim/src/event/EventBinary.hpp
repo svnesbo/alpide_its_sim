@@ -17,24 +17,23 @@
 
 class EventBinary : public EventBase {
 private:
-  void readLayer(std::string event_filename,
-                 std::ifstream& event_file,
+  std::vector<uint8_t> mFileBuffer;
+  size_t mFileBufferIdx;
+
+  bool readLayer(std::string event_filename,
                  EventDigits* event);
 
   void readStave(std::string event_filename,
-                 std::ifstream& event_file,
                  EventDigits* event,
                  std::uint8_t layer_id);
 
   void readModule(std::string event_filename,
-                  std::ifstream& event_file,
                   EventDigits* event,
                   std::uint8_t layer_id,
                   std::uint8_t stave_id,
                   bool skip);
 
   void readChip(std::string event_filename,
-                std::ifstream& event_file,
                 EventDigits* event,
                 std::uint8_t layer_id,
                 std::uint8_t stave_id,
