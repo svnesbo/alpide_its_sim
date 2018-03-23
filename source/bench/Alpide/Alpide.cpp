@@ -25,15 +25,22 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] enable_clustering Enable clustering and use of DATA LONG words
 ///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
 ///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
+///@param[in] outer_barrel_mode True: outer barrel mode. False: inner barrel mode
+///@param[in] outer_barrel_master Only relevant if in OB mode.
+///           True: OB master. False: OB slave
+///@param[in] outer_barrel_slave_count Number of slave chips connected to outer barrel master
 ///@param[in] min_busy_cycles Minimum number of cycles that the internal busy signal has to be
 ///           asserted before the chip transmits BUSY_ON
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
                int strobe_length_ns, bool strobe_extension, bool enable_clustering,
-               bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles)
+               bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles,
+               bool outer_barrel_mode, bool outer_barrel_master, int outer_barrel_slave_count)
   : sc_core::sc_module(name)
   , s_control_input("s_control_input")
   , s_data_output("s_data_output")
   , s_chip_ready_out("chip_ready_out")
+  , s_local_bus_data_in(outer_barrel_slave_count)
+  , s_local_busy_in(outer_barrel_slave_count)
   , s_dmu_fifo(DMU_FIFO_SIZE)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
   , s_busy_fifo(BUSY_FIFO_SIZE)
@@ -43,6 +50,9 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   , mStrobeExtensionEnable(strobe_extension)
   , mStrobeLengthNs(strobe_length_ns)
   , mMinBusyCycles(min_busy_cycles)
+  , mObMode(outer_barrel_mode)
+  , mObMaster(outer_barrel_master)
+  , mObSlaveCount(outer_barrel_slave_count)
 {
   mChipId = chip_id;
   mEnableDtuDelay = dtu_delay_cycles > 0;
@@ -109,10 +119,14 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   mTRU->s_frame_end_fifo_output(s_frame_end_fifo);
   mTRU->s_dmu_fifo_input(s_dmu_fifo);
 
-  // Initialize DTU delay FIFO with comma words
-  AlpideDataWord dw = AlpideComma();
-  while(s_dtu_delay_fifo.num_free() > 0)
-    s_dtu_delay_fifo.nb_write(dw);
+  // Initialize DTU delay FIFO with idle words
+  sc_uint<24> dw_idle_data = ((uint32_t) DW_IDLE << 16) |
+                             ((uint32_t) DW_IDLE << 8) |
+                              (uint32_t) DW_IDLE;
+
+  while(s_dtu_delay_fifo.num_free() > 0) {
+    s_dtu_delay_fifo.nb_write(dw_idle_data);
+  }
 
   s_control_input.register_transport(std::bind(&Alpide::processCommand,
                                                this, std::placeholders::_1));
@@ -128,9 +142,12 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   sensitive << E_strobe_interval_done;
   dont_initialize();
 
-  SC_METHOD(busyFifoMethod);
-  sensitive << s_busy_status;
-  dont_initialize();
+  // Only IB/OB-master chips need the busy FIFO method
+  if(!outer_barrel_mode || (outer_barrel_mode && outer_barrel_master)) {
+    SC_METHOD(busyFifoMethod);
+    sensitive << s_busy_status;
+    dont_initialize();
+  }
 
   // SC_METHOD(strobeAndFramingMethod);
   // sensitive << s_strobe_n;
@@ -472,48 +489,138 @@ void Alpide::frameReadout(void)
 ///       Should be called one time per clock cycle.
 void Alpide::dataTransmission(void)
 {
-  AlpideDataWord dw_dtu_fifo_input = AlpideIdle();
-  AlpideDataWord dw_dtu_fifo_output;
-
-  sc_uint<24> data_out;
-
+  // Trace signals for fifo sizes
   s_dmu_fifo_size = s_dmu_fifo.num_available();
   s_busy_fifo_size = s_busy_fifo.num_available();
 
-  // Prioritize busy words over data words
-  if(s_busy_fifo.num_available() > 0) {
-    s_busy_fifo.nb_read(dw_dtu_fifo_input);
-  } else if(s_dmu_fifo.num_available() > 0) {
-    s_dmu_fifo.nb_read(dw_dtu_fifo_input);
+
+
+  if(mObMode && !mObMaster) {
+    return; // Outer barrel slave does not transmit data
+  }
+
+  sc_uint<24> dw_dtu_fifo_input;
+  sc_uint<24> dw_dtu_fifo_output;
+
+  AlpideDataWord data_word = AlpideIdle();
+
+  // -------------------
+  // Outer barrel master
+  // -------------------
+  if(mObMode && mObMaster) {
+
+    // Prioritize busy words over data words
+    if(s_busy_fifo.num_available() > 0) {
+      s_busy_fifo.nb_read(data_word);
+      dw_dtu_fifo_input = data_word.data[2] << 16;
+    }
+    else { // Data
+
+      // If we're not currently processing a 24-bit word,
+      // read a new 24-bit word from chip that currently has the "token"
+      if(mObDwByteCounter == 0) {
+        // Data words are transmitted with most significant byte first
+        mObDwByteCounter = 2;
+
+        if(mObChipSel < mObSlaveCount) {
+          if(s_local_bus_data_in[mObChipSel]->num_available() > 0) {
+            s_local_bus_data_in[mObChipSel]->read(mObDataWord);
+          } else {
+            // Send out one IDLE if we have no data
+            mObDataWord = AlpideIdle();
+            mObDwByteCounter = 0;
+          }
+        } else {
+          if(s_dmu_fifo.num_available() > 0) {
+            s_dmu_fifo.read(mObDataWord);
+          } else {
+            // Send out one IDLE if we have no data
+            mObDataWord = AlpideIdle();
+            mObDwByteCounter = 0;
+          }
+        }
+      } else {
+        mObDwByteCounter--;
+      }
+
+      dw_dtu_fifo_input = mObDataWord.data[mObDwByteCounter] << 16;
+
+      // Check if this was a CHIP_TRAILER og CHIP_EMPTY_FRAME data word
+      // If it is then we should allow one of the IDLE "filler bytes" following
+      // the data to be transmitted, and then "give away token" to the next chip
+      // (ie. just increasing slave select)
+      if((mObDataWord.data_type[2] == ALPIDE_CHIP_EMPTY_FRAME1 &&
+          mObDataWord.data_type[mObDwByteCounter] == ALPIDE_IDLE) ||
+         (mObDataWord.data_type[2] == ALPIDE_CHIP_TRAILER &&
+          mObDataWord.data_type[mObDwByteCounter] == ALPIDE_IDLE))
+      {
+        mObDwByteCounter = 0;
+        if(mObChipSel == mObSlaveCount) {
+          mObChipSel = 0;
+        } else {
+          mObChipSel++;
+        }
+      }
+    }
+  }
+  // --------------------------
+  // Inner barrel chip (master)
+  // --------------------------
+  else if(mObMode == false) {
+    // Prioritize busy words over data words
+    if(s_busy_fifo.num_available() > 0) {
+      s_busy_fifo.nb_read(data_word);
+    } else if(s_dmu_fifo.num_available() > 0) {
+      s_dmu_fifo.nb_read(data_word);
+    }
+
+    dw_dtu_fifo_input = data_word.data[2] << 16 |
+                        data_word.data[1] << 8 |
+                        data_word.data[0];
   }
 
 
-  // Read data from DTU FIFO output, or IDLE if FIFO is empty.
+  // --------------------------
+  // DTU encoding delay
+  // --------------------------
+
+  // If delaying of data through DTU FIFO is enabled (to simulate encoding
+  // delay in DTU), then read data from DTU FIFO output, or IDLE if FIFO is
+  // empty.
   if(mEnableDtuDelay) {
     s_dtu_delay_fifo.nb_write(dw_dtu_fifo_input);
     if(s_dtu_delay_fifo.nb_read(dw_dtu_fifo_output) == false) {
-      dw_dtu_fifo_output = AlpideIdle();
+      sc_uint<24> dw_idle_data = ((uint32_t) DW_IDLE << 16) |
+                                 ((uint32_t) DW_IDLE << 8) |
+                                  (uint32_t) DW_IDLE;
+      dw_dtu_fifo_output = dw_idle_data;
     }
   } else {
     dw_dtu_fifo_output = dw_dtu_fifo_input;
   }
 
-  sc_uint<24> data_dtu_input =
-    dw_dtu_fifo_input.data[2] << 16 |
-    dw_dtu_fifo_input.data[1] << 8 |
-    dw_dtu_fifo_input.data[0];
+
+  // --------------------------
+  // Data output
+  // --------------------------
+
+  // Put data on data initiator socket output
+  DataPayload socket_dw;
+
+  // Send out 1 byte per 40MHz cycle in OB mode, 3 bytes in IB mode
+  // Only the most significant byte is used in the FIFO in OB mode
+  socket_dw.data.push_back(dw_dtu_fifo_output >> 16);
+  if(mObMode == false) {
+    socket_dw.data.push_back((dw_dtu_fifo_output >> 8) & 0xFF );
+    socket_dw.data.push_back(dw_dtu_fifo_output & 0xFF);
+  }
+
+  s_data_output->put(socket_dw);
 
   // Debug signal of DTU FIFO input just for adding to VCD trace
-  s_serial_data_dtu_input_debug = data_dtu_input;
+  s_serial_data_dtu_input_debug = dw_dtu_fifo_input;
 
   s_serial_data_out = dw_dtu_fifo_output;
-
-  // Data initiator socket output
-  DataPayload socket_dw;
-  socket_dw.data.push_back(dw_dtu_fifo_output.data[2]);
-  socket_dw.data.push_back(dw_dtu_fifo_output.data[1]);
-  socket_dw.data.push_back(dw_dtu_fifo_output.data[0]);
-  s_data_output->put(socket_dw);
 }
 
 
@@ -560,6 +667,14 @@ void Alpide::updateBusyStatus(void)
   } else if(new_busy_status == false) {
     mBusyCycleCount = 0;
     s_busy_status = false;
+  }
+
+  // For OB masters: Also check the slave chips' busy lines,
+  // and assert the busy status if any of the slaves are busy
+  if(mObMode & mObMaster) {
+    // Check busy status of slave chips in OB
+    for(auto busy_it = s_local_busy_in.begin(); busy_it != s_local_busy_in.end(); busy_it++)
+      s_busy_status = s_busy_status || busy_it->read();
   }
 }
 

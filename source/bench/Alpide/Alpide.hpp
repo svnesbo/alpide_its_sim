@@ -48,7 +48,15 @@ public:
 
   ///@brief Serial data output. This is an alternative
   ///       representation of the data on s_data_output.
-  sc_export<sc_signal<AlpideDataWord>> s_serial_data_out_exp;
+  sc_export<sc_signal<sc_uint<24>>> s_serial_data_out_exp;
+
+  ///@brief Fifo interfaces to slave chips' DMU FIFOs, in OB mode
+  ///       Used instead of the parallel interface in the real chips.
+  std::vector<sc_port<sc_fifo_in_if<AlpideDataWord>>> s_local_bus_data_in;
+
+  ///@brief Busy line inputs from slave chips in OB mode.
+  ///       Used instead of the BUSY line with pullup in the real chips.
+  std::vector<sc_in<bool>> s_local_busy_in;
 
 private:
   sc_signal<sc_uint<8>> s_fromu_readout_state;
@@ -92,10 +100,10 @@ private:
   sc_fifo<AlpideDataWord> s_dmu_fifo;
 
   sc_signal<sc_uint<24>> s_serial_data_dtu_input_debug;
-  sc_signal<AlpideDataWord> s_serial_data_out;
+  sc_signal<sc_uint<24>> s_serial_data_out;
 
   ///@brief FIFO used to represent the encoding delay in the DTU
-  sc_fifo<AlpideDataWord> s_dtu_delay_fifo;
+  sc_fifo<sc_uint<24>> s_dtu_delay_fifo;
 
   ///@brief Represents the FIFO written to by the BMU in the real ALPIDE chip
   sc_fifo<AlpideDataWord> s_busy_fifo;
@@ -141,6 +149,22 @@ private:
   uint16_t mMinBusyCycles;
   uint16_t mBusyCycleCount = 0;
 
+  bool mObMode;
+  bool mObMaster;
+
+  ///@brief Number of slave chips connected to outer barrel master
+  unsigned int mObSlaveCount = 0;
+
+  ///@brief Chip select on "local bus" in outer barrel mode
+  unsigned int mObChipSel = 0;
+
+  ///@brief Byte counter in transmission of a 24-bit data word in OB mode
+  unsigned int mObDwByteCounter = 0;
+
+  ///@brief Holds 24-bit data word to be transmitted over 3 clock cycles,
+  ///       in outer barrel mode.
+  AlpideDataWord mObDataWord;
+
   ///@brief Trigger ID counter
   uint64_t mTrigIdCount = 0;
 
@@ -185,7 +209,9 @@ private:
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
          int strobe_length_ns, bool strobe_extension, bool enable_clustering,
-         bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles = 8);
+         bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles = 8,
+         bool outer_barrel_mode = false, bool outer_barrel_master = false,
+         int outer_barrel_slave_count = 0);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
