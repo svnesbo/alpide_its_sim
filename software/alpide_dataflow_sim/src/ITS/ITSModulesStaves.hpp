@@ -49,7 +49,7 @@ namespace ITS {
 
   struct SingleChip : public StaveInterface
   {
-    sc_export<sc_signal<AlpideDataWord>> s_alpide_data_out_exp;
+    sc_export<sc_signal<sc_uint<24>>> s_alpide_data_out_exp;
 
     SingleChip(sc_core::sc_module_name const &name, int chip_id,
                int dtu_delay_cycles, int strobe_length_ns,

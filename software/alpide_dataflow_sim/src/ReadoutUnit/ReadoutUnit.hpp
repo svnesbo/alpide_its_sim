@@ -42,8 +42,8 @@ public:
 
   sc_event_queue E_trigger_in;
 
-  ///@todo Make this a vector/array somehow, to cater for many chips..
-  std::vector<sc_in<AlpideDataWord>> s_serial_data_input;
+  std::vector<sc_in<sc_uint<24>>> s_serial_data_input;
+  std::vector<sc_in<uint64_t>> s_serial_data_trig_id;
 
   // Busy in and out signals for busy daisy chain
   sc_port<sc_fifo_in_if<BusyLinkWord>> s_busy_in;

@@ -60,6 +60,11 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   s_chip_ready_out(s_chip_ready_internal);
 
   s_serial_data_out_exp(s_serial_data_out);
+  s_serial_data_trig_id_exp(s_serial_data_trig_id);
+
+  // Initialize data out signal to all IDLEs
+  s_serial_data_out = 0xFFFFFF;
+  s_serial_data_trig_id = 0;
 
   s_event_buffers_used_debug = 0;
   s_total_number_of_hits = 0;
@@ -518,9 +523,10 @@ void Alpide::dataTransmission(void)
 
       // If we're not currently processing a 24-bit word,
       // read a new 24-bit word from chip that currently has the "token"
-      if(mObDwByteCounter == 0) {
+      if(mObDwBytesRemaining == 0) {
         // Data words are transmitted with most significant byte first
-        mObDwByteCounter = 2;
+        mObDwByteIndex = 2;
+        mObChipSel = mObNextChipSel;
 
         if(mObChipSel < mObSlaveCount) {
           if(s_local_bus_data_in[mObChipSel]->num_available() > 0) {
@@ -528,7 +534,6 @@ void Alpide::dataTransmission(void)
           } else {
             // Send out one IDLE if we have no data
             mObDataWord = AlpideIdle();
-            mObDwByteCounter = 0;
           }
         } else {
           if(s_dmu_fifo.num_available() > 0) {
@@ -536,31 +541,35 @@ void Alpide::dataTransmission(void)
           } else {
             // Send out one IDLE if we have no data
             mObDataWord = AlpideIdle();
-            mObDwByteCounter = 0;
           }
         }
-      } else {
-        mObDwByteCounter--;
-      }
+        mObDwBytesRemaining = mObDataWord.size;
 
-      dw_dtu_fifo_input = mObDataWord.data[mObDwByteCounter] << 16;
+        if(mObDataWord.data_type == ALPIDE_CHIP_EMPTY_FRAME ||
+           mObDataWord.data_type == ALPIDE_CHIP_TRAILER) {
+          // If this is a CHIP_TRAILER og CHIP_EMPTY_FRAME data word then we
+          // should also transmit one of the "IDLE filler bytes" following the
+          // actual data word
+          mObDwBytesRemaining++;
 
-      // Check if this was a CHIP_TRAILER og CHIP_EMPTY_FRAME data word
-      // If it is then we should allow one of the IDLE "filler bytes" following
-      // the data to be transmitted, and then "give away token" to the next chip
-      // (ie. just increasing slave select)
-      if((mObDataWord.data_type[2] == ALPIDE_CHIP_EMPTY_FRAME1 &&
-          mObDataWord.data_type[mObDwByteCounter] == ALPIDE_IDLE) ||
-         (mObDataWord.data_type[2] == ALPIDE_CHIP_TRAILER &&
-          mObDataWord.data_type[mObDwByteCounter] == ALPIDE_IDLE))
-      {
-        mObDwByteCounter = 0;
-        if(mObChipSel == mObSlaveCount) {
-          mObChipSel = 0;
-        } else {
-          mObChipSel++;
+          // And give away "token" (ie going to the next chip) after
+          // transmitting the data word
+          if(mObChipSel == mObSlaveCount) {
+            mObNextChipSel = 0;
+          } else {
+            mObNextChipSel = mObChipSel+1;
+          }
+        } else if(mObDataWord.data_type == ALPIDE_CHIP_HEADER) {
+          // Update trigger id signal used by AlpideDataParser to know
+          // which trigger ID the data belongs to
+          s_serial_data_trig_id = mObDataWord.trigger_id;
         }
       }
+
+      dw_dtu_fifo_input = mObDataWord.data[mObDwByteIndex] << 16;
+
+      mObDwByteIndex--;
+      mObDwBytesRemaining--;
     }
   }
   // --------------------------

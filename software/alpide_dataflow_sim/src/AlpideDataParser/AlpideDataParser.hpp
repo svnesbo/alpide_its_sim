@@ -42,11 +42,6 @@ struct BusyEvent {
 };
 
 
-struct AlpideDataParsed {
-  AlpideDataType data[3];
-};
-
-
 class AlpideEventFrame {
 private:
   std::set<PixelData> mPixelDataSet;
@@ -119,20 +114,23 @@ protected:
   bool mBusyStatus = false;
   bool mBusyStatusChanged = false;
   bool mIncludeHitData;
-  bool mFastParserEnable;
+  bool mDataWordStarted = false;
+  uint8_t mCurrentDataWord[3];
+  unsigned int mByteCounterCurrentWord;
+  unsigned int mByteIndexCurrentWord;
+  AlpideDataType mCurrentDwType;
 
 public:
   AlpideEventBuilder(bool save_events = true,
-                     bool include_hit_data = false,
-                     bool use_fast_parser = true);
+                     bool include_hit_data = false);
 
   void setCurrentTriggerId(uint64_t trigger_id) {
     mCurrentTriggerId = trigger_id;
   }
 
   void popEvent(void);
-  void inputDataWord(AlpideDataWord dw);
-  AlpideDataParsed parseDataWord(AlpideDataWord dw);
+  void inputDataByte(std::uint8_t data, uint64_t trig_id);
+  AlpideDataType parseDataByte(std::uint8_t data);
 
   unsigned int getNumEvents(void) const;
   const AlpideEventFrame* getNextEvent(void) const;
@@ -155,8 +153,6 @@ public:
   std::vector<BusyEvent> getBusyEvents(void) {
     return mBusyEvents;
   }
-private:
-  AlpideDataType parseNonHeaderBytes(uint8_t data);
 };
 
 
@@ -164,17 +160,20 @@ private:
 class AlpideDataParser : sc_core::sc_module, public AlpideEventBuilder {
 public:
   // SystemC signals
-  sc_in<AlpideDataWord> s_serial_data_in;
+  sc_in<sc_uint<24>> s_serial_data_in;
+  sc_in<uint64_t> s_serial_data_trig_id;
   sc_in_clk s_clk_in;
   sc_export<sc_signal<bool>> s_link_busy_out;
 
 private:
   sc_signal<bool> s_link_busy;
 
+  bool mWordMode;
+
   void parserInputProcess(void);
 
 public:
-  AlpideDataParser(sc_core::sc_module_name name, bool save_events = false);
+  AlpideDataParser(sc_core::sc_module_name name, bool word_mode, bool save_events = false);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 

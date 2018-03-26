@@ -50,6 +50,9 @@ public:
   ///       representation of the data on s_data_output.
   sc_export<sc_signal<sc_uint<24>>> s_serial_data_out_exp;
 
+  ///@brief Trigger ID for data that is currently being sent out.
+  sc_export<sc_signal<uint64_t>> s_serial_data_trig_id_exp;
+
   ///@brief Fifo interfaces to slave chips' DMU FIFOs, in OB mode
   ///       Used instead of the parallel interface in the real chips.
   std::vector<sc_port<sc_fifo_in_if<AlpideDataWord>>> s_local_bus_data_in;
@@ -101,6 +104,7 @@ private:
 
   sc_signal<sc_uint<24>> s_serial_data_dtu_input_debug;
   sc_signal<sc_uint<24>> s_serial_data_out;
+  sc_signal<uint64_t>    s_serial_data_trig_id;
 
   ///@brief FIFO used to represent the encoding delay in the DTU
   sc_fifo<sc_uint<24>> s_dtu_delay_fifo;
@@ -153,13 +157,19 @@ private:
   bool mObMaster;
 
   ///@brief Number of slave chips connected to outer barrel master
-  unsigned int mObSlaveCount = 0;
+  const unsigned int mObSlaveCount;
 
   ///@brief Chip select on "local bus" in outer barrel mode
   unsigned int mObChipSel = 0;
 
-  ///@brief Byte counter in transmission of a 24-bit data word in OB mode
-  unsigned int mObDwByteCounter = 0;
+  ///@brief Next chip on "local bus" in outer barrel mode
+  unsigned int mObNextChipSel = 0;
+
+  ///@brief Bytes remaining in transmission of an up to 24-bit data word in OB mode
+  unsigned int mObDwBytesRemaining = 0;
+
+  ///@brief Index of byte to transmit in current 24-bit data word
+  unsigned int mObDwByteIndex = 0;
 
   ///@brief Holds 24-bit data word to be transmitted over 3 clock cycles,
   ///       in outer barrel mode.

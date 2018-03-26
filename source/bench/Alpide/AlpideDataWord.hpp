@@ -25,28 +25,18 @@
 using std::uint8_t;
 
 
-/// Enumerations used to easily identify the type of data word stored
-/// in the AlpideDataWord objects, to avoid having to parse it.
-///
-/// Not to be confused with the DW_<data word type> constants below, which
-/// are the actual data words used on the serial link. These DW_ words are
-/// mixed with data bits making it hard to parse them.
-///
+/// Enumerations of possible data words, used by AlpideDataParser in addition
+/// to the DW_ data word constants.
 /// Note that the region trailer word should never appear in the output data
 /// stream, they are only used internally in the ALPIDE chip.
 enum AlpideDataType {ALPIDE_IDLE,
-                     ALPIDE_CHIP_HEADER1,
-                     ALPIDE_CHIP_HEADER2,
+                     ALPIDE_CHIP_HEADER,
                      ALPIDE_CHIP_TRAILER,
-                     ALPIDE_CHIP_EMPTY_FRAME1,
-                     ALPIDE_CHIP_EMPTY_FRAME2,
+                     ALPIDE_CHIP_EMPTY_FRAME,
                      ALPIDE_REGION_HEADER,
                      ALPIDE_REGION_TRAILER,
-                     ALPIDE_DATA_SHORT1,
-                     ALPIDE_DATA_SHORT2,
-                     ALPIDE_DATA_LONG1,
-                     ALPIDE_DATA_LONG2,
-                     ALPIDE_DATA_LONG3,
+                     ALPIDE_DATA_SHORT,
+                     ALPIDE_DATA_LONG,
                      ALPIDE_BUSY_ON,
                      ALPIDE_BUSY_OFF,
                      ALPIDE_COMMA,
@@ -84,6 +74,18 @@ const uint8_t DW_DATA_SHORT         = 0b01000000;
 const uint8_t DW_DATA_LONG          = 0b00000000;
 const uint8_t DW_BUSY_ON            = 0b11110001;
 const uint8_t DW_BUSY_OFF           = 0b11110000;
+
+const uint8_t DW_IDLE_SIZE             = 1;
+const uint8_t DW_CHIP_HEADER_SIZE      = 2;
+const uint8_t DW_CHIP_TRAILER_SIZE     = 1;
+const uint8_t DW_CHIP_EMPTY_FRAME_SIZE = 2;
+const uint8_t DW_REGION_HEADER_SIZE    = 1;
+const uint8_t DW_REGION_TRAILER_SIZE   = 1;
+const uint8_t DW_DATA_SHORT_SIZE       = 2;
+const uint8_t DW_DATA_LONG_SIZE        = 3;
+const uint8_t DW_BUSY_ON_SIZE          = 1;
+const uint8_t DW_BUSY_OFF_SIZE         = 1;
+const uint8_t DW_COMMA_SIZE            = 1;
 
 /// This is not the correct COMMA word, but using this value instead makes this
 /// simulation model a bit simpler because the word cannot be confused with CHIP TRAILER
@@ -201,21 +203,12 @@ struct FrameEndFifoWord {
 ///       and is used as the data type in the SystemC FIFO templates.
 ///       This class shouldn't be used on its own, the various types
 ///       of data words are implemented in derived classes.
-///       The data_type variable is used to more easily tell what
-///       kind of data word this is, without parsing the data.
-///       Virtual functions could have been used for this in the
-///       derived classes, but it was done this way since virtual
-///       functions are a bit slow and would be very frequently called.
 class AlpideDataWord
 {
 public:
   uint8_t data[3];
-
-  ///@brief data_type is used to prevent having to fully parse
-  ///       the binary data to know what kind of data word it is
-  AlpideDataType data_type[3] = {ALPIDE_UNKNOWN,
-                                 ALPIDE_UNKNOWN,
-                                 ALPIDE_UNKNOWN};
+  AlpideDataType data_type;
+  unsigned int size;
 
   ///@brief trigger_id is only used by chip header / empty frame words
   ///       Does not exist in the real Alpide data stream.
@@ -253,10 +246,8 @@ public:
     data[2] = DW_IDLE;
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
-
-    data_type[0] = ALPIDE_IDLE;
-    data_type[1] = ALPIDE_IDLE;
-    data_type[2] = ALPIDE_IDLE;
+    data_type = ALPIDE_IDLE;
+    size = DW_IDLE_SIZE;
   }
 };
 
@@ -275,10 +266,8 @@ public:
     data[2] = DW_CHIP_HEADER | (chip_id & 0x0F);
     data[1] = bc_masked;
     data[0] = DW_IDLE;
-
-    data_type[2] = ALPIDE_CHIP_HEADER1;
-    data_type[1] = ALPIDE_CHIP_HEADER2;
-    data_type[0] = ALPIDE_IDLE;
+    data_type = ALPIDE_CHIP_HEADER;
+    size = DW_CHIP_HEADER_SIZE;
   }
   AlpideChipHeader(uint8_t chip_id, FrameStartFifoWord& frame_start)
     : AlpideChipHeader(chip_id,
@@ -296,10 +285,8 @@ public:
     data[2] = DW_CHIP_TRAILER | (readout_flags & 0x0F);
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
-
-    data_type[2] = ALPIDE_CHIP_TRAILER;
-    data_type[1] = ALPIDE_IDLE;
-    data_type[0] = ALPIDE_IDLE;
+    data_type = ALPIDE_CHIP_TRAILER;
+    size = DW_CHIP_TRAILER_SIZE;
   }
   AlpideChipTrailer(FrameStartFifoWord frame_start,
                     FrameEndFifoWord frame_end,
@@ -326,10 +313,8 @@ public:
       | (frame_end.busy_transition ? READOUT_FLAGS_BUSY_TRANSITION : 0);
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
-
-    data_type[2] = ALPIDE_CHIP_TRAILER;
-    data_type[1] = ALPIDE_IDLE;
-    data_type[0] = ALPIDE_IDLE;
+    data_type = ALPIDE_CHIP_TRAILER;
+    size = DW_CHIP_TRAILER_SIZE;
   }
 };
 
@@ -351,10 +336,8 @@ public:
       data[2] = DW_CHIP_EMPTY_FRAME | (chip_id & 0x0F);
       data[1] = bc_masked;
       data[0] = DW_IDLE;
-
-      data_type[2] = ALPIDE_CHIP_EMPTY_FRAME1;
-      data_type[1] = ALPIDE_CHIP_EMPTY_FRAME2;
-      data_type[0] = ALPIDE_IDLE;
+      data_type = ALPIDE_CHIP_EMPTY_FRAME;
+      size = DW_CHIP_EMPTY_FRAME_SIZE;
     }
   AlpideChipEmptyFrame(uint8_t chip_id, FrameStartFifoWord& frame_start)
     : AlpideChipEmptyFrame(chip_id,
@@ -371,10 +354,8 @@ public:
     data[2] = DW_REGION_HEADER | (region_id & 0x1F);
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
-
-    data_type[2] = ALPIDE_REGION_HEADER;
-    data_type[1] = ALPIDE_IDLE;
-    data_type[0] = ALPIDE_IDLE;
+    data_type = ALPIDE_REGION_HEADER;
+    size = DW_REGION_HEADER_SIZE;
   }
 };
 
@@ -387,10 +368,8 @@ public:
     data[2] = DW_REGION_TRAILER;
     data[1] = DW_REGION_TRAILER;
     data[0] = DW_REGION_TRAILER;
-
-    data_type[2] = ALPIDE_REGION_TRAILER;
-    data_type[1] = ALPIDE_REGION_TRAILER;
-    data_type[0] = ALPIDE_REGION_TRAILER;
+    data_type = ALPIDE_REGION_TRAILER;
+    size = DW_REGION_TRAILER_SIZE;
   }
 };
 
@@ -402,10 +381,8 @@ public:
     data[2] = DW_DATA_SHORT | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
     data[1] = addr & 0xFF;
     data[0] = DW_IDLE;
-
-    data_type[2] = ALPIDE_DATA_SHORT1;
-    data_type[1] = ALPIDE_DATA_SHORT2;
-    data_type[0] = ALPIDE_IDLE;
+    data_type = ALPIDE_DATA_SHORT;
+    size = DW_DATA_SHORT_SIZE;
   }
 };
 
@@ -417,10 +394,8 @@ public:
     data[2] = DW_DATA_LONG | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
     data[1] = addr & 0xFF;
     data[0] = hitmap & 0x7F;
-
-    data_type[2] = ALPIDE_DATA_LONG1;
-    data_type[1] = ALPIDE_DATA_LONG2;
-    data_type[0] = ALPIDE_DATA_LONG3;
+    data_type = ALPIDE_DATA_LONG;
+    size = DW_DATA_LONG_SIZE;
   }
 };
 
@@ -432,10 +407,8 @@ public:
     data[2] = DW_BUSY_ON;
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
-
-    data_type[2] = ALPIDE_BUSY_ON;
-    data_type[1] = ALPIDE_IDLE;
-    data_type[0] = ALPIDE_IDLE;
+    data_type = ALPIDE_BUSY_ON;
+    size = DW_BUSY_ON_SIZE;
   }
 };
 
@@ -447,10 +420,8 @@ public:
     data[2] = DW_BUSY_OFF;
     data[1] = DW_IDLE;
     data[0] = DW_IDLE;
-
-    data_type[2] = ALPIDE_BUSY_OFF;
-    data_type[1] = ALPIDE_IDLE;
-    data_type[0] = ALPIDE_IDLE;
+    data_type = ALPIDE_BUSY_OFF;
+    size = DW_BUSY_OFF_SIZE;
   }
 };
 
@@ -465,10 +436,8 @@ public:
     data[2] = DW_COMMA;
     data[1] = DW_COMMA;
     data[0] = DW_COMMA;
-
-    data_type[2] = ALPIDE_COMMA;
-    data_type[1] = ALPIDE_COMMA;
-    data_type[0] = ALPIDE_COMMA;
+    data_type = ALPIDE_COMMA;
+    size = DW_COMMA_SIZE;
   }
 };
 

@@ -39,6 +39,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   , s_alpide_control_output(n_ctrl_links)
   , s_alpide_data_input(n_data_links)
   , s_serial_data_input(n_data_links)
+  , s_serial_data_trig_id(n_data_links)
   , s_busy_in("busy_in")
   , s_busy_out("busy_out")
   , mLayerId(layer_id)
@@ -57,10 +58,11 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
 
   for(unsigned int i = 0; i < n_data_links; i++) {
     // Data parsers should not save events, that just eats memory.. :(
-    mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", false);
+    mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", inner_barrel, false);
 
     mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
     mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
+    mDataLinkParsers[i]->s_serial_data_trig_id(s_serial_data_trig_id[i]);
     mAlpideLinkBusySignals[i](mDataLinkParsers[i]->s_link_busy_out);
 
     s_alpide_data_input[i].register_put(
@@ -317,21 +319,16 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     uint64_t idle_total_bytes = stats[ALPIDE_IDLE];
     uint64_t idle_total_count = idle_total_bytes;
 
-    uint64_t chip_header_bytes = stats[ALPIDE_CHIP_HEADER1] +
-                                 stats[ALPIDE_CHIP_HEADER2];
+    uint64_t chip_header_bytes = stats[ALPIDE_CHIP_HEADER];
     uint64_t chip_header_count = chip_header_bytes/2;
 
-    uint64_t chip_empty_frame_bytes = stats[ALPIDE_CHIP_EMPTY_FRAME1] +
-                                      stats[ALPIDE_CHIP_EMPTY_FRAME2];
+    uint64_t chip_empty_frame_bytes = stats[ALPIDE_CHIP_EMPTY_FRAME];
     uint64_t chip_empty_frame_count = chip_empty_frame_bytes/2;
 
-    uint64_t data_short_bytes = stats[ALPIDE_DATA_SHORT1] +
-                                stats[ALPIDE_DATA_SHORT2];
+    uint64_t data_short_bytes = stats[ALPIDE_DATA_SHORT];
     uint64_t data_short_count = data_short_bytes/2;
 
-    uint64_t data_long_bytes = stats[ALPIDE_DATA_LONG1] +
-                               stats[ALPIDE_DATA_LONG2] +
-                               stats[ALPIDE_DATA_LONG3];
+    uint64_t data_long_bytes = stats[ALPIDE_DATA_LONG];
     uint64_t data_long_count = data_long_bytes/3;
 
     uint64_t chip_trailer_bytes = stats[ALPIDE_CHIP_TRAILER];
