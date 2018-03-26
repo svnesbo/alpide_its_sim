@@ -109,6 +109,10 @@ private:
   ///@brief FIFO used to represent the encoding delay in the DTU
   sc_fifo<sc_uint<24>> s_dtu_delay_fifo;
 
+  ///@brief FIFO used to delay trigger output signal s_serial_data_trig_id_exp
+  ///       by as many cycles as the data is delayed
+  sc_fifo<uint64_t> s_dtu_delay_fifo_trig;
+
   ///@brief Represents the FIFO written to by the BMU in the real ALPIDE chip
   sc_fifo<AlpideDataWord> s_busy_fifo;
 

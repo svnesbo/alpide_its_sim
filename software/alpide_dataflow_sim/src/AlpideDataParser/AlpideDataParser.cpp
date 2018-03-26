@@ -79,8 +79,6 @@ AlpideEventBuilder::AlpideEventBuilder(bool save_events,
   mProtocolStats[ALPIDE_REGION_TRAILER] = 0;
   mProtocolStats[ALPIDE_DATA_SHORT] = 0;
   mProtocolStats[ALPIDE_DATA_LONG] = 0;
-  mProtocolStats[ALPIDE_DATA_LONG] = 0;
-  mProtocolStats[ALPIDE_DATA_LONG] = 0;
   mProtocolStats[ALPIDE_BUSY_ON] = 0;
   mProtocolStats[ALPIDE_BUSY_OFF] = 0;
   mProtocolStats[ALPIDE_COMMA] = 0;
@@ -373,14 +371,15 @@ AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name, bool word_mode,
 void AlpideDataParser::parserInputProcess(void)
 {
   sc_uint<24> dw = s_serial_data_in.read();
+  uint64_t trig_id = s_serial_data_trig_id.read();
 
-  inputDataByte((uint8_t)dw.range(23,16), (uint64_t)s_serial_data_trig_id);
+  inputDataByte((uint8_t)dw.range(23,16), trig_id);
 
   // Word mode is used for inner barrel chips
   // Outer barrel chips only output 1 byte per 40MHz clock cycle
   if(mWordMode) {
-    inputDataByte((uint8_t)dw.range(15,8), (uint64_t)s_serial_data_trig_id);
-    inputDataByte((uint8_t)dw.range(7,0), (uint64_t)s_serial_data_trig_id);
+    inputDataByte((uint8_t)dw.range(15,8), trig_id);
+    inputDataByte((uint8_t)dw.range(7,0), trig_id);
   }
 
   if(mBusyStatusChanged) {

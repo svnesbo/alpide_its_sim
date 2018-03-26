@@ -43,6 +43,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   , s_local_busy_in(outer_barrel_slave_count)
   , s_dmu_fifo(DMU_FIFO_SIZE)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
+  , s_dtu_delay_fifo_trig(dtu_delay_cycles+1)
   , s_busy_fifo(BUSY_FIFO_SIZE)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
@@ -131,6 +132,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
 
   while(s_dtu_delay_fifo.num_free() > 0) {
     s_dtu_delay_fifo.nb_write(dw_idle_data);
+    s_dtu_delay_fifo_trig.nb_write(0);
   }
 
   s_control_input.register_transport(std::bind(&Alpide::processCommand,
@@ -494,6 +496,8 @@ void Alpide::frameReadout(void)
 ///       Should be called one time per clock cycle.
 void Alpide::dataTransmission(void)
 {
+  uint64_t data_out_trig_id;
+
   // Trace signals for fifo sizes
   s_dmu_fifo_size = s_dmu_fifo.num_available();
   s_busy_fifo_size = s_busy_fifo.num_available();
@@ -506,6 +510,7 @@ void Alpide::dataTransmission(void)
 
   sc_uint<24> dw_dtu_fifo_input;
   sc_uint<24> dw_dtu_fifo_output;
+  uint64_t    trig_dtu_delay_fifo_output;
 
   AlpideDataWord data_word = AlpideIdle();
 
@@ -559,10 +564,12 @@ void Alpide::dataTransmission(void)
           } else {
             mObNextChipSel = mObChipSel+1;
           }
-        } else if(mObDataWord.data_type == ALPIDE_CHIP_HEADER) {
+        } else if(mObDataWord.data_type == ALPIDE_CHIP_HEADER ||
+                  mObDataWord.data_type == ALPIDE_CHIP_EMPTY_FRAME) {
           // Update trigger id signal used by AlpideDataParser to know
-          // which trigger ID the data belongs to
-          s_serial_data_trig_id = mObDataWord.trigger_id;
+          // which trigger ID the data belongs to. Delay with DTU cycles
+          // so that it comes out at the same time as the corresponding data
+          data_out_trig_id = mObDataWord.trigger_id;
         }
       }
 
@@ -581,6 +588,13 @@ void Alpide::dataTransmission(void)
       s_busy_fifo.nb_read(data_word);
     } else if(s_dmu_fifo.num_available() > 0) {
       s_dmu_fifo.nb_read(data_word);
+    }
+
+    if(data_word.data_type == ALPIDE_CHIP_HEADER ||
+       data_word.data_type == ALPIDE_CHIP_EMPTY_FRAME) {
+      // Update trigger id signal used by AlpideDataParser to know
+      // which trigger ID the data belongs to
+      data_out_trig_id = data_word.trigger_id;
     }
 
     dw_dtu_fifo_input = data_word.data[2] << 16 |
@@ -604,8 +618,15 @@ void Alpide::dataTransmission(void)
                                   (uint32_t) DW_IDLE;
       dw_dtu_fifo_output = dw_idle_data;
     }
+
+    s_dtu_delay_fifo_trig.nb_write(data_out_trig_id);
+    if(s_dtu_delay_fifo_trig.nb_read(trig_dtu_delay_fifo_output) == false) {
+      trig_dtu_delay_fifo_output = 0;
+    }
+
   } else {
     dw_dtu_fifo_output = dw_dtu_fifo_input;
+    trig_dtu_delay_fifo_output = data_out_trig_id;
   }
 
 
@@ -630,6 +651,7 @@ void Alpide::dataTransmission(void)
   s_serial_data_dtu_input_debug = dw_dtu_fifo_input;
 
   s_serial_data_out = dw_dtu_fifo_output;
+  s_serial_data_trig_id = trig_dtu_delay_fifo_output;
 }
 
 
@@ -725,6 +747,7 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, alpide_name_prefix, "strobe_n", s_strobe_n);
   addTrace(wf, alpide_name_prefix, "chip_ready_internal", s_chip_ready_internal);
   addTrace(wf, alpide_name_prefix, "serial_data_out", s_serial_data_out);
+  addTrace(wf, alpide_name_prefix, "serial_data_trig_id", s_serial_data_trig_id);
   addTrace(wf, alpide_name_prefix, "event_buffers_used_debug", s_event_buffers_used_debug);
   addTrace(wf, alpide_name_prefix, "frame_start_fifo_size_debug", s_frame_start_fifo_size_debug);
   addTrace(wf, alpide_name_prefix, "frame_end_fifo_size_debug", s_frame_end_fifo_size_debug);
