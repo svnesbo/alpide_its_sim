@@ -61,7 +61,8 @@ private:
   int mAverageEventRateNs;
 
   bool mQedNoiseGenEnable = false;
-  uint64_t mQedNoiseRate = 0;
+  uint64_t mQedNoiseFeedRateNs = 0;
+  uint64_t mQedNoiseEventRateNs = 0;
 
   /// Total number of physics and event frames generated.
   uint64_t mPhysicsEventCount = 0;
