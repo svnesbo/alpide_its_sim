@@ -17,9 +17,11 @@ namespace ITS {
 
   static const unsigned int CHIPS_PER_IB_STAVE    = 9;
   static const unsigned int CHIPS_PER_HALF_MODULE = 7;
-  static const unsigned int CHIPS_PER_FULL_MODULE = 2*CHIPS_PER_HALF_MODULE;
+  static const unsigned int CHIPS_PER_FULL_MODULE = (2*CHIPS_PER_HALF_MODULE);
   static const unsigned int MODULES_PER_MB_STAVE  = 8;
   static const unsigned int MODULES_PER_OB_STAVE  = 14;
+  static const unsigned int HALF_MODULES_PER_MB_STAVE = (2*MODULES_PER_MB_STAVE);
+  static const unsigned int HALF_MODULES_PER_OB_STAVE = (2*MODULES_PER_OB_STAVE);
 
   static const unsigned int DATA_LINKS_PER_IB_STAVE = 9;
   static const unsigned int CTRL_LINKS_PER_IB_STAVE = 1;
@@ -27,8 +29,8 @@ namespace ITS {
   static const unsigned int DATA_LINKS_PER_HALF_MODULE = 1;
   static const unsigned int CTRL_LINKS_PER_HALF_MODULE = 1;
 
-  static const unsigned int DATA_LINKS_PER_FULL_MODULE = 2*DATA_LINKS_PER_HALF_MODULE;
-  static const unsigned int CTRL_LINKS_PER_FULL_MODULE = 2*CTRL_LINKS_PER_HALF_MODULE;
+  static const unsigned int DATA_LINKS_PER_FULL_MODULE = (2*DATA_LINKS_PER_HALF_MODULE);
+  static const unsigned int CTRL_LINKS_PER_FULL_MODULE = (2*CTRL_LINKS_PER_HALF_MODULE);
 
 
   static const unsigned int STAVES_PER_LAYER[N_LAYERS] = {12,

@@ -39,6 +39,8 @@ public:
   sc_in_clk s_system_clk_in;
 
   ControlTargetSocket s_control_input;
+
+  ///@brief Data output socket. Not used for OB slave chips (can be left unbound)
   DataInitiatorSocket s_data_output;
 
   ///@brief Obsolete: don't use.
@@ -57,9 +59,16 @@ public:
   ///       Used instead of the parallel interface in the real chips.
   std::vector<sc_port<sc_fifo_in_if<AlpideDataWord>>> s_local_bus_data_in;
 
+  ///@brief DMU FIFO output is available on this port.
+  ///       Only used by master chip in OB configuration
+  sc_port<sc_fifo_in_if<AlpideDataWord>> s_local_bus_data_out;
+
   ///@brief Busy line inputs from slave chips in OB mode.
   ///       Used instead of the BUSY line with pullup in the real chips.
   std::vector<sc_in<bool>> s_local_busy_in;
+
+  ///@brief Busy line output from slave chips in OB mode
+  sc_export<sc_signal<bool>> s_local_busy_out;
 
 private:
   sc_signal<sc_uint<8>> s_fromu_readout_state;
@@ -78,6 +87,7 @@ private:
 
   sc_signal<bool> s_region_fifo_empty[N_REGIONS];
   sc_signal<bool> s_region_valid[N_REGIONS];
+
   sc_signal<bool> s_region_data_read[N_REGIONS];
   sc_signal<bool> s_region_event_start;
   sc_signal<bool> s_region_event_pop;

@@ -36,6 +36,8 @@ namespace ITS {
         if(layer_id < 3) {
           // Inner Barrel Readout Unit
           mInnerBarrelMode = true;
+        } else {
+          mInnerBarrelMode = false;
         }
       }
 
@@ -79,17 +81,11 @@ namespace ITS {
         std::string stave_name = "IB_stave_" + coords_str;
         new_stave_ptr = new InnerBarrelStave(stave_name.c_str(), mLayerId, stave_id, mConfig);
       } else if(mLayerId >= 3 && mLayerId < 5) {
-        throw std::runtime_error("Middle barrel staves not implemented yet..");
-        /*
-          std::string stave_name = "MB_stave_" + coords_str;
-          new_stave_ptr = new MiddleBarrelStave(stave_name.c_str(), mLayerId, stave_id);
-        */
+        std::string stave_name = "MB_stave_" + coords_str;
+        new_stave_ptr = new MiddleBarrelStave<>(stave_name.c_str(), mLayerId, stave_id, mConfig);
       } else {
-        throw std::runtime_error("Outer barrel staves not implemented yet..");
-        /*
-          std::string stave_name = "OB_stave_" + coords_str;
-          new_stave_ptr = new OuterBarrelStave(stave_name.c_str(), mLayerId, stave_id);
-        */
+        std::string stave_name = "OB_stave_" + coords_str;
+        new_stave_ptr = new OuterBarrelStave<>(stave_name.c_str(), mLayerId, stave_id, mConfig);
       }
 
 

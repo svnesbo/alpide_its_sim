@@ -64,7 +64,7 @@
     transport_target_socket<ControlRequestPayload, ControlResponsePayload>;
 
   using DataInitiatorSocket =
-    sc_core::sc_port<tlm::tlm_blocking_put_if<DataPayload> >;
+    sc_core::sc_port<tlm::tlm_blocking_put_if<DataPayload>, 1, SC_ZERO_OR_MORE_BOUND>;
   using DataTargetSocket = put_if_target_socket<DataPayload>;
   using DataTargetExport =
     sc_core::sc_export<tlm::tlm_blocking_put_if<DataPayload> >;

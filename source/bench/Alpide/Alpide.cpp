@@ -59,9 +59,12 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   mEnableDtuDelay = dtu_delay_cycles > 0;
 
   s_chip_ready_out(s_chip_ready_internal);
+  s_local_busy_out(s_busy_status);
 
   s_serial_data_out_exp(s_serial_data_out);
   s_serial_data_trig_id_exp(s_serial_data_trig_id);
+
+  s_local_bus_data_out(s_dmu_fifo);
 
   // Initialize data out signal to all IDLEs
   s_serial_data_out = 0xFFFFFF;
@@ -645,7 +648,10 @@ void Alpide::dataTransmission(void)
     socket_dw.data.push_back(dw_dtu_fifo_output & 0xFF);
   }
 
-  s_data_output->put(socket_dw);
+  // Only output data to socket for IB chips and OB master chips
+  // Socket not used by OB slave chips, and can be left unbound
+  if(!mObMode || (mObMode && mObMaster))
+    s_data_output->put(socket_dw);
 
   // Debug signal of DTU FIFO input just for adding to VCD trace
   s_serial_data_dtu_input_debug = dw_dtu_fifo_input;
