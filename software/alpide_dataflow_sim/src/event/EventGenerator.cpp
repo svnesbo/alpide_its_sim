@@ -231,11 +231,15 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
     // Modules are not used for IB layers..
-    if(layer > 2)
+    if(layer > 2) {
+      mRandSubStave[layer] =
+        new uniform_int_distribution<int>(0, ITS::SUB_STAVES_PER_STAVE[layer]-1);
       mRandModule[layer] =
-        new uniform_int_distribution<int>(0, ITS::MODULES_PER_STAVE_IN_LAYER[layer]-1);
-    else
+        new uniform_int_distribution<int>(0, ITS::MODULES_PER_SUB_STAVE_IN_LAYER[layer]-1);
+    } else {
+      mRandSubStave[layer] == nullptr;
       mRandModule[layer] == nullptr;
+    }
 
     mRandChipID[layer] =
       new uniform_int_distribution<int>(0, ITS::CHIPS_PER_MODULE_IN_LAYER[layer]-1);
@@ -275,6 +279,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
       unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
       for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
+        // Safe to ignore OB sub staves here, since we only include full staves in simulation,
+        // and this will include all chips from a full stave
         for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
           mPhysicsEventsCSVFile << ";chip_" << chip_id;
           chip_id++;
@@ -301,6 +307,7 @@ EventGenerator::~EventGenerator()
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
     delete mRandChipID[layer];
     delete mRandStave[layer];
+    delete mRandSubStave[layer];
     delete mRandModule[layer];
   }
 
@@ -558,7 +565,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
           rand_y2 = rand_y1-1;
         }
 
-        ITS::detectorPosition pos = {0, 0, 0, 0};
+        ITS::detectorPosition pos = {0, 0, 0, 0, 0};
 
 
         ///@todo Account for larger/bigger clusters here (when implemented)
@@ -602,12 +609,13 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
           if(rand_stave_id >= mITSConfig.layer[layer].num_staves)
             continue;
 
+          unsigned int rand_sub_stave_id = 0;
+          if(layer > 2) // Sub staves are not used for IB layers
+            rand_sub_stave_id = (*mRandSubStave[layer])(mRandHitGen);
 
           unsigned int rand_module_id = 0;
-
-          // Modules are not used for IB layers
-          if(layer > 2)
-            rand_module_id = (*mRandStave[layer])(mRandHitGen);
+          if(layer > 2) // Modules are not used for IB layers
+            rand_module_id = (*mRandModule[layer])(mRandHitGen);
 
           unsigned int rand_chip_id = (*mRandChipID[layer])(mRandHitGen);
 
@@ -633,6 +641,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
           ITS::detectorPosition pos = {layer,
                                        rand_stave_id,
+                                       rand_sub_stave_id,
                                        rand_module_id,
                                        rand_chip_id};
 

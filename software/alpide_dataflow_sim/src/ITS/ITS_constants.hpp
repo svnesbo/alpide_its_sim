@@ -9,19 +9,19 @@
 #ifndef ITS_CONSTANTS_HPP
 #define ITS_CONSTANTS_HPP
 
-#include <iostream>
-
 namespace ITS {
 
   static const unsigned int N_LAYERS = 7;
 
   static const unsigned int CHIPS_PER_IB_STAVE    = 9;
   static const unsigned int CHIPS_PER_HALF_MODULE = 7;
-  static const unsigned int CHIPS_PER_FULL_MODULE = (2*CHIPS_PER_HALF_MODULE);
+  static const unsigned int CHIPS_PER_FULL_MODULE = 2*CHIPS_PER_HALF_MODULE;
   static const unsigned int MODULES_PER_MB_STAVE  = 8;
   static const unsigned int MODULES_PER_OB_STAVE  = 14;
-  static const unsigned int HALF_MODULES_PER_MB_STAVE = (2*MODULES_PER_MB_STAVE);
-  static const unsigned int HALF_MODULES_PER_OB_STAVE = (2*MODULES_PER_OB_STAVE);
+  static const unsigned int MODULES_PER_MB_SUB_STAVE = MODULES_PER_MB_STAVE/2;
+  static const unsigned int MODULES_PER_OB_SUB_STAVE = MODULES_PER_OB_STAVE/2;
+  static const unsigned int HALF_MODULES_PER_MB_STAVE = 2*MODULES_PER_MB_STAVE;
+  static const unsigned int HALF_MODULES_PER_OB_STAVE = 2*MODULES_PER_OB_STAVE;
 
   static const unsigned int DATA_LINKS_PER_IB_STAVE = 9;
   static const unsigned int CTRL_LINKS_PER_IB_STAVE = 1;
@@ -29,8 +29,8 @@ namespace ITS {
   static const unsigned int DATA_LINKS_PER_HALF_MODULE = 1;
   static const unsigned int CTRL_LINKS_PER_HALF_MODULE = 1;
 
-  static const unsigned int DATA_LINKS_PER_FULL_MODULE = (2*DATA_LINKS_PER_HALF_MODULE);
-  static const unsigned int CTRL_LINKS_PER_FULL_MODULE = (2*CTRL_LINKS_PER_HALF_MODULE);
+  static const unsigned int DATA_LINKS_PER_FULL_MODULE = 2*DATA_LINKS_PER_HALF_MODULE;
+  static const unsigned int CTRL_LINKS_PER_FULL_MODULE = 2*CTRL_LINKS_PER_HALF_MODULE;
 
 
   static const unsigned int STAVES_PER_LAYER[N_LAYERS] = {12,
@@ -40,6 +40,17 @@ namespace ITS {
                                                           30,
                                                           42,
                                                           48};
+
+  ///@brief Number of sub staves per stave in a specific layer.
+  ///       Technically there are no sub staves" in the IB staves,
+  ///       but the code that uses it requires it to be 1 and not 0 for inner barrel
+  static const unsigned int SUB_STAVES_PER_STAVE[N_LAYERS] = {1,
+                                                              1,
+                                                              1,
+                                                              2,
+                                                              2,
+                                                              2,
+                                                              2};
 
   static const unsigned int STAVE_COUNT_TOTAL =
     STAVES_PER_LAYER[0] +
@@ -54,6 +65,9 @@ namespace ITS {
   static const unsigned int READOUT_UNIT_COUNT = STAVE_COUNT_TOTAL;
 
 
+  ///@brief Number of modules per stave in a specific layer.
+  ///       Technically there are no "modules" in the IB staves,
+  ///       but the code that uses it requires it to be 1 and not 0 for inner barrel
   static const unsigned int MODULES_PER_STAVE_IN_LAYER[N_LAYERS] = {1,
                                                                     1,
                                                                     1,
@@ -62,6 +76,16 @@ namespace ITS {
                                                                     MODULES_PER_OB_STAVE,
                                                                     MODULES_PER_OB_STAVE};
 
+  ///@brief Number of modules per sub stave in a specific layer.
+  ///       Technically there are no "modules" or "sub staves" in the IB staves,
+  ///       but the code that uses it requires it to be 1 and not 0 for inner barrel
+  static const unsigned int MODULES_PER_SUB_STAVE_IN_LAYER[N_LAYERS] = {1,
+                                                                        1,
+                                                                        1,
+                                                                        MODULES_PER_MB_SUB_STAVE,
+                                                                        MODULES_PER_MB_SUB_STAVE,
+                                                                        MODULES_PER_OB_SUB_STAVE,
+                                                                        MODULES_PER_OB_SUB_STAVE};
 
   static const unsigned int CHIPS_PER_MODULE_IN_LAYER[N_LAYERS] = {CHIPS_PER_IB_STAVE,
                                                                    CHIPS_PER_IB_STAVE,
@@ -94,6 +118,7 @@ namespace ITS {
   };
 
 
+  ///@brief Number of chips "before" a specific layer
   static const unsigned int CUMULATIVE_CHIP_COUNT_AT_LAYER[N_LAYERS] = {
     0
     ,

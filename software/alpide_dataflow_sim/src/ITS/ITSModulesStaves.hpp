@@ -101,7 +101,8 @@ namespace ITS {
   {
     HalfModule(sc_core::sc_module_name const &name,
                unsigned int layer_id, unsigned int stave_id,
-               unsigned int mod_id, const detectorConfig& cfg);
+               unsigned int sub_stave_id, unsigned int mod_id,
+               unsigned int half_mod_id, const detectorConfig& cfg);
 
     void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 

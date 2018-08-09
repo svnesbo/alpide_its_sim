@@ -82,7 +82,7 @@ InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
     std::bind(&InnerBarrelStave::processCommand, this, std::placeholders::_1));
 
   for (unsigned int i = 0; i < 9; i++) {
-    unsigned int chip_id = detector_position_to_chip_id({layer_id, stave_id, 0, i});
+    unsigned int chip_id = detector_position_to_chip_id({layer_id, stave_id, 0, 0, i});
     std::string chip_name = "Chip_" + std::to_string(chip_id);
 
     std::cout << "Creating chip with ID " << chip_id << std::endl;
@@ -145,16 +145,26 @@ void InnerBarrelStave::addTraces(sc_trace_file *wf, std::string name_prefix) con
 }
 
 
+///@brief Constructor for outer/middle barrel half module
+///@param name SystemC module name
+///@param layer_id Layer number
+///@param stave_id Stave number
+///@param sub_stave_id Sub stave number (0 or 1)
+///@param mod_id Module number (in sub stave)
+///@param half_mod_id Half module number in module (0 or 1)
 HalfModule::HalfModule(sc_core::sc_module_name const &name,
                        unsigned int layer_id, unsigned int stave_id,
-                       unsigned int mod_id, const detectorConfig& cfg)
+                       unsigned int sub_stave_id, unsigned int mod_id,
+                       unsigned int half_mod_id, const detectorConfig& cfg)
   : sc_module(name)
 {
   socket_control_in.register_transport(std::bind(&HalfModule::processCommand,
                                                  this, std::placeholders::_1));
 
+  unsigned int mod_chip_id = ITS::CHIPS_PER_HALF_MODULE*half_mod_id;
+
   // Create OB master chip
-  unsigned int chip_id = detector_position_to_chip_id({layer_id, stave_id, mod_id, 0});
+  unsigned int chip_id = detector_position_to_chip_id({layer_id, stave_id, sub_stave_id, mod_id, mod_chip_id});
   std::string chip_name = "Chip_" + std::to_string(chip_id);
   std::cout << "Creating chip with ID " << chip_id << std::endl;
 
@@ -180,7 +190,7 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
 
   // Create slave chips
   for(unsigned int i = 0; i < 6; i++) {
-    chip_id = detector_position_to_chip_id({layer_id, stave_id, mod_id, i+1});
+    chip_id = detector_position_to_chip_id({layer_id, stave_id, sub_stave_id, mod_id, mod_chip_id+i+1});
     std::string chip_name = "Chip_" + std::to_string(chip_id);
 
     std::cout << "Creating chip with ID " << chip_id << std::endl;
@@ -244,29 +254,45 @@ MBOBStave<N_HALF_MODULES>::MBOBStave(sc_core::sc_module_name const &name,
                                      const ITS::detectorConfig& cfg)
   : StaveInterface(name, layer_id, stave_id, N_HALF_MODULES, N_HALF_MODULES)
 {
-  for (unsigned int i = 0; i < N_HALF_MODULES; i++) {
-    std::string half_mod_name = "HalfMod__" + std::to_string(i);
-    mHalfModules.emplace_back(std::make_shared<HalfModule>(half_mod_name.c_str(),
-                                                           layer_id,
-                                                           stave_id,
-                                                           i,
-                                                           cfg));
+  for(unsigned int sub_stave_id = 0; sub_stave_id < SUB_STAVES_PER_STAVE[layer_id]; sub_stave_id++){
+    // Create half of the half modules for one sub stave, and half for other sub stave
+    // In hindsight it would have made more sense to have a Module object instead of creating
+    // two HalfModule objects, since it got pretty complicated with the indexes and positions here..
+    for (unsigned int i = 0; i < N_HALF_MODULES/2; i++) {
+      unsigned int mod_id = i/2;
+      unsigned int half_mod_id = i%2;
 
-    mHalfModules[i]->s_system_clk_in(s_system_clk_in);
+      std::string half_mod_name = "HalfMod_";
+      half_mod_name += std::to_string(layer_id) + ":";
+      half_mod_name += std::to_string(stave_id) + ":";
+      half_mod_name += std::to_string(sub_stave_id) + ":";
+      half_mod_name += std::to_string(mod_id) + ":";
+      half_mod_name += std::to_string(half_mod_id);
 
-    // TODO:
-    // Make parameters to HalfModule: mod_id and half_mod_id, to reflect addressing of modules
-    // in AliRoot scripts?
-    // Use: mod_id = i / 2
-    //      half_mod_id = mod_id % 2
+      std::cout << "Creating: " << half_mod_name << std::endl;
 
-    // Bind incoming control sockets to processCommand() in respective HalfModule objects
-    socket_control_in[i].register_transport(std::bind(&HalfModule::processCommand,
-                                                      mHalfModules[i],
-                                                      std::placeholders::_1));
+      mHalfModules.emplace_back(std::make_shared<HalfModule>(half_mod_name.c_str(),
+                                                             layer_id,
+                                                             stave_id,
+                                                             sub_stave_id,
+                                                             mod_id,
+                                                             half_mod_id,
+                                                             cfg));
 
-    // Forward data from HalfModule object to StaveInterface
-    mHalfModules[i]->socket_data_out(socket_data_out[i]);
+      // Account for modules already created for first sub stave when
+      // calculating indexes in vectors here..
+      unsigned int mod_index = i + (sub_stave_id*(N_HALF_MODULES/2));
+
+      mHalfModules[mod_index]->s_system_clk_in(s_system_clk_in);
+
+      // Bind incoming control sockets to processCommand() in respective HalfModule objects
+      socket_control_in[mod_index].register_transport(std::bind(&HalfModule::processCommand,
+                                                                mHalfModules[i],
+                                                                std::placeholders::_1));
+
+      // Forward data from HalfModule object to StaveInterface
+      mHalfModules[mod_index]->socket_data_out(socket_data_out[i]);
+    }
   }
 }
 

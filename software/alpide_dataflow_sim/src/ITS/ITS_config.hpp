@@ -9,7 +9,7 @@
 #define ITS_CONFIG_HPP
 
 #include "ITS_constants.hpp"
-
+#include <iostream>
 
 namespace ITS {
   struct layerConfig {
@@ -31,14 +31,16 @@ namespace ITS {
   struct detectorPosition {
     unsigned int layer_id;
     unsigned int stave_id;
+    unsigned int sub_stave_id;
     unsigned int module_id;
-    unsigned int stave_chip_id;
+    unsigned int module_chip_id;
 
     inline friend std::ostream& operator<<(std::ostream& stream, const detectorPosition& pos) {
       stream << "Layer: " << pos.layer_id;
       stream << ", Stave: " << pos.stave_id;
+      stream << ", Sub-stave: " << pos.sub_stave_id;
       stream << ", Module: " << pos.module_id;
-      stream << ", Chip: " << pos.stave_chip_id;
+      stream << ", Module chip ID: " << pos.module_chip_id;
       return stream;
     }
   };
@@ -63,9 +65,16 @@ namespace ITS {
 
     chip_num += pos.stave_id * CHIPS_PER_STAVE_IN_LAYER[pos.layer_id];
 
+    // sub_stave is always 0 for inner barrel stave, and either 0 or 1 for middle and outer
+    // barrel staves. For MB/OB stave, add number of chips in first sub stave (when sub_stave
+    // is 1), and then add the chip number within the sub_stave)
+    chip_num += pos.sub_stave_id *
+      MODULES_PER_SUB_STAVE_IN_LAYER[pos.layer_id] *
+      CHIPS_PER_MODULE_IN_LAYER[pos.layer_id];
+
     chip_num += pos.module_id * CHIPS_PER_MODULE_IN_LAYER[pos.layer_id];
 
-    chip_num += pos.stave_chip_id;
+    chip_num += pos.module_chip_id;
 
     return chip_num;
   }
@@ -74,6 +83,7 @@ namespace ITS {
   inline detectorPosition chip_id_to_detector_position(unsigned int chip_id) {
     unsigned int layer_id = 0;
     unsigned int stave_id = 0;
+    unsigned int sub_stave_id = 0;
     unsigned int module_id = 0;
     unsigned int chip_num_in_stave = 0;
     unsigned int chip_num_in_module = 0;
@@ -96,8 +106,15 @@ namespace ITS {
     module_id = chip_num_in_stave / CHIPS_PER_MODULE_IN_LAYER[layer_id];
     chip_num_in_module = chip_num_in_stave % CHIPS_PER_MODULE_IN_LAYER[layer_id];
 
+    // Middle/outer barrel stave? Calculate sub stave id
+    if(layer_id > 2) {
+      sub_stave_id = module_id / MODULES_PER_SUB_STAVE_IN_LAYER[layer_id];
+      module_id = module_id % MODULES_PER_SUB_STAVE_IN_LAYER[layer_id];
+    }
+
     detectorPosition pos = {layer_id,
                             stave_id,
+                            sub_stave_id,
                             module_id,
                             chip_num_in_module};
 

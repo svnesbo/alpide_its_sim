@@ -93,10 +93,10 @@ EventDigits* EventBinary::readEventFile(const QString& event_filename)
       }
     }
     return event;
-  } 
+  }
   else {
     std::cerr << "Error reading from file " << event_filename.toStdString() << std::endl;
-    exit(-1);    
+    exit(-1);
   }
 
   return nullptr;
@@ -108,7 +108,7 @@ bool EventBinary::readLayer(std::string event_filename, EventDigits* event)
   bool done = true;
   std::uint8_t code_id;
   std::uint8_t layer_id = mFileBuffer[mFileBufferIdx++];
- 
+
   // Stop reading the event file if we have read all the layers
   // that are included in the simulation,
   for(std::uint8_t layer = layer_id; layer < ITS::N_LAYERS; layer++) {
@@ -147,7 +147,8 @@ void EventBinary::readStave(std::string event_filename,
   bool done = false;
   bool skip_stave = false;
   std::uint8_t code_id;
-  std::uint8_t stave_id = mFileBuffer[mFileBufferIdx++];
+  std::uint8_t stave_id = mFileBuffer[mFileBufferIdx] & 0x7F;
+  std::uint8_t sub_stave_id = mFileBuffer[mFileBufferIdx++] >> 7;
 
   // Skip stave if not included in simulation
   if(stave_id >= mConfig.layer[layer_id].num_staves)
@@ -157,7 +158,7 @@ void EventBinary::readStave(std::string event_filename,
     code_id = mFileBuffer[mFileBufferIdx++];
 
     if(code_id == MODULE_START) {
-      readModule(event_filename, event, layer_id, stave_id, skip_stave);
+      readModule(event_filename, event, layer_id, stave_id, sub_stave_id, skip_stave);
     } else if(code_id == STAVE_END) {
       done = true;
     } else {
@@ -173,6 +174,7 @@ void EventBinary::readModule(std::string event_filename,
                              EventDigits* event,
                              std::uint8_t layer_id,
                              std::uint8_t stave_id,
+                             std::uint8_t sub_stave_id,
                              bool skip)
 {
   bool done = false;
@@ -183,7 +185,7 @@ void EventBinary::readModule(std::string event_filename,
     code_id = mFileBuffer[mFileBufferIdx++];
 
     if(code_id == CHIP_START) {
-      readChip(event_filename, event, layer_id, stave_id, mod_id, skip);
+      readChip(event_filename, event, layer_id, stave_id, sub_stave_id, mod_id, skip);
     } else if(code_id == MODULE_END) {
       done = true;
     } else {
@@ -199,6 +201,7 @@ void EventBinary::readChip(std::string event_filename,
                            EventDigits* event,
                            std::uint8_t layer_id,
                            std::uint8_t stave_id,
+                           std::uint8_t sub_stave_id,
                            std::uint8_t mod_id,
                            bool skip)
 {
@@ -207,7 +210,7 @@ void EventBinary::readChip(std::string event_filename,
   std::uint8_t code_id;
   std::uint8_t chip_id = mFileBuffer[mFileBufferIdx++];
 
-  ITS::detectorPosition pos = {layer_id, stave_id, mod_id, chip_id};
+  ITS::detectorPosition pos = {layer_id, stave_id, sub_stave_id, mod_id, chip_id};
   unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
 
   while(done == false && mFileBufferIdx < mFileBuffer.size()) {

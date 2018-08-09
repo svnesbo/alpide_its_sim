@@ -109,6 +109,7 @@ private:
   /// Uniform distribution used generating hit coordinates
   boost::random::uniform_int_distribution<int> *mRandHitChipX, *mRandHitChipY;
   boost::random::uniform_int_distribution<int> *mRandStave[ITS::N_LAYERS];
+  boost::random::uniform_int_distribution<int> *mRandSubStave[ITS::N_LAYERS];
   boost::random::uniform_int_distribution<int> *mRandModule[ITS::N_LAYERS];
   boost::random::uniform_int_distribution<int> *mRandChipID[ITS::N_LAYERS];
 

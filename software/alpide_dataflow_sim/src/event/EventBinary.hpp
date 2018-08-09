@@ -31,12 +31,14 @@ private:
                   EventDigits* event,
                   std::uint8_t layer_id,
                   std::uint8_t stave_id,
+                  std::uint8_t sub_stave_id,
                   bool skip);
 
   void readChip(std::string event_filename,
                 EventDigits* event,
                 std::uint8_t layer_id,
                 std::uint8_t stave_id,
+                std::uint8_t sub_stave_id,
                 std::uint8_t mod_id,
                 bool skip);
 

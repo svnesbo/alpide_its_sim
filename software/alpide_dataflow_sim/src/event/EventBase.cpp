@@ -57,13 +57,16 @@ EventBase::EventBase(ITS::detectorConfig config,
   {
     for(unsigned int stave = 0; stave < config.layer[layer].num_staves; stave++)
     {
-      for(unsigned int module = 0; module < ITS::MODULES_PER_STAVE_IN_LAYER[layer]; module++)
+      for(unsigned int sub_stave = 0; sub_stave < ITS::SUB_STAVES_PER_STAVE[layer]; sub_stave++)
       {
-        for(unsigned int chip = 0; chip < ITS::CHIPS_PER_MODULE_IN_LAYER[layer]; chip++)
+        for(unsigned int module = 0; module < ITS::MODULES_PER_SUB_STAVE_IN_LAYER[layer]; module++)
         {
-          ITS::detectorPosition pos = {layer, stave, module, chip};
-          unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
-          mDetectorPositionList[global_chip_id] = pos;
+          for(unsigned int chip = 0; chip < ITS::CHIPS_PER_MODULE_IN_LAYER[layer]; chip++)
+          {
+            ITS::detectorPosition pos = {layer, stave, sub_stave, module, chip};
+            unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
+            mDetectorPositionList[global_chip_id] = pos;
+          }
         }
       }
     }

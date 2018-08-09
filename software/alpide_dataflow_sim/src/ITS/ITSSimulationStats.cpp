@@ -79,7 +79,7 @@ void writeAlpideStatsToFile(std::string output_path,
   std::string trigger_stats_filename = output_path + std::string("/Alpide_stats.csv");
   ofstream trigger_stats_file(trigger_stats_filename);
 
-  trigger_stats_file << "Layer ID; Stave ID; Module ID; Local Chip ID; Unique Chip ID; ";
+  trigger_stats_file << "Layer ID; Stave ID; Sub-stave ID; Module ID; Local Chip ID; Unique Chip ID; ";
   trigger_stats_file << "Accepted triggers; Rejected triggers; ";
   trigger_stats_file << "Busy; Busy violations; Flushed Incompletes" << std::endl;
 
@@ -90,8 +90,9 @@ void writeAlpideStatsToFile(std::string output_path,
 
       trigger_stats_file << pos.layer_id << ";";
       trigger_stats_file << pos.stave_id << ";";
+      trigger_stats_file << pos.sub_stave_id << ";";
       trigger_stats_file << pos.module_id << ";";
-      trigger_stats_file << pos.stave_chip_id << ";";
+      trigger_stats_file << pos.module_chip_id << ";";
       trigger_stats_file << unique_chip_id << ";";
       trigger_stats_file << (*it)->getTriggersAcceptedCount() << ";";
       trigger_stats_file << (*it)->getTriggersRejectedCount() << ";";
