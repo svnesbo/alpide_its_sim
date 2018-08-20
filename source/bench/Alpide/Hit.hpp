@@ -26,11 +26,13 @@ class Hit : public PixelData
 private:
   int64_t mActiveTimeStartNs;
   int64_t mActiveTimeEndNs;
+
 public:
   Hit();
   Hit(int col, int row, int64_t time_now_ns, int dead_time_ns, int active_time_ns);
   Hit(int col, int row, int64_t time_active_start_ns, int64_t time_active_end_ns);
   Hit(const Hit& h);
+  ~Hit();
 
   bool operator==(const Hit& rhs) const;
   bool operator>(const Hit& rhs) const;

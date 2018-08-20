@@ -573,6 +573,12 @@ void Alpide::dataTransmission(void)
           // which trigger ID the data belongs to. Delay with DTU cycles
           // so that it comes out at the same time as the corresponding data
           data_out_trig_id = mObDataWord.trigger_id;
+        } else if(data_word.data_type == ALPIDE_DATA_SHORT) {
+          // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
+          // the pixels in the data word was read out, and can increase readout counters.
+          static_cast<AlpideDataShort>(&data_word)->increasePixelReadoutCount();
+        } else if(data_word.data_type == ALPIDE_DATA_LONG) {
+          static_cast<AlpideDataLong>(&data_word)->increasePixelReadoutCount();
         }
       }
 
@@ -598,6 +604,12 @@ void Alpide::dataTransmission(void)
       // Update trigger id signal used by AlpideDataParser to know
       // which trigger ID the data belongs to
       data_out_trig_id = data_word.trigger_id;
+    } else if(data_word.data_type == ALPIDE_DATA_SHORT) {
+      // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
+      // the pixels in the data word was read out, and can increase readout counters.
+      static_cast<AlpideDataShort>(&data_word)->increasePixelReadoutCount();
+    } else if(data_word.data_type == ALPIDE_DATA_LONG) {
+      static_cast<AlpideDataLong>(&data_word)->increasePixelReadoutCount();
     }
 
     dw_dtu_fifo_input = data_word.data[2] << 16 |

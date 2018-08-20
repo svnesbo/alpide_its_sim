@@ -30,7 +30,8 @@ Hit::Hit()
 ///@param[in] active_time_ns Specifies (in nanoseconds) how long the hit stays active (ie. pixel is
 ///           triggered) after the dead time has passed. This is equivalent to the amount time the
 ///           analog pulse into the discriminator/comparator is over threshold.
-Hit::Hit(int col, int row, int64_t time_now_ns, int dead_time_ns, int active_time_ns)
+Hit::Hit(int col, int row, int64_t time_now_ns, int dead_time_ns, int active_time_ns,
+         std::shared_ptr<HitStats> hit_stats)
   : PixelData(col, row)
 {
   mActiveTimeStartNs = time_now_ns + dead_time_ns;
@@ -43,16 +44,15 @@ Hit::Hit(int col, int row, int64_t time_now_ns, int dead_time_ns, int active_tim
 ///@param[in] row Row number.
 ///@param[in] time_active_start_ns Absolute simulation time (in nanoseconds) for when the hit becomes active, which
 ///       is equivalent to the analog signal going above the threshold after a hit.
-///@param[in] time_active_end_ns Absolute simulation time (in nanoseconds) for when the hit stops being active, which
+///@param[in] time_active_end_ns Absolute simulation time (in nanoseconds) for when the hit
+///stops being active, which
 ///       is equivalent to when the analog signal goes below the threshold again after having been active.
 Hit::Hit(int col, int row, int64_t time_active_start_ns, int64_t time_active_end_ns)
   : PixelData(col, row)
   , mActiveTimeStartNs(time_active_start_ns)
   , mActiveTimeEndNs(time_active_end_ns)
-
 {
 }
-
 
 Hit::Hit(const Hit& h)
   : PixelData(h)
@@ -60,7 +60,6 @@ Hit::Hit(const Hit& h)
   , mActiveTimeEndNs(h.mActiveTimeEndNs)
 {
 }
-
 
 bool Hit::operator==(const Hit& rhs) const
 {

@@ -182,9 +182,9 @@ EventDigits* EventXML::readEventFile(const QString& event_filename)
   QDomElement xml_dom_root_element = xml_dom_document.documentElement();
 
   for(auto it = mDetectorPositionList.begin(); it != mDetectorPositionList.end(); it++) {
-    int chip_id = it->first;
+    int global_chip_id = it->first;
 
-    const ITS::detectorPosition& chip_position = mDetectorPositionList[chip_id];
+    const ITS::detectorPosition& chip_position = mDetectorPositionList[global_chip_id];
 
     QDomElement chip_element; // Chip element is stored here by locateChipInEventXML().
 
@@ -203,7 +203,8 @@ EventDigits* EventXML::readEventFile(const QString& event_filename)
         int col = digit_entry.at(0).toInt();
         int row = digit_entry.at(1).toInt();
 
-        event->addHit(chip_id, col, row);
+        std::shared_ptr<PixelData> pixel_hit = std::make_shared<PixelData>(col, row, mReadoutStats);
+        event->addHit(global_chip_id, pixel_hit);
       }
     }
   }

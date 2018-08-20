@@ -14,8 +14,10 @@
 #define PIXEL_COL_H
 
 #include "alpide_constants.hpp"
+#include "PixelReadoutStats.hpp"
 #include <set>
 #include <ostream>
+#include <memory>
 
 
 /**
@@ -32,11 +34,44 @@ class PixelData
 private:
   int mCol;
   int mRow;
+  unsigned int mReadoutCount = 0;
+  std::shared_ptr<PixelReadoutStats> mPixelReadoutStats;
 
 public:
-  PixelData(int col = 0, int row = 0) : mCol(col), mRow(row) {}
-  PixelData(int region, int pri_enc, int addr);
-  PixelData(const PixelData& p) : mCol(p.mCol), mRow(p.mRow) {}
+  ///@brief Constructor for PixelData base class, which contains coordinates for a pixel hit
+  ///@param[in] col Column in ALPIDE pixel matrix
+  ///@param[in] row Column in ALPIDE pixel matrix
+  ///@param[in] hit_stats Shared pointer to HitStats object. When the Hit object is descructed,
+  ///           readout counters in HitStats will be increased. hit_stats has a default
+  ///           assignment and can be omitted if not used.
+  PixelData(int col = 0, int row = 0,
+            const std::shared_ptr<PixelReadoutStats> &pix_stats =
+            std::shared_ptr<PixelReadoutStats>)
+    : mCol(col), mRow(row) {}
+
+  ///@brief Constructor for PixelData base class, which contains coordinates for a pixel
+  ///hit. This constructor calculates the col/row from priority encoder address
+  ///@param[in] region Region number in ALPIDE pixel matrix
+  ///@param[in] pri_enc Priority encoder number (ie. double column number) within region
+  ///@param[in] addr Address of hit within priority encoder
+  ///@param[in] hit_stats Shared pointer to HitStats object. When the Hit object is descructed,
+  ///           readout counters in HitStats will be increased. hit_stats has a default
+  ///           assignment and can be omitted if not used.
+  PixelData(int region, int pri_enc, int addr,
+            const std::shared_ptr<PixelReadoutStats> &pix_stats =
+            std::shared_ptr<PixelReadoutStats>);
+
+  PixelData(const PixelData& p)
+    : mCol(p.mCol),
+      mRow(p.mRow),
+      mPixelReadoutStats(p.mPixelReadoutStats) {}
+
+  ~PixelData() {
+    if(mPixelReadoutStats) {
+      mPixelReadoutStats->addReadoutCount(mReadoutCount);
+    }
+  }
+
   bool operator==(const PixelData& rhs) const;
   bool operator>(const PixelData& rhs) const;
   bool operator<(const PixelData& rhs) const;
@@ -56,6 +91,21 @@ public:
   ///       within the column's region. Hardcoded for 16 double columns per region
   ///@return Priority encoder number.
   unsigned int getPriEncNumInRegion(void) const {return (mCol>>1) & 0x0F;}
+
+  ///@brief Get the number of times this pixel hit has been read out
+  ///@return Readout count
+  inline unsigned int getReadoutCount(void) const {
+    return mReadoutCount;
+  }
+
+  ///@brief Increase the number of times this pixel was read out
+  inline void increaseReadoutCount(void) {
+    mReadoutCount++;
+  }
+
+  inline void setPixelReadoutStatsObj(const std::shared_ptr<PixelStats> &pix_stats) {
+    mPixelReadoutStats = pix_stats;
+  }
 };
 
 const PixelData NoPixelHit(-1,-1);
@@ -93,20 +143,21 @@ public:
      @param rightIn Right side argument
      @return True if leftIn has highest priority, false if rightIn has higest priority
   */
-  bool operator()(const PixelData &leftIn, const PixelData &rightIn)
+  bool operator()(const std::shared_ptr<PixelData> &leftIn,
+                  const std::shared_ptr<PixelData> &rightIn)
     {
-      if(leftIn.mRow < rightIn.mRow)
+      if(leftIn->mRow < rightIn->mRow)
         return true;
-      else if(leftIn.mRow > rightIn.mRow)
+      else if(leftIn->mRow > rightIn->mRow)
         return false;
       else { /* leftIn.mRow == rightIn.mRow */
         // Even row
-        if((leftIn.mRow % 2) == 0)
-          return (leftIn.mCol < rightIn.mCol);
+        if((leftIn->mRow % 2) == 0)
+          return (leftIn->mCol < rightIn->mCol);
 
         // Odd row
         else
-          return (leftIn.mCol > rightIn.mCol);
+          return (leftIn->mCol > rightIn->mCol);
       }
     }
 };
@@ -116,12 +167,13 @@ public:
 class PixelDoubleColumn
 {
 private:
-  std::set<PixelData, PixelPriorityEncoder> pixelColumn;
+  std::set<std::shared_ptr<PixelData>, PixelPriorityEncoder> pixelColumn;
 public:
   void setPixel(unsigned int col_num, unsigned int row_num);
+  void setPixel(const std::shared_ptr<PixelData> &pixel);
   void clear(void);
   bool inspectPixel(unsigned int col_num, unsigned int row_num);
-  PixelData readPixel(void);
+  std::shared_ptr<PixelData> readPixel(void);
   unsigned int pixelHitsRemaining(void);
 };
 

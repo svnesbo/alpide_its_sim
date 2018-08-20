@@ -9,29 +9,31 @@
 #define EVENT_BASE_H
 
 #include <map>
+#include <memory>
 #include <QString>
 #include <QStringList>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 #include "Alpide/Hit.hpp"
+#include "Alpide/PixelReadoutStats.hpp"
 #include "../ITS/ITS_config.hpp"
 
 class EventDigits {
   // Vector index: hit/digit number
   // Pair: <Chip ID, pixel hit coords>
-  std::vector<std::pair<int, PixelData>> mHitDigits;
+  std::vector<std::pair<int, std::shared_ptr<PixelData>>> mHitDigits;
 
 public:
-  void addHit(int chip_id, int col, int row) {
-    mHitDigits.push_back(std::pair<int, PixelData>(chip_id, PixelData(col, row)));
+  void addHit(int chip_id, const std::shared_ptr<PixelData> &pixel_hit) {
+    mHitDigits.push_back(std::pair<int, std::shared_ptr<PixelData>>(chip_id, pixel_hit));
   }
 //  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsIterator(void) const {
-  auto getDigitsIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
+  auto getDigitsIterator(void) const -> std::vector<std::pair<int, std::shared_ptr<PixelData>>>::const_iterator
   {
     return mHitDigits.begin();
   }
 //  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsEndIterator(void) const {
-  auto getDigitsEndIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
+  auto getDigitsEndIterator(void) const -> std::vector<std::pair<int, std::shared_ptr<PixelData>>>::const_iterator
   {
     return mHitDigits.end();
   }
@@ -58,6 +60,8 @@ protected:
   std::vector<EventDigits*> mEvents;
 
   EventDigits* mSingleEvent = nullptr;
+
+  std::shared_ptr<PixelReadoutStats> mReadoutStats;
 
   QString mEventPath;
   QStringList mEventFileNames;

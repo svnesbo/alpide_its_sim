@@ -14,6 +14,7 @@
 
 #include <cstdint>
 #include <ostream>
+#include <memory>
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -376,26 +377,43 @@ public:
 
 class AlpideDataShort : public AlpideDataWord
 {
+private:
+  std::shared_ptr<PixelData> mPixel;
+
 public:
-  AlpideDataShort(uint8_t encoder_id, uint16_t addr) {
-    data[2] = DW_DATA_SHORT | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
-    data[1] = addr & 0xFF;
-    data[0] = DW_IDLE;
-    data_type = ALPIDE_DATA_SHORT;
-    size = DW_DATA_SHORT_SIZE;
+  AlpideDataShort(uint8_t encoder_id, uint16_t addr, const std::shared_ptr<PixelData> &pixel)
+    : mPixel(pixel)
+    {
+      data[2] = DW_DATA_SHORT | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
+      data[1] = addr & 0xFF;
+      data[0] = DW_IDLE;
+      data_type = ALPIDE_DATA_SHORT;
+      size = DW_DATA_SHORT_SIZE;
+    }
+  void increasePixelReadoutCount(void) {
+    pixel->increaseReadoutCount();
   }
 };
 
 
 class AlpideDataLong : public AlpideDataWord
 {
+private:
+  std::vector<std::shared_ptr<PixelData>> mPixels;
 public:
-  AlpideDataLong(uint8_t encoder_id, uint16_t addr, uint8_t hitmap) {
-    data[2] = DW_DATA_LONG | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
-    data[1] = addr & 0xFF;
-    data[0] = hitmap & 0x7F;
-    data_type = ALPIDE_DATA_LONG;
-    size = DW_DATA_LONG_SIZE;
+  AlpideDataLong(uint8_t encoder_id, uint16_t addr, uint8_t hitmap,
+                 const std::vector<PixelData> &pixel_vec)
+    : mPixels(pixel_vec)
+    {
+      data[2] = DW_DATA_LONG | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
+      data[1] = addr & 0xFF;
+      data[0] = hitmap & 0x7F;
+      data_type = ALPIDE_DATA_LONG;
+      size = DW_DATA_LONG_SIZE;
+    }
+  void increasePixelReadoutCount(void) {
+    for(auto pix_it = mPixels.begin(); pix_it != mPixels.end(); pix_it++)
+      *pix_it->increaseReadoutCount();
   }
 };
 

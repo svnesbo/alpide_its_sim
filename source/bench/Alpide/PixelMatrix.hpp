@@ -22,6 +22,7 @@
 #include <queue>
 #include <list>
 #include <map>
+#include <memory>
 #include <cstdint>
 
 
@@ -56,12 +57,13 @@ public:
   void deleteEvent(uint64_t event_time);
   void flushOldestEvent(void);
   void setPixel(unsigned int col, unsigned int row);
+  void setPixel(const std::shared_ptr<PixelData> &pixel);
   bool regionEmpty(int start_double_col, int stop_double_col);
   bool regionEmpty(int region);
-  PixelData readPixel(uint64_t time_now,
-                      int start_double_col = 0,
-                      int stop_double_col = N_PIXEL_COLS/2);
-  PixelData readPixelRegion(int region, uint64_t time_now);
+  std::shared_ptr<PixelData> readPixel(uint64_t time_now,
+                                       int start_double_col = 0,
+                                       int stop_double_col = N_PIXEL_COLS/2);
+  std::shared_ptr<PixelData> readPixelRegion(int region, uint64_t time_now);
   int getNumEvents(void) {return mColumnBuffs.size();}
   int getHitsRemainingInOldestEvent(void);
   int getHitTotalAllEvents(void);

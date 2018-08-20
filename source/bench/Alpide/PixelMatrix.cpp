@@ -99,6 +99,33 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
 }
 
 
+///@brief Set the pixel with a PixelData object (allows for pixel readout statistics) in the
+///most recent event buffer
+///@param[in] col Column (0 to N_PIXEL_COLS-1).
+///@param[in] row Row (0 to N_PIXEL_ROWS-1).
+///@throw out_of_range If there are no events, or if col or row is outside the allowed range
+void PixelMatrix::setPixel(const std::shared_ptr<PixelData> &pixel)
+{
+#ifdef EXCEPTION_CHECKS
+  // Out of range exception check
+  if(mColumnBuffs.empty() == true) {
+    throw std::out_of_range("No events");
+  }else if(pixel->getRow() >= N_PIXEL_ROWS) {
+    throw std::out_of_range("row");
+  } else if(pixel->getCol() >= N_PIXEL_COLS) {
+    throw std::out_of_range("col");
+  }
+#endif
+
+  // Set the pixel
+  std::vector<PixelDoubleColumn>& current_event_buffer = mColumnBuffs.back();
+  int& current_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.back();
+
+  current_event_buffer[pixel->getCol()/2].setPixel(pixel);
+  current_event_buffer_hits_remaining++;
+}
+
+
 ///@brief  Check if the region denoted by start_double_col and stop_double_col is empty.
 ///@param[in]  start_double_col Start of region in terms of double columns
 ///@param[in]  stop_double_col End of region in terms of double columns
@@ -167,15 +194,17 @@ bool PixelMatrix::regionEmpty(int region) {
 ///@param[in]  time_now Simulation time when this readout is occuring
 ///@param[in]  start_double_col Start double column to start searching for pixels to readout from
 ///@param[in]  stop_double_col Stop searching for pixels to read out when reaching this column
-///@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
+///@return shared_ptr to PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
 ///        (PixelData object with coords = (-1,-1)).
 ///@throw  std::out_of_range if start_double_col is less than zero, or larger
 ///        than (N_PIXEL_COLS/2)-1.
 ///@throw  std::out_of_range if stop_double_col is less than one, or larger
 ///        than N_PIXEL_COLS/2.
 ///@throw  std::out_of_range if stop_double_col is greater than or equal to start_double_col
-PixelData PixelMatrix::readPixel(uint64_t time_now, int start_double_col, int stop_double_col) {
-  PixelData pixel_retval = NoPixelHit;
+std::shared_ptr<PixelData> PixelMatrix::readPixel(uint64_t time_now, int start_double_col,
+                                                  int stop_double_col)
+{
+  std::shared_ptr<PixelData> pixel_retval = std::make_shared<PixelData>(NoPixelHit);
 
 #ifdef EXCEPTION_CHECKS
   // Out of range exception check
@@ -199,10 +228,6 @@ PixelData PixelMatrix::readPixel(uint64_t time_now, int start_double_col, int st
       if(oldest_event_buffer[i].pixelHitsRemaining() > 0) {
         pixel_retval = oldest_event_buffer[i].readPixel();
 
-        // pixel_retval.mCol is either 0 or 1 (values in double column), correct to take the
-        // double column number into account
-        pixel_retval.setCol(2*i + pixel_retval.getCol());
-
         oldest_event_buffer_hits_remaining--;
         break;
       }
@@ -222,10 +247,10 @@ PixelData PixelMatrix::readPixel(uint64_t time_now, int start_double_col, int st
 ///@param[in]  region The region number to read out a pixel from
 ///@param[in]  time_now Simulation time when this readout is occuring. Required for updating
 ///                   histogram data in case an MEB is done reading out.
-///@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
-///        (PixelData object with coords = (-1,-1)).
+///@return shared_ptr to PixelData with hit coordinates. If no pixel hits exist,
+///        NoPixelHit is returned (PixelData object with coords = (-1,-1)).
 ///@throw  std::out_of_range if region is less than zero, or greater than N_REGIONS-1
-PixelData PixelMatrix::readPixelRegion(int region, uint64_t time_now) {
+std::shared_ptr<PixelData> PixelMatrix::readPixelRegion(int region, uint64_t time_now) {
 #ifdef EXCEPTION_CHECKS
   if(region < 0 || region >= N_REGIONS)
     throw std::out_of_range("region");
