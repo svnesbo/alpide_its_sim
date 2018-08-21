@@ -67,7 +67,7 @@ namespace ITS {
 
         return vec;
       }
-    void pixelInput(const Hit& h);
+    void pixelInput(const std::shared_ptr<PixelHit>& p);
 
   private:
     ControlResponsePayload processCommand(ControlRequestPayload const &request);

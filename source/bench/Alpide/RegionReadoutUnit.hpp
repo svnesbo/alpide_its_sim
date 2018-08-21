@@ -129,9 +129,9 @@ private:
 
   /// Used by readoutNextPixel() to keep track of which pixel or pixels for DATA_SHORT/LONG are
   /// currently being read out. They need to be included in the AlpideDataShort/AlpideDataLong
-  /// words, so that we can both increase and decrease PixelData's readout counter, both when
+  /// words, so that we can both increase and decrease PixelHit's readout counter, both when
   /// reading out pixel in readoutNextPixel(), and when flushing RRU FIFO in case of readout abort.
-  std::vector<std::shared_ptr<PixelData>> mPixelClusterVec;
+  std::vector<std::shared_ptr<PixelHit>> mPixelClusterVec;
 
   unsigned int mFifoSizeLimit;
 

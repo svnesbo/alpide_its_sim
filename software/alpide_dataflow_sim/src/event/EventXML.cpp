@@ -203,8 +203,7 @@ EventDigits* EventXML::readEventFile(const QString& event_filename)
         int col = digit_entry.at(0).toInt();
         int row = digit_entry.at(1).toInt();
 
-        std::shared_ptr<PixelData> pixel_hit = std::make_shared<PixelData>(col, row, mReadoutStats);
-        event->addHit(global_chip_id, pixel_hit);
+        event->addHit(col, row, global_chip_id);
       }
     }
   }

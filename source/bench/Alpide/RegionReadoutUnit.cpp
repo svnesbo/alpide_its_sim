@@ -310,7 +310,7 @@ bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
   bool region_matrix_empty = false;
   int64_t time_now = sc_time_stamp().value();
 
-  std::shared_ptr<PixelData> p = matrix.readPixelRegion(mRegionId, time_now);
+  std::shared_ptr<PixelHit> p = matrix.readPixelRegion(mRegionId, time_now);
 
   if(mClusteringEnabled) {
     if(mClusterStarted == false) {
@@ -321,8 +321,8 @@ bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
         mPixelHitEncoderId = p->getPriEncNumInRegion();
         mPixelHitBaseAddr = p->getPriEncPixelAddress();
         mPixelHitmap = 0;
-        mPixelClustersVec.clear();
-        mPixelClustersVec.push_back(p);
+        mPixelClusterVec.clear();
+        mPixelClusterVec.push_back(p);
         region_matrix_empty = false;
       }
     } else { // Cluster already started
@@ -331,30 +331,30 @@ bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
         // and can transmit the current cluster
         if(mPixelHitmap == 0)
           s_region_fifo.nb_put(AlpideDataShort(mPixelHitEncoderId, mPixelHitBaseAddr,
-                                               mPixelClustersVec[0]));
+                                               mPixelClusterVec[0]));
         else
           s_region_fifo.nb_put(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr,
-                                              mPixelHitmap, mPixelClustersVec));
+                                              mPixelHitmap, mPixelClusterVec));
 
-        mPixelClustersVec.clear();
+        mPixelClusterVec.clear();
         mClusterStarted = false;
         region_matrix_empty = true;
       }
       // Is this pixel within the current cluster?
-      else if(p.getPriEncNumInRegion() == mPixelHitEncoderId &&
-              p.getPriEncPixelAddress() <= (mPixelHitBaseAddr+DATA_LONG_PIXMAP_SIZE)) {
+      else if(p->getPriEncNumInRegion() == mPixelHitEncoderId &&
+              p->getPriEncPixelAddress() <= (mPixelHitBaseAddr+DATA_LONG_PIXMAP_SIZE)) {
         // Calculate its location in the pixel map argument used in DATA LONG
-        unsigned int hitmap_pixel_num = (p.getPriEncPixelAddress() - mPixelHitBaseAddr - 1);
+        unsigned int hitmap_pixel_num = (p->getPriEncPixelAddress() - mPixelHitBaseAddr - 1);
         mPixelHitmap |= 1 << hitmap_pixel_num;
 
-        mPixelClustersVec.push_back(p);
+        mPixelClusterVec.push_back(p);
 
         // Transmit cluster if this was the last pixel in cluster
         if(hitmap_pixel_num == DATA_LONG_PIXMAP_SIZE-1) {
           s_region_fifo.nb_put(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr,
-                                              mPixelHitmap, mPixelClustersVec));
+                                              mPixelHitmap, mPixelClusterVec));
 
-          mPixelClustersVec.clear();
+          mPixelClusterVec.clear();
           mClusterStarted = false;
         }
         region_matrix_empty = false;
@@ -362,16 +362,16 @@ bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
         // First send out DATA_SHORT or DATA_LONG for pixel(s) that were already read out..
         if(mPixelHitmap == 0)
           s_region_fifo.nb_put(AlpideDataShort(mPixelHitEncoderId, mPixelHitBaseAddr,
-                                               mPixelClustersVec[0]));
+                                               mPixelClusterVec[0]));
         else
           s_region_fifo.nb_put(AlpideDataLong(mPixelHitEncoderId, mPixelHitBaseAddr,
-                                              mPixelHitmap, mPixelClustersVec));
+                                              mPixelHitmap, mPixelClusterVec));
 
         // ..then start a new cluster.
 
         // Get base address, priority encoder number, etc. for the new pixel (cluster)
-        mPixelClustersVec.clear();
-        mPixelClustersVec.push_back(p);
+        mPixelClusterVec.clear();
+        mPixelClusterVec.push_back(p);
         mClusterStarted = true;
         mPixelHitEncoderId = p->getPriEncNumInRegion();
         mPixelHitBaseAddr = p->getPriEncPixelAddress();

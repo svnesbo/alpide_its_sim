@@ -226,9 +226,7 @@ void EventBinary::readChip(std::string event_filename,
         row = *((std::uint16_t*) row_ptr);
         mFileBufferIdx += 2;
 
-        std::shared_ptr<PixelData> pixel_hit = std::make_shared<PixelData>(col, row, mReadoutStats);
-        event->addHit(global_chip_id, pixel_hit);
-        event->addHit(global_chip_id, col, row);
+        event->addHit(col, row, global_chip_id);
       } else {
         mFileBufferIdx += 4;
       }

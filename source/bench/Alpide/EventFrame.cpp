@@ -44,9 +44,9 @@ EventFrame::EventFrame(const EventFrame& e)
 }
 
 
-void EventFrame::addHit(const Hit& h)
+void EventFrame::addHit(const std::shared_ptr<PixelHit>& p)
 {
-  mHitSet.insert(h);
+  mHitSet.insert(p);
 }
 
 
@@ -62,5 +62,5 @@ void EventFrame::feedHitsToPixelMatrix(PixelMatrix &matrix) const
 #endif
 
   for(auto it = mHitSet.begin(); it != mHitSet.end(); it++)
-    matrix.setPixel(it->getCol(), it->getRow());
+    matrix.setPixel(*it);
 }

@@ -14,7 +14,7 @@
 
 class PixelFrontEnd {
 private:
-  std::deque<Hit> mHitQueue;
+  std::deque<std::shared_ptr<PixelHit>> mHitQueue;
 
 protected:
   EventFrame getEventFrame(uint64_t event_start,
@@ -23,7 +23,7 @@ protected:
 
 public:
   PixelFrontEnd() {}
-  void pixelFrontEndInput(const Hit& h);
+  void pixelFrontEndInput(const std::shared_ptr<PixelHit>& p);
   void removeInactiveHits(uint64_t time_now);
 };
 

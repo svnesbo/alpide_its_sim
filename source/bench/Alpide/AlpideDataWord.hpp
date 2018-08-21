@@ -12,6 +12,7 @@
 #ifndef ALPIDE_DATA_FORMAT_H
 #define ALPIDE_DATA_FORMAT_H
 
+#include "Alpide/PixelHit.hpp"
 #include <cstdint>
 #include <ostream>
 #include <memory>
@@ -206,6 +207,15 @@ struct FrameEndFifoWord {
 ///       of data words are implemented in derived classes.
 class AlpideDataWord
 {
+protected:
+  // mPixel and mPixels is used by derived classes AlpideDataShort and AlpideDataLong
+  // It's kind of stupid to put them in the base class, but since the SystemC FIFOs in
+  // the Alpide code works on AlpideDataWord directly, some kind of virtual copy constructor
+  // would be necessary to correctly copy AlpideDataShort and AlpideDataLong.
+  // Easier to just put them here
+  std::shared_ptr<PixelHit> mPixel = nullptr;
+  std::vector<std::shared_ptr<PixelHit>> mPixels;
+
 public:
   uint8_t data[3];
   AlpideDataType data_type;
@@ -236,6 +246,8 @@ public:
     stream << std::hex << alpide_dw.data[2];
     return stream;
   }
+
+  virtual ~AlpideDataWord() {}
 };
 
 
@@ -377,13 +389,10 @@ public:
 
 class AlpideDataShort : public AlpideDataWord
 {
-private:
-  std::shared_ptr<PixelData> mPixel;
-
 public:
-  AlpideDataShort(uint8_t encoder_id, uint16_t addr, const std::shared_ptr<PixelData> &pixel)
-    : mPixel(pixel)
+  AlpideDataShort(uint8_t encoder_id, uint16_t addr, const std::shared_ptr<PixelHit> &pixel)
     {
+      mPixel = pixel;
       data[2] = DW_DATA_SHORT | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
       data[1] = addr & 0xFF;
       data[0] = DW_IDLE;
@@ -391,20 +400,18 @@ public:
       size = DW_DATA_SHORT_SIZE;
     }
   void increasePixelReadoutCount(void) {
-    pixel->increaseReadoutCount();
+    mPixel->increaseReadoutCount();
   }
 };
 
 
 class AlpideDataLong : public AlpideDataWord
 {
-private:
-  std::vector<std::shared_ptr<PixelData>> mPixels;
 public:
   AlpideDataLong(uint8_t encoder_id, uint16_t addr, uint8_t hitmap,
-                 const std::vector<PixelData> &pixel_vec)
-    : mPixels(pixel_vec)
+                 const std::vector<std::shared_ptr<PixelHit>> &pixel_vec)
     {
+      mPixels = pixel_vec;
       data[2] = DW_DATA_LONG | ((encoder_id & 0x0F) << 2) | ((addr >> 8) & 0x03);
       data[1] = addr & 0xFF;
       data[0] = hitmap & 0x7F;
@@ -413,7 +420,7 @@ public:
     }
   void increasePixelReadoutCount(void) {
     for(auto pix_it = mPixels.begin(); pix_it != mPixels.end(); pix_it++)
-      *pix_it->increaseReadoutCount();
+      (*pix_it)->increaseReadoutCount();
   }
 };
 

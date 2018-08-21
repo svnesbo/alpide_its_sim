@@ -157,34 +157,23 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 }
 
 
-///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
-///       detector configuration).
-///@param chip_id Chip ID of Alpide chip
-///@param h Pixel hit
-void ITSDetector::pixelInput(unsigned int chip_id, const Hit& h)
+///@brief Input a pixel to the front end of one of the detector's
+///       Alpide chip's (if it exists in the detector configuration).
+///@param pix PixelHit object with pixel matrix coordinates and chip id
+void ITSDetector::pixelInput(const std::shared_ptr<PixelHit>& pix)
 {
   // Does the chip exist in our detector/simulation configuration?
-  if(mChipVector[chip_id]) {
-    mChipVector[chip_id]->pixelFrontEndInput(h);
+  if(mChipVector[pix->getChipId()]) {
+    mChipVector[pix->getChipId()]->pixelFrontEndInput(pix);
   }
 }
 
 
-///@brief Input a pixel to the front end of one of the detector's
-///       Alpide chip's (if it exists in the detector configuration).
-///@param pos Position of Alpide chip in detector
-///@param col Column in Alpide chip pixel matrix
-///@param row Row in Alpide chip pixel matrix
-void ITSDetector::pixelInput(const ITSPixelHit& h)
-{
-  unsigned int chip_id = detector_position_to_chip_id(h.getPosition());
-
-  pixelInput(chip_id, h);
-}
-
-
 ///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
 ///       detector configuration).
+///       This function will call the chip object's setPixel() function, which directly sets
+///       a pixel in the last MEB in the chip.
+///       Generally you would NOT want to use this function for simulations.
 ///@param chip_id Chip ID of Alpide chip
 ///@param col Column in Alpide chip pixel matrix
 ///@param row Row in Alpide chip pixel matrix
@@ -203,6 +192,9 @@ void ITSDetector::setPixel(unsigned int chip_id, unsigned int col, unsigned int 
 
 ///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
 ///       detector configuration).
+///       This function will call the chip object's setPixel() function, which directly sets
+///       a pixel in the last MEB in the chip.
+///       Generally you would NOT want to use this function for simulations.
 ///@param pos Position of Alpide chip in detector
 ///@param col Column in Alpide chip pixel matrix
 ///@param row Row in Alpide chip pixel matrix
@@ -217,13 +209,16 @@ void ITSDetector::setPixel(const detectorPosition& pos, unsigned int col, unsign
 ///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
 ///       detector configuration).
 ///@param h Pixel hit data
-void ITSDetector::setPixel(const ITSPixelHit& h)
+void ITSDetector::setPixel(const std::shared_ptr<PixelHit>& p)
 {
-  unsigned int chip_id = detector_position_to_chip_id(h.getPosition());
-  unsigned int col = h.getCol();
-  unsigned int row = h.getRow();
+  // Does the chip exist in our detector/simulation configuration?
+  if(mChipVector[p->getChipId()]) {
+    ///@todo Check if chip is ready?
+    //if(mChipVector[chip_id]->s_chip_ready) {
+    //}
 
-  setPixel(chip_id, col, row);
+    mChipVector[p->getChipId()]->setPixel(p);
+  }
 }
 
 

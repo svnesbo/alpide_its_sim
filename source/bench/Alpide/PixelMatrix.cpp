@@ -72,8 +72,9 @@ void PixelMatrix::deleteEvent(uint64_t time_now)
 }
 
 
-///@brief Set the pixel (ie. the pixel is hit) specified by col_num and row_num,
-///       in the most recent event buffer.
+///@brief Directly set a pixel specified by col_num and row_num in the most recent event
+///       buffer. This is generally NOT the function to use for a simulation, use the PixelFrontEnd's
+///       pixelFrontEndInput() function for that.
 ///@param[in] col Column (0 to N_PIXEL_COLS-1).
 ///@param[in] row Row (0 to N_PIXEL_ROWS-1).
 ///@throw out_of_range If there are no events, or if col or row is outside the allowed range
@@ -99,12 +100,15 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
 }
 
 
-///@brief Set the pixel with a PixelData object (allows for pixel readout statistics) in the
-///most recent event buffer
+///@brief Directly set a pixel specified by col_num and row_num in the most recent event
+///       buffer. This is generally NOT the function to use for a simulation, use the PixelFrontEnd's
+///       pixelFrontEndInput() function for that.
+///       This function uses a PixelHit object, which allows for pixel readout statistics,
+///       which the setPixel() function that takes col/row coordinates does not.
 ///@param[in] col Column (0 to N_PIXEL_COLS-1).
 ///@param[in] row Row (0 to N_PIXEL_ROWS-1).
 ///@throw out_of_range If there are no events, or if col or row is outside the allowed range
-void PixelMatrix::setPixel(const std::shared_ptr<PixelData> &pixel)
+void PixelMatrix::setPixel(const std::shared_ptr<PixelHit> &pixel)
 {
 #ifdef EXCEPTION_CHECKS
   // Out of range exception check
@@ -168,8 +172,8 @@ bool PixelMatrix::regionEmpty(int start_double_col, int stop_double_col) {
 
 ///@brief  Check if a region of the pixel matrix is empty
 ///@param[in]  region The region number to check
-///@return PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
-///        (PixelData object with coords = (-1,-1)).
+///@return PixelHit with hit coordinates. If no pixel hits exist, NoPixelHit is returned
+///        (PixelHit object with coords = (-1,-1)).
 ///@throw  std::out_of_range if region is less than zero, or greater than N_REGIONS-1
 bool PixelMatrix::regionEmpty(int region) {
 #ifdef EXCEPTION_CHECKS
@@ -194,17 +198,17 @@ bool PixelMatrix::regionEmpty(int region) {
 ///@param[in]  time_now Simulation time when this readout is occuring
 ///@param[in]  start_double_col Start double column to start searching for pixels to readout from
 ///@param[in]  stop_double_col Stop searching for pixels to read out when reaching this column
-///@return shared_ptr to PixelData with hit coordinates. If no pixel hits exist, NoPixelHit is returned
-///        (PixelData object with coords = (-1,-1)).
+///@return shared_ptr to PixelHit with hit coordinates. If no pixel hits exist, NoPixelHit is returned
+///        (PixelHit object with coords = (-1,-1)).
 ///@throw  std::out_of_range if start_double_col is less than zero, or larger
 ///        than (N_PIXEL_COLS/2)-1.
 ///@throw  std::out_of_range if stop_double_col is less than one, or larger
 ///        than N_PIXEL_COLS/2.
 ///@throw  std::out_of_range if stop_double_col is greater than or equal to start_double_col
-std::shared_ptr<PixelData> PixelMatrix::readPixel(uint64_t time_now, int start_double_col,
+std::shared_ptr<PixelHit> PixelMatrix::readPixel(uint64_t time_now, int start_double_col,
                                                   int stop_double_col)
 {
-  std::shared_ptr<PixelData> pixel_retval = std::make_shared<PixelData>(NoPixelHit);
+  std::shared_ptr<PixelHit> pixel_retval = std::make_shared<PixelHit>(NoPixelHit);
 
 #ifdef EXCEPTION_CHECKS
   // Out of range exception check
@@ -247,10 +251,10 @@ std::shared_ptr<PixelData> PixelMatrix::readPixel(uint64_t time_now, int start_d
 ///@param[in]  region The region number to read out a pixel from
 ///@param[in]  time_now Simulation time when this readout is occuring. Required for updating
 ///                   histogram data in case an MEB is done reading out.
-///@return shared_ptr to PixelData with hit coordinates. If no pixel hits exist,
-///        NoPixelHit is returned (PixelData object with coords = (-1,-1)).
+///@return shared_ptr to PixelHit with hit coordinates. If no pixel hits exist,
+///        NoPixelHit is returned (PixelHit object with coords = (-1,-1)).
 ///@throw  std::out_of_range if region is less than zero, or greater than N_REGIONS-1
-std::shared_ptr<PixelData> PixelMatrix::readPixelRegion(int region, uint64_t time_now) {
+std::shared_ptr<PixelHit> PixelMatrix::readPixelRegion(int region, uint64_t time_now) {
 #ifdef EXCEPTION_CHECKS
   if(region < 0 || region >= N_REGIONS)
     throw std::out_of_range("region");

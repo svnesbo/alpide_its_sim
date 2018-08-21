@@ -44,7 +44,7 @@ struct BusyEvent {
 
 class AlpideEventFrame {
 private:
-  std::set<PixelData> mPixelDataSet;
+  std::set<PixelHit> mPixelHitSet;
 
   ///@brief Indicates that we got the CHIP_TRAILER word,
   ///       and received all the data there is for this frame
@@ -59,7 +59,7 @@ private:
 
 public:
   AlpideEventFrame() {}
-  bool pixelHitInEvent(PixelData& pixel) const;
+  bool pixelHitInEvent(PixelHit& pixel) const;
   void setFrameCompleted(bool val) {mFrameCompleted = val;}
   bool getFrameCompleted(void) const {return mFrameCompleted;}
 
@@ -78,15 +78,15 @@ public:
   uint64_t getTriggerId(void) const {return mTriggerId;}
   uint16_t getBunchCounterValue(void) const {return mBunchCounterValue;}
 
-  unsigned int getEventSize(void) const {return mPixelDataSet.size();}
-  void addPixelHit(const PixelData& pixel) {
-    mPixelDataSet.insert(pixel);
+  unsigned int getEventSize(void) const {return mPixelHitSet.size();}
+  void addPixelHit(const PixelHit& pixel) {
+    mPixelHitSet.insert(pixel);
   }
-  std::set<PixelData>::const_iterator getPixelSetIterator(void) const {
-    return mPixelDataSet.cbegin();
+  std::set<PixelHit>::const_iterator getPixelSetIterator(void) const {
+    return mPixelHitSet.cbegin();
   }
-  std::set<PixelData>::const_iterator getPixelSetEnd(void) const {
-    return mPixelDataSet.cend();
+  std::set<PixelHit>::const_iterator getPixelSetEnd(void) const {
+    return mPixelHitSet.cend();
   }
 };
 

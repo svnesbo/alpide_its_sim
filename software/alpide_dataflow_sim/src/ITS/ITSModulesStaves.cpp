@@ -54,9 +54,9 @@ SingleChip::processCommand(const ControlRequestPayload &request) {
 
 ///@brief Set a pixel in the Alpide chip
 ///@param h Pixel hit
-void SingleChip::pixelInput(const Hit& h)
+void SingleChip::pixelInput(const std::shared_ptr<PixelHit>& p)
 {
-  mChip->pixelFrontEndInput(h);
+  mChip->pixelFrontEndInput(p);
 }
 
 

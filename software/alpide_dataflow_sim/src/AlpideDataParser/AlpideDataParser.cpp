@@ -16,11 +16,11 @@
 
 
 ///@brief Look for a pixel hit in this event frame
-///@param[in] pixel Reference to PixelData object
+///@param[in] pixel Reference to PixelHit object
 ///@return True if pixel is in event frame, false if not.
-bool AlpideEventFrame::pixelHitInEvent(PixelData& pixel) const
+bool AlpideEventFrame::pixelHitInEvent(PixelHit& pixel) const
 {
-  if(mPixelDataSet.find(pixel) != mPixelDataSet.end())
+  if(mPixelHitSet.find(pixel) != mPixelHitSet.end())
     return true;
   else
     return false;
@@ -227,7 +227,7 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
       if(!mEvents.empty() && mIncludeHitData) {
         uint8_t pri_enc_id = (mCurrentDataWord[2] >> 2) & 0x0F;
         uint16_t addr = ((mCurrentDataWord[2] & 0x03) << 8) | mCurrentDataWord[1];
-        mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr));
+        mEvents.back().addPixelHit(PixelHit(mCurrentRegion, pri_enc_id, addr));
         //std::cout << "\t" << "pri_enc: " << static_cast<unsigned int>(pri_enc_id);
         //std::cout << "\t" << "addr: " << addr << std::endl;
       }
@@ -249,13 +249,13 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
         //std::cout << "\t" << "hitmap: " << hitmap_bits << std::endl;
 
         // Add hit for base address of cluster
-        mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr));
+        mEvents.back().addPixelHit(PixelHit(mCurrentRegion, pri_enc_id, addr));
 
         // There's 7 hits in a hitmap
         for(int i = 0; i < 8; i++) {
           // Add a hit for each bit that is set in the hitmap
           if((hitmap >> i) & 0x01)
-            mEvents.back().addPixelHit(PixelData(mCurrentRegion, pri_enc_id, addr+i+1));
+            mEvents.back().addPixelHit(PixelHit(mCurrentRegion, pri_enc_id, addr+i+1));
         }
       }
       mDataWordStarted = false;

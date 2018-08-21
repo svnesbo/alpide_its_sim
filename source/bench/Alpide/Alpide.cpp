@@ -576,9 +576,9 @@ void Alpide::dataTransmission(void)
         } else if(data_word.data_type == ALPIDE_DATA_SHORT) {
           // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
           // the pixels in the data word was read out, and can increase readout counters.
-          static_cast<AlpideDataShort>(&data_word)->increasePixelReadoutCount();
+          static_cast<AlpideDataShort*>(&data_word)->increasePixelReadoutCount();
         } else if(data_word.data_type == ALPIDE_DATA_LONG) {
-          static_cast<AlpideDataLong>(&data_word)->increasePixelReadoutCount();
+          static_cast<AlpideDataLong*>(&data_word)->increasePixelReadoutCount();
         }
       }
 
@@ -607,9 +607,9 @@ void Alpide::dataTransmission(void)
     } else if(data_word.data_type == ALPIDE_DATA_SHORT) {
       // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
       // the pixels in the data word was read out, and can increase readout counters.
-      static_cast<AlpideDataShort>(&data_word)->increasePixelReadoutCount();
+      static_cast<AlpideDataShort*>(&data_word)->increasePixelReadoutCount();
     } else if(data_word.data_type == ALPIDE_DATA_LONG) {
-      static_cast<AlpideDataLong>(&data_word)->increasePixelReadoutCount();
+      static_cast<AlpideDataLong*>(&data_word)->increasePixelReadoutCount();
     }
 
     dw_dtu_fifo_input = data_word.data[2] << 16 |

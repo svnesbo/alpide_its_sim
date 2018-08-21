@@ -37,8 +37,6 @@ EventBase::EventBase(ITS::detectorConfig config,
   , mNextEvent(0)
   , mLoadAllEvents(load_all)
 {
-  mReadoutStats = std::make_shared<PixelReadoutStats>();
-
   if(mRandomSeed == 0) {
     boost::random::random_device r;
 

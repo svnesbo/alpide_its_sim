@@ -7,65 +7,6 @@
 
 #include "PixelDoubleColumn.hpp"
 #include <stdexcept>
-#include <iostream>
-
-
-///@brief Constructor for pixel data based on region number, priority encoder number in region,
-///       and pixel address in priority encoder. This is how the data are specified when they
-///       are transmitted as data long/short words.
-///@param[in] region Region number
-///@param[in] pri_enc Priority encoder number in region (ie. double column number in region).
-///@param[in] addr Prioritized address in priority encoder
-PixelData::PixelData(int region, int pri_enc, int addr,
-                     std::shared_ptr<PixelReadoutStats> pix_stats)
-  : mPixelReadoutStats(pix_stats)
-{
-  mRow = addr >> 1;
-  mCol = ((addr&1) ^ (mRow&1)); // LSB of column
-  mCol = (region << 5) | (pri_enc << 1) | mCol;
-}
-
-
-bool PixelData::operator==(const PixelData& rhs) const
-{
-  return (this->mCol == rhs.mCol) && (this->mRow == rhs.mRow);
-}
-
-
-bool PixelData::operator>(const PixelData& rhs) const
-{
-  bool retval = false;
-
-  if(mCol < rhs.mCol)
-    retval = false;
-  else if(mCol > rhs.mCol)
-    retval = true;
-  else {
-    if(mRow < rhs.mRow)
-      retval = false;
-    else if(mRow > rhs.mRow)
-      retval = true;
-    else
-      retval = false;
-  }
-
-  return retval;
-}
-
-bool PixelData::operator<(const PixelData& rhs) const
-{
-  return rhs > *this;
-}
-
-bool PixelData::operator>=(const PixelData& rhs) const
-{
-  return !(*this < rhs);
-}
-
-bool PixelData::operator<=(const PixelData& rhs) const
-{
-  return !(*this > rhs);
-}
 
 
 ///@brief Set a pixel in a pixel double column object.
@@ -73,13 +14,13 @@ bool PixelData::operator<=(const PixelData& rhs) const
 ///@param[in] row_num row number of pixel, must be in the range 0 to N_PIXEL_ROWS-1
 void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 {
-  pixelColumn.insert(std::make_shared<PixelData>(col_num, row_num));
+  pixelColumn.insert(std::make_shared<PixelHit>(col_num, row_num));
 }
 
 
 ///@brief Set a pixel in a pixel double column object.
-///@param[in] pixel shared pointer to PixelData object.
-void PixelDoubleColumn::setPixel(const std::shared_ptr<PixelData> &pixel)
+///@param[in] pixel shared pointer to PixelHit object.
+void PixelDoubleColumn::setPixel(const std::shared_ptr<PixelHit> &pixel)
 {
   pixelColumn.insert(pixel);
 }
@@ -93,14 +34,14 @@ void PixelDoubleColumn::clear(void) {
 ///@brief Read out the next pixel from this double column, and erase it from the MEB.
 ///       Pixels are read out in an order corresponding to that of the priority encoder
 ///       in the Alpide chip.
-///@return shared_ptr to PixelData with hit coordinates. If no pixel hits exist, a shared_ptr
-///       to NoPixelHit is returned (PixelData object with coords = (-1,-1)).
-std::shared_ptr<PixelData> PixelDoubleColumn::readPixel(void) {
+///@return shared_ptr to PixelHit with hit coordinates. If no pixel hits exist, a shared_ptr
+///       to NoPixelHit is returned (PixelHit object with coords = (-1,-1)).
+std::shared_ptr<PixelHit> PixelDoubleColumn::readPixel(void) {
   if(pixelColumn.size() == 0)
-    return std::make_shared<PixelData>(NoPixelHit);
+    return std::make_shared<PixelHit>(NoPixelHit);
 
   // Read out the next (prioritized) pixel
-  std::shared_ptr<PixelData> pixel = *pixelColumn.begin();
+  std::shared_ptr<PixelHit> pixel = *pixelColumn.begin();
 
   // Remove the pixel when it has been read out
   pixelColumn.erase(pixelColumn.begin());
@@ -126,7 +67,7 @@ bool PixelDoubleColumn::inspectPixel(unsigned int col_num, unsigned int row_num)
 
   // Search for pixel
   for(auto pix_it = pixelColumn.begin(); pix_it != pixelColumn.end(); pix_it++) {
-    if(*pix_it->getCol() == col_num && *pix_it->getRow() == row_num)
+    if((*pix_it)->getCol() == col_num && (*pix_it)->getRow() == row_num)
       return true;
   }
 
