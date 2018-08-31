@@ -16,6 +16,8 @@
 
 #include <map>
 #include <cstdint>
+#include <fstream>
+#include <iostream>
 
 class PixelReadoutStats
 {
@@ -54,6 +56,30 @@ public:
         read_out_count += stats_it->second;
     }
     return read_out_count;
+  }
+
+  inline void writeToFile(const std::string& filename) const {
+    std::ofstream file(filename);
+
+    if(file.is_open()) {
+      std::cout << "Writing pixel readout stats to: \"" << filename << "\"" << std::endl;
+
+      file << "Readout count/pileup:";
+
+      for(auto stats_it = mReadoutStats.begin(); stats_it != mReadoutStats.end(); stats_it++) {
+        file << ";" << stats_it->first;
+      }
+
+      file << std::endl << "Number of pixels:";
+
+      for(auto stats_it = mReadoutStats.begin(); stats_it != mReadoutStats.end(); stats_it++) {
+        file << ";" << stats_it->second;
+      }
+      file << std::endl;
+      file.close();
+    } else {
+      std::cout << "Error opening file \"" << filename << "\"" << std::endl;
+    }
   }
 };
 

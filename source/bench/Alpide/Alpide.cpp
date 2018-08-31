@@ -213,6 +213,8 @@ void Alpide::triggerMethod(void)
 
   std::cout << "@" << time_now << ": Alpide with ID " << mChipId << " triggered." << std::endl;
 
+  mTriggersReceived++;
+
   if(s_strobe_n.read() == true) {
     // Strobe not active - start new interval
     //s_strobe_n = false;
@@ -576,8 +578,10 @@ void Alpide::dataTransmission(void)
         } else if(data_word.data_type == ALPIDE_DATA_SHORT) {
           // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
           // the pixels in the data word was read out, and can increase readout counters.
+          ///@todo Use dynamic cast here?
           static_cast<AlpideDataShort*>(&data_word)->increasePixelReadoutCount();
         } else if(data_word.data_type == ALPIDE_DATA_LONG) {
+          ///@todo Use dynamic cast here?
           static_cast<AlpideDataLong*>(&data_word)->increasePixelReadoutCount();
         }
       }
@@ -607,9 +611,13 @@ void Alpide::dataTransmission(void)
     } else if(data_word.data_type == ALPIDE_DATA_SHORT) {
       // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
       // the pixels in the data word was read out, and can increase readout counters.
-      static_cast<AlpideDataShort*>(&data_word)->increasePixelReadoutCount();
+      ///@todo Use dynamic cast here?
+      auto data_short = static_cast<AlpideDataShort*>(&data_word);
+      data_short->increasePixelReadoutCount();
     } else if(data_word.data_type == ALPIDE_DATA_LONG) {
-      static_cast<AlpideDataLong*>(&data_word)->increasePixelReadoutCount();
+      ///@todo Use dynamic cast here?
+      auto data_long = static_cast<AlpideDataLong*>(&data_word);
+      data_long->increasePixelReadoutCount();
     }
 
     dw_dtu_fifo_input = data_word.data[2] << 16 |

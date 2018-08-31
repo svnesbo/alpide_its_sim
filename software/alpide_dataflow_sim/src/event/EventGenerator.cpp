@@ -305,6 +305,7 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 }
 
 
+///@brief Destructor for EventGenerator class
 EventGenerator::~EventGenerator()
 {
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
@@ -324,6 +325,15 @@ EventGenerator::~EventGenerator()
 
   if(mPhysicsEventsCSVFile.is_open())
     mPhysicsEventsCSVFile.close();
+}
+
+
+///@brief Write simulation stats/data to file
+///@param[in] output_path Path to simulation output directory
+void EventGenerator::writeSimulationStats(const std::string output_path) const
+{
+  mPhysicsReadoutStats->writeToFile(output_path + std::string("/physics_readout_stats.csv"));
+  mQedReadoutStats->writeToFile(output_path + std::string("/qed_readout_stats.csv"));
 }
 
 
@@ -809,17 +819,29 @@ void EventGenerator::generateNextQedNoiseEvent(void)
 ///@brief SystemC controlled method. Creates new physics events (hits)
 void EventGenerator::physicsEventMethod(void)
 {
-  uint64_t time_now = sc_time_stamp().value();
-  uint64_t t_delta = generateNextPhysicsEvent(time_now);
-  E_physics_event.notify();
-  next_trigger(t_delta, SC_NS);
+  if(mStopEventGeneration == false) {
+    uint64_t time_now = sc_time_stamp().value();
+    uint64_t t_delta = generateNextPhysicsEvent(time_now);
+    E_physics_event.notify();
+    next_trigger(t_delta, SC_NS);
+  }
 }
 
 
 ///@brief SystemC controlled method. Creates new QED/Noise events (hits)
 void EventGenerator::qedNoiseEventMethod(void)
 {
-  generateNextQedNoiseEvent();
-  E_qed_noise_event.notify();
-  next_trigger(mQedNoiseRate, SC_NS);
+  if(mStopEventGeneration == false) {
+    generateNextQedNoiseEvent();
+    E_qed_noise_event.notify();
+    next_trigger(mQedNoiseRate, SC_NS);
+  }
+}
+
+
+void EventGenerator::stopEventGeneration(void)
+{
+  mStopEventGeneration = true;
+  mEventHitVector.clear();
+  mQedNoiseHitVector.clear();
 }

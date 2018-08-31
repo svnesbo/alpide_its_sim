@@ -20,8 +20,26 @@ TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_i
 {
   s_tru_state = IDLE;
 
+  s_frame_start_fifo_empty = true;
+  s_frame_end_fifo_empty = true;
+
   SC_METHOD(topRegionReadoutMethod);
   sensitive_pos << s_clk_in;
+}
+
+void TopReadoutUnit::end_of_elaboration(void)
+{
+  SC_METHOD(topRegionReadoutOutputMethod);
+  sensitive << s_tru_state;
+  sensitive << s_frame_start_fifo_output->ok_to_peek();
+  sensitive << s_frame_end_fifo_output->ok_to_peek();
+  sensitive << s_dmu_data_fifo_full;
+
+  for(unsigned int region = 0; region < N_REGIONS; region++) {
+    sensitive << s_region_fifo_empty_in[region];
+    sensitive << s_region_valid_in[region];
+  }
+  dont_initialize();
 }
 
 
@@ -41,17 +59,17 @@ bool TopReadoutUnit::getNextRegion(unsigned int& region_out)
 }
 
 
-///@brief AND all region empty signals together
-///@return true if all regions are empty
-bool TopReadoutUnit::getAllRegionsEmpty(void)
+///@brief OR all region empty signals together and return inverse
+///@return true if no regions are empty
+bool TopReadoutUnit::getNoRegionsEmpty(void)
 {
-  bool all_empty = true;
+  bool or_empty = false;
 
   for(int i = 0; i < N_REGIONS; i++) {
-    all_empty = all_empty && s_region_fifo_empty_in[i];
+    or_empty = or_empty || s_region_fifo_empty_in[i];
   }
 
-  return all_empty;
+  return !or_empty;
 }
 
 
@@ -80,51 +98,45 @@ void TopReadoutUnit::topRegionReadoutMethod(void)
   // The bits in the frame end word are all false in busy violation
   const FrameEndFifoWord busyv_frame_end_word = {false, false, false};
 
+  std::uint8_t current_state = s_tru_state.read();
+  std::uint8_t next_state = current_state;
+
   unsigned int current_region;
   bool no_regions_valid = !getNextRegion(current_region);
-  bool all_regions_empty = getAllRegionsEmpty();
+  bool no_regions_empty = getNoRegionsEmpty();
   bool dmu_data_fifo_full = s_dmu_fifo_input->num_free() == 0;
 
   bool frame_start_fifo_empty = !s_frame_start_fifo_output->nb_can_get();
   bool frame_end_fifo_empty = !s_frame_end_fifo_output->nb_can_get();
 
+  s_dmu_data_fifo_full = dmu_data_fifo_full;
+
   bool region_readout_allowed =
     !dmu_data_fifo_full &&
     !no_regions_valid &&
-    !s_region_fifo_empty_in[current_region];
+    !s_region_fifo_empty_in[current_region] &&
+    s_region_valid_in[current_region];
 
-  s_all_regions_empty_debug = all_regions_empty;
+  s_no_regions_empty_debug = no_regions_empty;
   s_no_regions_valid_debug = no_regions_valid;
 
-  // New region? Make sure region data read signal for previous region was set low then
-  if(current_region != s_previous_region.read())
-    s_region_data_read_out[s_previous_region.read()] = false;
-
-
-  switch(s_tru_state.read()) {
+  // Next state logic etc.
+  switch(current_state) {
   case EMPTY:
-    s_region_event_pop_out = !frame_end_fifo_empty;
-    s_region_event_start_out = false;
-    s_region_data_read_out[current_region] = false;
-
     if(!frame_end_fifo_empty) {
       // "Pop" the frame from the frame FIFO
       s_frame_start_fifo_output->nb_get(mCurrentFrameStartWord);
       s_frame_end_fifo_output->nb_get(mCurrentFrameEndWord);
 
-      s_tru_state = IDLE;
+      next_state = IDLE;
     }
     break;
 
   case IDLE:
-    s_region_event_pop_out = false;
-    s_region_event_start_out = !frame_start_fifo_empty;
-    s_region_data_read_out[current_region] = false;
-
     if(!frame_start_fifo_empty) {
       s_frame_start_fifo_output->nb_peek(mCurrentFrameStartWord);
-      s_tru_state = WAIT_REGION_DATA;
-    } else {
+      next_state = WAIT_REGION_DATA;
+    } else if(!s_frame_start_fifo_output->nb_can_get()){
       // If we are idle, and will remain idle, change to dynamic sensitivity
       // and wait for something to be added to the frame start fifo,
       // and save simulation time by not triggering on every clock cycle.
@@ -134,26 +146,13 @@ void TopReadoutUnit::topRegionReadoutMethod(void)
     break;
 
   case WAIT_REGION_DATA:
-    s_region_event_pop_out = false;
-    s_region_event_start_out = false;
-    s_region_data_read_out[current_region] = false;
-
-    ///@todo Should I maybe use the empty signal for the current
-    ///      region here??
-    if(all_regions_empty && !s_readout_abort_in)
-      s_tru_state = WAIT_REGION_DATA;
+    if(!no_regions_empty && !s_readout_abort_in)
+      next_state = WAIT_REGION_DATA;
     else
-      s_tru_state = CHIP_HEADER;
+      next_state = CHIP_HEADER;
     break;
 
   case CHIP_HEADER:
-    s_region_event_pop_out = false;
-    s_region_event_start_out = false;
-    s_region_data_read_out[current_region] =
-      !dmu_data_fifo_full &&
-      !no_regions_valid &&
-      !s_region_fifo_empty_in[current_region];
-
     if(!dmu_data_fifo_full) {
       if(mCurrentFrameStartWord.busy_violation) {
         // Busy violation frame
@@ -161,18 +160,18 @@ void TopReadoutUnit::topRegionReadoutMethod(void)
         // have to visit this state, and not the normal chip trailer state,
         // even in readout abort (data overrun) mode.
         data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
-        s_tru_state = BUSY_VIOLATION;
+        next_state = BUSY_VIOLATION;
       } else if(s_readout_abort_in) {
         data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
-        s_tru_state = CHIP_TRAILER;
-      } else if(!all_regions_empty) {
+        next_state = CHIP_TRAILER;
+      } else if(!no_regions_valid) {
         // Normal data frame
         data_out = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
-        s_tru_state = REGION_DATA;
+        next_state = REGION_DATA;
       } else {
         // Empty frame
         data_out = AlpideChipEmptyFrame(mChipId, mCurrentFrameStartWord);
-        s_tru_state = EMPTY;
+        next_state = EMPTY;
       }
       s_dmu_fifo_input->nb_write(data_out);
     }
@@ -180,10 +179,6 @@ void TopReadoutUnit::topRegionReadoutMethod(void)
 
 
   case BUSY_VIOLATION:
-    s_region_event_pop_out = false;
-    s_region_event_start_out = false;
-    s_region_data_read_out[current_region] = false;
-
     s_frame_start_fifo_output->nb_get(mCurrentFrameStartWord);
 
     data_out = AlpideChipTrailer(mCurrentFrameStartWord,
@@ -192,49 +187,33 @@ void TopReadoutUnit::topRegionReadoutMethod(void)
                                  s_readout_abort_in);
 
     s_dmu_fifo_input->nb_write(data_out);
-    s_tru_state = IDLE;
+    next_state = IDLE;
     break;
 
   case REGION_DATA:
-    s_region_event_pop_out = false;
-    s_region_event_start_out = false;
-
-    s_region_data_read_out[current_region] = region_readout_allowed;
-
     if(region_readout_allowed) {
       data_out = s_region_data_in[current_region];
       s_dmu_fifo_input->nb_write(data_out);
     }
 
     if(dmu_data_fifo_full) {
-      s_tru_state = WAIT;
+      next_state = WAIT;
     } else if(no_regions_valid) {
-      s_tru_state = CHIP_TRAILER;
+      next_state = CHIP_TRAILER;
     }
     break;
 
 
   case WAIT: // Data FIFO full or waiting for more region data
-    s_region_event_pop_out = false;
-    s_region_event_start_out = false;
-    s_region_data_read_out[current_region] =
-      !dmu_data_fifo_full &&
-      !no_regions_valid &&
-      !s_region_fifo_empty_in[current_region];
-
     if(s_readout_abort_in || no_regions_valid)
-      s_tru_state = CHIP_TRAILER;
+      next_state = CHIP_TRAILER;
     else if(dmu_data_fifo_full || s_region_fifo_empty_in[current_region])
-      s_tru_state = WAIT;
+      next_state = WAIT;
     else
-      s_tru_state = REGION_DATA;
+      next_state = REGION_DATA;
     break;
 
   case CHIP_TRAILER:
-    s_region_event_pop_out = !frame_end_fifo_empty && !dmu_data_fifo_full;
-    s_region_event_start_out = false;
-    s_region_data_read_out[current_region] = false;
-
     if(!frame_end_fifo_empty && !dmu_data_fifo_full) {
       // "Pop" the frame from the frame FIFO
       s_frame_start_fifo_output->nb_get(mCurrentFrameStartWord);
@@ -250,16 +229,111 @@ void TopReadoutUnit::topRegionReadoutMethod(void)
 
       s_dmu_fifo_input->nb_write(data_out);
 
-      s_tru_state = IDLE;
+      next_state = IDLE;
     }
     break;
   }
+
+  // nb_can_get() returns immediately if we can get something off the fifo, without delay,
+  // since it's a nonblocking interface. We need the empty signal to be delayed by a cycle
+  // in next state logic though, so using a signal here.
+  s_frame_start_fifo_empty = !s_frame_start_fifo_output->nb_can_get();
+  s_frame_end_fifo_empty = !s_frame_end_fifo_output->nb_can_get();
+
+  s_tru_state = next_state;
 
   // "Reset" the previous region counter when all regions are read out
   if(no_regions_valid)
     s_previous_region = 0;
   else
     s_previous_region = current_region;
+}
+
+
+///@brief Moore FSM style output method for the TRU FSM. Sensitive to s_tru_state
+void TopReadoutUnit::topRegionReadoutOutputMethod(void)
+{
+  unsigned int current_region;
+  bool no_regions_valid = !getNextRegion(current_region);
+  bool frame_start_fifo_empty = !s_frame_start_fifo_output->nb_can_get();
+  bool frame_end_fifo_empty = !s_frame_end_fifo_output->nb_can_get();
+
+  bool region_readout_allowed =
+    !s_dmu_data_fifo_full.read() &&
+    !no_regions_valid &&
+    !s_region_fifo_empty_in[current_region] &&
+    s_region_valid_in[current_region];
+
+  // New region? Make sure region data read signal for previous region was set low then
+  if(current_region != s_previous_region.read())
+    s_region_data_read_out[s_previous_region.read()] = false;
+
+  // Output logic
+  // Based on next state to achieve combinatorial output based on
+  // the state we're in, without delaying the output with a clock cycle
+  switch(s_tru_state.read()) {
+  case EMPTY:
+    // Using frame_end_fifo_empty, not s_frame_end_fifo_empty, to know ahead in time
+    // the status of s_frame_end_fifo_empty in next state, so we can set the output
+    s_region_event_pop_out = !frame_end_fifo_empty;
+    s_region_event_start_out = false;
+    s_region_data_read_out[current_region] = false;
+    break;
+
+  case IDLE:
+    // Using frame_start_fifo_empty, not s_frame_start_fifo_empty, to know ahead in time
+    // the status of s_frame_start_fifo_empty in next state, so we can set the output
+    s_region_event_start_out = !frame_start_fifo_empty;
+    s_region_event_pop_out = false;
+    s_region_data_read_out[current_region] = false;
+    break;
+
+  case WAIT_REGION_DATA:
+    s_region_event_pop_out = false;
+    s_region_event_start_out = false;
+    s_region_data_read_out[current_region] = false;
+    break;
+
+  case CHIP_HEADER:
+    s_region_event_pop_out = false;
+    s_region_event_start_out = false;
+    s_region_data_read_out[current_region] =
+      !s_dmu_data_fifo_full &&
+      !no_regions_valid &&
+      !s_region_fifo_empty_in[current_region];
+    break;
+
+
+  case BUSY_VIOLATION:
+    s_region_event_pop_out = false;
+    s_region_event_start_out = false;
+    s_region_data_read_out[current_region] = false;
+    break;
+
+  case REGION_DATA:
+    s_region_event_pop_out = false;
+    s_region_event_start_out = false;
+    s_region_data_read_out[current_region] = region_readout_allowed;
+    break;
+
+
+  case WAIT: // Data FIFO full or waiting for more region data
+    s_region_event_pop_out = false;
+    s_region_event_start_out = false;
+    s_region_data_read_out[current_region] =
+      !s_dmu_data_fifo_full &&
+      !no_regions_valid &&
+      !s_region_fifo_empty_in[current_region];
+    break;
+
+  case CHIP_TRAILER:
+    // Using frame_end_fifo_empty, not s_frame_end_fifo_empty, to know ahead in time
+    // the status of s_frame_end_fifo_empty in next state, so we can set the output
+    s_region_event_pop_out = !s_frame_end_fifo_empty && !s_dmu_data_fifo_full;
+    s_region_event_start_out = false;
+    s_region_data_read_out[current_region] = false;
+    break;
+  }
 }
 
 
@@ -278,8 +352,13 @@ void TopReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, tru_name_prefix, "region_event_start_out", s_region_event_start_out);
 //  addTrace(wf, tru_name_prefix, "dmu_fifo_input", s_dmu_fifo_input);
 
-  addTrace(wf, tru_name_prefix, "all_regions_empty_debug", s_all_regions_empty_debug);
+  addTrace(wf, tru_name_prefix, "no_regions_empty_debug", s_no_regions_empty_debug);
   addTrace(wf, tru_name_prefix, "no_regions_valid_debug", s_no_regions_valid_debug);
+
+  addTrace(wf, tru_name_prefix, "frame_start_fifo_empty", s_frame_start_fifo_empty);
+  addTrace(wf, tru_name_prefix, "frame_end_fifo_empty", s_frame_end_fifo_empty);
+
+  addTrace(wf, tru_name_prefix, "dmu_data_fifo_full", s_dmu_data_fifo_full);
 
   addTrace(wf, tru_name_prefix, "tru_state", s_tru_state);
   addTrace(wf, tru_name_prefix, "previous_region", s_previous_region);

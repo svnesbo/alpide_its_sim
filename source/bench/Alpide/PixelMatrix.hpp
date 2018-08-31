@@ -47,6 +47,14 @@ private:
   ///@brief Last time the MEB histogram was updated
   uint64_t mMEBHistoLastUpdateTime = 0;
 
+  ///@brief Number of pixel hits that were actually latched into an MEB
+  std::uint64_t mLatchedPixelHitCount = 0;
+
+  ///@brief Number of pixel hits that could not be latched into an MEB because
+  ///       it already existed in the MEB (ie. duplicate hits from more than one
+  ///       interaction event)
+  std::uint64_t mDuplicatePixelHitCount = 0;
+
 protected:
   ///@todo Several of these functions will be exposed "publically" to users of
   ///      the Alpide class.. most of them should be made private, or maybe use
@@ -70,6 +78,8 @@ public:
   std::map<unsigned int, std::uint64_t> getMEBHisto(void) const {
     return mMEBHistogram;
   }
+  std::uint64_t getLatchedPixelHitCount(void) const {return mLatchedPixelHitCount;}
+  std::uint64_t getDuplicatePixelHitCount(void) const {return mDuplicatePixelHitCount;}
 };
 
 

@@ -21,14 +21,16 @@ SC_HAS_PROCESS(ITSDetector);
 ///              (ie. number of staves per layer to include in simulation)
 ///@param trigger_filter_time Readout Units will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds).
+///@param trigger_filter_enable Enable/disable trigger filtering
 ITSDetector::ITSDetector(sc_core::sc_module_name name,
                          const detectorConfig& config,
-                         unsigned int trigger_filter_time)
+                         unsigned int trigger_filter_time,
+                         bool trigger_filter_enable)
   : sc_core::sc_module(name)
   , mConfig(config)
 {
   verifyDetectorConfig(config);
-  buildDetector(config, trigger_filter_time);
+  buildDetector(config, trigger_filter_time, trigger_filter_enable);
 
   SC_METHOD(triggerMethod);
   sensitive << E_trigger_in;
@@ -66,8 +68,10 @@ void ITSDetector::verifyDetectorConfig(const detectorConfig& config) const
 ///              (ie. number of staves per layer to include in simulation)
 ///@param trigger_filter_time Readout Units will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds).
+///@param trigger_filter_enable Enable/disable trigger filtering
 void ITSDetector::buildDetector(const detectorConfig& config,
-                                unsigned int trigger_filter_time)
+                                unsigned int trigger_filter_time,
+                                bool trigger_filter_enable)
 {
   // Reserve space for all chips, even if they are not used (not allocated),
   // because we access/index them by index in the vectors, and vector access is O(1).
@@ -81,7 +85,9 @@ void ITSDetector::buildDetector(const detectorConfig& config,
     std::cout << std::endl;
 
     // Create sc_vectors with ReadoutUnit and Staves for this layer
-    mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id, trigger_filter_time));
+    mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id,
+                                                     trigger_filter_time,
+                                                     trigger_filter_enable));
     mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id, mConfig));
 
     unsigned int n_data_lines_per_stave =
@@ -245,8 +251,6 @@ void ITSDetector::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss << name_prefix << "ITS.";
   std::string ITS_name_prefix = ss.str();
 
-  //addTrace(wf, ITS_name_prefix, "system_clk_in", s_system_clk_in);
-  //addTrace(wf, ITS_name_prefix, "trigger_in", E_trigger_in);
   addTrace(wf, ITS_name_prefix, "detector_busy_out", s_detector_busy_out);
 
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
@@ -271,7 +275,6 @@ void ITSDetector::writeSimulationStats(const std::string output_path) const
       std::stringstream ss;
       ss << output_path << "/RU_" << layer << "_" << stave;
 
-      //mDetectorStaves[layer][stave].writeSimulationStats(output_path);
       mReadoutUnits[layer][stave].writeSimulationStats(ss.str());
     }
   }

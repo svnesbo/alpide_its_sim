@@ -95,8 +95,12 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
   std::vector<PixelDoubleColumn>& current_event_buffer = mColumnBuffs.back();
   int& current_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.back();
 
-  current_event_buffer[col/2].setPixel(col%2, row);
-  current_event_buffer_hits_remaining++;
+  if(current_event_buffer[col/2].setPixel(col%2, row)) {
+    current_event_buffer_hits_remaining++;
+    mLatchedPixelHitCount++;
+  } else {
+    mDuplicatePixelHitCount++;
+  }
 }
 
 
@@ -125,8 +129,12 @@ void PixelMatrix::setPixel(const std::shared_ptr<PixelHit> &pixel)
   std::vector<PixelDoubleColumn>& current_event_buffer = mColumnBuffs.back();
   int& current_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.back();
 
-  current_event_buffer[pixel->getCol()/2].setPixel(pixel);
-  current_event_buffer_hits_remaining++;
+  if(current_event_buffer[pixel->getCol()/2].setPixel(pixel)) {
+    current_event_buffer_hits_remaining++;
+    mLatchedPixelHitCount++;
+  } else {
+    mDuplicatePixelHitCount++;
+  }
 }
 
 

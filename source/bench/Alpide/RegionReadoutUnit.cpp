@@ -35,19 +35,22 @@ RegionReadoutUnit::RegionReadoutUnit(sc_core::sc_module_name name,
   , mClusteringEnabled(cluster_enable)
   , mPixelMatrix(matrix)
 {
-//  s_region_fifo_input(s_region_fifo);
-//  s_region_fifo_output(s_region_fifo);
+  s_rru_readout_state = RO_FSM::IDLE;
+  s_rru_valid_state = VALID_FSM::IDLE;
+  s_rru_header_state = HEADER_FSM::HEADER;
 
   mFifoSizeLimitEnabled = (mFifoSizeLimit > 0);
   mClusterStarted = false;
+  s_cluster_started = false;
 
-  SC_METHOD(regionReadoutProcess);
+  SC_METHOD(regionUnitProcess);
   sensitive_pos << s_system_clk_in;
 }
 
+
 ///@brief SystemC process/method that implements the logic in the
 ///       Region Readout Unit (RRU). NOTE: Should run at system clock frequency (40MHz).
-void RegionReadoutUnit::regionReadoutProcess(void)
+void RegionReadoutUnit::regionUnitProcess(void)
 {
   if(mIdle) {
     // Revert to static sensitivity (clocked), and wait till next clock cycle
@@ -58,28 +61,15 @@ void RegionReadoutUnit::regionReadoutProcess(void)
     return;
   }
 
+  updateRegionDataOut();
+
   s_region_fifo_size = s_region_fifo.used();
   s_region_fifo_empty_out = (s_region_fifo.used() == 0);
+
 
   mIdle =  regionMatrixReadoutFSM();
   mIdle &= regionValidFSM();
   regionHeaderFSM();
-
-  // Update region data output
-  if(s_region_event_pop_in) { // Always pop region trailer when pop is asserted
-    AlpideDataWord data_out;
-    if(s_region_fifo.nb_get(data_out))
-       s_region_data_out = data_out;
-  }
-  // Otherwise, prioritize header over data
-  else if(s_generate_region_header) {
-    s_region_data_out = mRegionHeader;
-  }
-  else if(s_region_data_read_in) {
-    AlpideDataWord data_out;
-    if(s_region_fifo.nb_get(data_out))
-       s_region_data_out = data_out;
-  }
 
 
   // If the RRU is idle, use dynamic sensitivity to wake up on the
@@ -88,6 +78,43 @@ void RegionReadoutUnit::regionReadoutProcess(void)
     next_trigger(s_readout_abort_in.value_changed_event() |
                  s_frame_readout_start_in.value_changed_event() |
                  s_region_event_start_in.value_changed_event());
+  }
+}
+
+
+///@brief Update data output with region header, region data, or region trailer
+///       Read out new data and pop region trailer when requested.
+///       The region data output should have the last data word from the region fifo,
+///       but it should not be read/popped from the fifo before the TRU gives the read/pop signal
+void RegionReadoutUnit::updateRegionDataOut(void)
+{
+  bool read_or_pop = s_region_event_pop_in.read() || s_region_data_read_in.read();
+
+  if(s_generate_region_header && !read_or_pop) {
+    s_region_data_out = mRegionHeader;
+    mRegionDataOutIsTrailer = false;
+  } else {
+    AlpideDataWord data_out;
+
+    // Pop region trailer or read data from fifo
+    if(!s_generate_region_header && read_or_pop) {
+      s_region_fifo.nb_get(data_out);
+    }
+
+    // Update region's data output with next data on fifo
+    if(s_region_fifo.nb_peek(data_out)) {
+      s_region_data_out = data_out;
+
+      if(data_out.data[0] == DW_REGION_TRAILER)
+        mRegionDataOutIsTrailer = true;
+      else
+        mRegionDataOutIsTrailer = false;
+
+    } else {
+      // Just put an IDLE word on the FIFO if there is nothing in the FIFO
+      // Shouldn't really happen..
+      s_region_data_out = AlpideIdle();
+    }
   }
 }
 
@@ -102,6 +129,8 @@ bool RegionReadoutUnit::regionMatrixReadoutFSM(void)
   bool matrix_readout_ready = false;
   bool region_matrix_empty = false;
   bool idle_state = false;
+  std::uint8_t current_state = s_rru_readout_state.read();
+  std::uint8_t next_state = current_state;
 
   // The Alpide has a choice of two different matrix priority encoder readout speeds:
   // 1/2 of 40MHz clock, or 1/4 of 40MHz clock
@@ -110,16 +139,14 @@ bool RegionReadoutUnit::regionMatrixReadoutFSM(void)
   else if(!mMatrixReadoutSpeed && (s_matrix_readout_delay_counter.read() >= 2))
     matrix_readout_ready = true;
 
-
-  switch(s_rru_readout_state.read()) {
+  // Next state logic etc.
+  switch(current_state) {
   case RO_FSM::IDLE:
-    s_frame_readout_done_out = !s_frame_readout_start_in;
-
     // Stay in this state and flush region fifo when in data overrun mode
     if(s_readout_abort_in) {
       flushRegionFifo();
       s_region_matrix_empty_debug = false;
-      s_rru_readout_state = RO_FSM::IDLE;
+      next_state = RO_FSM::IDLE;
       idle_state = true;
     }
     else if(s_frame_readout_start_in) {
@@ -128,46 +155,42 @@ bool RegionReadoutUnit::regionMatrixReadoutFSM(void)
       // Start readout if this region has hits, otherwise just output region trailer
       if(!region_matrix_empty) {
         s_matrix_readout_delay_counter = 0;
-        s_rru_readout_state = RO_FSM::START_READOUT;
+        next_state = RO_FSM::START_READOUT;
       } else {
-        s_rru_readout_state = RO_FSM::REGION_TRAILER;
+        next_state = RO_FSM::REGION_TRAILER;
       }
     }
     else {
       s_region_matrix_empty_debug = false;
-      s_rru_readout_state = RO_FSM::IDLE;
+      next_state = RO_FSM::IDLE;
       idle_state = true;
     }
     break;
 
   case RO_FSM::START_READOUT:
-    s_frame_readout_done_out = false;
-
     if(s_readout_abort_in)
-      s_rru_readout_state = RO_FSM::IDLE;
+      next_state = RO_FSM::IDLE;
     else if(matrix_readout_ready) // Wait for matrix readout delay
-      s_rru_readout_state = RO_FSM::READOUT_AND_CLUSTERING;
+      next_state = RO_FSM::READOUT_AND_CLUSTERING;
     else
       s_matrix_readout_delay_counter = s_matrix_readout_delay_counter.read() + 1;
 
     break;
 
   case RO_FSM::READOUT_AND_CLUSTERING:
-    s_frame_readout_done_out = false;
-
     if(s_readout_abort_in) {
       // Clear cluster started flag on readout abort, to prevent readoutNextPixel() from
       // continuing an old cluster after readout abort is done.
       mClusterStarted = false;
       mPixelClusterVec.clear();
 
-      s_rru_readout_state = RO_FSM::IDLE;
+      next_state = RO_FSM::IDLE;
     } else if(matrix_readout_ready) { // Wait for matrix readout delay
       if(!region_fifo_full) {
         s_region_matrix_empty_debug = region_matrix_empty = readoutNextPixel(*mPixelMatrix);
         s_matrix_readout_delay_counter = 0;
         if(region_matrix_empty) {
-          s_rru_readout_state = RO_FSM::REGION_TRAILER;
+          next_state = RO_FSM::REGION_TRAILER;
         }
       }
     } else {
@@ -176,17 +199,42 @@ bool RegionReadoutUnit::regionMatrixReadoutFSM(void)
     break;
 
   case RO_FSM::REGION_TRAILER:
-    s_frame_readout_done_out = false;
-
     if(s_readout_abort_in)
-      s_rru_readout_state = RO_FSM::IDLE;
+      next_state = RO_FSM::IDLE;
     else if(!region_fifo_full) {
       // Put REGION_TRAILER word on RRU FIFO
       s_region_fifo.nb_put(AlpideRegionTrailer());
-      s_rru_readout_state = RO_FSM::IDLE;
+      next_state = RO_FSM::IDLE;
     }
     break;
   }
+
+
+  // Output logic
+  // Based on next state to achieve combinatorial output based on
+  // the state we're in, without delaying the output with a clock cycle
+  // Could alternatively have been done in a separate SystemC method,
+  // sensitive to current state and s_frame_readout_start_in.
+  switch(next_state) {
+  case RO_FSM::IDLE:
+    s_frame_readout_done_out = !s_frame_readout_start_in;
+    break;
+
+  case RO_FSM::START_READOUT:
+    s_frame_readout_done_out = false;
+    break;
+
+  case RO_FSM::READOUT_AND_CLUSTERING:
+    s_frame_readout_done_out = false;
+    break;
+
+  case RO_FSM::REGION_TRAILER:
+    s_frame_readout_done_out = false;
+    break;
+  }
+
+
+  s_rru_readout_state = next_state;
 
   return idle_state;
 }
@@ -205,25 +253,55 @@ bool RegionReadoutUnit::regionValidFSM(void)
 #pragma GCC diagnostic pop
 
   bool region_fifo_empty = s_region_fifo.used() == 0;
-  bool region_data_is_trailer = false;
   bool idle_state = false;
+  std::uint8_t current_state = s_rru_valid_state.read();
+  std::uint8_t next_state = current_state;
 
 
-  if(!region_fifo_empty) {
-    s_region_fifo.nb_peek(dw);
-    if(dw.data[0] == DW_REGION_TRAILER)
-      region_data_is_trailer = true;
-  }
-
-  switch(s_rru_valid_state.read()) {
+  // Next state logic
+  switch(current_state) {
   case VALID_FSM::IDLE:
-    s_region_valid_out = false;
-
     if(s_region_event_start_in && !s_readout_abort_in)
-      s_rru_valid_state = VALID_FSM::EMPTY;
+      next_state = VALID_FSM::EMPTY;
     else
       idle_state = true;
 
+    break;
+
+  case VALID_FSM::EMPTY:
+    if(s_readout_abort_in)
+      next_state = VALID_FSM::IDLE;
+    else if(!region_fifo_empty && mRegionDataOutIsTrailer)
+      next_state = VALID_FSM::POP;
+    else if(!region_fifo_empty && !mRegionDataOutIsTrailer)
+      next_state = VALID_FSM::VALID;
+    break;
+
+  case VALID_FSM::VALID:
+    if(s_readout_abort_in)
+      next_state = VALID_FSM::IDLE;
+    else if(mRegionDataOutIsTrailer) {
+      next_state = VALID_FSM::POP;
+    }
+    break;
+
+  case VALID_FSM::POP:
+    if(s_region_event_pop_in || s_readout_abort_in)
+      next_state = VALID_FSM::IDLE;
+    break;
+
+  default:
+    next_state = VALID_FSM::IDLE;
+    break;
+  }
+
+
+  // Output logic
+  // Based on next state to achieve combinatorial output based on
+  // the state we're in, without delaying the output with a clock cycle
+  switch(next_state) {
+  case VALID_FSM::IDLE:
+    s_region_valid_out = false;
     break;
 
   case VALID_FSM::EMPTY:
@@ -231,38 +309,22 @@ bool RegionReadoutUnit::regionValidFSM(void)
     // in the Alpide Chip EDR presentation, the clustering may take some time and we
     // need to get the valid signal fast enough to prevent the TRU to going to the TRAILER
     // state too soon because it thinks no regions are valid...
-    s_region_valid_out = ((!region_fifo_empty || mClusterStarted) && !region_data_is_trailer);
-
-    if(s_readout_abort_in)
-      s_rru_valid_state = VALID_FSM::IDLE;
-    else if(!region_fifo_empty && region_data_is_trailer)
-      s_rru_valid_state = VALID_FSM::POP;
-    else if(!region_fifo_empty && !region_data_is_trailer)
-      s_rru_valid_state = VALID_FSM::VALID;
-
+    s_region_valid_out = ((!region_fifo_empty || s_cluster_started || s_rru_readout_state.read() == RO_FSM::READOUT_AND_CLUSTERING || s_rru_readout_state.read() == RO_FSM::START_READOUT) && !mRegionDataOutIsTrailer);
     break;
 
   case VALID_FSM::VALID:
-    s_region_valid_out = !region_data_is_trailer;
-
-    if(s_readout_abort_in)
-      s_rru_valid_state = VALID_FSM::IDLE;
-    else if(region_data_is_trailer) {
-      s_rru_valid_state = VALID_FSM::POP;
-    }
+    s_region_valid_out = !mRegionDataOutIsTrailer;
     break;
 
   case VALID_FSM::POP:
     s_region_valid_out = false;
-
-    if(s_region_event_pop_in || s_readout_abort_in)
-      s_rru_valid_state = VALID_FSM::IDLE;
     break;
 
   default:
-    s_rru_valid_state = VALID_FSM::IDLE;
     break;
   }
+
+  s_rru_valid_state = next_state;
 
   return idle_state;
 }
@@ -273,24 +335,47 @@ bool RegionReadoutUnit::regionValidFSM(void)
 ///       Note: should run on Alpide system clock frequency.
 void RegionReadoutUnit::regionHeaderFSM(void)
 {
-  switch(s_rru_header_state.read()) {
+  std::uint8_t current_state = s_rru_header_state.read();
+  std::uint8_t next_state = current_state;
+
+  // Next state logic
+  switch(current_state) {
+  case HEADER_FSM::HEADER:
+    if(!s_readout_abort_in && s_region_data_read_in)
+      next_state = HEADER_FSM::DATA;
+    break;
+
+  case HEADER_FSM::DATA:
+    if(s_readout_abort_in || s_region_event_pop_in)
+      next_state = HEADER_FSM::HEADER;
+    break;
+
+  default:
+    next_state = HEADER_FSM::HEADER;
+    break;
+  }
+
+
+  // Output logic
+  // Based on next state to achieve combinatorial output based on
+  // the state we're in, without delaying the output with a clock cycle
+  // Technically could have been implemented in a separate SystemC method
+  // that is sensitive to current state.
+  switch(next_state) {
   case HEADER_FSM::HEADER:
     s_generate_region_header = true;
-    if(!s_readout_abort_in && s_region_data_read_in)
-      s_rru_header_state = HEADER_FSM::DATA;
     break;
 
   case HEADER_FSM::DATA:
     s_generate_region_header = false;
-    if(s_readout_abort_in || s_region_event_pop_in)
-      s_rru_header_state = HEADER_FSM::HEADER;
     break;
 
   default:
     s_generate_region_header = true;
-    s_rru_header_state = HEADER_FSM::HEADER;
     break;
   }
+
+  s_rru_header_state = next_state;
 }
 
 
@@ -310,7 +395,15 @@ bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
   bool region_matrix_empty = false;
   int64_t time_now = sc_time_stamp().value();
 
+
   std::shared_ptr<PixelHit> p = matrix.readPixelRegion(mRegionId, time_now);
+
+#ifdef EXCEPTION_CHECKS
+  if(*p == NoPixelHit && matrix.regionEmpty(mRegionId) == false)
+    throw std::runtime_error(std::string("Region: ") +
+                             std::to_string(mRegionId) +
+                             std::string("Got NoPixelHit but region not empty."));
+#endif
 
   if(mClusteringEnabled) {
     if(mClusterStarted == false) {
@@ -344,7 +437,7 @@ bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
       else if(p->getPriEncNumInRegion() == mPixelHitEncoderId &&
               p->getPriEncPixelAddress() <= (mPixelHitBaseAddr+DATA_LONG_PIXMAP_SIZE)) {
         // Calculate its location in the pixel map argument used in DATA LONG
-        unsigned int hitmap_pixel_num = (p->getPriEncPixelAddress() - mPixelHitBaseAddr - 1);
+        unsigned int hitmap_pixel_num = (p->getPriEncPixelAddress() - mPixelHitBaseAddr) - 1;
         mPixelHitmap |= 1 << hitmap_pixel_num;
 
         mPixelClusterVec.push_back(p);
@@ -391,6 +484,9 @@ bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
     }
   }
 
+  // Delayed signal version of cluster started, needed by valid FSM.
+  s_cluster_started = mClusterStarted;
+
   return region_matrix_empty;
 }
 
@@ -425,6 +521,7 @@ void RegionReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) co
   addTrace(wf, region_name_prefix, "frame_readout_done_out", s_frame_readout_done_out);
   addTrace(wf, region_name_prefix, "region_fifo_empty_out", s_region_fifo_empty_out);
   addTrace(wf, region_name_prefix, "region_valid_out", s_region_valid_out);
+  addTrace(wf, region_name_prefix, "cluster_started", s_cluster_started);
 
 ///@todo Probably need to a stream << operator to allow values from fifo to be printed to trace file
 //  addTrace(wf, region_name_prefix, "region_data_out", s_region_data_out);

@@ -38,7 +38,8 @@ namespace ITS {
 
     unsigned int mNumChips;
 
-    void buildDetector(const detectorConfig& config, unsigned int trigger_filter_time);
+    void buildDetector(const detectorConfig& config, unsigned int trigger_filter_time,
+                       bool trigger_filter_enable);
     void verifyDetectorConfig(const detectorConfig& config) const;
 
     void triggerMethod(void);
@@ -46,7 +47,8 @@ namespace ITS {
   public:
     ITSDetector(sc_core::sc_module_name name,
                 const detectorConfig& config,
-                unsigned int trigger_filter_time);
+                unsigned int trigger_filter_time,
+                bool trigger_filter_enable);
     void pixelInput(const std::shared_ptr<PixelHit>& pix);
     void setPixel(const std::shared_ptr<PixelHit>& p);
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);

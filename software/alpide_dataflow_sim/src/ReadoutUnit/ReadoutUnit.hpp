@@ -60,6 +60,7 @@ private:
   unsigned int mBusyLinkThreshold;
   unsigned int mReadoutUnitTriggerDelay;
   unsigned int mTriggerFilterTimeNs;
+  bool mTriggerFilterEnabled;
   bool mLocalBusyStatus;
   bool mGlobalBusyStatus;
   bool mInnerBarrelMode;
@@ -98,6 +99,7 @@ public:
               unsigned int n_ctrl_links,
               unsigned int n_data_links,
               unsigned int trigger_filter_time,
+              bool trigger_filter_enable,
               bool inner_barrel);
   void end_of_elaboration();
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;

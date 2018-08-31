@@ -1,8 +1,8 @@
 /**
- * @file   pixel_col.h
+ * @file   PixelDoubleColumn.cpp
  * @author Simon Voigt Nesbo
- * @date   November 27, 2016
- * @brief  Source file for pixel column, double column, and priority encoder classes
+ * @date   August 31, 2018
+ * @brief  PixelDoubleColumn class
  */
 
 #include "PixelDoubleColumn.hpp"
@@ -12,17 +12,28 @@
 ///@brief Set a pixel in a pixel double column object.
 ///@param[in] col_num column number of pixel, must be 0 or 1.
 ///@param[in] row_num row number of pixel, must be in the range 0 to N_PIXEL_ROWS-1
-void PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
+///@return True if insertion of pixel succeeded, false if not (pixel already existed)
+bool PixelDoubleColumn::setPixel(unsigned int col_num, unsigned int row_num)
 {
-  pixelColumn.insert(std::make_shared<PixelHit>(col_num, row_num));
+  return pixelColumn.insert(std::make_shared<PixelHit>(col_num, row_num)).second;
 }
 
 
-///@brief Set a pixel in a pixel double column object.
+///@brief Set a pixel in a pixel double column object, using shared_ptr to PixelHit object.
+///       If pixel already exists in double column, then a pointer to the PixelHit pixel is
+///       added as a duplicate hit to the existing hit that is already in the double column.
 ///@param[in] pixel shared pointer to PixelHit object.
-void PixelDoubleColumn::setPixel(const std::shared_ptr<PixelHit> &pixel)
+///@return True if insertion of pixel succeeded, false if not (pixel already existed)
+bool PixelDoubleColumn::setPixel(const std::shared_ptr<PixelHit> &pixel)
 {
-  pixelColumn.insert(pixel);
+  bool pixel_inserted = pixelColumn.insert(pixel).second;
+
+  if(pixel_inserted == false) {
+    std::shared_ptr<PixelHit> pix_original = *pixelColumn.find(pixel);
+    pix_original->addDuplicatePixel(pixel);
+  }
+
+  return pixel_inserted;
 }
 
 ///@brief Clear (flush) contents of double column

@@ -12,10 +12,13 @@
 #include <cstdint>
 #include <algorithm>
 #include <memory>
+#include <vector>
 
 using std::uint64_t;
 
 class PixelPriorityEncoder;
+
+class PixelHit;
 
 /**
    @brief A struct that indicates a hit in a region, at the pixel identified by the col and row
@@ -34,6 +37,7 @@ private:
   uint64_t mActiveTimeEndNs = 0;
   unsigned int mReadoutCount = 0;
   std::shared_ptr<PixelReadoutStats> mPixelReadoutStats;
+  std::vector<std::shared_ptr<PixelHit>> mDuplicatePixels;
 
 public:
   PixelHit(int col = 0, int row = 0, unsigned int chip_id = 0,
@@ -46,6 +50,7 @@ public:
   ~PixelHit();
 
   bool operator==(const PixelHit& rhs) const;
+  bool operator!=(const PixelHit& rhs) const;
   bool operator>(const PixelHit& rhs) const;
   bool operator<(const PixelHit& rhs) const;
   bool operator>=(const PixelHit& rhs) const;
@@ -68,6 +73,8 @@ public:
   uint64_t getActiveTimeEnd(void) const;
   bool isActive(uint64_t time_now_ns) const;
   bool isActive(uint64_t strobe_start_time_ns, uint64_t strobe_end_time_ns) const;
+
+  void addDuplicatePixel(const std::shared_ptr<PixelHit>& pixel);
 };
 
 const PixelHit NoPixelHit(-1,-1);
@@ -133,8 +140,12 @@ inline bool PixelHit::operator==(const PixelHit& rhs) const
 }
 
 
-///@brief Compare if one PixelHit object is greater than another, based on priority encoder
-///       readout order (which is read out first?). Does not compare chip id.
+inline bool PixelHit::operator!=(const PixelHit& rhs) const
+{
+  return !(*this == rhs);
+}
+
+
 inline bool PixelHit::operator>(const PixelHit& rhs) const
 {
   bool retval = false;
@@ -237,6 +248,9 @@ inline unsigned int PixelHit::getReadoutCount(void) const
 inline void PixelHit::increaseReadoutCount(void)
 {
   mReadoutCount++;
+
+  for(auto dup_pix_it = mDuplicatePixels.begin(); dup_pix_it != mDuplicatePixels.end(); dup_pix_it++)
+    (*dup_pix_it)->increaseReadoutCount();
 }
 
 inline void PixelHit::setPixelReadoutStatsObj(const std::shared_ptr<PixelReadoutStats> &pix_stats)
@@ -285,5 +299,10 @@ inline bool PixelHit::isActive(uint64_t strobe_start_time_ns, uint64_t strobe_en
          std::min(strobe_end_time_ns, mActiveTimeEndNs));
 }
 
+
+inline void PixelHit::addDuplicatePixel(const std::shared_ptr<PixelHit>& pixel)
+{
+  mDuplicatePixels.push_back(pixel);
+}
 
 #endif

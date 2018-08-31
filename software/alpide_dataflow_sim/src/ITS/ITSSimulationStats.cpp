@@ -80,8 +80,9 @@ void writeAlpideStatsToFile(std::string output_path,
   ofstream trigger_stats_file(trigger_stats_filename);
 
   trigger_stats_file << "Layer ID; Stave ID; Sub-stave ID; Module ID; Local Chip ID; Unique Chip ID; ";
-  trigger_stats_file << "Accepted triggers; Rejected triggers; ";
-  trigger_stats_file << "Busy; Busy violations; Flushed Incompletes" << std::endl;
+  trigger_stats_file << "Received triggers; Accepted triggers; Rejected triggers; ";
+  trigger_stats_file << "Busy; Busy violations; Flushed Incompletes;";
+  trigger_stats_file << "Latched pixel hits; Duplicate pixel hits" << std::endl;
 
   for(auto it = alpide_vec.begin(); it != alpide_vec.end(); it++) {
     if(*it != nullptr) {
@@ -94,11 +95,14 @@ void writeAlpideStatsToFile(std::string output_path,
       trigger_stats_file << pos.module_id << ";";
       trigger_stats_file << pos.module_chip_id << ";";
       trigger_stats_file << unique_chip_id << ";";
+      trigger_stats_file << (*it)->getTriggersReceivedCount() << ";";
       trigger_stats_file << (*it)->getTriggersAcceptedCount() << ";";
       trigger_stats_file << (*it)->getTriggersRejectedCount() << ";";
       trigger_stats_file << (*it)->getBusyCount() << ";";
       trigger_stats_file << (*it)->getBusyViolationCount() << ";";
-      trigger_stats_file << (*it)->getFlushedIncompleteCount() << ";" << std::endl;
+      trigger_stats_file << (*it)->getFlushedIncompleteCount() << ";";
+      trigger_stats_file << (*it)->getLatchedPixelHitCount() << ";";
+      trigger_stats_file << (*it)->getDuplicatePixelHitCount() << std::endl;
     }
   }
 

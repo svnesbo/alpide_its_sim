@@ -195,6 +195,9 @@ private:
   ///@brief Trigger ID for the currently active strobe
   uint64_t mTrigIdForStrobe = 0;
 
+  ///@brief Numbers of triggers received by the chip
+  uint64_t mTriggersReceived = 0;
+
   ///@brief Number of triggers that are accepted by the chip
   uint64_t mTriggersAccepted = 0;
 
@@ -239,6 +242,7 @@ public:
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
+  uint64_t getTriggersReceivedCount(void) const {return mTriggersReceived;}
   uint64_t getTriggersAcceptedCount(void) const {return mTriggersAccepted;}
   uint64_t getTriggersRejectedCount(void) const {return mTriggersRejected;}
   uint64_t getBusyCount(void) const {return mBusyTransitions;}

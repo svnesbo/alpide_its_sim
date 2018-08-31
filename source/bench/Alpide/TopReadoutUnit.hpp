@@ -53,7 +53,6 @@ public:
   sc_port<tlm::tlm_nonblocking_get_peek_if<FrameStartFifoWord>> s_frame_start_fifo_output;
   sc_port<tlm::tlm_nonblocking_get_peek_if<FrameEndFifoWord>> s_frame_end_fifo_output;
 
-
   ///@brief Output from TRU
   sc_port<sc_fifo_out_if<AlpideDataWord>> s_dmu_fifo_input;
 
@@ -62,10 +61,15 @@ private:
   sc_signal<sc_uint<8> > s_previous_region;
 
   ///@brief Signal copy of all_regions_empty variable, 1 cycle delayed
-  sc_signal<bool> s_all_regions_empty_debug;
+  sc_signal<bool> s_no_regions_empty_debug;
 
   ///@brief Signal copy of no_regions_valid variable, 1 cycle delayed
   sc_signal<bool> s_no_regions_valid_debug;
+
+  sc_signal<bool> s_frame_start_fifo_empty;
+  sc_signal<bool> s_frame_end_fifo_empty;
+
+  sc_signal<bool> s_dmu_data_fifo_full;
 
   // Standard C++ members
   unsigned int mChipId;
@@ -87,9 +91,11 @@ private:
     CHIP_TRAILER = 7
   };
 
+  void end_of_elaboration(void);
   void topRegionReadoutMethod(void);
+  void topRegionReadoutOutputMethod(void);
   bool getNextRegion(unsigned int& region_out);
-  bool getAllRegionsEmpty(void);
+  bool getNoRegionsEmpty(void);
 
 public:
   TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);

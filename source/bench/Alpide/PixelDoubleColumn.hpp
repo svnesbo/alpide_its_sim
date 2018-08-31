@@ -1,10 +1,9 @@
 /**
- * @file   pixel_col.h
+ * @file   PixelDoubleColumn.hpp
  * @author Simon Voigt Nesbo
- * @date   November 27, 2016
- * @brief  Pixel column, double column, and priority encoder classes
+ * @date   August 31, 2018
+ * @brief  PixelDoubleColumn class
  *
- * Detailed description of file.
  */
 
 
@@ -17,6 +16,7 @@
 #include "PixelPriorityEncoder.hpp"
 #include <set>
 #include <memory>
+#include <cstdint>
 
 
 class PixelDoubleColumn
@@ -24,8 +24,8 @@ class PixelDoubleColumn
 private:
   std::set<std::shared_ptr<PixelHit>, PixelPriorityEncoder> pixelColumn;
 public:
-  void setPixel(unsigned int col_num, unsigned int row_num);
-  void setPixel(const std::shared_ptr<PixelHit> &pixel);
+  bool setPixel(unsigned int col_num, unsigned int row_num);
+  bool setPixel(const std::shared_ptr<PixelHit> &pixel);
   void clear(void);
   bool inspectPixel(unsigned int col_num, unsigned int row_num);
   std::shared_ptr<PixelHit> readPixel(void);

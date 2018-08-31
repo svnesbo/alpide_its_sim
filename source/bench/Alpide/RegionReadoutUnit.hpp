@@ -89,11 +89,19 @@ public:
 private:
   sc_signal<sc_uint<8>> s_rru_readout_state;
   sc_signal<sc_uint<8>> s_rru_valid_state;
-  sc_signal<sc_uint<1>> s_rru_header_state;
+  sc_signal<sc_uint<8>> s_rru_header_state;
   sc_signal<bool> s_generate_region_header;
 
   /// Delayed one clock cycle compared to when it is used..
   sc_signal<bool> s_region_matrix_empty_debug;
+
+  /// Delayed version (1 clock cycle) of mClusterStarted
+  /// Used in EMPTY state in valid FSM to determine if region is valid before readout has
+  /// really started, to prevent TRU from skipping to next RRU.
+  /// Without the delayed version of the cluster started signal the valid signal may go to
+  /// zero for a clock cycle when readout of a cluster is done, causing the TRU to skip
+  /// this region or popping it, which is bad :()
+  sc_signal<bool> s_cluster_started;
 
   sc_signal<sc_uint<2> > s_matrix_readout_delay_counter;
 
@@ -139,6 +147,8 @@ private:
   bool mBusySignaled;
   bool mClusteringEnabled;
 
+  bool mRegionDataOutIsTrailer = false;
+
   ///@brief Used in conjunction with mClusteringEnabled. Indicates that we have already
   ///       received the first pixel in a potential cluster (stored in mPixelHitBaseAddr),
   ///       and should continue building this cluster with subsequent hits that fall into
@@ -149,13 +159,14 @@ private:
 
 private:
   bool readoutNextPixel(PixelMatrix& matrix);
+  void updateRegionDataOut(void);
   void flushRegionFifo(void);
 
 public:
   RegionReadoutUnit(sc_core::sc_module_name name, PixelMatrix* matrix,
                     unsigned int region_num, unsigned int fifo_size,
                     bool matrix_readout_speed, bool cluster_enable);
-  void regionReadoutProcess(void);
+  void regionUnitProcess(void);
   bool regionMatrixReadoutFSM(void);
   bool regionValidFSM(void);
   void regionHeaderFSM(void);

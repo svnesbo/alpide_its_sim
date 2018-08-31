@@ -16,6 +16,7 @@
 #include "../ITS/ITSDetector.hpp"
 #include "../ITS/ITSModulesStaves.hpp"
 #include <QSettings>
+#include <memory>
 #include <string>
 
 
@@ -29,15 +30,15 @@ public:
   sc_signal<bool> s_alpide_data_line;
 
 private:
-  EventGenerator *mEventGen;
+  std::unique_ptr<EventGenerator> mEventGen;
 
   // mITS is only used for detector simulation
-  ITS::ITSDetector *mITS;
+  std::unique_ptr<ITS::ITSDetector> mITS;
 
   // mReadoutUnit and mAlpide is only used for
   // single chip simulations
-  ReadoutUnit *mReadoutUnit;
-  ITS::SingleChip *mAlpide;
+  std::unique_ptr<ReadoutUnit> mReadoutUnit;
+  std::unique_ptr<ITS::SingleChip> mAlpide;
 
   const QSettings* mSettings;
   std::string mOutputPath;

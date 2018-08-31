@@ -27,6 +27,7 @@ SC_HAS_PROCESS(ReadoutUnit);
 ///@param n_data_links Number of Alpide data links connected to this readout unit
 ///@param trigger_filter_time The Readout Unit will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds)
+///@param trigger_filter_enable Enable trigger filtering
 ///@param inner_barrel Set to true if RU is connected to inner barrel stave
 ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int layer_id,
@@ -34,6 +35,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int n_ctrl_links,
                          unsigned int n_data_links,
                          unsigned int trigger_filter_time,
+                         bool trigger_filter_enable,
                          bool inner_barrel)
   : sc_core::sc_module(name)
   , s_alpide_control_output(n_ctrl_links)
@@ -46,6 +48,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   , mStaveId(stave_id)
   , mReadoutUnitTriggerDelay(0)
   , mTriggerFilterTimeNs(trigger_filter_time)
+  , mTriggerFilterEnabled(trigger_filter_enable)
   , mInnerBarrelMode(inner_barrel)
   , mTriggersSentCount(n_ctrl_links)
   , mTriggerActionMaps(n_ctrl_links)
@@ -133,7 +136,7 @@ void ReadoutUnit::sendTrigger(void)
 
   // Issue triggers on ALPIDE control links (unless trigger is being filtered)
   for(unsigned int i = 0; i < s_alpide_control_output.size(); i++) {
-    if(filter_trigger) {
+    if(mTriggerFilterEnabled && filter_trigger) {
       // Filter triggers that come too close in time
       mTriggerActionMaps[i][mTriggerIdCount] = TRIGGER_FILTERED;
       mTriggersFilteredCount++;

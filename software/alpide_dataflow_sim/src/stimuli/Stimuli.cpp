@@ -108,28 +108,31 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
   std::cout << "Layer 6 number of staves: ";
   std::cout << settings->value("its/layer6_num_staves").toUInt() << std::endl;
 
-  mEventGen = new EventGenerator("event_gen", settings, mOutputPath);
+  mEventGen = std::move(std::unique_ptr<EventGenerator>(new EventGenerator("event_gen",
+                                                                           settings,
+                                                                           mOutputPath)));
 
   if(mSingleChipSimulation) {
-    mAlpide = new ITS::SingleChip("SingleChip",
-                                  0,
-                                  dtu_delay,
-                                  mStrobeActiveNs,
-                                  strobe_extension,
-                                  enable_clustering,
-                                  mContinuousMode,
-                                  matrix_readout_speed,
-                                  min_busy_cycles);
+    mAlpide = std::move(std::unique_ptr<ITS::SingleChip>(new ITS::SingleChip("SingleChip",
+                                                                             0,
+                                                                             dtu_delay,
+                                                                             mStrobeActiveNs,
+                                                                             strobe_extension,
+                                                                             enable_clustering,
+                                                                             mContinuousMode,
+                                                                             matrix_readout_speed,
+                                                                             min_busy_cycles)));
 
     mAlpide->s_system_clk_in(clock);
 
-    mReadoutUnit = new ReadoutUnit("RU",
-                                   0,
-                                   0,
-                                   1,
-                                   1,
-                                   trigger_filter_time,
-                                   true);
+    mReadoutUnit = std::move(std::unique_ptr<ReadoutUnit>(new ReadoutUnit("RU",
+                                                                          0,
+                                                                          0,
+                                                                          1,
+                                                                          1,
+                                                                          trigger_filter_time,
+                                                                          trigger_filter_enable,
+                                                                          true)));
 
     mReadoutUnit->s_busy_in(mReadoutUnit->s_busy_out);
     mReadoutUnit->s_system_clk_in(clock);
@@ -155,7 +158,9 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
     config.alpide_matrix_speed = matrix_readout_speed;
     config.alpide_continuous_mode = mContinuousMode;
 
-    mITS = new ITS::ITSDetector("ITS", config, trigger_filter_time);
+    mITS = std::move(std::unique_ptr<ITS::ITSDetector>(new ITS::ITSDetector("ITS", config,
+                                                                            trigger_filter_time,
+                                                                            trigger_filter_enable)));
     mITS->s_system_clk_in(clock);
     mITS->s_detector_busy_out(s_its_busy);
   }
@@ -186,6 +191,9 @@ Stimuli::Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string 
 void Stimuli::stimuliMainMethod(void)
 {
   if(simulation_done == true || g_terminate_program == true) {
+    int64_t time_now = sc_time_stamp().value();
+    std::cout << "@ " << time_now << " ns: \tSimulation done" << std::endl;
+
     sc_core::sc_stop();
 
     writeStimuliInfo();
@@ -194,15 +202,16 @@ void Stimuli::stimuliMainMethod(void)
       writeAlpideStatsToFile(mOutputPath, mAlpide->getChips());
     else
       mITS->writeSimulationStats(mOutputPath);
+
+    mEventGen->writeSimulationStats(mOutputPath);
   }
   // We want to stop at n_events, not n_events-1.
-  else if(mEventGen->getPhysicsEventCount() < mNumEvents+1) {
+  else if(mEventGen->getPhysicsEventCount() <= mNumEvents) {
     //if((mEventGen->getPhysicsEventCount() % 100) == 0) {
     int64_t time_now = sc_time_stamp().value();
     std::cout << "@ " << time_now << " ns: \tPhysics event number ";
     std::cout << mEventGen->getPhysicsEventCount() << std::endl;
     //}
-
 
     std::cout << "Feeding " << mEventGen->getLatestPhysicsEvent().size() << " pixels to ITS detector." << std::endl;
     // Get hits for this event, and "feed" them to the ITS detector
@@ -233,13 +242,15 @@ void Stimuli::stimuliMainMethod(void)
       }
     }
 
-    next_trigger(mEventGen->E_physics_event);
-  }
-  else {
-    // After all strobes have been generated, or upon CTRL+C, allow simulation
-    // to run for another X us to allow readout of data remaining in MEBs, FIFOs etc.
-    next_trigger(50, SC_US);
-    simulation_done = true;
+    if(mEventGen->getPhysicsEventCount() == mNumEvents) {
+      // When we have reached the desired number of events, or upon CTRL+C, allow simulation
+      // to run for another X us to allow readout of data remaining in MEBs, FIFOs etc.
+      next_trigger(1000, SC_US);
+      simulation_done = true;
+      mEventGen->stopEventGeneration();
+    } else {
+      next_trigger(mEventGen->E_physics_event);
+    }
   }
 }
 

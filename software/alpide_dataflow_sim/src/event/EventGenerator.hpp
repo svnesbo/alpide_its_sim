@@ -61,6 +61,8 @@ private:
   int mBunchCrossingRateNs;
   int mAverageEventRateNs;
 
+  bool mStopEventGeneration = false;
+
   bool mQedNoiseGenEnable = false;
   uint64_t mQedNoiseRate = 0;
 
@@ -139,6 +141,8 @@ public:
   void initRandomNumGenerator(void);
   void setPath(const std::string& path) {mDataPath = path;}
   uint64_t getPhysicsEventCount(void) const {return mPhysicsEventCount;}
+  void stopEventGeneration(void);
+  void writeSimulationStats(const std::string output_path) const;
 
 private:
   uint64_t generateNextPhysicsEvent(uint64_t time_now);
