@@ -8,6 +8,16 @@
 #ifndef PIXEL_HIT_HPP
 #define PIXEL_HIT_HPP
 
+
+
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <systemc.h>
+#pragma GCC diagnostic pop
+
+
+
 #include "PixelReadoutStats.hpp"
 #include <cstdint>
 #include <algorithm>
@@ -40,6 +50,18 @@ private:
   std::vector<std::shared_ptr<PixelHit>> mDuplicatePixels;
 
 public:
+  bool mPixInput = false;
+  bool mPixMatrix = false;
+  bool mRRU = false;
+  bool mTRU = false;
+  bool mAlpideDataOut = false;
+
+  uint64_t mPixInputTime = 0;
+  uint64_t mPixMatrixTime = 0;
+  uint64_t mRRUTime = 0;
+  uint64_t mTRUTime = 0;
+  uint64_t mAlpideDataOutTime = 0;
+
   PixelHit(int col = 0, int row = 0, unsigned int chip_id = 0,
            const std::shared_ptr<PixelReadoutStats> &readout_stats =
            nullptr);
@@ -127,8 +149,26 @@ inline PixelHit::PixelHit(const PixelHit& p)
 
 inline PixelHit::~PixelHit()
 {
+  uint64_t time_now = sc_time_stamp().value();
+
   if(mPixelReadoutStats) {
     mPixelReadoutStats->addReadoutCount(mReadoutCount);
+  }
+
+  if(mReadoutCount == 0 && mCol != -1 && mRow != -1) {
+    std::cerr << "@" << time_now << "ns: I was never read out: ";
+    std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
+    std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns.";
+    std::cerr << " mPixInput: " << (mPixInput ? std::to_string(mPixInputTime) : "never");
+    std::cerr << " mPixMatrix: " << (mPixMatrix ? std::to_string(mPixMatrixTime) : "never");
+    std::cerr << " mRRU: " << (mRRU ? std::to_string(mRRUTime) : "never");
+    std::cerr << " mTRU: " << (mTRU ? std::to_string(mTRUTime) : "never");
+    std::cerr << " mAlpideDataOut: " << (mAlpideDataOut ? std::to_string(mAlpideDataOutTime) : "never");
+    std::cerr << std::endl;
+  } else if(mReadoutCount > 0 && mCol != -1 && mRow != -1) {
+    std::cerr << "@" << time_now << "ns: I was read out: ";
+    std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
+    std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns " << std::endl;
   }
 }
 

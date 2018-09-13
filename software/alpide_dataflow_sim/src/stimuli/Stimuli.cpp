@@ -245,7 +245,7 @@ void Stimuli::stimuliMainMethod(void)
     if(mEventGen->getPhysicsEventCount() == mNumEvents) {
       // When we have reached the desired number of events, or upon CTRL+C, allow simulation
       // to run for another X us to allow readout of data remaining in MEBs, FIFOs etc.
-      next_trigger(1000, SC_US);
+      next_trigger(100, SC_US);
       simulation_done = true;
       mEventGen->stopEventGeneration();
     } else {

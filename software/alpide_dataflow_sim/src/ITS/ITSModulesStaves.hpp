@@ -118,7 +118,9 @@ namespace ITS {
     ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
     std::vector<std::shared_ptr<Alpide>> mChips;
-    std::array<ControlInitiatorSocket, 7> socket_control_out; // Distribution of ctrl in half-module
+
+    // Distribution of ctrl in half-module
+    std::array<ControlInitiatorSocket, ITS::CHIPS_PER_HALF_MODULE> socket_control_out;
   };
 
 

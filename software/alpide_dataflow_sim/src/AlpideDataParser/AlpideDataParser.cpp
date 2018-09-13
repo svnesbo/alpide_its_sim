@@ -219,6 +219,13 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
 
   case ALPIDE_REGION_TRAILER:
     // Do nothing. We should never see a region trailer word here
+    std::cerr << "AlpideEventbuilder: Uh oh! Encountered REGION TRAILER word!";
+
+    if(!mEvents.empty())
+      std::cerr << " Chip ID: " << (int)mEvents.back().getChipId();
+
+    std::cerr << std::endl;
+    mDataWordStarted = false;
     break;
 
   case ALPIDE_DATA_SHORT:

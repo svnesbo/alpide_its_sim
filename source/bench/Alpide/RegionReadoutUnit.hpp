@@ -149,6 +149,8 @@ private:
 
   bool mRegionDataOutIsTrailer = false;
 
+  AlpideDataWord mRegionDataOut = AlpideIdle();
+
   ///@brief Used in conjunction with mClusteringEnabled. Indicates that we have already
   ///       received the first pixel in a potential cluster (stored in mPixelHitBaseAddr),
   ///       and should continue building this cluster with subsequent hits that fall into
@@ -167,6 +169,7 @@ public:
                     unsigned int region_num, unsigned int fifo_size,
                     bool matrix_readout_speed, bool cluster_enable);
   void regionUnitProcess(void);
+  void regionHeaderFSMOutput(void);
   bool regionMatrixReadoutFSM(void);
   bool regionValidFSM(void);
   void regionHeaderFSM(void);

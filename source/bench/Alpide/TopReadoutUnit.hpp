@@ -31,7 +31,7 @@
 
 /// The TopReadoutUnit (TRU) class is a simple representation of the TRU in the Alpide chip.
 /// It should be connected to the Region Readout Unit (RRU) in the Alpide object,
-/// and will be responsible for reading out from the RRUs with the topRegionReadoutMethod,
+/// and is responsible for reading out from the RRUs.
 /// which should run at the system clock (40MHz).
 class TopReadoutUnit : sc_core::sc_module
 {
@@ -57,11 +57,21 @@ public:
   sc_port<sc_fifo_out_if<AlpideDataWord>> s_dmu_fifo_input;
 
 private:
-  sc_signal<sc_uint<8> > s_tru_state;
+  sc_buffer<sc_uint<8> > s_tru_current_state;
+  sc_signal<sc_uint<8> > s_tru_next_state;
   sc_signal<sc_uint<8> > s_previous_region;
+
+  ///@brief Data is read right from s_region_data_in into this register every cycle,
+  ///       and data is written from this reg to dmu fifo
+  sc_signal<AlpideDataWord> s_tru_data;
+
+  sc_event E_update_fsm;
 
   ///@brief Signal copy of all_regions_empty variable, 1 cycle delayed
   sc_signal<bool> s_no_regions_empty_debug;
+
+  ///@brief Matches read signal sent to active region
+  sc_signal<bool> s_region_data_read_debug;
 
   ///@brief Signal copy of no_regions_valid variable, 1 cycle delayed
   sc_signal<bool> s_no_regions_valid_debug;
@@ -70,6 +80,9 @@ private:
   sc_signal<bool> s_frame_end_fifo_empty;
 
   sc_signal<bool> s_dmu_data_fifo_full;
+  sc_signal<bool> s_dmu_data_fifo_empty;
+
+  sc_signal<bool> s_write_dmu_fifo;
 
   // Standard C++ members
   unsigned int mChipId;
@@ -92,8 +105,9 @@ private:
   };
 
   void end_of_elaboration(void);
-  void topRegionReadoutMethod(void);
-  void topRegionReadoutOutputMethod(void);
+  void topRegionReadoutOutputNextState(void);
+  void topRegionReadoutStateUpdate(void);
+  //void topRegionReadoutOutputMethod(void);
   bool getNextRegion(unsigned int& region_out);
   bool getNoRegionsEmpty(void);
 

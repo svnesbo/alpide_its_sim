@@ -13,7 +13,10 @@
 ///@param p Pixel hit input to front end
 void PixelFrontEnd::pixelFrontEndInput(const std::shared_ptr<PixelHit>& p)
 {
+  std::uint64_t time_now = sc_time_stamp().value();
   mHitQueue.push_back(p);
+  p->mPixInput = true;
+  p->mPixInputTime = time_now;
 }
 
 

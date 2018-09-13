@@ -501,6 +501,7 @@ void Alpide::frameReadout(void)
 ///       Should be called one time per clock cycle.
 void Alpide::dataTransmission(void)
 {
+  uint64_t time_now = sc_time_stamp().value();
   uint64_t data_out_trig_id;
 
   // Trace signals for fifo sizes
@@ -517,15 +518,17 @@ void Alpide::dataTransmission(void)
   sc_uint<24> dw_dtu_fifo_output;
   uint64_t    trig_dtu_delay_fifo_output;
 
-  AlpideDataWord data_word = AlpideIdle();
+
 
   // -------------------
   // Outer barrel master
   // -------------------
   if(mObMode && mObMaster) {
 
-    // Prioritize busy words over data words
-    if(s_busy_fifo.num_available() > 0) {
+    // Prioritize busy words over data words, but don't break up data words
+    if((s_busy_fifo.num_available() > 0) && mObDwBytesRemaining == 0) {
+      AlpideDataWord data_word = AlpideIdle();
+
       s_busy_fifo.nb_read(data_word);
       dw_dtu_fifo_input = data_word.data[2] << 16;
     }
@@ -534,20 +537,19 @@ void Alpide::dataTransmission(void)
       // If we're not currently processing a 24-bit word,
       // read a new 24-bit word from chip that currently has the "token"
       if(mObDwBytesRemaining == 0) {
-        // Data words are transmitted with most significant byte first
-        mObDwByteIndex = 2;
+        mObDwByteIndex = 2; // Data words are transmitted with most significant byte first
         mObChipSel = mObNextChipSel;
 
         if(mObChipSel < mObSlaveCount) {
           if(s_local_bus_data_in[mObChipSel]->num_available() > 0) {
-            s_local_bus_data_in[mObChipSel]->read(mObDataWord);
+            s_local_bus_data_in[mObChipSel]->nb_read(mObDataWord);
           } else {
             // Send out one IDLE if we have no data
             mObDataWord = AlpideIdle();
           }
         } else {
           if(s_dmu_fifo.num_available() > 0) {
-            s_dmu_fifo.read(mObDataWord);
+            s_dmu_fifo.nb_read(mObDataWord);
           } else {
             // Send out one IDLE if we have no data
             mObDataWord = AlpideIdle();
@@ -569,20 +571,28 @@ void Alpide::dataTransmission(void)
           } else {
             mObNextChipSel = mObChipSel+1;
           }
-        } else if(mObDataWord.data_type == ALPIDE_CHIP_HEADER ||
-                  mObDataWord.data_type == ALPIDE_CHIP_EMPTY_FRAME) {
+        }
+
+        if(mObDataWord.data_type == ALPIDE_CHIP_HEADER ||
+           mObDataWord.data_type == ALPIDE_CHIP_EMPTY_FRAME) {
           // Update trigger id signal used by AlpideDataParser to know
           // which trigger ID the data belongs to. Delay with DTU cycles
           // so that it comes out at the same time as the corresponding data
           data_out_trig_id = mObDataWord.trigger_id;
-        } else if(data_word.data_type == ALPIDE_DATA_SHORT) {
+        } else if(mObDataWord.data_type == ALPIDE_DATA_SHORT) {
           // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
           // the pixels in the data word was read out, and can increase readout counters.
           ///@todo Use dynamic cast here?
-          static_cast<AlpideDataShort*>(&data_word)->increasePixelReadoutCount();
-        } else if(data_word.data_type == ALPIDE_DATA_LONG) {
+          static_cast<AlpideDataShort*>(&mObDataWord)->increasePixelReadoutCount();
+          mObDataWord.mPixel->mAlpideDataOut = true;
+          mObDataWord.mPixel->mAlpideDataOutTime = time_now;
+        } else if(mObDataWord.data_type == ALPIDE_DATA_LONG) {
           ///@todo Use dynamic cast here?
-          static_cast<AlpideDataLong*>(&data_word)->increasePixelReadoutCount();
+          static_cast<AlpideDataLong*>(&mObDataWord)->increasePixelReadoutCount();
+          for(auto pix_it = mObDataWord.mPixels.begin(); pix_it != mObDataWord.mPixels.end(); pix_it++) {
+            (*pix_it)->mAlpideDataOut = true;
+            (*pix_it)->mAlpideDataOutTime = time_now;
+          }
         }
       }
 
@@ -596,6 +606,8 @@ void Alpide::dataTransmission(void)
   // Inner barrel chip (master)
   // --------------------------
   else if(mObMode == false) {
+    AlpideDataWord data_word = AlpideIdle();
+
     // Prioritize busy words over data words
     if(s_busy_fifo.num_available() > 0) {
       s_busy_fifo.nb_read(data_word);
@@ -614,10 +626,16 @@ void Alpide::dataTransmission(void)
       ///@todo Use dynamic cast here?
       auto data_short = static_cast<AlpideDataShort*>(&data_word);
       data_short->increasePixelReadoutCount();
+      data_short->mPixel->mAlpideDataOut = true;
+      data_short->mPixel->mAlpideDataOutTime = time_now;
     } else if(data_word.data_type == ALPIDE_DATA_LONG) {
       ///@todo Use dynamic cast here?
       auto data_long = static_cast<AlpideDataLong*>(&data_word);
       data_long->increasePixelReadoutCount();
+      for(auto pix_it = data_long->mPixels.begin(); pix_it != data_long->mPixels.end(); pix_it++) {
+        (*pix_it)->mAlpideDataOut = true;
+        (*pix_it)->mAlpideDataOutTime = time_now;
+      }
     }
 
     dw_dtu_fifo_input = data_word.data[2] << 16 |
@@ -731,8 +749,11 @@ void Alpide::updateBusyStatus(void)
   if(mObMode & mObMaster) {
     // Check busy status of slave chips in OB
     for(auto busy_it = s_local_busy_in.begin(); busy_it != s_local_busy_in.end(); busy_it++)
+      ///@todo THIS WON'T WORK! READING FROM SIGNAL THAT HASN'T BEEN UPDATED!!
       s_busy_status = s_busy_status || busy_it->read();
   }
+
+  s_busy_status = new_busy_status;
 }
 
 

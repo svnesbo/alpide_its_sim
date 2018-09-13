@@ -207,7 +207,8 @@ struct FrameEndFifoWord {
 ///       of data words are implemented in derived classes.
 class AlpideDataWord
 {
-protected:
+//protected:
+public:
   // mPixel and mPixels is used by derived classes AlpideDataShort and AlpideDataLong
   // It's kind of stupid to put them in the base class, but since the SystemC FIFOs in
   // the Alpide code works on AlpideDataWord directly, some kind of virtual copy constructor

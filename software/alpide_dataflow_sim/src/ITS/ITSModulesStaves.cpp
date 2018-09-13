@@ -164,13 +164,13 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
   unsigned int mod_chip_id = ITS::CHIPS_PER_HALF_MODULE*half_mod_id;
 
   // Create OB master chip
-  unsigned int chip_id = detector_position_to_chip_id({layer_id, stave_id, sub_stave_id, mod_id, mod_chip_id});
-  std::string chip_name = "Chip_" + std::to_string(chip_id);
-  std::cout << "Creating chip with ID " << chip_id << std::endl;
+  unsigned int global_chip_id = detector_position_to_chip_id({layer_id, stave_id, sub_stave_id, mod_id, mod_chip_id});
+  std::string chip_name = "Chip_" + std::to_string(global_chip_id);
+  std::cout << "Creating chip with ID " << global_chip_id << std::endl;
 
 
   mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
-                                            chip_id,
+                                            global_chip_id,
                                             cfg.alpide_dtu_delay_cycles,
                                             cfg.alpide_strobe_length_ns,
                                             cfg.alpide_strobe_ext,
@@ -187,16 +187,18 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
   master_chip.s_data_output(socket_data_out);
   socket_control_out[0].bind(master_chip.s_control_input);
 
+  mod_chip_id++;
 
   // Create slave chips
-  for(unsigned int i = 0; i < 6; i++) {
-    chip_id = detector_position_to_chip_id({layer_id, stave_id, sub_stave_id, mod_id, mod_chip_id+i+1});
-    std::string chip_name = "Chip_" + std::to_string(chip_id);
+  for(unsigned int i = 0; i < 6; i++, mod_chip_id++) {
+    global_chip_id = detector_position_to_chip_id({layer_id, stave_id, sub_stave_id, mod_id, mod_chip_id});
 
-    std::cout << "Creating chip with ID " << chip_id << std::endl;
+    std::string chip_name = "Chip_" + std::to_string(global_chip_id);
+
+    std::cout << "Creating chip with ID " << global_chip_id << std::endl;
 
     mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
-                                              chip_id,
+                                              global_chip_id,
                                               cfg.alpide_dtu_delay_cycles,
                                               cfg.alpide_strobe_length_ns,
                                               cfg.alpide_strobe_ext,
@@ -287,11 +289,11 @@ MBOBStave<N_HALF_MODULES>::MBOBStave(sc_core::sc_module_name const &name,
 
       // Bind incoming control sockets to processCommand() in respective HalfModule objects
       socket_control_in[mod_index].register_transport(std::bind(&HalfModule::processCommand,
-                                                                mHalfModules[i],
+                                                                mHalfModules[mod_index],
                                                                 std::placeholders::_1));
 
       // Forward data from HalfModule object to StaveInterface
-      mHalfModules[mod_index]->socket_data_out(socket_data_out[i]);
+      mHalfModules[mod_index]->socket_data_out(socket_data_out[mod_index]);
     }
   }
 }
