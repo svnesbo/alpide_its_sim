@@ -11,6 +11,10 @@
 #include "../misc/vcd_trace.hpp"
 
 
+
+#include "Alpide.hpp"
+
+
 SC_HAS_PROCESS(RegionReadoutUnit);
 ///@brief Constructor for RegionReadoutUnit class
 ///@param[in] name SystemC module name
@@ -144,6 +148,19 @@ void RegionReadoutUnit::updateRegionDataOut(void)
     AlpideDataWord data;
     s_region_fifo.nb_get(data);
     //s_region_fifo.nb_get(mRegionDataOut);
+
+    int64_t time_now = sc_time_stamp().value();
+    if(!pop_trailer && data.data[0] == DW_REGION_TRAILER) {
+      std::cerr << "@" << time_now << " ns: ";
+      std::cerr << "Chip " << static_cast<Alpide*>(mPixelMatrix)->getChipId();
+      std::cerr << ", region " << mRegionId;
+      std::cerr << ": Oops read out REGION_TRAILER" << std::endl;
+    } else if(pop_trailer && data.data[0] != DW_REGION_TRAILER) {
+      std::cerr << "@" << time_now << " ns: ";
+      std::cerr << "Chip " << static_cast<Alpide*>(mPixelMatrix)->getChipId();
+      std::cerr << ", region " << mRegionId;
+      std::cerr << ": Oops popped something else than REGION_TRAILER" << std::endl;
+    }
   }
 
   // Check if next data word is REGION TRAILER
@@ -178,7 +195,6 @@ void RegionReadoutUnit::updateRegionDataOut(void)
 ///@return Idle state. True if FSM is in idle and will be idle the next state.
 bool RegionReadoutUnit::regionMatrixReadoutFSM(void)
 {
-  bool region_fifo_full = (s_region_fifo.size() - s_region_fifo.used()) == 0;
   bool matrix_readout_ready = false;
   bool region_matrix_empty = false;
   bool idle_state = false;
@@ -241,7 +257,8 @@ bool RegionReadoutUnit::regionMatrixReadoutFSM(void)
 
       next_state = RO_FSM::IDLE;
     } else if(matrix_readout_ready) { // Wait for matrix readout delay
-      if(!region_fifo_full) {
+      //if(!region_fifo_full) {
+      if(s_region_fifo.nb_can_put()) { // fifo not full?
         s_region_matrix_empty_debug = region_matrix_empty = readoutNextPixel(*mPixelMatrix);
         s_matrix_readout_delay_counter = 0;
         if(region_matrix_empty) {
@@ -257,9 +274,19 @@ bool RegionReadoutUnit::regionMatrixReadoutFSM(void)
   case RO_FSM::REGION_TRAILER:
     if(s_readout_abort_in)
       next_state = RO_FSM::IDLE;
-    else if(!region_fifo_full) {
+    //else if(!region_fifo_full) {
+    else if(s_region_fifo.nb_can_put()) { // fifo not full?
       // Put REGION_TRAILER word on RRU FIFO
-      s_region_fifo.nb_put(AlpideRegionTrailer());
+      //s_region_fifo.nb_put(AlpideRegionTrailer());
+
+      if(s_region_fifo.nb_put(AlpideRegionTrailer()) == false) {
+        int64_t time_now = sc_time_stamp().value();
+        std::cerr << "@" << time_now << " ns: ";
+        std::cerr << "Chip " << static_cast<Alpide*>(mPixelMatrix)->getChipId();
+        std::cerr << ", region " << mRegionId;
+        std::cerr << ": Oops writing REGION_TRAILER to fifo failed" << std::endl;
+      }
+
       next_state = RO_FSM::IDLE;
     }
     s_frame_readout_done_out = false;
