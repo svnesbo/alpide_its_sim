@@ -140,8 +140,19 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
         unsigned int link_id = link_num + (sta_id * n_data_lines_per_stave);
 
-        RU.s_serial_data_input[link_num](new_chips[link_num]->s_serial_data_out_exp);
-        RU.s_serial_data_trig_id[link_num](new_chips[link_num]->s_serial_data_trig_id_exp);
+        if(lay_id < 3) {
+          // Inner Barrel
+          RU.s_serial_data_input[link_num](new_chips[link_num]->s_serial_data_out_exp);
+          RU.s_serial_data_trig_id[link_num](new_chips[link_num]->s_serial_data_trig_id_exp);
+        } else {
+          // Outer Barrel. Only master chips have data links to RU
+          if(new_chips.size() != stave.numDataLinks()*7) {
+            throw std::runtime_error("OB stave created with incorrect number of chips.");
+          }
+
+          RU.s_serial_data_input[link_num](new_chips[link_num*7]->s_serial_data_out_exp);
+          RU.s_serial_data_trig_id[link_num](new_chips[link_num*7]->s_serial_data_trig_id_exp);
+        }
       }
 
       for(auto chip_it = new_chips.begin(); chip_it != new_chips.end(); chip_it++) {
