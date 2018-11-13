@@ -877,7 +877,7 @@ void EventGenerator::qedNoiseEventMethod(void)
   if(mStopEventGeneration == false) {
     generateNextQedNoiseEvent();
     E_qed_noise_event.notify();
-    next_trigger(mQedNoiseRate, SC_NS);
+    next_trigger(mQedNoiseFeedRateNs, SC_NS);
   }
 }
 
