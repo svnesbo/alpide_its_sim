@@ -104,7 +104,6 @@ private:
     CHIP_TRAILER = 7
   };
 
-  void end_of_elaboration(void);
   void topRegionReadoutOutputNextState(void);
   void topRegionReadoutStateUpdate(void);
   //void topRegionReadoutOutputMethod(void);

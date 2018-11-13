@@ -672,12 +672,14 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
           unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
 
+#ifdef PIXEL_DEBUG
           std::cerr << "Created hit for: chip_id: " << global_chip_id;
           std::cerr << ", layer: " << layer;
           std::cerr << ", stave: " << rand_stave_id;
           std::cerr << ", sub stave: " << rand_sub_stave_id;
           std::cerr << ", module: " << rand_module_id;
           std::cerr << ", local chip id: " << rand_chip_id << std::endl;
+#endif
 
           ///@todo Account for larger/bigger clusters here (when implemented)
           event_pixel_hit_count += 4;

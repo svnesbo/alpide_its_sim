@@ -50,6 +50,7 @@ private:
   std::vector<std::shared_ptr<PixelHit>> mDuplicatePixels;
 
 public:
+#ifdef PIXEL_DEBUG
   bool mPixInput = false;
   bool mPixMatrix = false;
   bool mRRU = false;
@@ -61,6 +62,7 @@ public:
   uint64_t mRRUTime = 0;
   uint64_t mTRUTime = 0;
   uint64_t mAlpideDataOutTime = 0;
+#endif
 
   PixelHit(int col = 0, int row = 0, unsigned int chip_id = 0,
            const std::shared_ptr<PixelReadoutStats> &readout_stats =
@@ -155,6 +157,7 @@ inline PixelHit::~PixelHit()
     mPixelReadoutStats->addReadoutCount(mReadoutCount);
   }
 
+#ifdef PIXEL_DEBUG
   if(mReadoutCount == 0 && mCol != -1 && mRow != -1) {
     std::cerr << "@" << time_now << "ns: I was never read out: ";
     std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
@@ -170,6 +173,7 @@ inline PixelHit::~PixelHit()
     std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
     std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns " << std::endl;
   }
+#endif
 }
 
 

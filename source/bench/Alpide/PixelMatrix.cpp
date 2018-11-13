@@ -132,10 +132,12 @@ void PixelMatrix::setPixel(const std::shared_ptr<PixelHit> &pixel)
   int& current_event_buffer_hits_remaining = mColumnBuffsPixelsLeft.back();
 
   if(current_event_buffer[pixel->getCol()/2].setPixel(pixel)) {
-    pixel->mPixMatrix = true;
-    pixel->mPixMatrixTime = time_now;
     current_event_buffer_hits_remaining++;
     mLatchedPixelHitCount++;
+#ifdef PIXEL_DEBUG
+    pixel->mPixMatrix = true;
+    pixel->mPixMatrixTime = time_now;
+#endif
   } else {
     mDuplicatePixelHitCount++;
   }

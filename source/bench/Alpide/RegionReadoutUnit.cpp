@@ -522,10 +522,12 @@ bool RegionReadoutUnit::readoutNextPixel(PixelMatrix& matrix)
                              std::string("Got NoPixelHit but region not empty."));
 #endif
 
+#ifdef PIXEL_DEBUG
   if(*p != NoPixelHit) {
     p->mRRU = true;
     p->mRRUTime = time_now;
   }
+#endif
 
   if(mClusteringEnabled) {
     if(mClusterStarted == false) {

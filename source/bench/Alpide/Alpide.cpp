@@ -584,15 +584,19 @@ void Alpide::dataTransmission(void)
           // the pixels in the data word was read out, and can increase readout counters.
           ///@todo Use dynamic cast here?
           static_cast<AlpideDataShort*>(&mObDataWord)->increasePixelReadoutCount();
+#ifdef PIXEL_DEBUG
           mObDataWord.mPixel->mAlpideDataOut = true;
           mObDataWord.mPixel->mAlpideDataOutTime = time_now;
+#endif
         } else if(mObDataWord.data_type == ALPIDE_DATA_LONG) {
           ///@todo Use dynamic cast here?
           static_cast<AlpideDataLong*>(&mObDataWord)->increasePixelReadoutCount();
+#ifdef PIXEL_DEBUG
           for(auto pix_it = mObDataWord.mPixels.begin(); pix_it != mObDataWord.mPixels.end(); pix_it++) {
             (*pix_it)->mAlpideDataOut = true;
             (*pix_it)->mAlpideDataOutTime = time_now;
           }
+#endif
         }
       }
 
@@ -626,16 +630,20 @@ void Alpide::dataTransmission(void)
       ///@todo Use dynamic cast here?
       auto data_short = static_cast<AlpideDataShort*>(&data_word);
       data_short->increasePixelReadoutCount();
+#ifdef PIXEL_DEBUG
       data_short->mPixel->mAlpideDataOut = true;
       data_short->mPixel->mAlpideDataOutTime = time_now;
+#endif
     } else if(data_word.data_type == ALPIDE_DATA_LONG) {
       ///@todo Use dynamic cast here?
       auto data_long = static_cast<AlpideDataLong*>(&data_word);
       data_long->increasePixelReadoutCount();
+#ifdef PIXEL_DEBUG
       for(auto pix_it = data_long->mPixels.begin(); pix_it != data_long->mPixels.end(); pix_it++) {
         (*pix_it)->mAlpideDataOut = true;
         (*pix_it)->mAlpideDataOutTime = time_now;
       }
+#endif
     }
 
     dw_dtu_fifo_input = data_word.data[2] << 16 |
