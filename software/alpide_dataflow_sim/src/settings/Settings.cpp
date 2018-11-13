@@ -61,7 +61,8 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["event/monte_carlo_file_type"] = DEFAULT_EVENT_MONTE_CARLO_FILE_TYPE;
   defaultSettings["event/qed_noise_path"] = DEFAULT_EVENT_QED_NOISE_PATH;
   defaultSettings["event/qed_noise_input"] = DEFAULT_EVENT_QED_NOISE_INPUT;
-  defaultSettings["event/qed_noise_rate_ns"] = DEFAULT_EVENT_QED_NOISE_RATE_NS;
+  defaultSettings["event/qed_noise_feed_rate_ns"] = DEFAULT_EVENT_QED_NOISE_FEED_RATE_NS;
+  defaultSettings["event/qed_noise_event_rate_ns"] = DEFAULT_EVENT_QED_NOISE_EVENT_RATE_NS;
   defaultSettings["event/hit_multiplicity_distribution_type"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_TYPE;
   defaultSettings["event/hit_multiplicity_distribution_file"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_FILE;
   defaultSettings["event/hit_multiplicity_gauss_avg"] = DEFAULT_EVENT_HIT_MULTIPLICITY_GAUSS_AVG;
