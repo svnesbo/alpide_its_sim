@@ -240,8 +240,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
       mRandModule[layer] =
         new uniform_int_distribution<int>(0, ITS::MODULES_PER_SUB_STAVE_IN_LAYER[layer]-1);
     } else {
-      mRandSubStave[layer] == nullptr;
-      mRandModule[layer] == nullptr;
+      mRandSubStave[layer] = nullptr;
+      mRandModule[layer] = nullptr;
     }
 
     mRandChipID[layer] =
