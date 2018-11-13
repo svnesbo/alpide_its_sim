@@ -21,14 +21,16 @@ SC_HAS_PROCESS(ITSDetector);
 ///              (ie. number of staves per layer to include in simulation)
 ///@param trigger_filter_time Readout Units will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds).
+///@param trigger_filter_enable Enable/disable trigger filtering
 ITSDetector::ITSDetector(sc_core::sc_module_name name,
                          const detectorConfig& config,
-                         unsigned int trigger_filter_time)
+                         unsigned int trigger_filter_time,
+                         bool trigger_filter_enable)
   : sc_core::sc_module(name)
   , mConfig(config)
 {
   verifyDetectorConfig(config);
-  buildDetector(config, trigger_filter_time);
+  buildDetector(config, trigger_filter_time, trigger_filter_enable);
 
   SC_METHOD(triggerMethod);
   sensitive << E_trigger_in;
@@ -66,8 +68,10 @@ void ITSDetector::verifyDetectorConfig(const detectorConfig& config) const
 ///              (ie. number of staves per layer to include in simulation)
 ///@param trigger_filter_time Readout Units will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds).
+///@param trigger_filter_enable Enable/disable trigger filtering
 void ITSDetector::buildDetector(const detectorConfig& config,
-                                unsigned int trigger_filter_time)
+                                unsigned int trigger_filter_time,
+                                bool trigger_filter_enable)
 {
   // Reserve space for all chips, even if they are not used (not allocated),
   // because we access/index them by index in the vectors, and vector access is O(1).
@@ -81,7 +85,9 @@ void ITSDetector::buildDetector(const detectorConfig& config,
     std::cout << std::endl;
 
     // Create sc_vectors with ReadoutUnit and Staves for this layer
-    mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id, trigger_filter_time));
+    mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id,
+                                                     trigger_filter_time,
+                                                     trigger_filter_enable));
     mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id, mConfig));
 
     unsigned int n_data_lines_per_stave =
@@ -134,7 +140,19 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 
         unsigned int link_id = link_num + (sta_id * n_data_lines_per_stave);
 
-        RU.s_serial_data_input[link_num](new_chips[link_num]->s_serial_data_out_exp);
+        if(lay_id < 3) {
+          // Inner Barrel
+          RU.s_serial_data_input[link_num](new_chips[link_num]->s_serial_data_out_exp);
+          RU.s_serial_data_trig_id[link_num](new_chips[link_num]->s_serial_data_trig_id_exp);
+        } else {
+          // Outer Barrel. Only master chips have data links to RU
+          if(new_chips.size() != stave.numDataLinks()*7) {
+            throw std::runtime_error("OB stave created with incorrect number of chips.");
+          }
+
+          RU.s_serial_data_input[link_num](new_chips[link_num*7]->s_serial_data_out_exp);
+          RU.s_serial_data_trig_id[link_num](new_chips[link_num*7]->s_serial_data_trig_id_exp);
+        }
       }
 
       for(auto chip_it = new_chips.begin(); chip_it != new_chips.end(); chip_it++) {
@@ -156,34 +174,25 @@ void ITSDetector::buildDetector(const detectorConfig& config,
 }
 
 
-///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
-///       detector configuration).
-///@param chip_id Chip ID of Alpide chip
-///@param h Pixel hit
-void ITSDetector::pixelInput(unsigned int chip_id, const Hit& h)
+///@brief Input a pixel to the front end of one of the detector's
+///       Alpide chip's (if it exists in the detector configuration).
+///@param pix PixelHit object with pixel matrix coordinates and chip id
+void ITSDetector::pixelInput(const std::shared_ptr<PixelHit>& pix)
 {
   // Does the chip exist in our detector/simulation configuration?
-  if(mChipVector[chip_id]) {
-    mChipVector[chip_id]->pixelFrontEndInput(h);
+  if(mChipVector[pix->getChipId()]) {
+    mChipVector[pix->getChipId()]->pixelFrontEndInput(pix);
+  } else {
+    std::cout << "Chip " << pix->getChipId() << " does not exist.";
   }
 }
 
 
-///@brief Input a pixel to the front end of one of the detector's
-///       Alpide chip's (if it exists in the detector configuration).
-///@param pos Position of Alpide chip in detector
-///@param col Column in Alpide chip pixel matrix
-///@param row Row in Alpide chip pixel matrix
-void ITSDetector::pixelInput(const ITSPixelHit& h)
-{
-  unsigned int chip_id = detector_position_to_chip_id(h.getPosition());
-
-  pixelInput(chip_id, h);
-}
-
-
 ///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
 ///       detector configuration).
+///       This function will call the chip object's setPixel() function, which directly sets
+///       a pixel in the last MEB in the chip.
+///       Generally you would NOT want to use this function for simulations.
 ///@param chip_id Chip ID of Alpide chip
 ///@param col Column in Alpide chip pixel matrix
 ///@param row Row in Alpide chip pixel matrix
@@ -202,6 +211,9 @@ void ITSDetector::setPixel(unsigned int chip_id, unsigned int col, unsigned int 
 
 ///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
 ///       detector configuration).
+///       This function will call the chip object's setPixel() function, which directly sets
+///       a pixel in the last MEB in the chip.
+///       Generally you would NOT want to use this function for simulations.
 ///@param pos Position of Alpide chip in detector
 ///@param col Column in Alpide chip pixel matrix
 ///@param row Row in Alpide chip pixel matrix
@@ -216,13 +228,16 @@ void ITSDetector::setPixel(const detectorPosition& pos, unsigned int col, unsign
 ///@brief Set a pixel in one of the detector's Alpide chip's (if it exists in the
 ///       detector configuration).
 ///@param h Pixel hit data
-void ITSDetector::setPixel(const ITSPixelHit& h)
+void ITSDetector::setPixel(const std::shared_ptr<PixelHit>& p)
 {
-  unsigned int chip_id = detector_position_to_chip_id(h.getPosition());
-  unsigned int col = h.getCol();
-  unsigned int row = h.getRow();
+  // Does the chip exist in our detector/simulation configuration?
+  if(mChipVector[p->getChipId()]) {
+    ///@todo Check if chip is ready?
+    //if(mChipVector[chip_id]->s_chip_ready) {
+    //}
 
-  setPixel(chip_id, col, row);
+    mChipVector[p->getChipId()]->setPixel(p);
+  }
 }
 
 
@@ -249,8 +264,6 @@ void ITSDetector::addTraces(sc_trace_file *wf, std::string name_prefix) const
   ss << name_prefix << "ITS.";
   std::string ITS_name_prefix = ss.str();
 
-  //addTrace(wf, ITS_name_prefix, "system_clk_in", s_system_clk_in);
-  //addTrace(wf, ITS_name_prefix, "trigger_in", E_trigger_in);
   addTrace(wf, ITS_name_prefix, "detector_busy_out", s_detector_busy_out);
 
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
@@ -275,7 +288,6 @@ void ITSDetector::writeSimulationStats(const std::string output_path) const
       std::stringstream ss;
       ss << output_path << "/RU_" << layer << "_" << stave;
 
-      //mDetectorStaves[layer][stave].writeSimulationStats(output_path);
       mReadoutUnits[layer][stave].writeSimulationStats(ss.str());
     }
   }

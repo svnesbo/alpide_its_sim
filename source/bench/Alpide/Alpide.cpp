@@ -25,17 +25,25 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] enable_clustering Enable clustering and use of DATA LONG words
 ///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
 ///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
+///@param[in] outer_barrel_mode True: outer barrel mode. False: inner barrel mode
+///@param[in] outer_barrel_master Only relevant if in OB mode.
+///           True: OB master. False: OB slave
+///@param[in] outer_barrel_slave_count Number of slave chips connected to outer barrel master
 ///@param[in] min_busy_cycles Minimum number of cycles that the internal busy signal has to be
 ///           asserted before the chip transmits BUSY_ON
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
                int strobe_length_ns, bool strobe_extension, bool enable_clustering,
-               bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles)
+               bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles,
+               bool outer_barrel_mode, bool outer_barrel_master, int outer_barrel_slave_count)
   : sc_core::sc_module(name)
   , s_control_input("s_control_input")
   , s_data_output("s_data_output")
   , s_chip_ready_out("chip_ready_out")
+  , s_local_bus_data_in(outer_barrel_slave_count)
+  , s_local_busy_in(outer_barrel_slave_count)
   , s_dmu_fifo(DMU_FIFO_SIZE)
   , s_dtu_delay_fifo(dtu_delay_cycles+1)
+  , s_dtu_delay_fifo_trig(dtu_delay_cycles+1)
   , s_busy_fifo(BUSY_FIFO_SIZE)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
@@ -43,13 +51,24 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   , mStrobeExtensionEnable(strobe_extension)
   , mStrobeLengthNs(strobe_length_ns)
   , mMinBusyCycles(min_busy_cycles)
+  , mObMode(outer_barrel_mode)
+  , mObMaster(outer_barrel_master)
+  , mObSlaveCount(outer_barrel_slave_count)
 {
   mChipId = chip_id;
   mEnableDtuDelay = dtu_delay_cycles > 0;
 
   s_chip_ready_out(s_chip_ready_internal);
+  s_local_busy_out(s_busy_status);
 
   s_serial_data_out_exp(s_serial_data_out);
+  s_serial_data_trig_id_exp(s_serial_data_trig_id);
+
+  s_local_bus_data_out(s_dmu_fifo);
+
+  // Initialize data out signal to all IDLEs
+  s_serial_data_out = 0xFFFFFF;
+  s_serial_data_trig_id = 0;
 
   s_event_buffers_used_debug = 0;
   s_total_number_of_hits = 0;
@@ -109,10 +128,15 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   mTRU->s_frame_end_fifo_output(s_frame_end_fifo);
   mTRU->s_dmu_fifo_input(s_dmu_fifo);
 
-  // Initialize DTU delay FIFO with comma words
-  AlpideDataWord dw = AlpideComma();
-  while(s_dtu_delay_fifo.num_free() > 0)
-    s_dtu_delay_fifo.nb_write(dw);
+  // Initialize DTU delay FIFO with idle words
+  sc_uint<24> dw_idle_data = ((uint32_t) DW_IDLE << 16) |
+                             ((uint32_t) DW_IDLE << 8) |
+                              (uint32_t) DW_IDLE;
+
+  while(s_dtu_delay_fifo.num_free() > 0) {
+    s_dtu_delay_fifo.nb_write(dw_idle_data);
+    s_dtu_delay_fifo_trig.nb_write(0);
+  }
 
   s_control_input.register_transport(std::bind(&Alpide::processCommand,
                                                this, std::placeholders::_1));
@@ -128,9 +152,12 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   sensitive << E_strobe_interval_done;
   dont_initialize();
 
-  SC_METHOD(busyFifoMethod);
-  sensitive << s_busy_status;
-  dont_initialize();
+  // Only IB/OB-master chips need the busy FIFO method
+  if(!outer_barrel_mode || (outer_barrel_mode && outer_barrel_master)) {
+    SC_METHOD(busyFifoMethod);
+    sensitive << s_busy_status;
+    dont_initialize();
+  }
 
   // SC_METHOD(strobeAndFramingMethod);
   // sensitive << s_strobe_n;
@@ -185,6 +212,8 @@ void Alpide::triggerMethod(void)
   ///@todo What happens if I get one trigger at the exact time the strobe goes inactive???
 
   std::cout << "@" << time_now << ": Alpide with ID " << mChipId << " triggered." << std::endl;
+
+  mTriggersReceived++;
 
   if(s_strobe_n.read() == true) {
     // Strobe not active - start new interval
@@ -472,48 +501,209 @@ void Alpide::frameReadout(void)
 ///       Should be called one time per clock cycle.
 void Alpide::dataTransmission(void)
 {
-  AlpideDataWord dw_dtu_fifo_input = AlpideIdle();
-  AlpideDataWord dw_dtu_fifo_output;
+  uint64_t time_now = sc_time_stamp().value();
+  uint64_t data_out_trig_id;
 
-  sc_uint<24> data_out;
-
+  // Trace signals for fifo sizes
   s_dmu_fifo_size = s_dmu_fifo.num_available();
   s_busy_fifo_size = s_busy_fifo.num_available();
 
-  // Prioritize busy words over data words
-  if(s_busy_fifo.num_available() > 0) {
-    s_busy_fifo.nb_read(dw_dtu_fifo_input);
-  } else if(s_dmu_fifo.num_available() > 0) {
-    s_dmu_fifo.nb_read(dw_dtu_fifo_input);
+
+
+  if(mObMode && !mObMaster) {
+    return; // Outer barrel slave does not transmit data
+  }
+
+  sc_uint<24> dw_dtu_fifo_input;
+  sc_uint<24> dw_dtu_fifo_output;
+  uint64_t    trig_dtu_delay_fifo_output;
+
+
+
+  // -------------------
+  // Outer barrel master
+  // -------------------
+  if(mObMode && mObMaster) {
+
+    // Prioritize busy words over data words, but don't break up data words
+    if((s_busy_fifo.num_available() > 0) && mObDwBytesRemaining == 0) {
+      AlpideDataWord data_word = AlpideIdle();
+
+      s_busy_fifo.nb_read(data_word);
+      dw_dtu_fifo_input = data_word.data[2] << 16;
+    }
+    else { // Data
+
+      // If we're not currently processing a 24-bit word,
+      // read a new 24-bit word from chip that currently has the "token"
+      if(mObDwBytesRemaining == 0) {
+        mObDwByteIndex = 2; // Data words are transmitted with most significant byte first
+        mObChipSel = mObNextChipSel;
+
+        if(mObChipSel < mObSlaveCount) {
+          if(s_local_bus_data_in[mObChipSel]->num_available() > 0) {
+            s_local_bus_data_in[mObChipSel]->nb_read(mObDataWord);
+          } else {
+            // Send out one IDLE if we have no data
+            mObDataWord = AlpideIdle();
+          }
+        } else {
+          if(s_dmu_fifo.num_available() > 0) {
+            s_dmu_fifo.nb_read(mObDataWord);
+          } else {
+            // Send out one IDLE if we have no data
+            mObDataWord = AlpideIdle();
+          }
+        }
+        mObDwBytesRemaining = mObDataWord.size;
+
+        if(mObDataWord.data_type == ALPIDE_CHIP_EMPTY_FRAME ||
+           mObDataWord.data_type == ALPIDE_CHIP_TRAILER) {
+          // If this is a CHIP_TRAILER og CHIP_EMPTY_FRAME data word then we
+          // should also transmit one of the "IDLE filler bytes" following the
+          // actual data word
+          mObDwBytesRemaining++;
+
+          // And give away "token" (ie going to the next chip) after
+          // transmitting the data word
+          if(mObChipSel == mObSlaveCount) {
+            mObNextChipSel = 0;
+          } else {
+            mObNextChipSel = mObChipSel+1;
+          }
+        }
+
+        if(mObDataWord.data_type == ALPIDE_CHIP_HEADER ||
+           mObDataWord.data_type == ALPIDE_CHIP_EMPTY_FRAME) {
+          // Update trigger id signal used by AlpideDataParser to know
+          // which trigger ID the data belongs to. Delay with DTU cycles
+          // so that it comes out at the same time as the corresponding data
+          data_out_trig_id = mObDataWord.trigger_id;
+        } else if(mObDataWord.data_type == ALPIDE_DATA_SHORT) {
+          // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
+          // the pixels in the data word was read out, and can increase readout counters.
+          ///@todo Use dynamic cast here?
+          static_cast<AlpideDataShort*>(&mObDataWord)->increasePixelReadoutCount();
+#ifdef PIXEL_DEBUG
+          mObDataWord.mPixel->mAlpideDataOut = true;
+          mObDataWord.mPixel->mAlpideDataOutTime = time_now;
+#endif
+        } else if(mObDataWord.data_type == ALPIDE_DATA_LONG) {
+          ///@todo Use dynamic cast here?
+          static_cast<AlpideDataLong*>(&mObDataWord)->increasePixelReadoutCount();
+#ifdef PIXEL_DEBUG
+          for(auto pix_it = mObDataWord.mPixels.begin(); pix_it != mObDataWord.mPixels.end(); pix_it++) {
+            (*pix_it)->mAlpideDataOut = true;
+            (*pix_it)->mAlpideDataOutTime = time_now;
+          }
+#endif
+        }
+      }
+
+      dw_dtu_fifo_input = mObDataWord.data[mObDwByteIndex] << 16;
+
+      mObDwByteIndex--;
+      mObDwBytesRemaining--;
+    }
+  }
+  // --------------------------
+  // Inner barrel chip (master)
+  // --------------------------
+  else if(mObMode == false) {
+    AlpideDataWord data_word = AlpideIdle();
+
+    // Prioritize busy words over data words
+    if(s_busy_fifo.num_available() > 0) {
+      s_busy_fifo.nb_read(data_word);
+    } else if(s_dmu_fifo.num_available() > 0) {
+      s_dmu_fifo.nb_read(data_word);
+    }
+
+    if(data_word.data_type == ALPIDE_CHIP_HEADER ||
+       data_word.data_type == ALPIDE_CHIP_EMPTY_FRAME) {
+      // Update trigger id signal used by AlpideDataParser to know
+      // which trigger ID the data belongs to
+      data_out_trig_id = data_word.trigger_id;
+    } else if(data_word.data_type == ALPIDE_DATA_SHORT) {
+      // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
+      // the pixels in the data word was read out, and can increase readout counters.
+      ///@todo Use dynamic cast here?
+      auto data_short = static_cast<AlpideDataShort*>(&data_word);
+      data_short->increasePixelReadoutCount();
+#ifdef PIXEL_DEBUG
+      data_short->mPixel->mAlpideDataOut = true;
+      data_short->mPixel->mAlpideDataOutTime = time_now;
+#endif
+    } else if(data_word.data_type == ALPIDE_DATA_LONG) {
+      ///@todo Use dynamic cast here?
+      auto data_long = static_cast<AlpideDataLong*>(&data_word);
+      data_long->increasePixelReadoutCount();
+#ifdef PIXEL_DEBUG
+      for(auto pix_it = data_long->mPixels.begin(); pix_it != data_long->mPixels.end(); pix_it++) {
+        (*pix_it)->mAlpideDataOut = true;
+        (*pix_it)->mAlpideDataOutTime = time_now;
+      }
+#endif
+    }
+
+    dw_dtu_fifo_input = data_word.data[2] << 16 |
+                        data_word.data[1] << 8 |
+                        data_word.data[0];
   }
 
 
-  // Read data from DTU FIFO output, or IDLE if FIFO is empty.
+  // --------------------------
+  // DTU encoding delay
+  // --------------------------
+
+  // If delaying of data through DTU FIFO is enabled (to simulate encoding
+  // delay in DTU), then read data from DTU FIFO output, or IDLE if FIFO is
+  // empty.
   if(mEnableDtuDelay) {
     s_dtu_delay_fifo.nb_write(dw_dtu_fifo_input);
     if(s_dtu_delay_fifo.nb_read(dw_dtu_fifo_output) == false) {
-      dw_dtu_fifo_output = AlpideIdle();
+      sc_uint<24> dw_idle_data = ((uint32_t) DW_IDLE << 16) |
+                                 ((uint32_t) DW_IDLE << 8) |
+                                  (uint32_t) DW_IDLE;
+      dw_dtu_fifo_output = dw_idle_data;
     }
+
+    s_dtu_delay_fifo_trig.nb_write(data_out_trig_id);
+    if(s_dtu_delay_fifo_trig.nb_read(trig_dtu_delay_fifo_output) == false) {
+      trig_dtu_delay_fifo_output = 0;
+    }
+
   } else {
     dw_dtu_fifo_output = dw_dtu_fifo_input;
+    trig_dtu_delay_fifo_output = data_out_trig_id;
   }
 
-  sc_uint<24> data_dtu_input =
-    dw_dtu_fifo_input.data[2] << 16 |
-    dw_dtu_fifo_input.data[1] << 8 |
-    dw_dtu_fifo_input.data[0];
+
+  // --------------------------
+  // Data output
+  // --------------------------
+
+  // Put data on data initiator socket output
+  DataPayload socket_dw;
+
+  // Send out 1 byte per 40MHz cycle in OB mode, 3 bytes in IB mode
+  // Only the most significant byte is used in the FIFO in OB mode
+  socket_dw.data.push_back(dw_dtu_fifo_output >> 16);
+  if(mObMode == false) {
+    socket_dw.data.push_back((dw_dtu_fifo_output >> 8) & 0xFF );
+    socket_dw.data.push_back(dw_dtu_fifo_output & 0xFF);
+  }
+
+  // Only output data to socket for IB chips and OB master chips
+  // Socket not used by OB slave chips, and can be left unbound
+  if(!mObMode || (mObMode && mObMaster))
+    s_data_output->put(socket_dw);
 
   // Debug signal of DTU FIFO input just for adding to VCD trace
-  s_serial_data_dtu_input_debug = data_dtu_input;
+  s_serial_data_dtu_input_debug = dw_dtu_fifo_input;
 
   s_serial_data_out = dw_dtu_fifo_output;
-
-  // Data initiator socket output
-  DataPayload socket_dw;
-  socket_dw.data.push_back(dw_dtu_fifo_output.data[2]);
-  socket_dw.data.push_back(dw_dtu_fifo_output.data[1]);
-  socket_dw.data.push_back(dw_dtu_fifo_output.data[0]);
-  s_data_output->put(socket_dw);
+  s_serial_data_trig_id = trig_dtu_delay_fifo_output;
 }
 
 
@@ -561,6 +751,17 @@ void Alpide::updateBusyStatus(void)
     mBusyCycleCount = 0;
     s_busy_status = false;
   }
+
+  // For OB masters: Also check the slave chips' busy lines,
+  // and assert the busy status if any of the slaves are busy
+  if(mObMode & mObMaster) {
+    // Check busy status of slave chips in OB
+    for(auto busy_it = s_local_busy_in.begin(); busy_it != s_local_busy_in.end(); busy_it++)
+      ///@todo THIS WON'T WORK! READING FROM SIGNAL THAT HASN'T BEEN UPDATED!!
+      s_busy_status = s_busy_status || busy_it->read();
+  }
+
+  s_busy_status = new_busy_status;
 }
 
 
@@ -601,6 +802,7 @@ void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
   addTrace(wf, alpide_name_prefix, "strobe_n", s_strobe_n);
   addTrace(wf, alpide_name_prefix, "chip_ready_internal", s_chip_ready_internal);
   addTrace(wf, alpide_name_prefix, "serial_data_out", s_serial_data_out);
+  addTrace(wf, alpide_name_prefix, "serial_data_trig_id", s_serial_data_trig_id);
   addTrace(wf, alpide_name_prefix, "event_buffers_used_debug", s_event_buffers_used_debug);
   addTrace(wf, alpide_name_prefix, "frame_start_fifo_size_debug", s_frame_start_fifo_size_debug);
   addTrace(wf, alpide_name_prefix, "frame_end_fifo_size_debug", s_frame_end_fifo_size_debug);

@@ -39,6 +39,8 @@ public:
   sc_in_clk s_system_clk_in;
 
   ControlTargetSocket s_control_input;
+
+  ///@brief Data output socket. Not used for OB slave chips (can be left unbound)
   DataInitiatorSocket s_data_output;
 
   ///@brief Obsolete: don't use.
@@ -48,7 +50,25 @@ public:
 
   ///@brief Serial data output. This is an alternative
   ///       representation of the data on s_data_output.
-  sc_export<sc_signal<AlpideDataWord>> s_serial_data_out_exp;
+  sc_export<sc_signal<sc_uint<24>>> s_serial_data_out_exp;
+
+  ///@brief Trigger ID for data that is currently being sent out.
+  sc_export<sc_signal<uint64_t>> s_serial_data_trig_id_exp;
+
+  ///@brief Fifo interfaces to slave chips' DMU FIFOs, in OB mode
+  ///       Used instead of the parallel interface in the real chips.
+  std::vector<sc_port<sc_fifo_in_if<AlpideDataWord>>> s_local_bus_data_in;
+
+  ///@brief DMU FIFO output is available on this port.
+  ///       Only used by master chip in OB configuration
+  sc_port<sc_fifo_in_if<AlpideDataWord>> s_local_bus_data_out;
+
+  ///@brief Busy line inputs from slave chips in OB mode.
+  ///       Used instead of the BUSY line with pullup in the real chips.
+  std::vector<sc_in<bool>> s_local_busy_in;
+
+  ///@brief Busy line output from slave chips in OB mode
+  sc_export<sc_signal<bool>> s_local_busy_out;
 
 private:
   sc_signal<sc_uint<8>> s_fromu_readout_state;
@@ -67,6 +87,7 @@ private:
 
   sc_signal<bool> s_region_fifo_empty[N_REGIONS];
   sc_signal<bool> s_region_valid[N_REGIONS];
+
   sc_signal<bool> s_region_data_read[N_REGIONS];
   sc_signal<bool> s_region_event_start;
   sc_signal<bool> s_region_event_pop;
@@ -92,10 +113,15 @@ private:
   sc_fifo<AlpideDataWord> s_dmu_fifo;
 
   sc_signal<sc_uint<24>> s_serial_data_dtu_input_debug;
-  sc_signal<AlpideDataWord> s_serial_data_out;
+  sc_signal<sc_uint<24>> s_serial_data_out;
+  sc_signal<uint64_t>    s_serial_data_trig_id;
 
   ///@brief FIFO used to represent the encoding delay in the DTU
-  sc_fifo<AlpideDataWord> s_dtu_delay_fifo;
+  sc_fifo<sc_uint<24>> s_dtu_delay_fifo;
+
+  ///@brief FIFO used to delay trigger output signal s_serial_data_trig_id_exp
+  ///       by as many cycles as the data is delayed
+  sc_fifo<uint64_t> s_dtu_delay_fifo_trig;
 
   ///@brief Represents the FIFO written to by the BMU in the real ALPIDE chip
   sc_fifo<AlpideDataWord> s_busy_fifo;
@@ -141,11 +167,36 @@ private:
   uint16_t mMinBusyCycles;
   uint16_t mBusyCycleCount = 0;
 
+  bool mObMode;
+  bool mObMaster;
+
+  ///@brief Number of slave chips connected to outer barrel master
+  const unsigned int mObSlaveCount;
+
+  ///@brief Chip select on "local bus" in outer barrel mode
+  unsigned int mObChipSel = 0;
+
+  ///@brief Next chip on "local bus" in outer barrel mode
+  unsigned int mObNextChipSel = 0;
+
+  ///@brief Bytes remaining in transmission of an up to 24-bit data word in OB mode
+  unsigned int mObDwBytesRemaining = 0;
+
+  ///@brief Index of byte to transmit in current 24-bit data word
+  unsigned int mObDwByteIndex = 0;
+
+  ///@brief Holds 24-bit data word to be transmitted over 3 clock cycles,
+  ///       in outer barrel mode.
+  AlpideDataWord mObDataWord;
+
   ///@brief Trigger ID counter
   uint64_t mTrigIdCount = 0;
 
   ///@brief Trigger ID for the currently active strobe
   uint64_t mTrigIdForStrobe = 0;
+
+  ///@brief Numbers of triggers received by the chip
+  uint64_t mTriggersReceived = 0;
 
   ///@brief Number of triggers that are accepted by the chip
   uint64_t mTriggersAccepted = 0;
@@ -185,10 +236,13 @@ private:
 public:
   Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
          int strobe_length_ns, bool strobe_extension, bool enable_clustering,
-         bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles = 8);
+         bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles = 8,
+         bool outer_barrel_mode = false, bool outer_barrel_master = false,
+         int outer_barrel_slave_count = 0);
   int getChipId(void) {return mChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
+  uint64_t getTriggersReceivedCount(void) const {return mTriggersReceived;}
   uint64_t getTriggersAcceptedCount(void) const {return mTriggersAccepted;}
   uint64_t getTriggersRejectedCount(void) const {return mTriggersRejected;}
   uint64_t getBusyCount(void) const {return mBusyTransitions;}

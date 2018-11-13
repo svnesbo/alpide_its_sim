@@ -15,6 +15,7 @@
 
 #include "AlpideDataWord.hpp"
 #include "PixelMatrix.hpp"
+#include <memory>
 #include <cstdint>
 
 // Ignore warnings about use of auto_ptr in SystemC library
@@ -88,11 +89,19 @@ public:
 private:
   sc_signal<sc_uint<8>> s_rru_readout_state;
   sc_signal<sc_uint<8>> s_rru_valid_state;
-  sc_signal<sc_uint<1>> s_rru_header_state;
+  sc_signal<sc_uint<8>> s_rru_header_state;
   sc_signal<bool> s_generate_region_header;
 
   /// Delayed one clock cycle compared to when it is used..
   sc_signal<bool> s_region_matrix_empty_debug;
+
+  /// Delayed version (1 clock cycle) of mClusterStarted
+  /// Used in EMPTY state in valid FSM to determine if region is valid before readout has
+  /// really started, to prevent TRU from skipping to next RRU.
+  /// Without the delayed version of the cluster started signal the valid signal may go to
+  /// zero for a clock cycle when readout of a cluster is done, causing the TRU to skip
+  /// this region or popping it, which is bad :()
+  sc_signal<bool> s_cluster_started;
 
   sc_signal<sc_uint<2> > s_matrix_readout_delay_counter;
 
@@ -126,11 +135,21 @@ private:
   /// Corresponds to hitmap in DATA LONG word
   std::uint8_t mPixelHitmap;
 
+  /// Used by readoutNextPixel() to keep track of which pixel or pixels for DATA_SHORT/LONG are
+  /// currently being read out. They need to be included in the AlpideDataShort/AlpideDataLong
+  /// words, so that we can both increase and decrease PixelHit's readout counter, both when
+  /// reading out pixel in readoutNextPixel(), and when flushing RRU FIFO in case of readout abort.
+  std::vector<std::shared_ptr<PixelHit>> mPixelClusterVec;
+
   unsigned int mFifoSizeLimit;
 
   bool mFifoSizeLimitEnabled;
   bool mBusySignaled;
   bool mClusteringEnabled;
+
+  bool mRegionDataOutIsTrailer = false;
+
+  AlpideDataWord mRegionDataOut = AlpideIdle();
 
   ///@brief Used in conjunction with mClusteringEnabled. Indicates that we have already
   ///       received the first pixel in a potential cluster (stored in mPixelHitBaseAddr),
@@ -142,13 +161,15 @@ private:
 
 private:
   bool readoutNextPixel(PixelMatrix& matrix);
+  void updateRegionDataOut(void);
   void flushRegionFifo(void);
 
 public:
   RegionReadoutUnit(sc_core::sc_module_name name, PixelMatrix* matrix,
                     unsigned int region_num, unsigned int fifo_size,
                     bool matrix_readout_speed, bool cluster_enable);
-  void regionReadoutProcess(void);
+  void regionUnitProcess(void);
+  void regionHeaderFSMOutput(void);
   bool regionMatrixReadoutFSM(void);
   bool regionValidFSM(void);
   void regionHeaderFSM(void);

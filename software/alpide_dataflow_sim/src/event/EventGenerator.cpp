@@ -260,16 +260,23 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     mRandHitMultiplicityGauss = nullptr;
   }
 
+  mPhysicsReadoutStats = std::make_shared<PixelReadoutStats>();
+  mQedReadoutStats = std::make_shared<PixelReadoutStats>();
+
   mRandHitChipX = new uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
   mRandHitChipY = new uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
 
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
     // Modules are not used for IB layers..
-    if(layer > 2)
+    if(layer > 2) {
+      mRandSubStave[layer] =
+        new uniform_int_distribution<int>(0, ITS::SUB_STAVES_PER_STAVE[layer]-1);
       mRandModule[layer] =
-        new uniform_int_distribution<int>(0, ITS::MODULES_PER_STAVE_IN_LAYER[layer]-1);
-    else
-      mRandModule[layer] == nullptr;
+        new uniform_int_distribution<int>(0, ITS::MODULES_PER_SUB_STAVE_IN_LAYER[layer]-1);
+    } else {
+      mRandSubStave[layer] = nullptr;
+      mRandModule[layer] = nullptr;
+    }
 
     mRandChipID[layer] =
       new uniform_int_distribution<int>(0, ITS::CHIPS_PER_MODULE_IN_LAYER[layer]-1);
@@ -309,6 +316,8 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
     for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
       unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
       for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
+        // Safe to ignore OB sub staves here, since we only include full staves in simulation,
+        // and this will include all chips from a full stave
         for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
           mPhysicsEventsCSVFile << ";chip_" << chip_id;
           chip_id++;
@@ -330,11 +339,13 @@ EventGenerator::EventGenerator(sc_core::sc_module_name name,
 }
 
 
+///@brief Destructor for EventGenerator class
 EventGenerator::~EventGenerator()
 {
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
     delete mRandChipID[layer];
     delete mRandStave[layer];
+    delete mRandSubStave[layer];
     delete mRandModule[layer];
   }
 
@@ -351,9 +362,18 @@ EventGenerator::~EventGenerator()
 }
 
 
+///@brief Write simulation stats/data to file
+///@param[in] output_path Path to simulation output directory
+void EventGenerator::writeSimulationStats(const std::string output_path) const
+{
+  mPhysicsReadoutStats->writeToFile(output_path + std::string("/physics_readout_stats.csv"));
+  mQedReadoutStats->writeToFile(output_path + std::string("/qed_readout_stats.csv"));
+}
+
+
 ///@brief Get a reference to the next physics event
 ///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
-const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestPhysicsEvent(void) const
+const std::vector<std::shared_ptr<PixelHit>>& EventGenerator::getLatestPhysicsEvent(void) const
 {
   return mEventHitVector;
 }
@@ -361,7 +381,7 @@ const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestPhysicsEvent(void)
 
 ///@brief Get a reference to the next QED/Noise event
 ///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
-const std::vector<ITS::ITSPixelHit>& EventGenerator::getLatestQedNoiseEvent(void) const
+const std::vector<std::shared_ptr<PixelHit>>& EventGenerator::getLatestQedNoiseEvent(void) const
 {
   return mQedNoiseHitVector;
 }
@@ -592,25 +612,37 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
           rand_y2 = rand_y1-1;
         }
 
-        ITS::detectorPosition pos = {0, 0, 0, 0};
+        ITS::detectorPosition pos = {0, 0, 0, 0, 0};
 
 
         ///@todo Account for larger/bigger clusters here (when implemented)
         event_pixel_hit_count += 4;
 
-        // std::cout << "@ " << time_now << " ns:";
-        // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
-        // std::cout << " for " << pos << std::endl;
+        // Create hit with timing information and pointer to readout stats object
+        std::shared_ptr<PixelHit> pix1_shared = std::make_shared<PixelHit>(rand_x1, rand_y1, 0);
+        std::shared_ptr<PixelHit> pix2_shared = std::make_shared<PixelHit>(rand_x1, rand_y2, 0);
+        std::shared_ptr<PixelHit> pix3_shared = std::make_shared<PixelHit>(rand_x2, rand_y1, 0);
+        std::shared_ptr<PixelHit> pix4_shared = std::make_shared<PixelHit>(rand_x2, rand_y2, 0);
 
-        ///@todo Create hits for all chips properly here!!
-        mEventHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
-                                mPixelDeadTime, mPixelActiveTime);
-        mEventHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
-                                mPixelDeadTime, mPixelActiveTime);
-        mEventHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
-                                mPixelDeadTime, mPixelActiveTime);
-        mEventHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
-                                mPixelDeadTime, mPixelActiveTime);
+        pix1_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+        pix2_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+        pix3_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+        pix4_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+
+        pix1_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+        pix2_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+        pix3_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+        pix4_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+
+        pix1_shared->setPixelReadoutStatsObj(mPhysicsReadoutStats);
+        pix2_shared->setPixelReadoutStatsObj(mPhysicsReadoutStats);
+        pix3_shared->setPixelReadoutStatsObj(mPhysicsReadoutStats);
+        pix4_shared->setPixelReadoutStatsObj(mPhysicsReadoutStats);
+
+        mEventHitVector.push_back(pix1_shared);
+        mEventHitVector.push_back(pix2_shared);
+        mEventHitVector.push_back(pix3_shared);
+        mEventHitVector.push_back(pix4_shared);
       }
     } else if(n_hits_raw > 0) { // Generate hits for each layer in ITS detector simulation
       for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
@@ -636,12 +668,13 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
           if(rand_stave_id >= mITSConfig.layer[layer].num_staves)
             continue;
 
+          unsigned int rand_sub_stave_id = 0;
+          if(layer > 2) // Sub staves are not used for IB layers
+            rand_sub_stave_id = (*mRandSubStave[layer])(mRandHitGen);
 
           unsigned int rand_module_id = 0;
-
-          // Modules are not used for IB layers
-          if(layer > 2)
-            rand_module_id = (*mRandStave[layer])(mRandHitGen);
+          if(layer > 2) // Modules are not used for IB layers
+            rand_module_id = (*mRandModule[layer])(mRandHitGen);
 
           unsigned int rand_chip_id = (*mRandChipID[layer])(mRandHitGen);
 
@@ -667,28 +700,52 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
           ITS::detectorPosition pos = {layer,
                                        rand_stave_id,
+                                       rand_sub_stave_id,
                                        rand_module_id,
                                        rand_chip_id};
+
+          unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
+
+#ifdef PIXEL_DEBUG
+          std::cerr << "Created hit for: chip_id: " << global_chip_id;
+          std::cerr << ", layer: " << layer;
+          std::cerr << ", stave: " << rand_stave_id;
+          std::cerr << ", sub stave: " << rand_sub_stave_id;
+          std::cerr << ", module: " << rand_module_id;
+          std::cerr << ", local chip id: " << rand_chip_id << std::endl;
+#endif
 
           ///@todo Account for larger/bigger clusters here (when implemented)
           event_pixel_hit_count += 4;
 
           layer_hits[layer]++;
-          chip_hits[detector_position_to_chip_id(pos)]++;
+          chip_hits[global_chip_id]++;
 
-          // std::cout << "@ " << time_now << " ns:";
-          // std::cout << "Generated hit cluster around " << rand_x1 << ":" << rand_y1;
-          // std::cout << " for " << pos << std::endl;
+          // Create hit with timing information and pointer to readout stats object
+          std::shared_ptr<PixelHit> pix1_shared = std::make_shared<PixelHit>(rand_x1, rand_y1, global_chip_id);
+          std::shared_ptr<PixelHit> pix2_shared = std::make_shared<PixelHit>(rand_x1, rand_y2, global_chip_id);
+          std::shared_ptr<PixelHit> pix3_shared = std::make_shared<PixelHit>(rand_x2, rand_y1, global_chip_id);
+          std::shared_ptr<PixelHit> pix4_shared = std::make_shared<PixelHit>(rand_x2, rand_y2, global_chip_id);
 
-          ///@todo Create hits for all chips properly here!!
-          mEventHitVector.emplace_back(pos, rand_x1, rand_y1, mLastPhysicsEventTimeNs,
-                                  mPixelDeadTime, mPixelActiveTime);
-          mEventHitVector.emplace_back(pos, rand_x1, rand_y2, mLastPhysicsEventTimeNs,
-                                  mPixelDeadTime, mPixelActiveTime);
-          mEventHitVector.emplace_back(pos, rand_x2, rand_y1, mLastPhysicsEventTimeNs,
-                                  mPixelDeadTime, mPixelActiveTime);
-          mEventHitVector.emplace_back(pos, rand_x2, rand_y2, mLastPhysicsEventTimeNs,
-                                  mPixelDeadTime, mPixelActiveTime);
+          pix1_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+          pix2_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+          pix3_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+          pix4_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+
+          pix1_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+          pix2_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+          pix3_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+          pix4_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+
+          pix1_shared->setPixelReadoutStatsObj(mPhysicsReadoutStats);
+          pix2_shared->setPixelReadoutStatsObj(mPhysicsReadoutStats);
+          pix3_shared->setPixelReadoutStatsObj(mPhysicsReadoutStats);
+          pix4_shared->setPixelReadoutStatsObj(mPhysicsReadoutStats);
+
+          mEventHitVector.push_back(pix1_shared);
+          mEventHitVector.push_back(pix2_shared);
+          mEventHitVector.push_back(pix3_shared);
+          mEventHitVector.push_back(pix4_shared);
         } // Hit generation loop
       } // Layer loop
     } // Detector simulation
@@ -705,21 +762,20 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
     event_pixel_hit_count = digits->size();
 
     while(digit_it != digit_end_it) {
-      const int &chip_id = digit_it->first;
-      const PixelData &pix = digit_it->second;
+      const PixelHit &pix = *digit_it;
 
-      ITS::detectorPosition pos = ITS::chip_id_to_detector_position(chip_id);
+      // Recreate hit with timing information and pointer to readout stats object
+      std::shared_ptr<PixelHit> pix_shared = std::make_shared<PixelHit>(pix);
+      pix_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+      pix_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+      pix_shared->setPixelReadoutStatsObj(mPhysicsReadoutStats);
 
-      // This takes a digit, which is just a coordinate, and places it in
-      // the hit vector among with timing information for the hit
-      // (ie. when it is over threshold, time over threshold)
-      mEventHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
-                              mLastPhysicsEventTimeNs,
-                              mPixelDeadTime,
-                              mPixelActiveTime);
+      mQedNoiseHitVector.push_back(pix_shared);
+
+      ITS::detectorPosition pos = ITS::chip_id_to_detector_position(pix.getChipId());
 
       layer_hits[pos.layer_id]++;
-      chip_hits[chip_id]++;
+      chip_hits[pix.getChipId()]++;
 
       digit_it++;
     }
@@ -788,18 +844,15 @@ void EventGenerator::generateNextQedNoiseEvent(void)
   auto digit_end_it = digits->getDigitsEndIterator();
 
   while(digit_it != digit_end_it) {
-    const int &chip_id = digit_it->first;
-    const PixelData &pix = digit_it->second;
+    const PixelHit &pix = *digit_it;
 
-    ITS::detectorPosition pos = ITS::chip_id_to_detector_position(chip_id);
+    // Recreate hit with timing information and pointer to readout stats object
+    std::shared_ptr<PixelHit> pix_shared = std::make_shared<PixelHit>(pix);
+    pix_shared->setActiveTimeStart(mLastPhysicsEventTimeNs+mPixelDeadTime);
+    pix_shared->setActiveTimeEnd(mLastPhysicsEventTimeNs+mPixelDeadTime+mPixelActiveTime);
+    pix_shared->setPixelReadoutStatsObj(mQedReadoutStats);
 
-    // This takes a digit, which is just a coordinate, and places it in
-    // the hit vector among with timing information for the hit
-    // (ie. when it is over threshold, time over threshold)
-    mQedNoiseHitVector.emplace_back(pos, pix.getCol(), pix.getRow(),
-                                    mLastPhysicsEventTimeNs,
-                                    mPixelDeadTime,
-                                    mPixelActiveTime);
+    mQedNoiseHitVector.push_back(pix_shared);
 
     digit_it++;
   }
@@ -809,17 +862,29 @@ void EventGenerator::generateNextQedNoiseEvent(void)
 ///@brief SystemC controlled method. Creates new physics events (hits)
 void EventGenerator::physicsEventMethod(void)
 {
-  uint64_t time_now = sc_time_stamp().value();
-  uint64_t t_delta = generateNextPhysicsEvent(time_now);
-  E_physics_event.notify();
-  next_trigger(t_delta, SC_NS);
+  if(mStopEventGeneration == false) {
+    uint64_t time_now = sc_time_stamp().value();
+    uint64_t t_delta = generateNextPhysicsEvent(time_now);
+    E_physics_event.notify();
+    next_trigger(t_delta, SC_NS);
+  }
 }
 
 
 ///@brief SystemC controlled method. Creates new QED/Noise events (hits)
 void EventGenerator::qedNoiseEventMethod(void)
 {
-  generateNextQedNoiseEvent();
-  E_qed_noise_event.notify();
-  next_trigger(mQedNoiseFeedRateNs, SC_NS);
+  if(mStopEventGeneration == false) {
+    generateNextQedNoiseEvent();
+    E_qed_noise_event.notify();
+    next_trigger(mQedNoiseRate, SC_NS);
+  }
+}
+
+
+void EventGenerator::stopEventGeneration(void)
+{
+  mStopEventGeneration = true;
+  mEventHitVector.clear();
+  mQedNoiseHitVector.clear();
 }

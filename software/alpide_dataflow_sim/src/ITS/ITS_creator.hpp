@@ -24,11 +24,13 @@ namespace ITS {
     unsigned int mNumCtrlLinks;
     unsigned int mNumDataLinks;
     unsigned int mTriggerFilterTime;
+    bool mTriggerFilterEnabled;
 
   public:
-    RUCreator(unsigned int layer_id, unsigned int trigger_filter_time)
+    RUCreator(unsigned int layer_id, unsigned int trigger_filter_time, bool trigger_filter_enable)
       : mLayerId(layer_id)
       , mTriggerFilterTime(trigger_filter_time)
+      , mTriggerFilterEnabled(trigger_filter_enable)
       {
         mNumCtrlLinks = CTRL_LINKS_PER_LAYER[layer_id]/STAVES_PER_LAYER[layer_id];
         mNumDataLinks = DATA_LINKS_PER_LAYER[layer_id]/STAVES_PER_LAYER[layer_id];
@@ -36,6 +38,8 @@ namespace ITS {
         if(layer_id < 3) {
           // Inner Barrel Readout Unit
           mInnerBarrelMode = true;
+        } else {
+          mInnerBarrelMode = false;
         }
       }
 
@@ -50,6 +54,7 @@ namespace ITS {
                              mNumCtrlLinks,
                              mNumDataLinks,
                              mTriggerFilterTime,
+                             mTriggerFilterEnabled,
                              mInnerBarrelMode);
     }
   };
@@ -79,17 +84,11 @@ namespace ITS {
         std::string stave_name = "IB_stave_" + coords_str;
         new_stave_ptr = new InnerBarrelStave(stave_name.c_str(), mLayerId, stave_id, mConfig);
       } else if(mLayerId >= 3 && mLayerId < 5) {
-        throw std::runtime_error("Middle barrel staves not implemented yet..");
-        /*
-          std::string stave_name = "MB_stave_" + coords_str;
-          new_stave_ptr = new MiddleBarrelStave(stave_name.c_str(), mLayerId, stave_id);
-        */
+        std::string stave_name = "MB_stave_" + coords_str;
+        new_stave_ptr = new MiddleBarrelStave<>(stave_name.c_str(), mLayerId, stave_id, mConfig);
       } else {
-        throw std::runtime_error("Outer barrel staves not implemented yet..");
-        /*
-          std::string stave_name = "OB_stave_" + coords_str;
-          new_stave_ptr = new OuterBarrelStave(stave_name.c_str(), mLayerId, stave_id);
-        */
+        std::string stave_name = "OB_stave_" + coords_str;
+        new_stave_ptr = new OuterBarrelStave<>(stave_name.c_str(), mLayerId, stave_id, mConfig);
       }
 
 

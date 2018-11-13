@@ -10,9 +10,9 @@
 #ifndef EVENT_GENERATOR_HPP
 #define EVENT_GENERATOR_HPP
 
+#include "Alpide/PixelHit.hpp"
 #include "Alpide/EventFrame.hpp"
 #include "EventBase.hpp"
-#include "../ITS/ITSPixelHit.hpp"
 #include "../ITS/ITS_constants.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
@@ -25,6 +25,7 @@
 #include <queue>
 #include <deque>
 #include <fstream>
+#include <memory>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/random/normal_distribution.hpp>
@@ -53,12 +54,14 @@ public: // SystemC signals
   sc_event E_qed_noise_event;
 
 private:
-  std::vector<ITS::ITSPixelHit> mEventHitVector;
-  std::vector<ITS::ITSPixelHit> mQedNoiseHitVector;
+  std::vector<std::shared_ptr<PixelHit>> mEventHitVector;
+  std::vector<std::shared_ptr<PixelHit>> mQedNoiseHitVector;
 
   int mNumChips;
   int mBunchCrossingRateNs;
   int mAverageEventRateNs;
+
+  bool mStopEventGeneration = false;
 
   bool mQedNoiseGenEnable = false;
   uint64_t mQedNoiseFeedRateNs = 0;
@@ -88,6 +91,10 @@ private:
   EventBase* mMCPhysicsEvents = nullptr;
   EventBase* mMCQedNoiseEvents = nullptr;
 
+  // Readout stats objects for physics hits and QED hits
+  std::shared_ptr<PixelReadoutStats> mPhysicsReadoutStats = nullptr;
+  std::shared_ptr<PixelReadoutStats> mQedReadoutStats = nullptr;
+
   bool mRandomHitGeneration;
   int mHitMultiplicityGaussAverage;
   int mHitMultiplicityGaussDeviation;
@@ -110,6 +117,7 @@ private:
   /// Uniform distribution used generating hit coordinates
   boost::random::uniform_int_distribution<int> *mRandHitChipX, *mRandHitChipY;
   boost::random::uniform_int_distribution<int> *mRandStave[ITS::N_LAYERS];
+  boost::random::uniform_int_distribution<int> *mRandSubStave[ITS::N_LAYERS];
   boost::random::uniform_int_distribution<int> *mRandModule[ITS::N_LAYERS];
   boost::random::uniform_int_distribution<int> *mRandChipID[ITS::N_LAYERS];
 
@@ -127,13 +135,15 @@ public:
                  std::string output_path);
   ~EventGenerator();
   const EventFrame& getNextEventFrame(void);
-  const std::vector<ITS::ITSPixelHit>& getLatestPhysicsEvent(void) const;
-  const std::vector<ITS::ITSPixelHit>& getLatestQedNoiseEvent(void) const;
+  const std::vector<std::shared_ptr<PixelHit>>& getLatestPhysicsEvent(void) const;
+  const std::vector<std::shared_ptr<PixelHit>>& getLatestQedNoiseEvent(void) const;
   void setBunchCrossingRate(int rate_ns);
   void setRandomSeed(int seed);
   void initRandomNumGenerator(void);
   void setPath(const std::string& path) {mDataPath = path;}
   uint64_t getPhysicsEventCount(void) const {return mPhysicsEventCount;}
+  void stopEventGeneration(void);
+  void writeSimulationStats(const std::string output_path) const;
 
 private:
   uint64_t generateNextPhysicsEvent(uint64_t time_now);

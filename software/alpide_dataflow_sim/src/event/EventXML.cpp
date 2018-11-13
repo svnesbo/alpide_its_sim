@@ -11,21 +11,39 @@
 ///@defgroup event_xml Event XML Format
 ///@{
 ///   Loads a data pattern file, which is an .xml file with the W3C DOM Level 2 format.
-///   The data file should be organized in the following tree format:
-///      - layer 1
-///         - stave 1
-///            - module 1
-///               - chip 1
-///                  - hit data 1 (row:col)
-///                  - hit data 2
-///                  - ...
-///                  - hit data i
-///               + chip 2
-///               + ...
-///               + chip j
-///            + module 2
-///            + ...
-///            + module n
+///   The data file should be organized in the tree format below.
+///   For the inner layers (0 to 2), there is only one sub stave and module entry, and they
+///   are always 0 (since there are no sub staves or modules within an IB stave).
+///
+///   Tree format:
+///      - layer 0
+///         - stave 0
+///            - sub stave 0
+///               - module 0
+///                  - chip 0
+///                     - hit data 1 (row:col)
+///                     - hit data 2
+///                     - ...
+///                     - hit data i
+///                  + chip 1
+///                  + ...
+///                  + chip j
+///                  + module 1
+///                  + ...
+///                  + module n
+///            - sub stave 1
+///               - module 0
+///                  - chip 0
+///                     - hit data 1 (row:col)
+///                     - hit data 2
+///                     - ...
+///                     - hit data i
+///                  + chip 1
+///                  + ...
+///                  + chip j
+///                  + module 1
+///                  + ...
+///                  + module n
 ///         + stave 2
 ///         + ...
 ///         + stave m
@@ -37,6 +55,7 @@
 ///   - top node: its_detector
 ///   - layer node: lay
 ///   - stave node: sta
+///   - sub stave node: ssta
 ///   - module node: mod
 ///   - chip node: chip
 ///   - hit digit node: dig
@@ -46,13 +65,15 @@
 ///   <its_detector>
 ///      <lay id=0>
 ///         <sta id=0>
-///            <mod id=0>
-///               <chip id=0>
-///                  <dig>123:64</dig>
-///                  <dig>234:12</dig>
-///                  <dig>10:54</dig>
-///               </chip>
-///            </mod>
+///            <ssta id=0>
+///               <mod id=0>
+///                  <chip id=0>
+///                     <dig>123:64</dig>
+///                     <dig>234:12</dig>
+///                     <dig>10:54</dig>
+///                  </chip>
+///               </mod>
+///            </ssta>
 ///         </sta>
 ///      </lay>
 ///      <lay id=1>
@@ -161,9 +182,9 @@ EventDigits* EventXML::readEventFile(const QString& event_filename)
   QDomElement xml_dom_root_element = xml_dom_document.documentElement();
 
   for(auto it = mDetectorPositionList.begin(); it != mDetectorPositionList.end(); it++) {
-    int chip_id = it->first;
+    int global_chip_id = it->first;
 
-    const ITS::detectorPosition& chip_position = mDetectorPositionList[chip_id];
+    const ITS::detectorPosition& chip_position = mDetectorPositionList[global_chip_id];
 
     QDomElement chip_element; // Chip element is stored here by locateChipInEventXML().
 
@@ -182,7 +203,7 @@ EventDigits* EventXML::readEventFile(const QString& event_filename)
         int col = digit_entry.at(0).toInt();
         int row = digit_entry.at(1).toInt();
 
-        event->addHit(chip_id, col, row);
+        event->addHit(col, row, global_chip_id);
       }
     }
   }
@@ -220,9 +241,18 @@ bool EventXML::locateChipInEventXML(const ITS::detectorPosition& chip_position,
     return false;
 
 
+  // Search for sub-stave in the stave element in the XML file
+  // ---------------------------------------------------------------------------
+  QDomNodeList sub_stave_list = layer_element.elementsByTagName("ssta");
+  QDomElement sub_stave_element;
+
+  if(findXMLElementInListById(sub_stave_list, chip_position.sub_stave_id, sub_stave_element) == false)
+    return false;
+
+
   // Search for module in the layer element in the XML file
   // ---------------------------------------------------------------------------
-  QDomNodeList module_list = stave_element.elementsByTagName("mod");
+  QDomNodeList module_list = sub_stave_element.elementsByTagName("mod");
   QDomElement module_element;
 
   if(findXMLElementInListById(module_list, chip_position.module_id, module_element) == false)
@@ -234,7 +264,7 @@ bool EventXML::locateChipInEventXML(const ITS::detectorPosition& chip_position,
   QDomNodeList chip_list = module_element.elementsByTagName("chip");
   QDomElement chip_element;
 
-  if(findXMLElementInListById(chip_list, chip_position.stave_chip_id, chip_element) == false)
+  if(findXMLElementInListById(chip_list, chip_position.module_chip_id, chip_element) == false)
     return false;
 
   chip_element_out = chip_element;

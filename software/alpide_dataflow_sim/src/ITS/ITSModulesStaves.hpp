@@ -49,7 +49,7 @@ namespace ITS {
 
   struct SingleChip : public StaveInterface
   {
-    sc_export<sc_signal<AlpideDataWord>> s_alpide_data_out_exp;
+    sc_export<sc_signal<sc_uint<24>>> s_alpide_data_out_exp;
 
     SingleChip(sc_core::sc_module_name const &name, int chip_id,
                int dtu_delay_cycles, int strobe_length_ns,
@@ -67,7 +67,7 @@ namespace ITS {
 
         return vec;
       }
-    void pixelInput(const Hit& h);
+    void pixelInput(const std::shared_ptr<PixelHit>& p);
 
   private:
     ControlResponsePayload processCommand(ControlRequestPayload const &request);
@@ -85,10 +85,9 @@ namespace ITS {
 
     virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
-    virtual std::vector<std::shared_ptr<Alpide>> getChips(void) const
-      {
-        return mChips;
-      }
+    virtual std::vector<std::shared_ptr<Alpide>> getChips(void) const {
+      return mChips;
+    }
 
   private:
     ControlResponsePayload processCommand(ControlRequestPayload const &request);
@@ -100,16 +99,28 @@ namespace ITS {
 
   struct HalfModule : public sc_module
   {
-    HalfModule(sc_core::sc_module_name const &name = 0)
-      : sc_module(name) {
-      ///@todo Connect Alpide parallel bus together here..
+    HalfModule(sc_core::sc_module_name const &name,
+               unsigned int layer_id, unsigned int stave_id,
+               unsigned int sub_stave_id, unsigned int mod_id,
+               unsigned int half_mod_id, const detectorConfig& cfg);
+
+    void addTraces(sc_trace_file *wf, std::string name_prefix) const;
+
+    sc_in_clk s_system_clk_in;
+    ControlTargetSocket socket_control_in; // Half-module control in
+    DataInitiatorSocket socket_data_out;   // Half-module data out
+
+    std::vector<std::shared_ptr<Alpide>> getChips(void) const {
+        return mChips;
     }
 
-    ControlTargetSocket control;
-    DataInitiatorSocket data;
-
   private:
-    std::array<std::shared_ptr<Alpide>, 7> mChips;
+    ControlResponsePayload processCommand(ControlRequestPayload const &request);
+
+    std::vector<std::shared_ptr<Alpide>> mChips;
+
+    // Distribution of ctrl in half-module
+    std::array<ControlInitiatorSocket, ITS::CHIPS_PER_HALF_MODULE> socket_control_out;
   };
 
 
@@ -119,22 +130,17 @@ namespace ITS {
   {
     MBOBStave(sc_core::sc_module_name const &name,
               unsigned int layer_id, unsigned int stave_id,
-              const detectorConfig& cfg)
-      : StaveInterface(name, layer_id, stave_id, N_HALF_MODULES, N_HALF_MODULES) {}
-
-    virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const
-      {
-
-      }
+              const detectorConfig& cfg);
+    void addTraces(sc_trace_file *wf, std::string name_prefix) const;
+    std::vector<std::shared_ptr<Alpide>> getChips(void) const;
 
   private:
-    std::array<std::unique_ptr<HalfModule>, N_HALF_MODULES> mHalfModules;
+    std::vector<std::shared_ptr<HalfModule>> mHalfModules;
   };
 
-  typedef MBOBStave<16> MiddleBarrelStave;
-  typedef MBOBStave<28> OuterBarrelStave;
+  template<typename ...> using MiddleBarrelStave = MBOBStave<HALF_MODULES_PER_MB_STAVE>;
+  template<typename ...> using OuterBarrelStave = MBOBStave<HALF_MODULES_PER_OB_STAVE>;
 
 }
-
 
 #endif

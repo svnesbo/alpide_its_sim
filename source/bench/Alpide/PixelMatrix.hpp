@@ -22,6 +22,7 @@
 #include <queue>
 #include <list>
 #include <map>
+#include <memory>
 #include <cstdint>
 
 
@@ -46,6 +47,14 @@ private:
   ///@brief Last time the MEB histogram was updated
   uint64_t mMEBHistoLastUpdateTime = 0;
 
+  ///@brief Number of pixel hits that were actually latched into an MEB
+  std::uint64_t mLatchedPixelHitCount = 0;
+
+  ///@brief Number of pixel hits that could not be latched into an MEB because
+  ///       it already existed in the MEB (ie. duplicate hits from more than one
+  ///       interaction event)
+  std::uint64_t mDuplicatePixelHitCount = 0;
+
 protected:
   ///@todo Several of these functions will be exposed "publically" to users of
   ///      the Alpide class.. most of them should be made private, or maybe use
@@ -56,18 +65,21 @@ public:
   void deleteEvent(uint64_t event_time);
   void flushOldestEvent(void);
   void setPixel(unsigned int col, unsigned int row);
+  void setPixel(const std::shared_ptr<PixelHit> &pixel);
   bool regionEmpty(int start_double_col, int stop_double_col);
   bool regionEmpty(int region);
-  PixelData readPixel(uint64_t time_now,
-                      int start_double_col = 0,
-                      int stop_double_col = N_PIXEL_COLS/2);
-  PixelData readPixelRegion(int region, uint64_t time_now);
+  std::shared_ptr<PixelHit> readPixel(uint64_t time_now,
+                                      int start_double_col = 0,
+                                      int stop_double_col = N_PIXEL_COLS/2);
+  std::shared_ptr<PixelHit> readPixelRegion(int region, uint64_t time_now);
   int getNumEvents(void) {return mColumnBuffs.size();}
   int getHitsRemainingInOldestEvent(void);
   int getHitTotalAllEvents(void);
   std::map<unsigned int, std::uint64_t> getMEBHisto(void) const {
     return mMEBHistogram;
   }
+  std::uint64_t getLatchedPixelHitCount(void) const {return mLatchedPixelHitCount;}
+  std::uint64_t getDuplicatePixelHitCount(void) const {return mDuplicatePixelHitCount;}
 };
 
 

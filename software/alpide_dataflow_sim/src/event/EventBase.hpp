@@ -9,29 +9,29 @@
 #define EVENT_BASE_H
 
 #include <map>
+#include <memory>
 #include <QString>
 #include <QStringList>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
-#include "Alpide/Hit.hpp"
+#include "Alpide/PixelHit.hpp"
+#include "Alpide/PixelReadoutStats.hpp"
 #include "../ITS/ITS_config.hpp"
 
 class EventDigits {
-  // Vector index: hit/digit number
-  // Pair: <Chip ID, pixel hit coords>
-  std::vector<std::pair<int, PixelData>> mHitDigits;
+  std::vector<PixelHit> mHitDigits;
 
 public:
-  void addHit(int chip_id, int col, int row) {
-    mHitDigits.push_back(std::pair<int, PixelData>(chip_id, PixelData(col, row)));
+  void addHit(int col, int row, unsigned int chip_id) {
+    mHitDigits.emplace_back(col, row, chip_id);
   }
-//  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsIterator(void) const {
-  auto getDigitsIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
+
+  auto getDigitsIterator(void) const -> std::vector<PixelHit>::const_iterator
   {
     return mHitDigits.begin();
   }
-//  std::vector<std::pair<int, PixelData>>::const_iterator getDigitsEndIterator(void) const {
-  auto getDigitsEndIterator(void) const -> std::vector<std::pair<int, PixelData>>::const_iterator
+
+  auto getDigitsEndIterator(void) const -> std::vector<PixelHit>::const_iterator
   {
     return mHitDigits.end();
   }
@@ -40,9 +40,9 @@ public:
 
   void printEvent(void) const {
     for(auto it = mHitDigits.begin(); it != mHitDigits.end(); it++) {
-      std::cout << "Chip  " << it->first << "  ";
-      std::cout << it->second.getCol() << ":";
-      std::cout << it->second.getRow() << std::endl;
+      std::cout << "Chip  " << it->getChipId() << "  ";
+      std::cout << it->getCol() << ":";
+      std::cout << it->getRow() << std::endl;
     }
   }
 };

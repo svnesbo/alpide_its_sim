@@ -10,10 +10,16 @@
 
 ///@brief Input a pixel to the pixel front end.
 ///       Pixels are added to the end of the "pixel queue"
-///@param h Pixel hit input to front end
-void PixelFrontEnd::pixelFrontEndInput(const Hit& h)
+///@param p Pixel hit input to front end
+void PixelFrontEnd::pixelFrontEndInput(const std::shared_ptr<PixelHit>& p)
 {
-  mHitQueue.push_back(h);
+  std::uint64_t time_now = sc_time_stamp().value();
+  mHitQueue.push_back(p);
+
+#ifdef PIXEL_DEBUG
+  p->mPixInput = true;
+  p->mPixInputTime = time_now;
+#endif
 }
 
 
@@ -30,7 +36,7 @@ void PixelFrontEnd::removeInactiveHits(uint64_t time_now)
   // Hits are ordered in time, and they are all assumed to have
   // the same "active time" (ie. time over threshold)
   while(mHitQueue.empty() == false && done == false) {
-    if(mHitQueue.front().getActiveTimeEnd() < time_now)
+    if(mHitQueue.front()->getActiveTimeEnd() < time_now)
     {
       mHitQueue.pop_front();
     } else {
@@ -51,14 +57,14 @@ EventFrame PixelFrontEnd::getEventFrame(uint64_t event_start,
 {
   EventFrame e(event_start, event_end, event_id);
 
-  for(auto it = mHitQueue.begin(); it != mHitQueue.end(); it++) {
+  for(auto pix_it = mHitQueue.begin(); pix_it != mHitQueue.end(); pix_it++) {
     // All the hits are ordered in time in the hit queue.
     // If this hit is not active, it could be that:
     // 1) We haven't reached the newer hits which would be active for this event yet
     // 2) We have gone through the hits that are active for this event, and have now
     //    reached hits that are "too new" (event queue size is larger than 0 then)
-    if(it->isActive(e.getEventStartTime(), e.getEventEndTime())) {
-      e.addHit(*it);
+    if((*pix_it)->isActive(e.getEventStartTime(), e.getEventEndTime())) {
+      e.addHit(*pix_it);
     } else if (e.getEventSize() > 0) {
       // Case 2. There won't be any more hits now, so we can break.
       /// @todo Is this check worth it performance wise, or is it better to just iterate

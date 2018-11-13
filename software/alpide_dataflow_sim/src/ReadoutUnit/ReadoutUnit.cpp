@@ -27,6 +27,7 @@ SC_HAS_PROCESS(ReadoutUnit);
 ///@param n_data_links Number of Alpide data links connected to this readout unit
 ///@param trigger_filter_time The Readout Unit will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds)
+///@param trigger_filter_enable Enable trigger filtering
 ///@param inner_barrel Set to true if RU is connected to inner barrel stave
 ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int layer_id,
@@ -34,17 +35,20 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int n_ctrl_links,
                          unsigned int n_data_links,
                          unsigned int trigger_filter_time,
+                         bool trigger_filter_enable,
                          bool inner_barrel)
   : sc_core::sc_module(name)
   , s_alpide_control_output(n_ctrl_links)
   , s_alpide_data_input(n_data_links)
   , s_serial_data_input(n_data_links)
+  , s_serial_data_trig_id(n_data_links)
   , s_busy_in("busy_in")
   , s_busy_out("busy_out")
   , mLayerId(layer_id)
   , mStaveId(stave_id)
   , mReadoutUnitTriggerDelay(0)
   , mTriggerFilterTimeNs(trigger_filter_time)
+  , mTriggerFilterEnabled(trigger_filter_enable)
   , mInnerBarrelMode(inner_barrel)
   , mTriggersSentCount(n_ctrl_links)
   , mTriggerActionMaps(n_ctrl_links)
@@ -57,10 +61,11 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
 
   for(unsigned int i = 0; i < n_data_links; i++) {
     // Data parsers should not save events, that just eats memory.. :(
-    mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", false);
+    mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", inner_barrel, false);
 
     mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
     mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
+    mDataLinkParsers[i]->s_serial_data_trig_id(s_serial_data_trig_id[i]);
     mAlpideLinkBusySignals[i](mDataLinkParsers[i]->s_link_busy_out);
 
     s_alpide_data_input[i].register_put(
@@ -131,7 +136,7 @@ void ReadoutUnit::sendTrigger(void)
 
   // Issue triggers on ALPIDE control links (unless trigger is being filtered)
   for(unsigned int i = 0; i < s_alpide_control_output.size(); i++) {
-    if(filter_trigger) {
+    if(mTriggerFilterEnabled && filter_trigger) {
       // Filter triggers that come too close in time
       mTriggerActionMaps[i][mTriggerIdCount] = TRIGGER_FILTERED;
       mTriggersFilteredCount++;
@@ -317,21 +322,16 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     uint64_t idle_total_bytes = stats[ALPIDE_IDLE];
     uint64_t idle_total_count = idle_total_bytes;
 
-    uint64_t chip_header_bytes = stats[ALPIDE_CHIP_HEADER1] +
-                                 stats[ALPIDE_CHIP_HEADER2];
+    uint64_t chip_header_bytes = stats[ALPIDE_CHIP_HEADER];
     uint64_t chip_header_count = chip_header_bytes/2;
 
-    uint64_t chip_empty_frame_bytes = stats[ALPIDE_CHIP_EMPTY_FRAME1] +
-                                      stats[ALPIDE_CHIP_EMPTY_FRAME2];
+    uint64_t chip_empty_frame_bytes = stats[ALPIDE_CHIP_EMPTY_FRAME];
     uint64_t chip_empty_frame_count = chip_empty_frame_bytes/2;
 
-    uint64_t data_short_bytes = stats[ALPIDE_DATA_SHORT1] +
-                                stats[ALPIDE_DATA_SHORT2];
+    uint64_t data_short_bytes = stats[ALPIDE_DATA_SHORT];
     uint64_t data_short_count = data_short_bytes/2;
 
-    uint64_t data_long_bytes = stats[ALPIDE_DATA_LONG1] +
-                               stats[ALPIDE_DATA_LONG2] +
-                               stats[ALPIDE_DATA_LONG3];
+    uint64_t data_long_bytes = stats[ALPIDE_DATA_LONG];
     uint64_t data_long_count = data_long_bytes/3;
 
     uint64_t chip_trailer_bytes = stats[ALPIDE_CHIP_TRAILER];

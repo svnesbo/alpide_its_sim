@@ -79,6 +79,10 @@ add_sources(
   src/main.cpp
   )
 
+# Uncomment to keep track of when pixels are read out from pixel matrix,
+# RRUs, TRU, and finally off the chip. All this debug info is printed to stdout.
+#add_definitions(-DPIXEL_DEBUG)
+
 add_executable(alpide_dataflow_sim  ${SRCS})
 target_link_libraries(alpide_dataflow_sim ${SystemC_LIBRARIES} pthread boost_random Qt5Core)
 set_target_properties(alpide_dataflow_sim PROPERTIES LINKER_LANGUAGE CXX)

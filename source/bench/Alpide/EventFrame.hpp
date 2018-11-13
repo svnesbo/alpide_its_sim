@@ -14,7 +14,7 @@
 #ifndef EVENT_FRAME_H
 #define EVENT_FRAME_H
 
-#include "Hit.hpp"
+#include "Alpide/PixelHit.hpp"
 #include "Alpide/PixelMatrix.hpp"
 #include <string>
 #include <set>
@@ -34,12 +34,12 @@ private:
 
   int mEventId;
   int mChipId;
-  std::set<Hit> mHitSet;
+  std::set<std::shared_ptr<PixelHit>> mHitSet;
 
 public:
   EventFrame(uint64_t event_start_time_ns, uint64_t event_end_time_ns, uint64_t event_id);
   EventFrame(const EventFrame& e);
-  void addHit(const Hit& h);
+  void addHit(const std::shared_ptr<PixelHit>& p);
   void feedHitsToPixelMatrix(PixelMatrix &matrix) const;
   int getEventSize(void) const {return mHitSet.size();}
   int getEventId(void) const {return mEventId;}
