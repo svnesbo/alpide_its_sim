@@ -69,13 +69,15 @@ add_sources(
   src/ITS/ITSModulesStaves.cpp
   src/ITS/ITSSimulationStats.cpp
   src/ReadoutUnit/ReadoutUnit.cpp
-  src/event/EventGenerator.cpp
-  src/event/EventBase.cpp
-  src/event/EventBinary.cpp
-  src/event/EventXML.cpp
-  src/settings/Settings.cpp
-  src/settings/parse_cmdline_args.cpp
-  src/stimuli/Stimuli.cpp
+  src/Event/EventGenBase.cpp
+  src/Event/EventGenITS.cpp
+  src/Event/EventGenPCT.cpp
+  src/Event/EventBase.cpp
+  src/Event/EventBinary.cpp
+  src/Event/EventXML.cpp
+  src/Settings/Settings.cpp
+  src/Settings/parse_cmdline_args.cpp
+  src/Stimuli/Stimuli.cpp
   src/main.cpp
   )
 

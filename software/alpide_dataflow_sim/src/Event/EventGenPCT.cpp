@@ -1,16 +1,12 @@
 /**
- * @file   EventGenerator.cpp
+ * @file   EventGenPCT.cpp
  * @author Simon Voigt Nesbo
- * @date   December 22, 2016
- * @details A simple event generator for Alpide SystemC simulation model.
+ * @date   November 14, 2018
+ * @brief  A simple event generator for PCT simulation with Alpide SystemC simulation model.
  */
 
-#include "EventGenerator.hpp"
-#include "EventXML.hpp"
-#include "EventBinary.hpp"
-#include "../ITS/ITS_config.hpp"
-#include "Alpide/alpide_constants.hpp"
-#include <boost/current_function.hpp>
+#include "EventGenPCT.hpp"
+#include "../utils.hpp"
 #include <boost/random/random_device.hpp>
 #include <stdexcept>
 #include <cmath>
@@ -18,345 +14,29 @@
 #include <QDir>
 
 
-using boost::random::uniform_int_distribution;
-using boost::random::normal_distribution;
-using boost::random::exponential_distribution;
-using boost::random::discrete_distribution;
-
-
-#define print_function_timestamp() \
-  std::cout << std::endl << "@ " << sc_time_stamp().value() << " ns\t";  \
-  std::cout << BOOST_CURRENT_FUNCTION << ":" << std::endl; \
-  std::cout << "-------------------------------------------"; \
-  std::cout << "-------------------------------------------" << std::endl;
-
-
-SC_HAS_PROCESS(EventGenerator);
-///@brief Constructor for EventGenerator
+SC_HAS_PROCESS(EventGenPCT);
+///@brief Constructor for EventGenPCT
 ///@param[in] name SystemC module name
 ///@param[in] settings QSettings object with simulation settings.
 ///@param[in] output_path Directory path to store simulation output data in
-EventGenerator::EventGenerator(sc_core::sc_module_name name,
+EventGenPCT::EventGenPCT(sc_core::sc_module_name name,
                                const QSettings* settings,
                                std::string output_path)
-  : sc_core::sc_module(name)
+  : EventGenBase(settings, output_path)
 {
-  mOutputPath = output_path;
   mRandomHitGeneration = settings->value("event/random_hit_generation").toBool();
-  mBunchCrossingRateNs = settings->value("event/bunch_crossing_rate_ns").toInt();
-  mAverageEventRateNs = settings->value("event/average_event_rate_ns").toInt();
-  mRandomSeed = settings->value("simulation/random_seed").toInt();
   mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
-  mPixelDeadTime = settings->value("alpide/pixel_shaping_dead_time_ns").toInt();
-  mPixelActiveTime = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
-  mSingleChipSimulation = settings->value("simulation/single_chip").toBool();
-  mNumChips = 0;
-
-  mITSConfig.layer[0].num_staves = settings->value("its/layer0_num_staves").toInt();
-  mITSConfig.layer[1].num_staves = settings->value("its/layer1_num_staves").toInt();
-  mITSConfig.layer[2].num_staves = settings->value("its/layer2_num_staves").toInt();
-  mITSConfig.layer[3].num_staves = settings->value("its/layer3_num_staves").toInt();
-  mITSConfig.layer[4].num_staves = settings->value("its/layer4_num_staves").toInt();
-  mITSConfig.layer[5].num_staves = settings->value("its/layer5_num_staves").toInt();
-  mITSConfig.layer[6].num_staves = settings->value("its/layer6_num_staves").toInt();
-
-  if(mRandomHitGeneration) {
-    // Instantiate event generator object with the desired hit multiplicity distribution
-    QString multipl_dist_type = settings->value("event/hit_multiplicity_distribution_type").toString();
-    if(multipl_dist_type == "gauss") {
-      mHitMultiplicityGaussAverage = settings->value("event/hit_multiplicity_gauss_avg").toInt();
-      mHitMultiplicityGaussDeviation = settings->value("event/hit_multiplicity_gauss_stddev").toInt();
-
-      mRandHitMultiplicityGauss = new normal_distribution<double>(mHitMultiplicityGaussAverage,
-                                                                  mHitMultiplicityGaussDeviation);
-
-      // Discrete distribution is not used in this case
-      mRandHitMultiplicityDiscrete = nullptr;
-    }
-    else if(multipl_dist_type == "discrete") {
-      QString multipl_dist_file = settings->value("event/hit_multiplicity_distribution_file").toString();
-
-      // Read multiplicity distribution from file,
-      // and initialize boost::random discrete distribution with data
-      std::vector<double> mult_dist;
-      std::string dist_file = multipl_dist_file.toStdString();
-      readDiscreteDistributionFile(dist_file.c_str(), mult_dist);
-
-      mRandHitMultiplicityDiscrete = new discrete_distribution<>(mult_dist.begin(), mult_dist.end());
-      std::cout << "Number of bins in distribution before scaling: ";
-      std::cout << mult_dist.size() << std::endl;
-
-      double multpl_dist_mean = normalizeDiscreteDistribution(mult_dist);
-
-      if(mSingleChipSimulation) {
-        mSingleChipHitDensity = settings->value("event/hit_density_layer0").toDouble();
-        mSingleChipDetectorArea = CHIP_WIDTH_CM * CHIP_HEIGHT_CM;
-        mSingleChipHitAverage = mSingleChipHitDensity * mSingleChipDetectorArea;
-        mSingleChipMultiplicityScaleFactor = mSingleChipHitAverage / multpl_dist_mean;
-        mNumChips = 1;
-
-        std::cout << "Chip area [cm^2]: ";
-        std::cout << mDetectorArea[0] << std::endl;
-
-        std::cout << "Chip hit density [cm^-1]: ";
-        std::cout << mHitDensities[0] << std::endl;
-
-        std::cout << "Chip average number of hits per event: ";
-        std::cout << mHitAverage[0] << std::endl;
-
-        std::cout << "Chip multiplicity distr. scaling factor: ";
-        std::cout << mMultiplicityScaleFactor[0] << std::endl;
-      } else {
-        mHitDensities[0] = settings->value("event/hit_density_layer0").toDouble();
-        mHitDensities[1] = settings->value("event/hit_density_layer1").toDouble();
-        mHitDensities[2] = settings->value("event/hit_density_layer2").toDouble();
-        mHitDensities[3] = settings->value("event/hit_density_layer3").toDouble();
-        mHitDensities[4] = settings->value("event/hit_density_layer4").toDouble();
-        mHitDensities[5] = settings->value("event/hit_density_layer5").toDouble();
-        mHitDensities[6] = settings->value("event/hit_density_layer6").toDouble();
-
-        for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-          mDetectorArea[layer] =
-            ITS::STAVES_PER_LAYER[layer] *
-            ITS::CHIPS_PER_STAVE_IN_LAYER[layer] *
-            CHIP_WIDTH_CM *
-            CHIP_HEIGHT_CM;
-
-          mHitAverage[layer] = mHitDensities[layer] * mDetectorArea[layer];
-          mMultiplicityScaleFactor[layer] = mHitAverage[layer] / multpl_dist_mean;
-
-          // Number of chips to actually simulate
-          mNumChips += mITSConfig.layer[layer].num_staves * ITS::CHIPS_PER_STAVE_IN_LAYER[layer];
-
-          std::cout << "Num chips so far: " << mNumChips << std::endl;
-
-          std::cout << "Layer " << layer << " area [cm^2]: ";
-          std::cout << mDetectorArea[layer] << std::endl;
-
-          std::cout << "Layer " << layer << " hit density [cm^-1]: ";
-          std::cout << mHitDensities[layer] << std::endl;
-
-          std::cout << "Layer " << layer << " average number of hits per event: ";
-          std::cout << mHitAverage[layer] << std::endl;
-
-          std::cout << "Layer " << layer << " multiplicity distr. scaling factor: ";
-          std::cout << mMultiplicityScaleFactor[layer] << std::endl;
-        }
-      }
-
-      // Gaussian distribution is not used in this case
-      mRandHitMultiplicityGauss = nullptr;
-    }
-  } else {
-    QString monte_carlo_file_type = settings->value("event/monte_carlo_file_type").toString();
-    QString monte_carlo_event_path_str = settings->value("event/monte_carlo_path").toString();
-    QDir monte_carlo_event_dir(monte_carlo_event_path_str);
-    QStringList name_filters;
-
-    if(monte_carlo_file_type == "xml") {
-      name_filters << "*.xml";
-      QStringList MC_files = monte_carlo_event_dir.entryList(name_filters);
-
-      if(MC_files.isEmpty()) {
-        std::cerr << "Error: No .xml files found in MC event path";
-        std::cerr << std::endl;
-        exit(-1);
-      }
-
-      mMCPhysicsEvents = new EventXML(mITSConfig,
-                                      monte_carlo_event_path_str,
-                                      MC_files,
-                                      true,
-                                      mRandomSeed);
-    }
-    else if(monte_carlo_file_type == "binary") {
-      name_filters << "*.dat";
-      QStringList MC_files = monte_carlo_event_dir.entryList(name_filters);
-
-      if(MC_files.isEmpty()) {
-        std::cerr << "Error: No binary .dat files found in MC event path";
-        std::cerr << std::endl;
-        exit(-1);
-      }
-
-      mMCPhysicsEvents = new EventBinary(mITSConfig,
-                                         monte_carlo_event_path_str,
-                                         MC_files,
-                                         true,
-                                         mRandomSeed);
-    }
-    else {
-      std::cerr << "Error: Unknown MC event format \"";
-      std::cerr << monte_carlo_file_type.toStdString() << "\"";
-      exit(-1);
-    }
-
-    mNumChips = 1;
-
-    QString qed_noise_input = settings->value("event/qed_noise_input").toString();
-    if(qed_noise_input == "true") {
-      mQedNoiseGenEnable = true;
-      mQedNoiseFeedRateNs = settings->value("event/qed_noise_feed_rate_ns").toUInt();
-      mQedNoiseEventRateNs = settings->value("event/qed_noise_event_rate_ns").toUInt();
-
-      // The QED events are generated by AliRoot with two fixed parameters:
-      // - integration time (ie. qed_noise_feed_rate_ns)
-      // - event rate (ie. qed_noise_event_rate_ns)
-      // To use the QED events at a different event rate (average_event_rate_ns setting)
-      // than what they were generated for, the feed rate needs to be scaled to the new
-      // event rate.
-      double scaling_factor = (double)mQedNoiseEventRateNs / (double)mAverageEventRateNs;
-      mQedNoiseFeedRateNs = mQedNoiseFeedRateNs/scaling_factor;
-
-      if(mQedNoiseFeedRateNs == 0) {
-        std::cout << "Error: QED/Noise rate has to be larger than zero." << std::endl;
-        exit(-1);
-      }
-
-      QString qed_noise_event_path_str = settings->value("event/qed_noise_path").toString();
-      QDir qed_noise_event_dir(qed_noise_event_path_str);
-
-      if(monte_carlo_file_type == "xml") {
-        name_filters << "*.xml";
-        QStringList QED_noise_event_files = qed_noise_event_dir.entryList(name_filters);
-
-        if(QED_noise_event_files.isEmpty()) {
-          std::cerr << "Error: No .xml files found in QED/noise event path";
-          std::cerr << std::endl;
-          exit(-1);
-        }
-
-        mMCQedNoiseEvents = new EventXML(mITSConfig,
-                                         qed_noise_event_path_str,
-                                         QED_noise_event_files,
-                                         true,
-                                         mRandomSeed);
-      }
-      else if(monte_carlo_file_type == "binary") {
-        name_filters << "*.dat";
-        QStringList QED_noise_event_files = qed_noise_event_dir.entryList(name_filters);
-
-        if(QED_noise_event_files.isEmpty()) {
-          std::cerr << "Error: No binary .dat files found in QED/noise event path";
-          std::cerr << std::endl;
-          exit(-1);
-        }
-
-        mMCQedNoiseEvents = new EventBinary(mITSConfig,
-                                            qed_noise_event_path_str,
-                                            QED_noise_event_files,
-                                            true,
-                                            mRandomSeed);
-      }
-      else {
-        std::cerr << "Error: Unknown MC event format \"";
-        std::cerr << monte_carlo_file_type.toStdString() << "\"";
-        exit(-1);
-      }
-    }
-
-    // Discrete and gaussion hit distributions are not used in this case
-    mRandHitMultiplicityDiscrete = nullptr;
-    mRandHitMultiplicityGauss = nullptr;
-  }
-
-  mPhysicsReadoutStats = std::make_shared<PixelReadoutStats>();
-  mQedReadoutStats = std::make_shared<PixelReadoutStats>();
-
-  mRandHitChipX = new uniform_int_distribution<int>(0, N_PIXEL_COLS-1);
-  mRandHitChipY = new uniform_int_distribution<int>(0, N_PIXEL_ROWS-1);
-
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    // Modules are not used for IB layers..
-    if(layer > 2) {
-      mRandSubStave[layer] =
-        new uniform_int_distribution<int>(0, ITS::SUB_STAVES_PER_STAVE[layer]-1);
-      mRandModule[layer] =
-        new uniform_int_distribution<int>(0, ITS::MODULES_PER_SUB_STAVE_IN_LAYER[layer]-1);
-    } else {
-      mRandSubStave[layer] = nullptr;
-      mRandModule[layer] = nullptr;
-    }
-
-    mRandChipID[layer] =
-      new uniform_int_distribution<int>(0, ITS::CHIPS_PER_MODULE_IN_LAYER[layer]-1);
-
-    mRandStave[layer] =
-      new uniform_int_distribution<int>(0, ITS::STAVES_PER_LAYER[layer]-1);
-  }
-
-  // Multiplied by BC rate so that the distribution is related to the clock cycles
-  // Which is fine because physics events will be in sync with 40MHz BC clock, but
-  // to get actual simulation time we must multiply the numbers obtained with BC rate.
-  double lambda = 1.0/(mAverageEventRateNs/mBunchCrossingRateNs);
-  mRandEventTime = new exponential_distribution<double>(lambda);
-
-  initRandomNumGenerator();
-
-  if(mCreateCSVFile) {
-    std::string physics_events_csv_filename = mOutputPath + std::string("/physics_events_data.csv");
-    mPhysicsEventsCSVFile.open(physics_events_csv_filename);
-    mPhysicsEventsCSVFile << "delta_t;event_pixel_hit_multiplicity";
-
-    if(mITSConfig.layer[0].num_staves > 0)
-      mPhysicsEventsCSVFile << ";layer_0";
-    if(mITSConfig.layer[1].num_staves > 0)
-      mPhysicsEventsCSVFile << ";layer_1";
-    if(mITSConfig.layer[2].num_staves > 0)
-      mPhysicsEventsCSVFile << ";layer_2";
-    if(mITSConfig.layer[3].num_staves > 0)
-      mPhysicsEventsCSVFile << ";layer_3";
-    if(mITSConfig.layer[4].num_staves > 0)
-      mPhysicsEventsCSVFile << ";layer_4";
-    if(mITSConfig.layer[5].num_staves > 0)
-      mPhysicsEventsCSVFile << ";layer_5";
-    if(mITSConfig.layer[6].num_staves > 0)
-      mPhysicsEventsCSVFile << ";layer_6";
-
-    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-      unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
-      for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
-        // Safe to ignore OB sub staves here, since we only include full staves in simulation,
-        // and this will include all chips from a full stave
-        for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
-          mPhysicsEventsCSVFile << ";chip_" << chip_id;
-          chip_id++;
-        }
-      }
-    }
-
-    mPhysicsEventsCSVFile << std::endl;
-  }
-
 
   //////////////////////////////////////////////////////////////////////////////
   // SystemC declarations / connections / etc.
   //////////////////////////////////////////////////////////////////////////////
-  SC_METHOD(physicsEventMethod);
-
-  if(mQedNoiseGenEnable)
-    SC_METHOD(qedNoiseEventMethod);
+  SC_METHOD(eventMethod);
 }
 
 
-///@brief Destructor for EventGenerator class
-EventGenerator::~EventGenerator()
+///@brief Destructor for EventGenPCT class
+EventGenPCT::~EventGenPCT()
 {
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    delete mRandChipID[layer];
-    delete mRandStave[layer];
-    delete mRandSubStave[layer];
-    delete mRandModule[layer];
-  }
-
-  delete mRandHitChipX;
-  delete mRandHitChipY;
-  delete mRandEventTime;
-
-  // Note: safe to delete nullptr in C++
-  delete mRandHitMultiplicityGauss;
-  delete mRandHitMultiplicityDiscrete;
-
   if(mPhysicsEventsCSVFile.is_open())
     mPhysicsEventsCSVFile.close();
 }
@@ -364,7 +44,7 @@ EventGenerator::~EventGenerator()
 
 ///@brief Write simulation stats/data to file
 ///@param[in] output_path Path to simulation output directory
-void EventGenerator::writeSimulationStats(const std::string output_path) const
+void EventGenPCT::writeSimulationStats(const std::string output_path) const
 {
   mPhysicsReadoutStats->writeToFile(output_path + std::string("/physics_readout_stats.csv"));
   mQedReadoutStats->writeToFile(output_path + std::string("/qed_readout_stats.csv"));
@@ -373,7 +53,7 @@ void EventGenerator::writeSimulationStats(const std::string output_path) const
 
 ///@brief Get a reference to the next physics event
 ///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
-const std::vector<std::shared_ptr<PixelHit>>& EventGenerator::getLatestPhysicsEvent(void) const
+const std::vector<std::shared_ptr<PixelHit>>& EventGenPCT::getLatestPhysicsEvent(void) const
 {
   return mEventHitVector;
 }
@@ -381,31 +61,14 @@ const std::vector<std::shared_ptr<PixelHit>>& EventGenerator::getLatestPhysicsEv
 
 ///@brief Get a reference to the next QED/Noise event
 ///@return Const reference to std::vector<Hit> that contains the hits in the latest event.
-const std::vector<std::shared_ptr<PixelHit>>& EventGenerator::getLatestQedNoiseEvent(void) const
+const std::vector<std::shared_ptr<PixelHit>>& EventGenPCT::getLatestQedNoiseEvent(void) const
 {
   return mQedNoiseHitVector;
 }
 
 
-///@brief Sets the bunch crossing rate, and recalculate the average crossing rate.
-void EventGenerator::setBunchCrossingRate(int rate_ns)
-{
-  mBunchCrossingRateNs = rate_ns;
-}
-
-
-///@brief Sets the random seed used by random number generators.
-void EventGenerator::setRandomSeed(int seed)
-{
-  mRandomSeed = seed;
-  ///@todo More than one seed? What if seed is set after random number generators have been started?
-
-  initRandomNumGenerator();
-}
-
-
 ///@brief Initialize random number generators
-void EventGenerator::initRandomNumGenerator(void)
+void EventGenPCT::initRandomNumGenerators(void)
 {
   // If seed was set to 0 in settings file, initialize with a non-deterministic
   // higher entropy random number using boost::random::random_device
@@ -459,7 +122,7 @@ void EventGenerator::initRandomNumGenerator(void)
 ///@param[out] dist_vector Reference to vector to store the distribution in
 ///@throw runtime_error If the file can not be opened
 ///@throw domain_error If a negative x-value (hits) or y-value (probability) is encountered in the file
-void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const
+void EventGenPCT::readDiscreteDistributionFile(const char* filename, std::vector<double> &dist_vector) const
 {
   std::ifstream in_file(filename);
 
@@ -501,7 +164,7 @@ void EventGenerator::readDiscreteDistributionFile(const char* filename, std::vec
 ///               this vector will be overwritten and replaced with the new, normalized, distribution.
 ///@throw runtime_error If dist_vector is empty, a runtime_error is thrown.
 ///@return Mean value in normalized distribution
-double EventGenerator::normalizeDiscreteDistribution(std::vector<double> &dist_vector)
+double EventGenPCT::normalizeDiscreteDistribution(std::vector<double> &dist_vector)
 {
   double probability_sum = 0.0;
   double probability_sum_normalized = 0.0;
@@ -541,9 +204,9 @@ double EventGenerator::normalizeDiscreteDistribution(std::vector<double> &dist_v
 ///@brief Return a random number of hits (multiplicity) based on the chosen
 ///       distribution for multiplicity.
 ///@return Number of hits
-///@throw  runtime_error if the EventGenerator for some reason does not have
+///@throw  runtime_error if the EventGenPCT for some reason does not have
 ///                      a multiplicity distribution initialized.
-unsigned int EventGenerator::getRandomMultiplicity(void)
+unsigned int EventGenPCT::getRandomMultiplicity(void)
 {
   if(mRandHitMultiplicityDiscrete != nullptr) {
     unsigned int n_hits = (*mRandHitMultiplicityDiscrete)(mRandHitMultiplicityGen);
@@ -563,7 +226,7 @@ unsigned int EventGenerator::getRandomMultiplicity(void)
 ///       2) Generate hits for the next event, and put them on the hit queue
 ///       3) Update counters etc.
 ///@return The number of clock cycles until this event will actually occur
-uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
+uint64_t EventGenPCT::generateNextPhysicsEvent(uint64_t time_now)
 {
   unsigned int event_pixel_hit_count = 0;
   int64_t t_delta, t_delta_cycles;
@@ -831,7 +494,7 @@ uint64_t EventGenerator::generateNextPhysicsEvent(uint64_t time_now)
 
 
 ///@brief Generate a QED/Noise event
-void EventGenerator::generateNextQedNoiseEvent(void)
+void EventGenPCT::generateNextQedNoiseEvent(void)
 {
   mQedNoiseHitVector.clear();
 
@@ -860,7 +523,7 @@ void EventGenerator::generateNextQedNoiseEvent(void)
 
 
 ///@brief SystemC controlled method. Creates new physics events (hits)
-void EventGenerator::physicsEventMethod(void)
+void EventGenPCT::physicsEventMethod(void)
 {
   if(mStopEventGeneration == false) {
     uint64_t time_now = sc_time_stamp().value();
@@ -872,7 +535,7 @@ void EventGenerator::physicsEventMethod(void)
 
 
 ///@brief SystemC controlled method. Creates new QED/Noise events (hits)
-void EventGenerator::qedNoiseEventMethod(void)
+void EventGenPCT::qedNoiseEventMethod(void)
 {
   if(mStopEventGeneration == false) {
     generateNextQedNoiseEvent();
@@ -882,7 +545,7 @@ void EventGenerator::qedNoiseEventMethod(void)
 }
 
 
-void EventGenerator::stopEventGeneration(void)
+void EventGenPCT::stopEventGeneration(void)
 {
   mStopEventGeneration = true;
   mEventHitVector.clear();
