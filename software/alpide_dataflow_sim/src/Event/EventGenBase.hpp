@@ -45,38 +45,11 @@ public: // SystemC signals
   sc_event E_untriggered_event;
 
 private:
-  std::vector<std::shared_ptr<PixelHit>> mEventHitVector;
-  std::vector<std::shared_ptr<PixelHit>> mQedNoiseHitVector;
-
-  int mNumChips = 0;
-
-  bool mSingleChipSimulation = false;
-  bool mStopEventGeneration = false;
-  bool mQedNoiseGenEnable = false;
-
-  uint64_t mQedNoiseFeedRateNs = 0;
-  uint64_t mQedNoiseEventRateNs = 0;
-
   /// Total number of triggered event frames generated.
   uint64_t mTriggeredEventCount = 0;
 
   /// Total number of untriggered event frames generated.
   uint64_t mUntriggeredEventCount = 0;
-
-  int mPixelDeadTime;
-  int mPixelActiveTime;
-
-  std::string mOutputPath;
-
-  int mRandomSeed;
-
-  /// Readout stats objects for triggered data
-  std::shared_ptr<PixelReadoutStats> mTriggeredReadoutStats = nullptr;
-
-  /// Readout stats objects for untriggered data
-  std::shared_ptr<PixelReadoutStats> mUntriggeredReadoutStats = nullptr;
-
-  bool mRandomHitGeneration;
 
   /// Mean cluster size (pixels) per hit, used for random cluster generation
   double mRandClusterSizeMean;
@@ -84,19 +57,45 @@ private:
   /// Mean cluster size deviation (pixels) per hit, used for random cluster generation
   double mRandClusterSizeDeviation;
 
+protected:
+  int mNumChips = 0;
+  int mRandomSeed;
+  bool mRandomHitGeneration;
+  bool mSingleChipSimulation = false;
+  bool mStopEventGeneration = false;
+  bool mQedNoiseGenEnable = false;
+
+  uint64_t mQedNoiseFeedRateNs = 0;
+  uint64_t mQedNoiseEventRateNs = 0;
+
+  int mPixelDeadTime;
+  int mPixelActiveTime;
+
+  std::string mOutputPath;
+
+  /// Readout stats objects for triggered data
+  std::shared_ptr<PixelReadoutStats> mTriggeredReadoutStats = nullptr;
+
+  /// Readout stats objects for untriggered data
+  std::shared_ptr<PixelReadoutStats> mUntriggeredReadoutStats = nullptr;
+
 public:
   EventGenBase(const QSettings* settings, std::string output_path);
   ~EventGenBase();
   virtual const std::vector<std::shared_ptr<PixelHit>>& getTriggeredEvent(void) const = 0;
   virtual const std::vector<std::shared_ptr<PixelHit>>& getUntriggeredEvent(void) const = 0;
+  std::vector<std::shared_ptr<PixelHit>> createCluster(const PixelHit& pix,
+                                                       const std::shared_ptr<PixelReadoutStats> &readout_stats =
+                                                       nullptr);
   virtual void initRandomNumGenerators(void);
-  void setRandomSeed(int seed);
-  void setPath(const std::string& path) {mDataPath = path;}
   uint64_t getTriggeredEventCount(void) const {return mTriggeredEventCount;}
   uint64_t getUntriggeredEventCount(void) const {return mUntriggeredEventCount;}
-  void stopEventGeneration(void);
+  virtual void stopEventGeneration(void) = 0;
   void writeSimulationStats(const std::string output_path) const;
 };
+
+
+
 
 #endif
 ///@}

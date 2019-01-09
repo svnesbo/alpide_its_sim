@@ -71,13 +71,15 @@ add_sources(
   src/ReadoutUnit/ReadoutUnit.cpp
   src/Event/EventGenBase.cpp
   src/Event/EventGenITS.cpp
-  src/Event/EventGenPCT.cpp
+  #src/Event/EventGenPCT.cpp
   src/Event/EventBase.cpp
   src/Event/EventBinary.cpp
   src/Event/EventXML.cpp
   src/Settings/Settings.cpp
   src/Settings/parse_cmdline_args.cpp
-  src/Stimuli/Stimuli.cpp
+  src/Stimuli/StimuliBase.cpp
+  #src/Stimuli/StimuliPCT.cpp
+  src/Stimuli/StimuliITS.cpp
   src/main.cpp
   )
 

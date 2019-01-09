@@ -31,7 +31,7 @@
 ///         different chips and over a chip's x/y coordinates.
 ///         For each hit a fixed 2x2 pixel cluster is generated on the chip (this might be replaced with a
 ///         more advanced random distribution in the future).
-class EventGenITS : EventGenBase
+class EventGenITS : public EventGenBase, public sc_core::sc_module
 {
 private:
   std::vector<std::shared_ptr<PixelHit>> mEventHitVector;
@@ -39,6 +39,8 @@ private:
 
   int mBunchCrossingRate_ns;
   int mAverageEventRate_ns;
+
+  uint64_t mPhysicsEventCount;
 
   EventBase* mMCPhysicsEvents = nullptr;
   EventBase* mMCQedNoiseEvents = nullptr;
@@ -76,16 +78,18 @@ private:
   std::ofstream mPhysicsEventsCSVFile;
   bool mCreateCSVFile = true;
 
-  void generateRandomEventData(uint64_t time_now,
+  void generateRandomEventData(uint64_t event_time_ns,
+                               unsigned int &event_pixel_hit_count,
                                std::map<unsigned int, unsigned int> &chip_hits,
                                std::map<unsigned int, unsigned int> &layer_hits);
 
-  void generateMonteCarloEventData(uint64_t time_now,
+  void generateMonteCarloEventData(uint64_t event_time_ns,
+                                   unsigned int &event_pixel_hit_count,
                                    std::map<unsigned int, unsigned int> &chip_hits,
                                    std::map<unsigned int, unsigned int> &layer_hits);
 
-  uint64_t generateNextPhysicsEvent(uint64_t time_now);
-  void generateNextQedNoiseEvent(void);
+  uint64_t generateNextPhysicsEvent(void);
+  void generateNextQedNoiseEvent(uint64_t event_time_ns);
   void readDiscreteDistributionFile(const char* filename,
                                     std::vector<double> &dist_vector) const;
   void initRandomHitGen(const QSettings* settings);
@@ -108,6 +112,7 @@ public:
   void setBunchCrossingRate(int rate_ns);
   void initRandomNumGenerators(void);
   uint64_t getPhysicsEventCount(void) const {return mPhysicsEventCount;}
+  void stopEventGeneration(void);
 
   const std::vector<std::shared_ptr<PixelHit>>& getTriggeredEvent(void) const;
   const std::vector<std::shared_ptr<PixelHit>>& getUntriggeredEvent(void) const;

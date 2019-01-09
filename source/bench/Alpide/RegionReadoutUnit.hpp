@@ -145,6 +145,9 @@ private:
 
   bool mFifoSizeLimitEnabled;
   bool mBusySignaled;
+
+  /// Indicates that neighboring pixel hits can be clustered together and transmitted with
+  /// a DATA_LONG word. When disabled every single hit is transmitted as DATA_SHORT.
   bool mClusteringEnabled;
 
   bool mRegionDataOutIsTrailer = false;

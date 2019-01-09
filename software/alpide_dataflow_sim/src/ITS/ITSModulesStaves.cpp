@@ -20,7 +20,7 @@ template class MBOBStave<HALF_MODULES_PER_OB_STAVE>;
 
 SingleChip::SingleChip(sc_core::sc_module_name const &name, int chip_id,
                        int dtu_delay_cycles, int strobe_length_ns,
-                       bool strobe_extension, bool enable_clustering,
+                       bool strobe_extension, bool enable_data_long,
                        bool continuous_mode, bool matrix_readout_speed,
                        int min_busy_cycles)
   : StaveInterface(name, 0, 0, 1, 1)
@@ -33,7 +33,7 @@ SingleChip::SingleChip(sc_core::sc_module_name const &name, int chip_id,
                                    dtu_delay_cycles,
                                    strobe_length_ns,
                                    strobe_extension,
-                                   enable_clustering,
+                                   enable_data_long,
                                    continuous_mode,
                                    matrix_readout_speed,
                                    min_busy_cycles);
@@ -92,14 +92,14 @@ InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
                                               cfg.alpide_dtu_delay_cycles,
                                               cfg.alpide_strobe_length_ns,
                                               cfg.alpide_strobe_ext,
-                                              cfg.alpide_cluster_en,
+                                              cfg.alpide_data_long_en,
                                               cfg.alpide_continuous_mode,
                                               cfg.alpide_matrix_speed,
                                               cfg.alpide_min_busy_cycles));
 
     // Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
     //        int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
-    //        bool strobe_extension, bool enable_clustering, bool continuous_mode,
+    //        bool strobe_extension, bool enable_data_long, bool continuous_mode,
     //        bool matrix_readout_speed);
 
     auto &chip = *mChips.back();
@@ -174,7 +174,7 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
                                             cfg.alpide_dtu_delay_cycles,
                                             cfg.alpide_strobe_length_ns,
                                             cfg.alpide_strobe_ext,
-                                            cfg.alpide_cluster_en,
+                                            cfg.alpide_data_long_en,
                                             cfg.alpide_continuous_mode,
                                             cfg.alpide_matrix_speed,
                                             cfg.alpide_min_busy_cycles,
@@ -202,7 +202,7 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
                                               cfg.alpide_dtu_delay_cycles,
                                               cfg.alpide_strobe_length_ns,
                                               cfg.alpide_strobe_ext,
-                                              cfg.alpide_cluster_en,
+                                              cfg.alpide_data_long_en,
                                               cfg.alpide_continuous_mode,
                                               cfg.alpide_matrix_speed,
                                               cfg.alpide_min_busy_cycles,

@@ -50,40 +50,13 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["data_output/write_vcd_clock"] = DEFAULT_DATA_OUTPUT_WRITE_VCD_CLOCK;
   defaultSettings["data_output/write_event_csv"] = DEFAULT_DATA_OUTPUT_WRITE_EVENT_CSV;
 
+  defaultSettings["simulation/type"] = DEFAULT_SIMULATION_TYPE;
   defaultSettings["simulation/single_chip"] = DEFAULT_SIMULATION_SINGLE_CHIP;
   defaultSettings["simulation/n_events"] = DEFAULT_SIMULATION_N_EVENTS;
   defaultSettings["simulation/continuous_mode"] = DEFAULT_SIMULATION_CONTINUOUS_MODE;
   defaultSettings["simulation/random_seed"] = DEFAULT_SIMULATION_RANDOM_SEED;
 
-
-  defaultSettings["event/random_hit_generation"] = DEFAULT_EVENT_RANDOM_HIT_GENERATION;
-  defaultSettings["event/monte_carlo_path"] = DEFAULT_EVENT_MONTE_CARLO_PATH;
-  defaultSettings["event/monte_carlo_file_type"] = DEFAULT_EVENT_MONTE_CARLO_FILE_TYPE;
-  defaultSettings["event/qed_noise_path"] = DEFAULT_EVENT_QED_NOISE_PATH;
-  defaultSettings["event/qed_noise_input"] = DEFAULT_EVENT_QED_NOISE_INPUT;
-  defaultSettings["event/qed_noise_feed_rate_ns"] = DEFAULT_EVENT_QED_NOISE_FEED_RATE_NS;
-  defaultSettings["event/qed_noise_event_rate_ns"] = DEFAULT_EVENT_QED_NOISE_EVENT_RATE_NS;
-  defaultSettings["event/hit_multiplicity_distribution_type"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_TYPE;
-  defaultSettings["event/hit_multiplicity_distribution_file"] = DEFAULT_EVENT_HIT_MULTIPLICITY_DISTRIBUTION_FILE;
-  defaultSettings["event/hit_multiplicity_gauss_avg"] = DEFAULT_EVENT_HIT_MULTIPLICITY_GAUSS_AVG;
-  defaultSettings["event/hit_multiplicity_gauss_stddev"] = DEFAULT_EVENT_HIT_MULTIPLICITY_GAUSS_STDDEV;
-  defaultSettings["event/hit_density_layer0"] = DEFAULT_EVENT_HIT_DENSITY_LAYER0;
-  defaultSettings["event/hit_density_layer1"] = DEFAULT_EVENT_HIT_DENSITY_LAYER1;
-  defaultSettings["event/hit_density_layer2"] = DEFAULT_EVENT_HIT_DENSITY_LAYER2;
-  defaultSettings["event/hit_density_layer3"] = DEFAULT_EVENT_HIT_DENSITY_LAYER3;
-  defaultSettings["event/hit_density_layer4"] = DEFAULT_EVENT_HIT_DENSITY_LAYER4;
-  defaultSettings["event/hit_density_layer5"] = DEFAULT_EVENT_HIT_DENSITY_LAYER5;
-  defaultSettings["event/hit_density_layer6"] = DEFAULT_EVENT_HIT_DENSITY_LAYER6;
-  defaultSettings["event/bunch_crossing_rate_ns"] = DEFAULT_EVENT_BUNCH_CROSSING_RATE_NS;
-  //@todo Rename to average_trigger_rate_ns?
-  defaultSettings["event/average_event_rate_ns"] = DEFAULT_EVENT_AVERAGE_EVENT_RATE_NS;
-  defaultSettings["event/trigger_delay_ns"] = DEFAULT_EVENT_TRIGGER_DELAY_NS;
-  defaultSettings["event/trigger_filter_time_ns"] = DEFAULT_EVENT_TRIGGER_FILTER_TIME_NS;
-  defaultSettings["event/trigger_filter_enable"] = DEFAULT_EVENT_TRIGGER_FILTER_ENABLE;
-  defaultSettings["event/strobe_active_length_ns"] = DEFAULT_EVENT_STROBE_ACTIVE_LENGTH_NS;
-  defaultSettings["event/strobe_inactive_length_ns"] = DEFAULT_EVENT_STROBE_INACTIVE_LENGTH_NS;
-
-  defaultSettings["alpide/clustering_enable"] = DEFAULT_ALPIDE_CLUSTERING_ENABLE;
+  defaultSettings["alpide/data_long_enable"] = DEFAULT_ALPIDE_DATA_LONG_ENABLE;
   defaultSettings["alpide/dtu_delay"] = DEFAULT_ALPIDE_DTU_DELAY;
   defaultSettings["alpide/pixel_shaping_dead_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_DEAD_TIME_NS;
   defaultSettings["alpide/pixel_shaping_active_time_ns"] = DEFAULT_ALPIDE_PIXEL_SHAPING_ACTIVE_TIME_NS;
@@ -98,6 +71,42 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["its/layer4_num_staves"] = DEFAULT_ITS_LAYER4_NUM_STAVES;
   defaultSettings["its/layer5_num_staves"] = DEFAULT_ITS_LAYER5_NUM_STAVES;
   defaultSettings["its/layer6_num_staves"] = DEFAULT_ITS_LAYER6_NUM_STAVES;
+
+  defaultSettings["pct/num_staves"] = DEFAULT_PCT_NUM_STAVES;
+
+  defaultSettings["event/random_hit_generation"] = DEFAULT_EVENT_RANDOM_HIT_GENERATION;
+
+  defaultSettings["event/monte_carlo_file_type"] = DEFAULT_EVENT_MONTE_CARLO_FILE_TYPE;
+  defaultSettings["event/qed_noise_path"] = DEFAULT_EVENT_QED_NOISE_PATH;
+  defaultSettings["event/qed_noise_input"] = DEFAULT_EVENT_QED_NOISE_INPUT;
+  defaultSettings["event/qed_noise_feed_rate_ns"] = DEFAULT_EVENT_QED_NOISE_FEED_RATE_NS;
+  defaultSettings["event/qed_noise_event_rate_ns"] = DEFAULT_EVENT_QED_NOISE_EVENT_RATE_NS;
+  defaultSettings["event/trigger_delay_ns"] = DEFAULT_EVENT_TRIGGER_DELAY_NS;
+  defaultSettings["event/trigger_filter_time_ns"] = DEFAULT_EVENT_TRIGGER_FILTER_TIME_NS;
+  defaultSettings["event/trigger_filter_enable"] = DEFAULT_EVENT_TRIGGER_FILTER_ENABLE;
+  defaultSettings["event/strobe_active_length_ns"] = DEFAULT_EVENT_STROBE_ACTIVE_LENGTH_NS;
+  defaultSettings["event/strobe_inactive_length_ns"] = DEFAULT_EVENT_STROBE_INACTIVE_LENGTH_NS;
+  ///@todo Rename to average_trigger_rate_ns?
+  defaultSettings["event/average_event_rate_ns"] = DEFAULT_EVENT_AVERAGE_EVENT_RATE_NS;
+
+  defaultSettings["event/its/hit_multiplicity_distribution_file"] = DEFAULT_EVENT_ITS_HIT_MULTIPLICITY_DISTRIBUTION_FILE;
+  defaultSettings["event/its/bunch_crossing_rate_ns"] = DEFAULT_EVENT_ITS_BUNCH_CROSSING_RATE_NS;
+  defaultSettings["event/its/monte_carlo_dir_path"] = DEFAULT_EVENT_ITS_MONTE_CARLO_DIR_PATH;
+  defaultSettings["event/its/hit_density_layer0"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER0;
+  defaultSettings["event/its/hit_density_layer1"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER1;
+  defaultSettings["event/its/hit_density_layer2"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER2;
+  defaultSettings["event/its/hit_density_layer3"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER3;
+  defaultSettings["event/its/hit_density_layer4"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER4;
+  defaultSettings["event/its/hit_density_layer5"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER5;
+  defaultSettings["event/its/hit_density_layer6"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER6;
+
+  defaultSettings["event/pct/monte_carlo_file_path"] = DEFAULT_EVENT_PCT_MONTE_CARLO_FILE_PATH;
+  defaultSettings["event/pct/time_frame_length_ns"] = DEFAULT_EVENT_PCT_TIME_FRAME_LENGTH_NS;
+  defaultSettings["event/pct/random_flux_mean_per_s"] = DEFAULT_EVENT_PCT_RANDOM_FLUX_MEAN_PER_S;
+  defaultSettings["event/pct/random_flux_stddev_per_s"] = DEFAULT_EVENT_PCT_RANDOM_FLUX_STDDEV_PER_S;
+  defaultSettings["event/pct/random_beam_diameter_mean_mm"] = DEFAULT_EVENT_PCT_RANDOM_BEAM_DIAMETER_MEAN_MM;
+  defaultSettings["event/pct/random_beam_diameter_stddev_mm"] = DEFAULT_EVENT_PCT_RANDOM_BEAM_DIAMETER_STDDEV_MM;
+
 
   QStringList simSettingsKeys = readoutSimSettings->allKeys();
 

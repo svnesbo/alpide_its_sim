@@ -23,7 +23,7 @@ namespace ITS {
     unsigned int alpide_strobe_length_ns;
     unsigned int alpide_min_busy_cycles;
     bool alpide_strobe_ext;
-    bool alpide_cluster_en;
+    bool alpide_data_long_en;
     bool alpide_continuous_mode;
     bool alpide_matrix_speed;
   };

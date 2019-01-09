@@ -1,18 +1,19 @@
 /**
- * @file   Stimuli.hpp
+ * @file   StimuliPCT.hpp
  * @author Simon Voigt Nesbo
- * @date   December 12, 2016
- * @brief  Header file for stimuli function for Alpide Dataflow SystemC model
+ * @date   January 9, 2019
+ * @brief  Header file for stimuli class for PCT
  */
 
 
 ///@defgroup testbench Main Alpide Simulation Testbench
 ///@{
-#ifndef STIMULI_HPP
-#define STIMULI_HPP
+#ifndef STIMULI_PCT_HPP
+#define STIMULI_PCT_HPP
 
+#include "StimuliBase.hpp"
 #include "Alpide/Alpide.hpp"
-#include "../event/EventGenerator.hpp"
+#include "../Event/EventGenPCT.hpp"
 #include "../ITS/ITSDetector.hpp"
 #include "../ITS/ITSModulesStaves.hpp"
 #include <QSettings>
@@ -20,9 +21,8 @@
 #include <string>
 
 
-class Stimuli : public sc_core::sc_module {
+class StimuliPCT : public StimuliBase, public sc_core::sc_module  {
 public:
-  sc_in_clk clock;
   sc_signal<bool> s_physics_event;
   sc_signal<bool> s_its_busy;
 
@@ -30,7 +30,7 @@ public:
   sc_signal<bool> s_alpide_data_line;
 
 private:
-  std::unique_ptr<EventGenerator> mEventGen;
+  std::unique_ptr<EventGenPCT> mEventGen;
 
   // mITS is only used for detector simulation
   std::unique_ptr<ITS::ITSDetector> mITS;
@@ -54,7 +54,7 @@ private:
   unsigned int mTriggerDelayNs;
 
 public:
-  Stimuli(sc_core::sc_module_name name, QSettings* settings, std::string output_path);
+  StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::string output_path);
   void stimuliMainMethod(void);
   void stimuliQedNoiseEventMethod(void);
   void continuousTriggerMethod(void);

@@ -19,14 +19,12 @@ using std::uint64_t;
 
 ///@brief   A simple event generator for PCT simulation with Alpide SystemC simulation model.
 ///@details ...
-class EventGenPCT : EventGenBase
+class EventGenPCT : public EventGenBase, public sc_core::sc_module
 {
 private:
   std::vector<std::shared_ptr<PixelHit>> mEventHitVector;
 
   EventBase* mMCEvents = nullptr;
-
-  ITS::detectorConfig mITSConfig;
 
   double mSingleChipDetectorArea;
 
@@ -36,7 +34,15 @@ private:
   double mBeamSpeedX_mm_per_us;
   double mBeamSpeedY_mm_per_us;
 
-  uint64_t generateNextEvent(uint64_t time_now);
+  unsigned int mEventTimeFrameLength_ns;
+
+  void generateRandomEventData(unsigned int &event_pixel_hit_count,
+                               std::map<unsigned int, unsigned int> &chip_hits,
+                               std::map<unsigned int, unsigned int> &layer_hits);
+  void generateMonteCarloEventData(unsigned int &event_pixel_hit_count,
+                                   std::map<unsigned int, unsigned int> &chip_hits,
+                                   std::map<unsigned int, unsigned int> &layer_hits);
+  uint64_t generateNextEvent(void);
   void eventMethod(void);
 
 public:

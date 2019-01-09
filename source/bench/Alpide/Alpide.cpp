@@ -22,7 +22,7 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] strobe_length_ns Strobe length (in nanoseconds)
 ///@param[in] strobe_extension Enable/disable strobe extension
 ///           (if new strobe received before the previous strobe interval ended)
-///@param[in] enable_clustering Enable clustering and use of DATA LONG words
+///@param[in] enable_data_long Enable clustering and use of DATA LONG words
 ///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
 ///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
 ///@param[in] outer_barrel_mode True: outer barrel mode. False: inner barrel mode
@@ -32,7 +32,7 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] min_busy_cycles Minimum number of cycles that the internal busy signal has to be
 ///           asserted before the chip transmits BUSY_ON
 Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
-               int strobe_length_ns, bool strobe_extension, bool enable_clustering,
+               int strobe_length_ns, bool strobe_extension, bool enable_data_long,
                bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles,
                bool outer_barrel_mode, bool outer_barrel_master, int outer_barrel_slave_count)
   : sc_core::sc_module(name)
@@ -99,7 +99,7 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
                                      i,
                                      REGION_FIFO_SIZE,
                                      matrix_readout_speed,
-                                     enable_clustering);
+                                     enable_data_long);
 
     mRRUs[i]->s_system_clk_in(s_system_clk_in);
     mRRUs[i]->s_frame_readout_start_in(s_frame_readout_start);
