@@ -6,7 +6,10 @@
  */
 #include "EventGenBase.hpp"
 
-EventGenBase::EventGenBase(const QSettings* settings, std::string output_path)
+EventGenBase::EventGenBase(sc_core::sc_module_name name,
+                           const QSettings* settings,
+                           std::string output_path)
+  : sc_core::sc_module(name)
 {
   mOutputPath = output_path;
   mRandomHitGeneration = settings->value("event/random_hit_generation").toBool();

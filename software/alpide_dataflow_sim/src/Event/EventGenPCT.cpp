@@ -22,7 +22,7 @@ SC_HAS_PROCESS(EventGenPCT);
 EventGenPCT::EventGenPCT(sc_core::sc_module_name name,
                                const QSettings* settings,
                                std::string output_path)
-  : EventGenBase(settings, output_path)
+  : EventGenBase(name, settings, output_path)
 {
   mRandomHitGeneration = settings->value("event/random_hit_generation").toBool();
   mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();

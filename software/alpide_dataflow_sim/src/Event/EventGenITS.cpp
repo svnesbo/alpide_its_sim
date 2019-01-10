@@ -31,8 +31,7 @@ SC_HAS_PROCESS(EventGenITS);
 EventGenITS::EventGenITS(sc_core::sc_module_name name,
                                const QSettings* settings,
                                std::string output_path)
-  : sc_core::sc_module(name)
-  , EventGenBase(settings, output_path)
+  : EventGenBase(name, settings, output_path)
 {
   mBunchCrossingRate_ns = settings->value("its/bunch_crossing_rate_ns").toInt();
   mAverageEventRate_ns = settings->value("event/average_event_rate_ns").toInt();
@@ -783,8 +782,7 @@ uint64_t EventGenITS::generateNextPhysicsEvent(void)
   std::map<unsigned int, unsigned int> layer_hits;
   std::map<unsigned int, unsigned int> chip_hits;
 
-  //mLastPhysicsEventTimeNs = time_now;
-  mPhysicsEventCount++;
+  mTriggeredEventCount++;
 
   if(mRandomHitGeneration == true) {
     generateRandomEventData(time_now, event_pixel_hit_count, chip_hits, layer_hits);
@@ -805,11 +803,13 @@ uint64_t EventGenITS::generateNextPhysicsEvent(void)
   if(mCreateCSVFile)
     addCsvEventLine(t_delta, event_pixel_hit_count, chip_hits, layer_hits);
 
-  std::cout << "@ " << time_now << " ns: ";
-  std::cout << "\tPhysics event number: " << mPhysicsEventCount;
-  std::cout << "\tt_delta: " << t_delta;
-  std::cout << "\tt_delta_cycles: " << t_delta_cycles;
-  //std::cout << "\tmLastPhysicsEventTimeNs: " << mLastPhysicsEventTimeNs << std::endl;
+  if(mTriggeredEventCount % 100 == 0) {
+    std::cout << "@ " << time_now << " ns: ";
+    std::cout << "\tPhysics event number: " << mTriggeredEventCount;
+    std::cout << "\tt_delta: " << t_delta;
+    std::cout << "\tt_delta_cycles: " << t_delta_cycles;
+    //std::cout << "\tmLastPhysicsEventTimeNs: " << mLastPhysicsEventTimeNs << std::endl;
+  }
 
   return t_delta;
 }
@@ -818,6 +818,8 @@ uint64_t EventGenITS::generateNextPhysicsEvent(void)
 ///@brief Generate a QED/Noise event
 void EventGenITS::generateNextQedNoiseEvent(uint64_t event_time_ns)
 {
+  mUntriggeredEventCount++;
+
   mQedNoiseHitVector.clear();
 
   const EventDigits* digits = mMCQedNoiseEvents->getNextEvent();

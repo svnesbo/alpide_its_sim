@@ -19,7 +19,7 @@ using std::uint64_t;
 
 ///@brief   A simple event generator for PCT simulation with Alpide SystemC simulation model.
 ///@details ...
-class EventGenPCT : public EventGenBase, public sc_core::sc_module
+class EventGenPCT : public EventGenBase
 {
 private:
   std::vector<std::shared_ptr<PixelHit>> mEventHitVector;

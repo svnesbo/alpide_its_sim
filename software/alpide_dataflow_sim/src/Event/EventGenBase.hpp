@@ -26,7 +26,7 @@
 
 using std::uint64_t;
 
-class EventGenBase
+class EventGenBase : public sc_core::sc_module
 {
 public: // SystemC signals
   /// This sc_event is used for events such as a collision in LHC, and can be
@@ -44,19 +44,6 @@ public: // SystemC signals
   /// when calling getUntriggeredEvent().
   sc_event E_untriggered_event;
 
-private:
-  /// Total number of triggered event frames generated.
-  uint64_t mTriggeredEventCount = 0;
-
-  /// Total number of untriggered event frames generated.
-  uint64_t mUntriggeredEventCount = 0;
-
-  /// Mean cluster size (pixels) per hit, used for random cluster generation
-  double mRandClusterSizeMean;
-
-  /// Mean cluster size deviation (pixels) per hit, used for random cluster generation
-  double mRandClusterSizeDeviation;
-
 protected:
   int mNumChips = 0;
   int mRandomSeed;
@@ -71,6 +58,18 @@ protected:
   int mPixelDeadTime;
   int mPixelActiveTime;
 
+  /// Mean cluster size (pixels) per hit, used for random cluster generation
+  double mRandClusterSizeMean;
+
+  /// Mean cluster size deviation (pixels) per hit, used for random cluster generation
+  double mRandClusterSizeDeviation;
+
+  /// Total number of triggered event frames generated.
+  uint64_t mTriggeredEventCount = 0;
+
+  /// Total number of untriggered event frames generated.
+  uint64_t mUntriggeredEventCount = 0;
+
   std::string mOutputPath;
 
   /// Readout stats objects for triggered data
@@ -80,7 +79,7 @@ protected:
   std::shared_ptr<PixelReadoutStats> mUntriggeredReadoutStats = nullptr;
 
 public:
-  EventGenBase(const QSettings* settings, std::string output_path);
+  EventGenBase(sc_core::sc_module_name name, const QSettings* settings, std::string output_path);
   ~EventGenBase();
   virtual const std::vector<std::shared_ptr<PixelHit>>& getTriggeredEvent(void) const = 0;
   virtual const std::vector<std::shared_ptr<PixelHit>>& getUntriggeredEvent(void) const = 0;

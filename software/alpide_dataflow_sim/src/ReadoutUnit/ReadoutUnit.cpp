@@ -38,6 +38,7 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          bool trigger_filter_enable,
                          bool inner_barrel)
   : sc_core::sc_module(name)
+  , s_system_clk_in("system_clk_in")
   , s_alpide_control_output(n_ctrl_links)
   , s_alpide_data_input(n_data_links)
   , s_serial_data_input(n_data_links)

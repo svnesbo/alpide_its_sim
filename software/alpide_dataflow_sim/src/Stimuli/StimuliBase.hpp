@@ -20,11 +20,12 @@
 #include <QSettings>
 
 
-class StimuliBase {
+class StimuliBase : public sc_core::sc_module
+{
 public:
   sc_in_clk clock;
 
-private:
+protected:
   const QSettings* mSettings;
   std::string mOutputPath;
   bool simulation_done = false;
@@ -38,7 +39,7 @@ private:
   unsigned int mTriggerDelayNs;
 
 public:
-  StimuliBase(QSettings* settings, std::string output_path);
+  StimuliBase(sc_core::sc_module_name name, QSettings* settings, std::string output_path);
   virtual void addTraces(sc_trace_file *wf) const = 0;
 };
 

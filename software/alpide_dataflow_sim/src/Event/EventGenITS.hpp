@@ -31,7 +31,7 @@
 ///         different chips and over a chip's x/y coordinates.
 ///         For each hit a fixed 2x2 pixel cluster is generated on the chip (this might be replaced with a
 ///         more advanced random distribution in the future).
-class EventGenITS : public EventGenBase, public sc_core::sc_module
+class EventGenITS : public EventGenBase
 {
 private:
   std::vector<std::shared_ptr<PixelHit>> mEventHitVector;
@@ -39,8 +39,6 @@ private:
 
   int mBunchCrossingRate_ns;
   int mAverageEventRate_ns;
-
-  uint64_t mPhysicsEventCount;
 
   EventBase* mMCPhysicsEvents = nullptr;
   EventBase* mMCQedNoiseEvents = nullptr;
@@ -111,7 +109,6 @@ public:
   ~EventGenITS();
   void setBunchCrossingRate(int rate_ns);
   void initRandomNumGenerators(void);
-  uint64_t getPhysicsEventCount(void) const {return mPhysicsEventCount;}
   void stopEventGeneration(void);
 
   const std::vector<std::shared_ptr<PixelHit>>& getTriggeredEvent(void) const;

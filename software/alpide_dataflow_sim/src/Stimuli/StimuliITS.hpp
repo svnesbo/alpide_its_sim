@@ -21,7 +21,7 @@
 #include <string>
 
 
-class StimuliITS : public StimuliBase, public sc_core::sc_module {
+class StimuliITS : public StimuliBase {
 private:
   sc_signal<bool> s_physics_event;
   sc_signal<bool> s_its_busy;
@@ -39,19 +39,6 @@ private:
   // single chip simulations
   std::unique_ptr<ReadoutUnit> mReadoutUnit;
   std::unique_ptr<ITS::SingleChip> mAlpide;
-
-  const QSettings* mSettings;
-  std::string mOutputPath;
-  bool simulation_done = false;
-  bool mContinuousMode;
-  bool mSingleChipSimulation;
-
-  ///@todo Make it a 64-bit int?
-  uint64_t mNumEvents;
-  unsigned int mNumChips;
-  unsigned int mStrobeActiveNs;
-  unsigned int mStrobeInactiveNs;
-  unsigned int mTriggerDelayNs;
 
 public:
   StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::string output_path);
