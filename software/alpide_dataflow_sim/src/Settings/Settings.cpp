@@ -71,11 +71,26 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["its/layer4_num_staves"] = DEFAULT_ITS_LAYER4_NUM_STAVES;
   defaultSettings["its/layer5_num_staves"] = DEFAULT_ITS_LAYER5_NUM_STAVES;
   defaultSettings["its/layer6_num_staves"] = DEFAULT_ITS_LAYER6_NUM_STAVES;
+  defaultSettings["its/hit_multiplicity_distribution_file"] = DEFAULT_ITS_HIT_MULTIPLICITY_DISTRIBUTION_FILE;
+  defaultSettings["its/bunch_crossing_rate_ns"] = DEFAULT_ITS_BUNCH_CROSSING_RATE_NS;
+  defaultSettings["its/monte_carlo_dir_path"] = DEFAULT_ITS_MONTE_CARLO_DIR_PATH;
+  defaultSettings["its/hit_density_layer0"] = DEFAULT_ITS_HIT_DENSITY_LAYER0;
+  defaultSettings["its/hit_density_layer1"] = DEFAULT_ITS_HIT_DENSITY_LAYER1;
+  defaultSettings["its/hit_density_layer2"] = DEFAULT_ITS_HIT_DENSITY_LAYER2;
+  defaultSettings["its/hit_density_layer3"] = DEFAULT_ITS_HIT_DENSITY_LAYER3;
+  defaultSettings["its/hit_density_layer4"] = DEFAULT_ITS_HIT_DENSITY_LAYER4;
+  defaultSettings["its/hit_density_layer5"] = DEFAULT_ITS_HIT_DENSITY_LAYER5;
+  defaultSettings["its/hit_density_layer6"] = DEFAULT_ITS_HIT_DENSITY_LAYER6;
 
   defaultSettings["pct/num_staves"] = DEFAULT_PCT_NUM_STAVES;
+  defaultSettings["pct/monte_carlo_file_path"] = DEFAULT_PCT_MONTE_CARLO_FILE_PATH;
+  defaultSettings["pct/time_frame_length_ns"] = DEFAULT_PCT_TIME_FRAME_LENGTH_NS;
+  defaultSettings["pct/random_flux_mean_per_s"] = DEFAULT_PCT_RANDOM_FLUX_MEAN_PER_S;
+  defaultSettings["pct/random_flux_stddev_per_s"] = DEFAULT_PCT_RANDOM_FLUX_STDDEV_PER_S;
+  defaultSettings["pct/random_beam_diameter_mean_mm"] = DEFAULT_PCT_RANDOM_BEAM_DIAMETER_MEAN_MM;
+  defaultSettings["pct/random_beam_diameter_stddev_mm"] = DEFAULT_PCT_RANDOM_BEAM_DIAMETER_STDDEV_MM;
 
   defaultSettings["event/random_hit_generation"] = DEFAULT_EVENT_RANDOM_HIT_GENERATION;
-
   defaultSettings["event/monte_carlo_file_type"] = DEFAULT_EVENT_MONTE_CARLO_FILE_TYPE;
   defaultSettings["event/qed_noise_path"] = DEFAULT_EVENT_QED_NOISE_PATH;
   defaultSettings["event/qed_noise_input"] = DEFAULT_EVENT_QED_NOISE_INPUT;
@@ -88,25 +103,6 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["event/strobe_inactive_length_ns"] = DEFAULT_EVENT_STROBE_INACTIVE_LENGTH_NS;
   ///@todo Rename to average_trigger_rate_ns?
   defaultSettings["event/average_event_rate_ns"] = DEFAULT_EVENT_AVERAGE_EVENT_RATE_NS;
-
-  defaultSettings["event/its/hit_multiplicity_distribution_file"] = DEFAULT_EVENT_ITS_HIT_MULTIPLICITY_DISTRIBUTION_FILE;
-  defaultSettings["event/its/bunch_crossing_rate_ns"] = DEFAULT_EVENT_ITS_BUNCH_CROSSING_RATE_NS;
-  defaultSettings["event/its/monte_carlo_dir_path"] = DEFAULT_EVENT_ITS_MONTE_CARLO_DIR_PATH;
-  defaultSettings["event/its/hit_density_layer0"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER0;
-  defaultSettings["event/its/hit_density_layer1"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER1;
-  defaultSettings["event/its/hit_density_layer2"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER2;
-  defaultSettings["event/its/hit_density_layer3"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER3;
-  defaultSettings["event/its/hit_density_layer4"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER4;
-  defaultSettings["event/its/hit_density_layer5"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER5;
-  defaultSettings["event/its/hit_density_layer6"] = DEFAULT_EVENT_ITS_HIT_DENSITY_LAYER6;
-
-  defaultSettings["event/pct/monte_carlo_file_path"] = DEFAULT_EVENT_PCT_MONTE_CARLO_FILE_PATH;
-  defaultSettings["event/pct/time_frame_length_ns"] = DEFAULT_EVENT_PCT_TIME_FRAME_LENGTH_NS;
-  defaultSettings["event/pct/random_flux_mean_per_s"] = DEFAULT_EVENT_PCT_RANDOM_FLUX_MEAN_PER_S;
-  defaultSettings["event/pct/random_flux_stddev_per_s"] = DEFAULT_EVENT_PCT_RANDOM_FLUX_STDDEV_PER_S;
-  defaultSettings["event/pct/random_beam_diameter_mean_mm"] = DEFAULT_EVENT_PCT_RANDOM_BEAM_DIAMETER_MEAN_MM;
-  defaultSettings["event/pct/random_beam_diameter_stddev_mm"] = DEFAULT_EVENT_PCT_RANDOM_BEAM_DIAMETER_STDDEV_MM;
-
 
   QStringList simSettingsKeys = readoutSimSettings->allKeys();
 

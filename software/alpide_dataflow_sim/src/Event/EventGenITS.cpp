@@ -34,7 +34,7 @@ EventGenITS::EventGenITS(sc_core::sc_module_name name,
   : sc_core::sc_module(name)
   , EventGenBase(settings, output_path)
 {
-  mBunchCrossingRate_ns = settings->value("event/its/bunch_crossing_rate_ns").toInt();
+  mBunchCrossingRate_ns = settings->value("its/bunch_crossing_rate_ns").toInt();
   mAverageEventRate_ns = settings->value("event/average_event_rate_ns").toInt();
   mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
 
@@ -91,7 +91,7 @@ EventGenITS::~EventGenITS()
 
 void EventGenITS::initRandomHitGen(const QSettings* settings)
 {
-  QString multipl_dist_file = settings->value("event/its/hit_multiplicity_distribution_file").toString();
+  QString multipl_dist_file = settings->value("its/hit_multiplicity_distribution_file").toString();
 
   // Read multiplicity distribution from file,
   // and initialize boost::random discrete distribution with data
@@ -106,7 +106,7 @@ void EventGenITS::initRandomHitGen(const QSettings* settings)
   double multpl_dist_mean = normalizeDiscreteDistribution(mult_dist);
 
   if(mSingleChipSimulation) {
-    mSingleChipHitDensity = settings->value("event/its/hit_density_layer0").toDouble();
+    mSingleChipHitDensity = settings->value("its/hit_density_layer0").toDouble();
     mSingleChipDetectorArea = CHIP_WIDTH_CM * CHIP_HEIGHT_CM;
     mSingleChipHitAverage = mSingleChipHitDensity * mSingleChipDetectorArea;
     mSingleChipMultiplicityScaleFactor = mSingleChipHitAverage / multpl_dist_mean;
@@ -124,13 +124,13 @@ void EventGenITS::initRandomHitGen(const QSettings* settings)
     std::cout << "Chip multiplicity distr. scaling factor: ";
     std::cout << mMultiplicityScaleFactor[0] << std::endl;
   } else {
-    mHitDensities[0] = settings->value("event/its/hit_density_layer0").toDouble();
-    mHitDensities[1] = settings->value("event/its/hit_density_layer1").toDouble();
-    mHitDensities[2] = settings->value("event/its/hit_density_layer2").toDouble();
-    mHitDensities[3] = settings->value("event/its/hit_density_layer3").toDouble();
-    mHitDensities[4] = settings->value("event/its/hit_density_layer4").toDouble();
-    mHitDensities[5] = settings->value("event/its/hit_density_layer5").toDouble();
-    mHitDensities[6] = settings->value("event/its/hit_density_layer6").toDouble();
+    mHitDensities[0] = settings->value("its/hit_density_layer0").toDouble();
+    mHitDensities[1] = settings->value("its/hit_density_layer1").toDouble();
+    mHitDensities[2] = settings->value("its/hit_density_layer2").toDouble();
+    mHitDensities[3] = settings->value("its/hit_density_layer3").toDouble();
+    mHitDensities[4] = settings->value("its/hit_density_layer4").toDouble();
+    mHitDensities[5] = settings->value("its/hit_density_layer5").toDouble();
+    mHitDensities[6] = settings->value("its/hit_density_layer6").toDouble();
 
     for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
       mDetectorArea[layer] =
@@ -188,7 +188,7 @@ void EventGenITS::initRandomHitGen(const QSettings* settings)
 void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
 {
   QString monte_carlo_file_type = settings->value("event/monte_carlo_file_type").toString();
-  QString monte_carlo_event_path_str = settings->value("event/its/monte_carlo_dir_path").toString();
+  QString monte_carlo_event_path_str = settings->value("its/monte_carlo_dir_path").toString();
   QDir monte_carlo_event_dir(monte_carlo_event_path_str);
   QStringList name_filters;
 

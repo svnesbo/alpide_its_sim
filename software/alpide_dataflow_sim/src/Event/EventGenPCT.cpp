@@ -27,13 +27,13 @@ EventGenPCT::EventGenPCT(sc_core::sc_module_name name,
   mRandomHitGeneration = settings->value("event/random_hit_generation").toBool();
   mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
 
-  mBeamCenterCoordX_mm = settings->value("event/pct/beam_center_coord_x_start_mm").toDouble();
-  mBeamCenterCoordY_mm = settings->value("event/pct/beam_center_coord_y_start_mm").toDouble();
+  mBeamCenterCoordX_mm = settings->value("pct/beam_center_coord_x_start_mm").toDouble();
+  mBeamCenterCoordY_mm = settings->value("pct/beam_center_coord_y_start_mm").toDouble();
 
-  mBeamSpeedX_mm_per_us = settings->value("event/pct/beam_speed_x_mm_per_us").toDouble();
-  mBeamSpeedY_mm_per_us = settings->value("event/pct/beam_speed_y_mm_per_us").toDouble();
+  mBeamSpeedX_mm_per_us = settings->value("pct/beam_speed_x_mm_per_us").toDouble();
+  mBeamSpeedY_mm_per_us = settings->value("pct/beam_speed_y_mm_per_us").toDouble();
 
-  mEventTimeFrameLength_ns = settings->value("event/pct/time_frame_length_ns").toDouble();
+  mEventTimeFrameLength_ns = settings->value("pct/time_frame_length_ns").toDouble();
 
   if(mRandomHitGeneration) {
     initRandomHitGen(settings);
@@ -55,10 +55,10 @@ EventGenPCT::EventGenPCT(sc_core::sc_module_name name,
 
 void EventGenPCT::initRandomHitGen(const QSettings* settings)
 {
-  mRandomFluxMean_per_second = settings->value("event/pct/random_flux_mean_per_s").toDouble();
-  mRandomFluxStdDev_per_second = settings->value("event/pct/random_flux_stddev_per_s").toDouble();
-  mRandomBeamDiameterMean_mm = settings->value("event/pct/random_beam_diameter_mean_mm").toDouble();
-  mRandomBeamDiameterStdDev_mm = settings->value("event/pct/random_beam_diameter_stddev_mm").toDouble();
+  mRandomFluxMean_per_second = settings->value("pct/random_flux_mean_per_s").toDouble();
+  mRandomFluxStdDev_per_second = settings->value("pct/random_flux_stddev_per_s").toDouble();
+  mRandomBeamDiameterMean_mm = settings->value("pct/random_beam_diameter_mean_mm").toDouble();
+  mRandomBeamDiameterStdDev_mm = settings->value("pct/random_beam_diameter_stddev_mm").toDouble();
 
   ///@todo Initialize random number generators here
 }
@@ -67,7 +67,7 @@ void EventGenPCT::initRandomHitGen(const QSettings* settings)
 void EventGenPCT::initMonteCarloHitGen(const QSettings* settings)
 {
   QString monte_carlo_file_type = settings->value("event/monte_carlo_file_type").toString();
-  QString monte_carlo_data_file_str = settings->value("event/pct/monte_carlo_file_path").toString();
+  QString monte_carlo_data_file_str = settings->value("pct/monte_carlo_file_path").toString();
 
   if(monte_carlo_file_type == "xml") {
     name_filters << "*.xml";
