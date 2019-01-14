@@ -35,7 +35,6 @@ EventGenITS::EventGenITS(sc_core::sc_module_name name,
 {
   mBunchCrossingRate_ns = settings->value("its/bunch_crossing_rate_ns").toInt();
   mAverageEventRate_ns = settings->value("event/average_event_rate_ns").toInt();
-  mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
 
   mITSConfig.layer[0].num_staves = settings->value("its/layer0_num_staves").toInt();
   mITSConfig.layer[1].num_staves = settings->value("its/layer1_num_staves").toInt();
@@ -51,7 +50,8 @@ EventGenITS::EventGenITS(sc_core::sc_module_name name,
     initMonteCarloHitGen(settings);
   }
 
-  initRandomNumGenerators();
+  // Random number is always used for event time (follows exponential distribution)
+  initRandomNumGen(settings);
 
   if(mCreateCSVFile)
     initCsvEventFileHeader(settings);
@@ -381,8 +381,11 @@ const std::vector<std::shared_ptr<PixelHit>>& EventGenITS::getUntriggeredEvent(v
 }
 
 
-///@brief Initialize random number generators
-void EventGenITS::initRandomNumGenerators(void)
+///@brief Initialize random number generators used with random distributions in this class.
+///       There is a generator for event time which is always used.
+///       And if random event generation is enabled (no monte carlo input), then the generators
+///       for random multiplicity and random hit coords are used.
+void EventGenITS::initRandomNumGen(const QSettings* settings)
 {
   // Multiplied by BC rate so that the distribution is related to the clock cycles
   // Which is fine because physics events will be in sync with 40MHz BC clock, but
@@ -414,8 +417,6 @@ void EventGenITS::initRandomNumGenerators(void)
     mRandHitMultiplicityGen.seed(mRandomSeed);
     mRandEventTimeGen.seed(mRandomSeed);
   }
-
-  EventGenBase::initRandomNumGenerators();
 }
 
 

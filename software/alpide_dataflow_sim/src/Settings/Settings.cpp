@@ -82,15 +82,23 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["its/hit_density_layer5"] = DEFAULT_ITS_HIT_DENSITY_LAYER5;
   defaultSettings["its/hit_density_layer6"] = DEFAULT_ITS_HIT_DENSITY_LAYER6;
 
-  defaultSettings["pct/num_staves"] = DEFAULT_PCT_NUM_STAVES;
+  defaultSettings["pct/num_layers"] = DEFAULT_PCT_NUM_LAYERS;
+  defaultSettings["pct/num_staves_per_layer"] = DEFAULT_PCT_NUM_STAVES_PER_LAYER;
   defaultSettings["pct/monte_carlo_file_path"] = DEFAULT_PCT_MONTE_CARLO_FILE_PATH;
   defaultSettings["pct/time_frame_length_ns"] = DEFAULT_PCT_TIME_FRAME_LENGTH_NS;
-  defaultSettings["pct/random_flux_mean_per_s"] = DEFAULT_PCT_RANDOM_FLUX_MEAN_PER_S;
-  defaultSettings["pct/random_flux_stddev_per_s"] = DEFAULT_PCT_RANDOM_FLUX_STDDEV_PER_S;
-  defaultSettings["pct/random_beam_diameter_mean_mm"] = DEFAULT_PCT_RANDOM_BEAM_DIAMETER_MEAN_MM;
-  defaultSettings["pct/random_beam_diameter_stddev_mm"] = DEFAULT_PCT_RANDOM_BEAM_DIAMETER_STDDEV_MM;
+  defaultSettings["pct/random_particles_per_s"] = DEFAULT_PCT_RANDOM_PARTICLES_PER_S;
+  defaultSettings["pct/random_beam_stddev_mm"] = DEFAULT_PCT_RANDOM_BEAM_STDDEV_MM;
+  defaultSettings["pct/beam_start_coord_x_mm"] = DEFAULT_PCT_BEAM_START_COORD_X_MM;
+  defaultSettings["pct/beam_start_coord_y_mm"] = DEFAULT_PCT_BEAM_START_COORD_Y_MM;
+  defaultSettings["pct/beam_end_coord_x_mm"] = DEFAULT_PCT_BEAM_END_COORD_X_MM;
+  defaultSettings["pct/beam_end_coord_y_mm"] = DEFAULT_PCT_BEAM_END_COORD_Y_MM;
+  defaultSettings["pct/beam_speed_x_mm_per_us"] = DEFAULT_PCT_BEAM_SPEED_X_MM_PER_US;
+  defaultSettings["pct/beam_step_y_mm"] = DEFAULT_PCT_BEAM_STEP_Y_MM;
 
   defaultSettings["event/random_hit_generation"] = DEFAULT_EVENT_RANDOM_HIT_GENERATION;
+  defaultSettings["event/random_cluster_generation"] = DEFAULT_EVENT_RANDOM_CLUSTER_GENERATION;
+  defaultSettings["event/random_cluster_size_mean"] = DEFAULT_EVENT_RANDOM_CLUSTER_SIZE_MEAN;
+  defaultSettings["event/random_cluster_size_stddev"] = DEFAULT_EVENT_RANDOM_CLUSTER_SIZE_STDDEV;
   defaultSettings["event/monte_carlo_file_type"] = DEFAULT_EVENT_MONTE_CARLO_FILE_TYPE;
   defaultSettings["event/qed_noise_path"] = DEFAULT_EVENT_QED_NOISE_PATH;
   defaultSettings["event/qed_noise_input"] = DEFAULT_EVENT_QED_NOISE_INPUT;

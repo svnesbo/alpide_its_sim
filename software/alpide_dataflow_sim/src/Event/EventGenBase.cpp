@@ -5,6 +5,7 @@
  * @brief  Base class for event generator
  */
 #include "EventGenBase.hpp"
+#include <boost/random/random_device.hpp>
 
 EventGenBase::EventGenBase(sc_core::sc_module_name name,
                            const QSettings* settings,
@@ -12,7 +13,9 @@ EventGenBase::EventGenBase(sc_core::sc_module_name name,
   : sc_core::sc_module(name)
 {
   mOutputPath = output_path;
+  mCreateCSVFile = settings->value("data_output/write_event_csv").toBool();
   mRandomHitGeneration = settings->value("event/random_hit_generation").toBool();
+  mRandomClusterGeneration = settings->value("event/random_cluster_generation").toBool();
   mRandomSeed = settings->value("simulation/random_seed").toInt();
   mPixelDeadTime = settings->value("alpide/pixel_shaping_dead_time_ns").toInt();
   mPixelActiveTime = settings->value("alpide/pixel_shaping_active_time_ns").toInt();
@@ -20,6 +23,9 @@ EventGenBase::EventGenBase(sc_core::sc_module_name name,
 
   mTriggeredReadoutStats = std::make_shared<PixelReadoutStats>();
   mUntriggeredReadoutStats = std::make_shared<PixelReadoutStats>();
+
+  if(mRandomClusterGeneration)
+    initRandomClusterGen(settings);
 }
 
 EventGenBase::~EventGenBase()
@@ -27,19 +33,16 @@ EventGenBase::~EventGenBase()
 
 }
 
-std::vector<std::shared_ptr<PixelHit>> createCluster(const PixelHit& pix,
-                                                     const uint64_t& start_time_ns,
-                                                     const uint64_t& dead_time_ns,
-                                                     const uint64_t& active_time_ns,
-                                                     const std::shared_ptr<PixelReadoutStats> &readout_stats)
+std::vector<std::shared_ptr<PixelHit>>
+EventGenBase::createCluster(const PixelHit& pix,
+                            const uint64_t& start_time_ns,
+                            const uint64_t& dead_time_ns,
+                            const uint64_t& active_time_ns,
+                            const std::shared_ptr<PixelReadoutStats> &readout_stats)
 {
-  /*
-  int cluster_size = round(rand(...))+1; // TODO: Get cluster size from gaussian distribution.
-                                         // Must be at least one..
-                                         // Make mean of distribution 1 less than desired, and
-                                         // then always add 1?
-  */
-  int cluster_size = 1;
+  // Cluster distribution is initialized with mean-1,
+  // to account for there always being 1 pixel in a cluster
+  unsigned int cluster_size = round((*mRandClusterSizeDist)(mRandClusterSizeGen)) + 1;
 
   std::vector<std::shared_ptr<PixelHit>> pixel_cluster(cluster_size);
 
@@ -50,14 +53,14 @@ std::vector<std::shared_ptr<PixelHit>> createCluster(const PixelHit& pix,
   PixelHit new_cluster_pixel;
   new_cluster_pixel.setChipId(pix.getChipId());
 
-  // Add additional pixels to cluster, starting at index 1
+  // Skip first pixel, as it has the base/source coordinates of the hit
+  // and is already added to the vector
   for(int i = 1; i < cluster_size; i++) {
     bool pixel_already_in_cluster = false;
     do {
-      /*
-      new_cluster_pixel.setCol(rand(x)); // TODO: Use guassian distribution to generate x
-      new_cluster_pixel.setRow(rand(y)); // TODO: Use guassian distribution to generate x
-      */
+      // Create random cluster pixels around base coordinate
+      new_cluster_pixel.setCol(pix.getCol() + round((*mRandClusterXDist)(mRandClusterXGen)));
+      new_cluster_pixel.setRow(pix.getRow() + round((*mRandClusterYDist)(mRandClusterYGen)));
 
       // Check if pixel with same coords was already generated
       for(int j = 0; j < i; j++) {
@@ -73,9 +76,33 @@ std::vector<std::shared_ptr<PixelHit>> createCluster(const PixelHit& pix,
   return pixel_cluster;
 }
 
-void EventGenBase::initRandomNumGenerators(void)
+void EventGenBase::initRandomClusterGen(const QSettings* settings)
 {
-  // Init random number generators for clustering here
+  double cluster_size_mean = settings->value("event/random_cluster_size_mean").toDouble();
+  double cluster_size_stddev = settings->value("event/random_cluster_size_stddev").toDouble();
+
+  // Initialize random number distributions
+  mRandClusterXDist = new boost::random::normal_distribution<double>(0, sqrt(cluster_size_mean));
+  mRandClusterYDist = new boost::random::normal_distribution<double>(0, sqrt(cluster_size_mean));
+
+  // Initialize random number generators
+  // If seed was set to 0 in settings file, initialize with a non-deterministic
+  // higher entropy random number using boost::random::random_device
+  // Based on this: http://stackoverflow.com/a/13004555
+  if(mRandomSeed == 0) {
+    boost::random::random_device r;
+
+    std::cout << "Boost random_device entropy: " << r.entropy() << std::endl;
+
+    unsigned int random_seed = r();
+    mRandClusterSizeGen.seed(random_seed);
+    mRandClusterXGen.seed(random_seed);
+    mRandClusterYGen.seed(random_seed);
+  } else {
+    mRandClusterSizeGen.seed(mRandomSeed);
+    mRandClusterXGen.seed(mRandomSeed);
+    mRandClusterYGen.seed(mRandomSeed);
+  }
 }
 
 void EventGenBase::writeSimulationStats(const std::string output_path) const

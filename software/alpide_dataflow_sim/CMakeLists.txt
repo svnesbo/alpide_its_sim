@@ -71,7 +71,7 @@ add_sources(
   src/ReadoutUnit/ReadoutUnit.cpp
   src/Event/EventGenBase.cpp
   src/Event/EventGenITS.cpp
-  #src/Event/EventGenPCT.cpp
+  src/Event/EventGenPCT.cpp
   src/Event/EventBase.cpp
   src/Event/EventBinary.cpp
   src/Event/EventXML.cpp

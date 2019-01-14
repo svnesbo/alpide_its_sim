@@ -13,9 +13,7 @@
 #include "EventGenBase.hpp"
 #include "EventBase.hpp"
 #include "../ITS/ITS_constants.hpp"
-#include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
-#include <boost/random/normal_distribution.hpp>
 #include <boost/random/exponential_distribution.hpp>
 #include <boost/random/discrete_distribution.hpp>
 
@@ -74,7 +72,6 @@ private:
   boost::random::exponential_distribution<double> *mRandEventTime;
 
   std::ofstream mPhysicsEventsCSVFile;
-  bool mCreateCSVFile = true;
 
   void generateRandomEventData(uint64_t event_time_ns,
                                unsigned int &event_pixel_hit_count,
@@ -91,6 +88,7 @@ private:
   void readDiscreteDistributionFile(const char* filename,
                                     std::vector<double> &dist_vector) const;
   void initRandomHitGen(const QSettings* settings);
+  void initRandomNumGen(const QSettings* settings);
   void initMonteCarloHitGen(const QSettings* settings);
   void initCsvEventFileHeader(const QSettings* settings);
   void addCsvEventLine(uint64_t t_delta,
@@ -108,7 +106,6 @@ public:
               std::string output_path);
   ~EventGenITS();
   void setBunchCrossingRate(int rate_ns);
-  void initRandomNumGenerators(void);
   void stopEventGeneration(void);
 
   const std::vector<std::shared_ptr<PixelHit>>& getTriggeredEvent(void) const;
