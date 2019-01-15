@@ -17,16 +17,28 @@
 ///@param config detectorConfig object which specifies which staves in ITS should
 ///              be included. To save time/memory the class will only read data
 ///              from the data files for the chips that are included in the simulation.
+///@param global_chip_id_to_position_func Pointer to function used to determine global
+///                                       chip id based on position
+///@param position_to_global_chip_id_func Pointer to function used to determine position
+///                                       based on global chip id
+///@param path Path to event files
+///@param event_filenames String list of event file names
 ///@param random_event_order True to randomize which event is used, false to get events
 ///              in sequential order.
 ///@param random_seed Random seed for event sequence randomizer.
-EventBinary::EventBinary(ITS::detectorConfig config,
+///@param load_all If set to true, load all event files into memory. If not they are read
+///                from file as they are used, and do not persist in memory.
+EventBinary::EventBinary(Detector::DetectorConfigBase config,
+                         Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
+                         Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
                          const QString& path,
                          const QStringList& event_filenames,
                          bool random_event_order,
                          int random_seed,
                          bool load_all)
   : EventBase(config,
+              global_chip_id_to_position_func,
+              position_to_global_chip_id_func,
               path,
               event_filenames,
               random_event_order,
@@ -111,7 +123,7 @@ bool EventBinary::readLayer(std::string event_filename, EventDigits* event)
 
   // Stop reading the event file if we have read all the layers
   // that are included in the simulation,
-  for(std::uint8_t layer = layer_id; layer < ITS::N_LAYERS; layer++) {
+  for(std::uint8_t layer = layer_id; layer < mConfig.num_layers; layer++) {
     if(mConfig.layer[layer].num_staves > 0) {
       done = false;
       break;
@@ -210,8 +222,8 @@ void EventBinary::readChip(std::string event_filename,
   std::uint8_t code_id;
   std::uint8_t chip_id = mFileBuffer[mFileBufferIdx++];
 
-  ITS::detectorPosition pos = {layer_id, stave_id, sub_stave_id, mod_id, chip_id};
-  unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
+  Detector::DetectorPosition pos = {layer_id, stave_id, sub_stave_id, mod_id, chip_id};
+  unsigned int global_chip_id = (*mPositionToGlobalChipIdFunc)(pos);
 
   while(done == false && mFileBufferIdx < mFileBuffer.size()) {
     code_id = mFileBuffer[mFileBufferIdx++];

@@ -12,7 +12,7 @@
 
 #include "EventGenBase.hpp"
 #include "EventBase.hpp"
-#include "../ITS/ITS_constants.hpp"
+#include "Detector/ITS/ITS_constants.hpp"
 #include <fstream>
 #include <boost/random/poisson_distribution.hpp>
 

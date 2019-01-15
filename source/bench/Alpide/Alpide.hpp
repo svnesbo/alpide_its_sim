@@ -11,6 +11,7 @@
 #ifndef ALPIDE_H
 #define ALPIDE_H
 
+#include "AlpideConfig.hpp"
 #include "AlpideDataWord.hpp"
 #include "AlpideInterface.hpp"
 #include "PixelMatrix.hpp"
@@ -234,9 +235,7 @@ private:
   ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
 public:
-  Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
-         int strobe_length_ns, bool strobe_extension, bool enable_data_long,
-         bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles = 8,
+  Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConfig& chip_cfg,
          bool outer_barrel_mode = false, bool outer_barrel_master = false,
          int outer_barrel_slave_count = 0);
   int getChipId(void) {return mChipId;}

@@ -12,7 +12,7 @@
 
 #include "EventGenBase.hpp"
 #include "EventBase.hpp"
-#include "../ITS/ITS_constants.hpp"
+#include "Detector/ITS/ITSDetectorConfig.hpp"
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/random/exponential_distribution.hpp>
 #include <boost/random/discrete_distribution.hpp>
@@ -41,7 +41,7 @@ private:
   EventBase* mMCPhysicsEvents = nullptr;
   EventBase* mMCQedNoiseEvents = nullptr;
 
-  ITS::detectorConfig mITSConfig;
+  ITS::ITSDetectorConfig mITSConfig;
 
   double mHitDensities[ITS::N_LAYERS];
   double mDetectorArea[ITS::N_LAYERS];

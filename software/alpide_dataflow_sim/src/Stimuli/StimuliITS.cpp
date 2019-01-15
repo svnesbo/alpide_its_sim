@@ -6,7 +6,7 @@
  */
 
 #include "StimuliITS.hpp"
-#include "../ITS/ITSSimulationStats.hpp"
+#include "Detector/Common/DetectorSimulationStats.hpp"
 
 // Ignore warnings about use of auto_ptr in SystemC library
 #pragma GCC diagnostic push
@@ -31,31 +31,6 @@ SC_HAS_PROCESS(StimuliITS);
 StimuliITS::StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::string output_path)
   : StimuliBase(name, settings, output_path)
 {
-  unsigned int trigger_filter_time = settings->value("event/trigger_filter_time_ns").toUInt();
-  bool trigger_filter_enable = settings->value("event/trigger_filter_enable").toBool();
-  int dtu_delay = settings->value("alpide/dtu_delay").toUInt();
-  bool enable_data_long = settings->value("alpide/data_long_enable").toBool();
-  bool matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
-  bool strobe_extension = settings->value("alpide/strobe_extension_enable").toBool();
-  unsigned int min_busy_cycles = settings->value("alpide/minimum_busy_cycles").toUInt();
-
-  std::cout << std::endl;
-  std::cout << "-------------------------------------------------" << std::endl;
-  std::cout << "Simulation settings:" << std::endl;
-  std::cout << "-------------------------------------------------" << std::endl;
-  std::cout << "Number of events: " << mNumEvents << std::endl;
-  std::cout << "Single chip simulation: " << (mSingleChipSimulation ? "true" : "false") << std::endl;
-  std::cout << "Trigger mode: " << (mContinuousMode ? "continuous" : "triggered") << std::endl;
-  std::cout << "Strobe active time (ns): " << mStrobeActiveNs << std::endl;
-  std::cout << "Strobe inactive time (ns): " << mStrobeInactiveNs << std::endl;
-  std::cout << "Trigger delay (ns): " << mTriggerDelayNs << std::endl;
-  std::cout << "Trigger filter time (ns): " << trigger_filter_time << std::endl;
-  std::cout << "Trigger filter enabled: " << (trigger_filter_enable ? "true" : "false") << std::endl;
-  std::cout << "DTU delay (clock cycles): " << dtu_delay << std::endl;
-  std::cout << "Data long enabled: " << (enable_data_long ? "true" : "false") << std::endl;
-  std::cout << "Matrix readout speed fast: " << (matrix_readout_speed ? "true" : "false") << std::endl;
-  std::cout << "Strobe extension enabled: " << (strobe_extension ? "true" : "false") << std::endl;
-
   std::cout << "Layer 0 hit density: ";
   std::cout << settings->value("event/hit_density_layer0").toDouble() << std::endl;
 
@@ -105,13 +80,7 @@ StimuliITS::StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::s
   if(mSingleChipSimulation) {
     mAlpide = std::move(std::unique_ptr<ITS::SingleChip>(new ITS::SingleChip("SingleChip",
                                                                              0,
-                                                                             dtu_delay,
-                                                                             mStrobeActiveNs,
-                                                                             strobe_extension,
-                                                                             enable_data_long,
-                                                                             mContinuousMode,
-                                                                             matrix_readout_speed,
-                                                                             min_busy_cycles)));
+                                                                             mChipCfg)));
 
     mAlpide->s_system_clk_in(clock);
 
@@ -120,8 +89,8 @@ StimuliITS::StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::s
                                                                           0,
                                                                           1,
                                                                           1,
-                                                                          trigger_filter_time,
-                                                                          trigger_filter_enable,
+                                                                          mTriggerFilterTimeNs,
+                                                                          mTriggerFilterEnabled,
                                                                           true)));
 
     mReadoutUnit->s_busy_in(mReadoutUnit->s_busy_out);
@@ -131,7 +100,7 @@ StimuliITS::StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::s
     mAlpide->socket_data_out[0].bind(mReadoutUnit->s_alpide_data_input[0]);
   }
   else { // ITS Detector Simulation
-    ITS::detectorConfig config;
+    ITS::ITSDetectorConfig config;
     config.layer[0].num_staves = settings->value("its/layer0_num_staves").toInt();
     config.layer[1].num_staves = settings->value("its/layer1_num_staves").toInt();
     config.layer[2].num_staves = settings->value("its/layer2_num_staves").toInt();
@@ -140,17 +109,11 @@ StimuliITS::StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::s
     config.layer[5].num_staves = settings->value("its/layer5_num_staves").toInt();
     config.layer[6].num_staves = settings->value("its/layer6_num_staves").toInt();
 
-    config.alpide_dtu_delay_cycles = dtu_delay;
-    config.alpide_strobe_length_ns = mStrobeActiveNs;
-    config.alpide_min_busy_cycles = min_busy_cycles;
-    config.alpide_strobe_ext = strobe_extension;
-    config.alpide_data_long_en = enable_data_long;
-    config.alpide_matrix_speed = matrix_readout_speed;
-    config.alpide_continuous_mode = mContinuousMode;
+    config.chip_cfg = mChipCfg;
 
     mITS = std::move(std::unique_ptr<ITS::ITSDetector>(new ITS::ITSDetector("ITS", config,
-                                                                            trigger_filter_time,
-                                                                            trigger_filter_enable)));
+                                                                            mTriggerFilterTimeNs,
+                                                                            mTriggerFilterEnabled)));
     mITS->s_system_clk_in(clock);
     mITS->s_detector_busy_out(s_its_busy);
   }
@@ -189,7 +152,9 @@ void StimuliITS::stimuliMainMethod(void)
     writeStimuliInfo();
 
     if(mSingleChipSimulation)
-      writeAlpideStatsToFile(mOutputPath, mAlpide->getChips());
+      Detector::writeAlpideStatsToFile(mOutputPath,
+                                       mAlpide->getChips(),
+                                       &ITS::ITS_global_chip_id_to_position);
     else
       mITS->writeSimulationStats(mOutputPath);
 

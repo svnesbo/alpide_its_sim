@@ -13,9 +13,9 @@
 
 #include "StimuliBase.hpp"
 #include "Alpide/Alpide.hpp"
-#include "../Event/EventGenITS.hpp"
-#include "../ITS/ITSDetector.hpp"
-#include "../ITS/ITSModulesStaves.hpp"
+#include "Event/EventGenITS.hpp"
+#include "Detector/ITS/ITSDetector.hpp"
+#include "Detector/Common/ITSModulesStaves.hpp"
 #include <QSettings>
 #include <memory>
 #include <string>

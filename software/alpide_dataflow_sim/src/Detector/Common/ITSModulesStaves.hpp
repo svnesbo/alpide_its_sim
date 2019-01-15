@@ -4,6 +4,8 @@
  * @date   July 11, 2017
  * @brief  This file holds a collection of classes and structs that define modules,
  *         staves and barrels/layers in the ITS detector.
+ *         Obviously there are some dependencies to ITS specific files here, but the classes
+ *         here can be used to define other detectors as well
  *         Much of this code is copy-paste from AlpideModule.hpp/cpp in
  *         Matthias Bonora's WP10 RU SystemC simulation code.
  */
@@ -13,7 +15,9 @@
 
 #include <Alpide/Alpide.hpp>
 #include <Alpide/AlpideInterface.hpp>
-#include "ITS_config.hpp"
+#include "DetectorConfig.hpp"
+#include "Detector/ITS/ITS_constants.hpp"
+
 
 namespace ITS {
   struct StaveInterface : public sc_module {
@@ -51,11 +55,8 @@ namespace ITS {
   {
     sc_export<sc_signal<sc_uint<24>>> s_alpide_data_out_exp;
 
-    SingleChip(sc_core::sc_module_name const &name, int chip_id,
-               int dtu_delay_cycles, int strobe_length_ns,
-               bool strobe_extension, bool enable_data_long,
-               bool continuous_mode, bool matrix_readout_speed,
-               int min_busy_cycles);
+    SingleChip(sc_core::sc_module_name const &name,
+               int chip_id, AlpideConfig const &chip_cfg);
 
     virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
@@ -80,8 +81,9 @@ namespace ITS {
   struct InnerBarrelStave : public StaveInterface
   {
     InnerBarrelStave(sc_core::sc_module_name const &name,
-                     unsigned int layer_id, unsigned int stave_id,
-                     const detectorConfig& cfg);
+                     Detector::DetectorPosition& pos,
+                     Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
+                     const AlpideConfig& chip_cfg);
 
     virtual void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
@@ -100,9 +102,10 @@ namespace ITS {
   struct HalfModule : public sc_module
   {
     HalfModule(sc_core::sc_module_name const &name,
-               unsigned int layer_id, unsigned int stave_id,
-               unsigned int sub_stave_id, unsigned int mod_id,
-               unsigned int half_mod_id, const detectorConfig& cfg);
+               Detector::DetectorPosition& pos,
+               Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
+               unsigned int half_mod_id,
+               const AlpideConfig& cfg);
 
     void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
@@ -129,8 +132,9 @@ namespace ITS {
   struct MBOBStave : public StaveInterface
   {
     MBOBStave(sc_core::sc_module_name const &name,
-              unsigned int layer_id, unsigned int stave_id,
-              const detectorConfig& cfg);
+              Detector::DetectorPosition& pos,
+              Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
+              const Detector::DetectorConfigBase& cfg);
     void addTraces(sc_trace_file *wf, std::string name_prefix) const;
     std::vector<std::shared_ptr<Alpide>> getChips(void) const;
 

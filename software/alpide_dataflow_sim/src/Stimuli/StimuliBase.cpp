@@ -6,6 +6,7 @@
  */
 
 #include "StimuliBase.hpp"
+#include <iostream>
 
 ///@brief Constructor for stimuli base class.
 ///@param[in] settings QSettings object with simulation settings.
@@ -24,4 +25,33 @@ StimuliBase::StimuliBase(sc_core::sc_module_name name,
   mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toUInt();
   mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toUInt();
   mTriggerDelayNs = settings->value("event/trigger_delay_ns").toUInt();
+  mTriggerFilterTimeNs = settings->value("event/trigger_filter_time_ns").toUInt();
+  mTriggerFilterEnabled = settings->value("event/trigger_filter_enable").toBool();
+
+  mChipCfg.dtu_delay_cycles = settings->value("alpide/dtu_delay").toUInt();
+  mChipCfg.strobe_length_ns = mStrobeActiveNs;
+  mChipCfg.min_busy_cycles = settings->value("alpide/minimum_busy_cycles").toUInt();
+  mChipCfg.strobe_extension = settings->value("alpide/strobe_extension_enable").toBool();
+  mChipCfg.data_long_en = settings->value("alpide/data_long_enable").toBool();
+  mChipCfg.continuous_mode = mContinuousMode;
+  mChipCfg.matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
+
+  std::cout << std::endl;
+  std::cout << "-------------------------------------------------" << std::endl;
+  std::cout << "Simulation settings:" << std::endl;
+  std::cout << "-------------------------------------------------" << std::endl;
+  std::cout << "Number of events: " << mNumEvents << std::endl;
+  std::cout << "Single chip simulation: " << (mSingleChipSimulation ? "true" : "false") << std::endl;
+  std::cout << "Trigger mode: " << (mContinuousMode ? "continuous" : "triggered") << std::endl;
+  std::cout << "Strobe active time (ns): " << mStrobeActiveNs << std::endl;
+  std::cout << "Strobe inactive time (ns): " << mStrobeInactiveNs << std::endl;
+  std::cout << "Trigger delay (ns): " << mTriggerDelayNs << std::endl;
+  std::cout << "Trigger filter time (ns): " << mTriggerFilterTimeNs << std::endl;
+  std::cout << "Trigger filter enabled: " << (mTriggerFilterEnabled ? "true" : "false") << std::endl;
+  std::cout << "DTU delay (clock cycles): " << mChipCfg.dtu_delay_cycles << std::endl;
+  std::cout << "Data long enabled: " << (mChipCfg.data_long_en ? "true" : "false") << std::endl;
+  std::cout << "Matrix readout speed fast: " << (mChipCfg.matrix_readout_speed ? "true" : "false") << std::endl;
+  std::cout << "Strobe extension enabled: " << (mChipCfg.strobe_extension ? "true" : "false") << std::endl;
+  std::cout << "Minimum busy cycles: " << mChipCfg.min_busy_cycles << std::endl;
+
 }

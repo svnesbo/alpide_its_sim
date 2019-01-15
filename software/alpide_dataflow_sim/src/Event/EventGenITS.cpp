@@ -202,6 +202,8 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
     }
 
     mMCPhysicsEvents = new EventXML(mITSConfig,
+                                    &ITS::ITS_global_chip_id_to_position,
+                                    &ITS::ITS_position_to_global_chip_id,
                                     monte_carlo_event_path_str,
                                     MC_files,
                                     true,
@@ -218,6 +220,8 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
     }
 
     mMCPhysicsEvents = new EventBinary(mITSConfig,
+                                       &ITS::ITS_global_chip_id_to_position,
+                                       &ITS::ITS_position_to_global_chip_id,
                                        monte_carlo_event_path_str,
                                        MC_files,
                                        true,
@@ -265,6 +269,8 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
       }
 
       mMCQedNoiseEvents = new EventXML(mITSConfig,
+                                       &ITS::ITS_global_chip_id_to_position,
+                                       &ITS::ITS_position_to_global_chip_id,
                                        qed_noise_event_path_str,
                                        QED_noise_event_files,
                                        true,
@@ -281,6 +287,8 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
       }
 
       mMCQedNoiseEvents = new EventBinary(mITSConfig,
+                                          &ITS::ITS_global_chip_id_to_position,
+                                          &ITS::ITS_position_to_global_chip_id,
                                           qed_noise_event_path_str,
                                           QED_noise_event_files,
                                           true,
@@ -582,7 +590,7 @@ void EventGenITS::generateRandomEventData(uint64_t event_time_ns,
         rand_y2 = rand_y1-1;
       }
 
-      ITS::detectorPosition pos = {0, 0, 0, 0, 0};
+      Detector::DetectorPosition pos = {0, 0, 0, 0, 0};
 
 
       ///@todo USE createCluster method in EventGenBase here....
@@ -670,13 +678,13 @@ void EventGenITS::generateRandomEventData(uint64_t event_time_ns,
           rand_y2 = rand_y1-1;
         }
 
-        ITS::detectorPosition pos = {layer,
-                                     rand_stave_id,
-                                     rand_sub_stave_id,
-                                     rand_module_id,
-                                     rand_chip_id};
+        Detector::DetectorPosition pos = {layer,
+                                          rand_stave_id,
+                                          rand_sub_stave_id,
+                                          rand_module_id,
+                                          rand_chip_id};
 
-        unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
+        unsigned int global_chip_id = ITS::ITS_position_to_global_chip_id(pos);
 
 #ifdef PIXEL_DEBUG
         std::cerr << "Created hit for: chip_id: " << global_chip_id;
@@ -759,7 +767,7 @@ void EventGenITS::generateMonteCarloEventData(uint64_t event_time_ns,
 
     mEventHitVector.push_back(pix_shared);
 
-    ITS::detectorPosition pos = ITS::chip_id_to_detector_position(pix.getChipId());
+    Detector::DetectorPosition pos = ITS::ITS_global_chip_id_to_position(pix.getChipId());
 
     layer_hits[pos.layer_id]++;
     chip_hits[pix.getChipId()]++;

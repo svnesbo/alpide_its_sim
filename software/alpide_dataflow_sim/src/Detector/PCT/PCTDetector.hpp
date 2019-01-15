@@ -1,14 +1,14 @@
 /**
- * @file   ITSDetector.hpp
+ * @file   PCTDetector.hpp
  * @author Simon Voigt Nesbo
- * @date   June 21, 2017
- * @brief  Mockup version of ITS detector.
- *         Accepts trigger input from the dummy CTP module, and communicates the trigger
+ * @date   January 14, 2019
+ * @brief  Mockup version of PCT detector.
+ *         Accepts trigger inputs and communicates the trigger
  *         to the readout units, which will forward them to the Alpide objects.
  */
 
-#ifndef ITS_DETECTOR_HPP
-#define ITS_DETECTOR_HPP
+#ifndef PCT_DETECTOR_HPP
+#define PCT_DETECTOR_HPP
 
 #include <vector>
 #include <memory>
@@ -18,14 +18,12 @@
 #include "../ReadoutUnit/ReadoutUnit.hpp"
 #include <Alpide/PixelHit.hpp>
 
-namespace ITS {
+namespace PCT {
 
-  class ITSDetector : public sc_core::sc_module {
+  class PCTDetector : public sc_core::sc_module {
   public:
     sc_in_clk s_system_clk_in;
     sc_event_queue E_trigger_in;
-
-    ///@todo Include some more global busy status etc. for the whole detector?? Maybe some stats?
     sc_out<bool> s_detector_busy_out;
 
   private:

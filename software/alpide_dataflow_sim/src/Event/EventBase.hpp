@@ -16,7 +16,7 @@
 #include <boost/random/uniform_int_distribution.hpp>
 #include "Alpide/PixelHit.hpp"
 #include "Alpide/PixelReadoutStats.hpp"
-#include "../ITS/ITS_config.hpp"
+#include "Detector/Common/DetectorConfig.hpp"
 
 class EventDigits {
   std::vector<PixelHit> mHitDigits;
@@ -50,10 +50,13 @@ public:
 
 class EventBase {
 protected:
-  ITS::detectorConfig mConfig;
+  Detector::DetectorConfigBase mConfig;
+
+  Detector::t_global_chip_id_to_position_func mGlobalChipIdToPositionFunc;
+  Detector::t_position_to_global_chip_id_func mPositionToGlobalChipIdFunc;
 
   // Maps a detector position to each unique chip id
-  std::map<unsigned int, ITS::detectorPosition> mDetectorPositionList;
+  std::map<unsigned int, Detector::DetectorPosition> mDetectorPositionList;
 
   std::vector<EventDigits*> mEvents;
 
@@ -76,7 +79,9 @@ protected:
   void createEventIdDistribution(void);
 
 public:
-  EventBase(ITS::detectorConfig config,
+  EventBase(Detector::DetectorConfigBase config,
+            Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
+            Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
             const QString& path,
             const QStringList& event_filenames,
             bool random_event_order = true,

@@ -60,14 +60,16 @@ include_directories(
   ${SystemC_INCLUDE_DIRS}
   ${MODULE_INCLUDES}
   vcd_hierarchy_manipulator
-  alpide_dataflow_sim
+  src
   )
 
 add_sources(
   src/AlpideDataParser/AlpideDataParser.cpp
-  src/ITS/ITSDetector.cpp
-  src/ITS/ITSModulesStaves.cpp
-  src/ITS/ITSSimulationStats.cpp
+  src/Detector/Common/DetectorSimulationStats.cpp
+  src/Detector/Common/ITSModulesStaves.cpp
+  src/Detector/ITS/ITSDetector.cpp
+  src/Detector/ITS/ITSDetectorConfig.cpp
+  #src/Detector/PCT/PCTDetector.cpp
   src/ReadoutUnit/ReadoutUnit.cpp
   src/Event/EventGenBase.cpp
   src/Event/EventGenITS.cpp
@@ -103,6 +105,10 @@ if(DOXYGEN_FOUND)
     )
 endif(DOXYGEN_FOUND)
 
+get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+foreach(dir ${dirs})
+  message(STATUS "dir='${dir}'")
+endforeach()
 
 enable_testing()
 add_subdirectory(src/unit_tests/)

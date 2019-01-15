@@ -46,7 +46,9 @@ private:
   EventDigits* readEventFile(const QString& event_filename);
 
 public:
-  EventBinary(ITS::detectorConfig config,
+  EventBinary(Detector::DetectorConfigBase config,
+              Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
+              Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
               const QString& path,
               const QStringList& event_filenames,
               bool random_event_order = true,

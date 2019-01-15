@@ -9,7 +9,6 @@
  */
 
 #include "ITSModulesStaves.hpp"
-#include "ITS_config.hpp"
 #include <misc/vcd_trace.hpp>
 
 using namespace ITS;
@@ -18,11 +17,8 @@ using namespace ITS;
 template class MBOBStave<HALF_MODULES_PER_MB_STAVE>;
 template class MBOBStave<HALF_MODULES_PER_OB_STAVE>;
 
-SingleChip::SingleChip(sc_core::sc_module_name const &name, int chip_id,
-                       int dtu_delay_cycles, int strobe_length_ns,
-                       bool strobe_extension, bool enable_data_long,
-                       bool continuous_mode, bool matrix_readout_speed,
-                       int min_busy_cycles)
+SingleChip::SingleChip(sc_core::sc_module_name const &name,
+                       int chip_id, AlpideConfig const &chip_cfg)
   : StaveInterface(name, 0, 0, 1, 1)
 {
   socket_control_in[0].register_transport(
@@ -30,13 +26,7 @@ SingleChip::SingleChip(sc_core::sc_module_name const &name, int chip_id,
 
   mChip = std::make_shared<Alpide>("Alpide",
                                    chip_id,
-                                   dtu_delay_cycles,
-                                   strobe_length_ns,
-                                   strobe_extension,
-                                   enable_data_long,
-                                   continuous_mode,
-                                   matrix_readout_speed,
-                                   min_busy_cycles);
+                                   chip_cfg);
 
     socket_control_out.bind(mChip->s_control_input);
     mChip->s_data_output(socket_data_out[0]);
@@ -73,34 +63,35 @@ void SingleChip::addTraces(sc_trace_file *wf, std::string name_prefix) const
 }
 
 
+///@brief Create an inner barrel stave object with 9 chips
+///@param name SystemC module name
+///@param pos Detector position with layer and stave information. The other position
+///           parameters (sub stave, module id, chip id) are ignored, as chips are generated
+///           for all the possible sub-positions by this function.
+///@param position_to_global_chip_id_func Pointer to function used to determine position
+///                                       based on global chip id
+///@param chip_cfg Alpide chip config passed to Alpide constructor
 InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
-                                   unsigned int layer_id, unsigned int stave_id,
-                                   const ITS::detectorConfig& cfg)
-  : StaveInterface(name, layer_id, stave_id, 1, 9)
+                                   Detector::DetectorPosition& pos,
+                                   Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
+                                   const AlpideConfig& chip_cfg)
+  : StaveInterface(name, pos.layer_id, pos.stave_id, 1, 9)
 {
   socket_control_in[0].register_transport(
     std::bind(&InnerBarrelStave::processCommand, this, std::placeholders::_1));
 
   for (unsigned int i = 0; i < 9; i++) {
-    unsigned int chip_id = detector_position_to_chip_id({layer_id, stave_id, 0, 0, i});
-    std::string chip_name = "Chip_" + std::to_string(chip_id);
+    pos.module_chip_id = i;
 
-    std::cout << "Creating chip with ID " << chip_id << std::endl;
+    unsigned int global_chip_id = (*position_to_global_chip_id_func)(pos);
+    std::string chip_name = "Chip_" + std::to_string(global_chip_id);
+
+    std::cout << "Creating chip with global ID " << global_chip_id;
+    std::cout << ", layer " << pos.layer_id << ", stave " << pos.stave_id << std::endl;
 
     mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
-                                              chip_id,
-                                              cfg.alpide_dtu_delay_cycles,
-                                              cfg.alpide_strobe_length_ns,
-                                              cfg.alpide_strobe_ext,
-                                              cfg.alpide_data_long_en,
-                                              cfg.alpide_continuous_mode,
-                                              cfg.alpide_matrix_speed,
-                                              cfg.alpide_min_busy_cycles));
-
-    // Alpide(sc_core::sc_module_name name, int chip_id, int region_fifo_size,
-    //        int dmu_fifo_size, int dtu_delay_cycles, int strobe_length_ns,
-    //        bool strobe_extension, bool enable_data_long, bool continuous_mode,
-    //        bool matrix_readout_speed);
+                                              global_chip_id,
+                                              chip_cfg));
 
     auto &chip = *mChips.back();
     socket_control_out[i].bind(chip.s_control_input);
@@ -147,37 +138,35 @@ void InnerBarrelStave::addTraces(sc_trace_file *wf, std::string name_prefix) con
 
 ///@brief Constructor for outer/middle barrel half module
 ///@param name SystemC module name
-///@param layer_id Layer number
-///@param stave_id Stave number
-///@param sub_stave_id Sub stave number (0 or 1)
-///@param mod_id Module number (in sub stave)
-///@param half_mod_id Half module number in module (0 or 1)
+///@param pos DetectorPositionBase object with position information. The module_chip_id member
+///           in this struct is ignored, as all 7 chips for the half module are generated by
+///           this function.
+///@param position_to_global_chip_id_func Pointer to function used to determine position
+///                                       based on global chip id
+///@param half_mod_id Half module ID (0 or 1)
+///@param cfg Alpide chip config passed to Alpide constructor
 HalfModule::HalfModule(sc_core::sc_module_name const &name,
-                       unsigned int layer_id, unsigned int stave_id,
-                       unsigned int sub_stave_id, unsigned int mod_id,
-                       unsigned int half_mod_id, const detectorConfig& cfg)
+                       Detector::DetectorPosition& pos,
+                       Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
+                       unsigned int half_mod_id,
+                       const AlpideConfig& cfg)
   : sc_module(name)
 {
   socket_control_in.register_transport(std::bind(&HalfModule::processCommand,
                                                  this, std::placeholders::_1));
 
-  unsigned int mod_chip_id = ITS::CHIPS_PER_HALF_MODULE*half_mod_id;
+  pos.module_chip_id = ITS::CHIPS_PER_HALF_MODULE*half_mod_id;
 
   // Create OB master chip
-  unsigned int global_chip_id = detector_position_to_chip_id({layer_id, stave_id, sub_stave_id, mod_id, mod_chip_id});
+  unsigned int global_chip_id = (*position_to_global_chip_id_func)(pos);
   std::string chip_name = "Chip_" + std::to_string(global_chip_id);
-  std::cout << "Creating chip with ID " << global_chip_id << std::endl;
-
+  std::cout << "Creating chip with global ID " << global_chip_id;
+  std::cout << ", layer " << pos.layer_id << ", stave " << pos.stave_id;
+  std::cout << ", module " << pos.module_id << ", half-mod " << half_mod_id << std::endl;
 
   mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
                                             global_chip_id,
-                                            cfg.alpide_dtu_delay_cycles,
-                                            cfg.alpide_strobe_length_ns,
-                                            cfg.alpide_strobe_ext,
-                                            cfg.alpide_data_long_en,
-                                            cfg.alpide_continuous_mode,
-                                            cfg.alpide_matrix_speed,
-                                            cfg.alpide_min_busy_cycles,
+                                            cfg,
                                             true, // Outer barrel mode
                                             true, // Outer barrel master
                                             6));  // 6 outer barrel slaves
@@ -187,25 +176,21 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
   master_chip.s_data_output(socket_data_out);
   socket_control_out[0].bind(master_chip.s_control_input);
 
-  mod_chip_id++;
+  pos.module_chip_id++;
 
   // Create slave chips
-  for(unsigned int i = 0; i < 6; i++, mod_chip_id++) {
-    global_chip_id = detector_position_to_chip_id({layer_id, stave_id, sub_stave_id, mod_id, mod_chip_id});
+  for(unsigned int i = 0; i < 6; i++, pos.module_chip_id++) {
+    global_chip_id = (*position_to_global_chip_id_func)(pos);
 
     std::string chip_name = "Chip_" + std::to_string(global_chip_id);
 
-    std::cout << "Creating chip with ID " << global_chip_id << std::endl;
+    std::cout << "Creating chip with global ID " << global_chip_id;
+    std::cout << ", layer " << pos.layer_id << ", stave " << pos.stave_id;
+    std::cout << ", module " << pos.module_id << ", half-mod " << half_mod_id << std::endl;
 
     mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
                                               global_chip_id,
-                                              cfg.alpide_dtu_delay_cycles,
-                                              cfg.alpide_strobe_length_ns,
-                                              cfg.alpide_strobe_ext,
-                                              cfg.alpide_data_long_en,
-                                              cfg.alpide_continuous_mode,
-                                              cfg.alpide_matrix_speed,
-                                              cfg.alpide_min_busy_cycles,
+                                              cfg,
                                               true, // Outer barrel mode
                                               false)); // Outer barrel slave
 
@@ -250,40 +235,52 @@ void HalfModule::addTraces(sc_trace_file *wf, std::string name_prefix) const
 }
 
 
+///@brief Create an outer/middle barrel stave object
+///@param name SystemC module name
+///@param pos DetectorPositionBase object with layer and stave information. The other position
+///           parameters (sub stave, module id, chip id) are ignored, as chips are generated
+///           for all the possible sub-positions by this function.
+///@param position_to_global_chip_id_func Pointer to function used to determine position
+///                                       based on global chip id
+///@param cfg Detector configuration object
 template <int N_HALF_MODULES>
 MBOBStave<N_HALF_MODULES>::MBOBStave(sc_core::sc_module_name const &name,
-                                     unsigned int layer_id, unsigned int stave_id,
-                                     const ITS::detectorConfig& cfg)
-  : StaveInterface(name, layer_id, stave_id, N_HALF_MODULES, N_HALF_MODULES)
+                                     Detector::DetectorPosition& pos,
+                                     Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
+                                     const Detector::DetectorConfigBase& cfg)
+  : StaveInterface(name, pos.layer_id, pos.stave_id, N_HALF_MODULES, N_HALF_MODULES)
 {
-  for(unsigned int sub_stave_id = 0; sub_stave_id < SUB_STAVES_PER_STAVE[layer_id]; sub_stave_id++){
+  unsigned int num_sub_staves = cfg.layer[pos.layer_id].num_sub_staves_per_full_stave;
+
+  for(pos.sub_stave_id = 0;
+      pos.sub_stave_id < num_sub_staves;
+      pos.sub_stave_id++)
+  {
     // Create half of the half modules for one sub stave, and half for other sub stave
     // In hindsight it would have made more sense to have a Module object instead of creating
     // two HalfModule objects, since it got pretty complicated with the indexes and positions here..
     for (unsigned int i = 0; i < N_HALF_MODULES/2; i++) {
-      unsigned int mod_id = i/2;
+      pos.module_id = i/2;
       unsigned int half_mod_id = i%2;
 
       std::string half_mod_name = "HalfMod_";
-      half_mod_name += std::to_string(layer_id) + ":";
-      half_mod_name += std::to_string(stave_id) + ":";
-      half_mod_name += std::to_string(sub_stave_id) + ":";
-      half_mod_name += std::to_string(mod_id) + ":";
+      half_mod_name += std::to_string(pos.layer_id) + ":";
+      half_mod_name += std::to_string(pos.stave_id) + ":";
+      half_mod_name += std::to_string(pos.sub_stave_id) + ":";
+      half_mod_name += std::to_string(pos.module_id) + ":";
       half_mod_name += std::to_string(half_mod_id);
 
       std::cout << "Creating: " << half_mod_name << std::endl;
 
       mHalfModules.emplace_back(std::make_shared<HalfModule>(half_mod_name.c_str(),
-                                                             layer_id,
-                                                             stave_id,
-                                                             sub_stave_id,
-                                                             mod_id,
+                                                             pos,
+                                                             position_to_global_chip_id_func,
                                                              half_mod_id,
-                                                             cfg));
+                                                             cfg.chip_cfg));
 
       // Account for modules already created for first sub stave when
       // calculating indexes in vectors here..
-      unsigned int mod_index = i + (sub_stave_id*(N_HALF_MODULES/2));
+      unsigned int mod_index = i + (pos.sub_stave_id*(N_HALF_MODULES/2));
 
       mHalfModules[mod_index]->s_system_clk_in(s_system_clk_in);
 

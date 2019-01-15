@@ -1,22 +1,25 @@
 /**
- * @file   ITSSimulationStats.cpp
+ * @file   DetectorSimulationStats.cpp
  * @author Simon Voigt Nesbo
  * @date   August 28, 2017
- * @brief  Functions etc. for writing simulation stats to file for ITS/ALPIDE
+ * @brief  Functions etc. for writing simulation stats to file for Detector/ALPIDE
  */
 
-#include "ITSSimulationStats.hpp"
-#include "ITS_config.hpp"
+#include "DetectorSimulationStats.hpp"
+#include "DetectorConfig.hpp"
 
 
-using namespace ITS;
+using namespace Detector;
 
 ///@brief Write simulation data to file. Histograms for MEB usage from the Alpide chips,
 ///       and event frame statistics (number of accepted/rejected) in the chips are recorded here
 ///@param[in] alpide_vec Vector of pointers to Alpide chip objects. Vector can contain
 ///           null pointers, which will be ignored.
-void writeAlpideStatsToFile(std::string output_path,
-                            const std::vector<std::shared_ptr<Alpide>>& alpide_vec)
+///@param[in] global_chip_id_to_position_func Pointer to function used to determine global
+///                                           chip id based on position
+void Detector::writeAlpideStatsToFile(std::string output_path,
+                                      const std::vector<std::shared_ptr<Alpide>>& alpide_vec,
+                                      t_global_chip_id_to_position_func global_chip_id_to_position_func)
 {
   std::vector<std::map<unsigned int, std::uint64_t> > alpide_histos;
   unsigned int all_histos_biggest_key = 0;
@@ -87,7 +90,7 @@ void writeAlpideStatsToFile(std::string output_path,
   for(auto it = alpide_vec.begin(); it != alpide_vec.end(); it++) {
     if(*it != nullptr) {
       unsigned int unique_chip_id = (*it)->getChipId();
-      detectorPosition pos = chip_id_to_detector_position(unique_chip_id);
+      DetectorPosition pos = (*global_chip_id_to_position_func)(unique_chip_id);
 
       trigger_stats_file << pos.layer_id << ";";
       trigger_stats_file << pos.stave_id << ";";

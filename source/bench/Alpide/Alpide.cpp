@@ -18,22 +18,14 @@ SC_HAS_PROCESS(Alpide);
 ///@brief Constructor for Alpide.
 ///@param[in] name    SystemC module name
 ///@param[in] chip_id Desired chip id
-///@param[in] dtu_delay_cycles Number of clock cycle delays associated with Data Transfer Unit (DTU)
-///@param[in] strobe_length_ns Strobe length (in nanoseconds)
-///@param[in] strobe_extension Enable/disable strobe extension
-///           (if new strobe received before the previous strobe interval ended)
-///@param[in] enable_data_long Enable clustering and use of DATA LONG words
-///@param[in] continuous_mode Enable continuous mode (triggered mode if false)
-///@param[in] matrix_readout_speed True for fast readout (2 clock cycles), false is slow (4 cycles).
+
 ///@param[in] outer_barrel_mode True: outer barrel mode. False: inner barrel mode
 ///@param[in] outer_barrel_master Only relevant if in OB mode.
 ///           True: OB master. False: OB slave
 ///@param[in] outer_barrel_slave_count Number of slave chips connected to outer barrel master
 ///@param[in] min_busy_cycles Minimum number of cycles that the internal busy signal has to be
 ///           asserted before the chip transmits BUSY_ON
-Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
-               int strobe_length_ns, bool strobe_extension, bool enable_data_long,
-               bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles,
+Alpide::Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConfig& chip_cfg,
                bool outer_barrel_mode, bool outer_barrel_master, int outer_barrel_slave_count)
   : sc_core::sc_module(name)
   , s_control_input("s_control_input")
@@ -42,21 +34,21 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
   , s_local_bus_data_in(outer_barrel_slave_count)
   , s_local_busy_in(outer_barrel_slave_count)
   , s_dmu_fifo(DMU_FIFO_SIZE)
-  , s_dtu_delay_fifo(dtu_delay_cycles+1)
-  , s_dtu_delay_fifo_trig(dtu_delay_cycles+1)
+  , s_dtu_delay_fifo(chip_cfg.dtu_delay_cycles+1)
+  , s_dtu_delay_fifo_trig(chip_cfg.dtu_delay_cycles+1)
   , s_busy_fifo(BUSY_FIFO_SIZE)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
-  , mContinuousMode(continuous_mode)
-  , mStrobeExtensionEnable(strobe_extension)
-  , mStrobeLengthNs(strobe_length_ns)
-  , mMinBusyCycles(min_busy_cycles)
+  , mContinuousMode(chip_cfg.continuous_mode)
+  , mStrobeExtensionEnable(chip_cfg.strobe_extension)
+  , mStrobeLengthNs(chip_cfg.strobe_length_ns)
+  , mMinBusyCycles(chip_cfg.min_busy_cycles)
   , mObMode(outer_barrel_mode)
   , mObMaster(outer_barrel_master)
   , mObSlaveCount(outer_barrel_slave_count)
 {
   mChipId = chip_id;
-  mEnableDtuDelay = dtu_delay_cycles > 0;
+  mEnableDtuDelay = chip_cfg.dtu_delay_cycles > 0;
 
   s_chip_ready_out(s_chip_ready_internal);
   s_local_busy_out(s_busy_status);
@@ -98,8 +90,8 @@ Alpide::Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
                                      this,
                                      i,
                                      REGION_FIFO_SIZE,
-                                     matrix_readout_speed,
-                                     enable_data_long);
+                                     chip_cfg.matrix_readout_speed,
+                                     chip_cfg.data_long_en);
 
     mRRUs[i]->s_system_clk_in(s_system_clk_in);
     mRRUs[i]->s_frame_readout_start_in(s_frame_readout_start);

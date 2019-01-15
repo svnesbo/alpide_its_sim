@@ -15,6 +15,10 @@ using boost::random::uniform_int_distribution;
 ///@brief Constructor for EventBase class
 ///@param config detectorConfig object which specifies which staves in ITS should
 ///              be included.
+///@param global_chip_id_to_position_func Pointer to function used to determine global
+///                                       chip id based on position
+///@param position_to_global_chip_id_func Pointer to function used to determine position
+///                                       based on global chip id
 ///@param path Path to event files
 ///@param event_filenames String list of event file names
 ///@param random_event_order True to randomize which event is used, false to get events
@@ -22,13 +26,17 @@ using boost::random::uniform_int_distribution;
 ///@param random_seed Random seed for event sequence randomizer.
 ///@param load_all If set to true, load all event files into memory. If not they are read
 ///                from file as they are used, and do not persist in memory.
-EventBase::EventBase(ITS::detectorConfig config,
+EventBase::EventBase(Detector::DetectorConfigBase config,
+                     Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
+                     Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
                      const QString& path,
                      const QStringList& event_filenames,
                      bool random_event_order,
                      int random_seed,
                      bool load_all)
   : mConfig(config)
+  , mGlobalChipIdToPositionFunc(global_chip_id_to_position_func)
+  , mPositionToGlobalChipIdFunc(position_to_global_chip_id_func)
   , mEventPath(path)
   , mEventFileNames(event_filenames)
   , mRandomEventOrder(random_event_order)
@@ -53,18 +61,24 @@ EventBase::EventBase(ITS::detectorConfig config,
 
 
   // Construct a list of chips to read from the event files
-  for(unsigned  layer = 0; layer < ITS::N_LAYERS; layer++)
+  for(unsigned  layer = 0; layer < config.num_layers; layer++)
   {
     for(unsigned int stave = 0; stave < config.layer[layer].num_staves; stave++)
     {
-      for(unsigned int sub_stave = 0; sub_stave < ITS::SUB_STAVES_PER_STAVE[layer]; sub_stave++)
+      for(unsigned int sub_stave = 0;
+          sub_stave < config.layer[layer].num_sub_staves_per_full_stave;
+          sub_stave++)
       {
-        for(unsigned int module = 0; module < ITS::MODULES_PER_SUB_STAVE_IN_LAYER[layer]; module++)
+        for(unsigned int module = 0;
+            module < config.layer[layer].num_modules_per_sub_stave;
+            module++)
         {
-          for(unsigned int chip = 0; chip < ITS::CHIPS_PER_MODULE_IN_LAYER[layer]; chip++)
+          for(unsigned int chip = 0;
+              chip < config.layer[layer].num_chips_per_module;
+              chip++)
           {
-            ITS::detectorPosition pos = {layer, stave, sub_stave, module, chip};
-            unsigned int global_chip_id = ITS::detector_position_to_chip_id(pos);
+            Detector::DetectorPosition pos = {layer, stave, sub_stave, module, chip};
+            unsigned int global_chip_id = (*mPositionToGlobalChipIdFunc)(pos);
             mDetectorPositionList[global_chip_id] = pos;
           }
         }

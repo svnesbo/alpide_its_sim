@@ -18,7 +18,7 @@
 #pragma GCC diagnostic pop
 
 #include <QSettings>
-
+#include "Alpide/AlpideConfig.hpp"
 
 class StimuliBase : public sc_core::sc_module
 {
@@ -37,6 +37,10 @@ protected:
   unsigned int mStrobeActiveNs;
   unsigned int mStrobeInactiveNs;
   unsigned int mTriggerDelayNs;
+  unsigned int mTriggerFilterTimeNs;
+  bool mTriggerFilterEnabled;
+
+  AlpideConfig mChipCfg;
 
 public:
   StimuliBase(sc_core::sc_module_name name, QSettings* settings, std::string output_path);

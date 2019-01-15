@@ -15,14 +15,16 @@
 
 class EventXML : public EventBase {
   bool findXMLElementInListById(const QDomNodeList& list, int id, QDomElement& element_out);
-  bool locateChipInEventXML(const ITS::detectorPosition& chip_position,
+  bool locateChipInEventXML(const Detector::DetectorPosition& chip_position,
                             const QDomElement& event_xml_dom_root,
                             QDomElement& chip_element_out);
   void readEventFiles();
   EventDigits* readEventFile(const QString& event_filename);
 
 public:
-  EventXML(ITS::detectorConfig config,
+  EventXML(Detector::DetectorConfigBase config,
+           Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
+           Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
            const QString& path,
            const QStringList& event_filenames,
            bool random_event_order = true,

@@ -1,19 +1,19 @@
 /**
- * @file   ITSDetector.cpp
+ * @file   PCTDetector.cpp
  * @author Simon Voigt Nesbo
- * @date   June 21, 2017
- * @brief  Mockup version of ITS detector.
- *         Accepts trigger input from the dummy CTP module, and communicates the trigger
+ * @date   January 14, 2019
+ * @brief  Mockup version of PCT detector.
+ *         Accepts trigger inputs and communicates the trigger
  *         to the readout units, which will forward them to the Alpide objects.
  */
 
 
-#include "ITSDetector.hpp"
+#include "PCTDetector.hpp"
 #include "ITSSimulationStats.hpp"
 #include "ITS_creator.hpp"
 #include <misc/vcd_trace.hpp>
 
-using namespace ITS;
+using namespace PCT;
 
 //Do I need SC_HAS_PROCESS if I only use SC_METHOD??
 SC_HAS_PROCESS(ITSDetector);
