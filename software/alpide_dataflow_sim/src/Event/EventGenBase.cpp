@@ -5,6 +5,7 @@
  * @brief  Base class for event generator
  */
 #include "EventGenBase.hpp"
+#include "Alpide/alpide_constants.hpp"
 #include <boost/random/random_device.hpp>
 
 EventGenBase::EventGenBase(sc_core::sc_module_name name,
@@ -33,6 +34,16 @@ EventGenBase::~EventGenBase()
 
 }
 
+
+///@brief Create a random cluster around and including specified pixel coordinates
+///@param pix Base pixel coordinates to create cluster around. pix will be included
+///           in the cluster
+///@param start_time_ns Time when the particle hit the detector
+///@param dead_time_ns Length of time (after start_time_ns) before the pixel becomes active in
+///                    the front end, ie. rise time before reaching threshold
+///@param active_time_ns How long the pixel is active in the front end (ie. time over
+///                      threshold)
+///@return Vector with shared pointers to pixels in the cluster
 std::vector<std::shared_ptr<PixelHit>>
 EventGenBase::createCluster(const PixelHit& pix,
                             const uint64_t& start_time_ns,
@@ -41,25 +52,28 @@ EventGenBase::createCluster(const PixelHit& pix,
                             const std::shared_ptr<PixelReadoutStats> &readout_stats)
 {
   bool pixel_already_in_cluster;
+  bool skip_pixel_outside_matrix;
 
   // Cluster distribution is initialized with mean-1,
   // to account for there always being 1 pixel in a cluster
   int cluster_size = round((*mRandClusterSizeDist)(mRandClusterSizeGen)) + 1;
 
   // Don't allow smaller clusters than 1, since gaussian distribution may return
-  // negative numbers. Obviously we can't allocate negative amount of space
-  // in vector below, and also the cluster should always contain a pixel at
-  // the base coordinates.
+  // negative numbers.
   if(cluster_size < 1)
     cluster_size = 1;
 
-  std::cout << "Cluster size: " << cluster_size << std::endl;
+  //std::cout << "Cluster size: " << cluster_size << std::endl;
 
-  std::vector<std::shared_ptr<PixelHit>> pixel_cluster(cluster_size);
+  //std::vector<std::shared_ptr<PixelHit>> pixel_cluster(cluster_size);
+  std::vector<std::shared_ptr<PixelHit>> pixel_cluster;
 
   // Always add the "source" hit
-  pixel_cluster[0] = std::make_shared<PixelHit>(pix);
-  pixel_cluster[0]->setPixelReadoutStatsObj(readout_stats);
+  //pixel_cluster[0] = std::make_shared<PixelHit>(pix);
+  //pixel_cluster[0]->setPixelReadoutStatsObj(readout_stats);
+
+  pixel_cluster.emplace_back(std::make_shared<PixelHit>(pix));
+  pixel_cluster.back()->setPixelReadoutStatsObj(readout_stats);
 
   PixelHit new_cluster_pixel;
   new_cluster_pixel.setChipId(pix.getChipId());
@@ -69,6 +83,7 @@ EventGenBase::createCluster(const PixelHit& pix,
   for(int i = 1; i < cluster_size; i++) {
     do {
       pixel_already_in_cluster = false;
+      skip_pixel_outside_matrix = false;
 
       double rand_x = (*mRandClusterXDist)(mRandClusterXGen);
       double rand_y = (*mRandClusterYDist)(mRandClusterYGen);
@@ -84,14 +99,30 @@ EventGenBase::createCluster(const PixelHit& pix,
       new_cluster_pixel.setRow(pix.getRow() + rand_y);
 
       // Check if pixel with same coords was already generated
-      for(int j = 0; j < i; j++) {
-        if(new_cluster_pixel == *pixel_cluster[j]) {
+      for(auto pix_it = pixel_cluster.begin(); pix_it != pixel_cluster.end(); pix_it++) {
+        if(new_cluster_pixel == **pix_it) {
           pixel_already_in_cluster = true;
         }
       }
+
+      // Check if pixel is not within the pixel matrix. If not we consider it part of the
+      // cluster, but simply skip it since it does not have valid coords
+      if(new_cluster_pixel.getCol() < 0 || new_cluster_pixel.getCol() >= N_PIXEL_COLS ||
+         new_cluster_pixel.getRow() < 0 || new_cluster_pixel.getRow() >= N_PIXEL_ROWS)
+      {
+        skip_pixel_outside_matrix = true;
+        break;
+      }
     } while(pixel_already_in_cluster == true);
-    pixel_cluster[i] = std::make_shared<PixelHit>(new_cluster_pixel);
-    pixel_cluster[i]->setPixelReadoutStatsObj(readout_stats);
+
+    if(skip_pixel_outside_matrix == false) {
+      pixel_cluster.emplace_back(std::make_shared<PixelHit>(new_cluster_pixel));
+      pixel_cluster.back()->setPixelReadoutStatsObj(readout_stats);
+      pixel_cluster.back()->setActiveTimeStart(start_time_ns + dead_time_ns);
+      pixel_cluster.back()->setActiveTimeEnd(start_time_ns + dead_time_ns + active_time_ns);
+      //pixel_cluster[i] = std::make_shared<PixelHit>(new_cluster_pixel);
+      //pixel_cluster[i]->setPixelReadoutStatsObj(readout_stats);
+    }
   }
 
   return pixel_cluster;

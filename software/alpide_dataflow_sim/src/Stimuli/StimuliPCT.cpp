@@ -125,7 +125,7 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
 void StimuliPCT::stimuliMethod(void)
 {
   if(simulation_done == true || g_terminate_program == true) {
-    int64_t time_now = sc_time_stamp().value();
+    uint64_t time_now = sc_time_stamp().value();
     std::cout << "@ " << time_now << " ns: \tSimulation done" << std::endl;
 
     sc_core::sc_stop();
@@ -142,7 +142,7 @@ void StimuliPCT::stimuliMethod(void)
     mEventGen->writeSimulationStats(mOutputPath);
   }
   else {
-    int64_t time_now = sc_time_stamp().value();
+    uint64_t time_now = sc_time_stamp().value();
     std::cout << "@ " << time_now << " ns: \tEvent frame number ";
     std::cout << mEventGen->getUntriggeredEventCount() << std::endl;
     std::cout << "\tBeam coords (mm): (";

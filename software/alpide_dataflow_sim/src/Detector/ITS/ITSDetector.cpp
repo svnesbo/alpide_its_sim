@@ -102,11 +102,6 @@ void ITSDetector::buildDetector(const ITSDetectorConfig& config,
                                                      trigger_filter_enable));
     mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id, mConfig));
 
-    unsigned int n_data_lines_per_stave =
-      DATA_LINKS_PER_LAYER[lay_id]/STAVES_PER_LAYER[lay_id];
-
-    unsigned int n_data_lines = num_staves * n_data_lines_per_stave;
-
     for(unsigned int sta_id = 0; sta_id < config.layer[lay_id].num_staves; sta_id++) {
       // Connect the busy in/out signals for the RUs in a daisy chain
       // ------------------------------------------------------------
@@ -146,8 +141,6 @@ void ITSDetector::buildDetector(const ITSDetectorConfig& config,
 
       for(unsigned int link_num = 0; link_num < stave.numDataLinks(); link_num++) {
         stave.socket_data_out[link_num].bind(RU.s_alpide_data_input[link_num]);
-
-        unsigned int link_id = link_num + (sta_id * n_data_lines_per_stave);
 
         if(lay_id < 3) {
           // Inner Barrel

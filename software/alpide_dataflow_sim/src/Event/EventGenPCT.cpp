@@ -7,6 +7,7 @@
 
 #include "EventGenPCT.hpp"
 #include "Alpide/alpide_constants.hpp"
+#include "Detector/PCT/PCT_constants.hpp"
 #include "../utils.hpp"
 #include <boost/random/random_device.hpp>
 #include <stdexcept>
@@ -238,6 +239,9 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
   std::cout << "EventGenPCT: generating " << num_particles_total << " particles" << std::endl;
 
   for(unsigned int particle_num = 0; particle_num < num_particles_total; particle_num++) {
+    // Todo: loop over the layers?
+    unsigned int layer = 0;
+
     double rand_x_mm = (*mRandHitXDist)(mRandHitCoordsXGen) + mBeamCenterCoordX_mm;
     double rand_y_mm = (*mRandHitYDist)(mRandHitCoordsYGen) + mBeamCenterCoordY_mm;
 
@@ -251,17 +255,20 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
     if(rand_y_mm > mNumStavesPerLayer * (CHIP_HEIGHT_CM*10))
       continue;
 
-    unsigned int chip_num = rand_x_mm / (CHIP_WIDTH_CM*10);
-    unsigned int stave_num = rand_y_mm / (CHIP_HEIGHT_CM*10);
+    unsigned int stave_chip_id =  + (rand_x_mm / (CHIP_WIDTH_CM*10));
+    unsigned int stave_id = rand_y_mm / (CHIP_HEIGHT_CM*10);
+    unsigned int global_chip_id = (layer*PCT::CHIPS_PER_LAYER)
+      + (stave_id*PCT::CHIPS_PER_STAVE)
+      + stave_chip_id;
 
     // Position of particle relative to the chip it will hit
-    double chip_x_mm = rand_x_mm - (chip_num*(CHIP_WIDTH_CM*10));
-    double chip_y_mm = rand_y_mm - (stave_num*(CHIP_HEIGHT_CM*10));
+    double chip_x_mm = rand_x_mm - (stave_chip_id*(CHIP_WIDTH_CM*10));
+    double chip_y_mm = rand_y_mm - (stave_id*(CHIP_HEIGHT_CM*10));
 
     unsigned int chip_x_coord = round(chip_x_mm*(N_PIXEL_COLS/(CHIP_WIDTH_CM*10)));
     unsigned int chip_y_coord = round(chip_y_mm*(N_PIXEL_ROWS/(CHIP_HEIGHT_CM*10)));
 
-    PixelHit pixel(chip_x_coord, chip_y_coord);
+    PixelHit pixel(chip_x_coord, chip_y_coord, global_chip_id);
 
     if(mRandomClusterGeneration) {
       std::vector<std::shared_ptr<PixelHit>> pix_cluster = createCluster(pixel,
@@ -270,9 +277,13 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
                                                                          mPixelActiveTime,
                                                                          mUntriggeredReadoutStats);
 
-      for(auto pix_it = mEventHitVector.begin(); pix_it != mEventHitVector.end(); pix_it++)
-        chip_hits[(*pix_it)->getChipId()]++;
+      // Update hit counters. createCluster() only generates hits for _one_ chip,
+      // if pixels are outside matrix boundaries then they are ignored. Hence it is sufficient
+      // to add the number of pixels in the cluster, we don't have to check that they all
+      // belong to the same chip.
+      chip_hits[global_chip_id] += pix_cluster.size();
 
+      // Copy pixels from cluster over to the event hit vector
       mEventHitVector.insert(mEventHitVector.end(), pix_cluster.begin(), pix_cluster.end());
     } else {
       mEventHitVector.emplace_back(std::make_shared<PixelHit>(pixel));
@@ -280,6 +291,8 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
       // Do this after inserting (copy) of pixel, to avoid double registering of
       // readout stats when pixel is destructed
       mEventHitVector.back()->setPixelReadoutStatsObj(mUntriggeredReadoutStats);
+      mEventHitVector.back()->setActiveTimeStart(time_now+mPixelDeadTime);
+      mEventHitVector.back()->setActiveTimeEnd(time_now+mPixelDeadTime+mPixelActiveTime);
 
       chip_hits[pixel.getChipId()]++;
     }

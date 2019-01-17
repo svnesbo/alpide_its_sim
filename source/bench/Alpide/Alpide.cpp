@@ -18,7 +18,7 @@ SC_HAS_PROCESS(Alpide);
 ///@brief Constructor for Alpide.
 ///@param[in] name    SystemC module name
 ///@param[in] chip_id Desired chip id
-
+///@param[in] chip_cfg Chip configuration
 ///@param[in] outer_barrel_mode True: outer barrel mode. False: inner barrel mode
 ///@param[in] outer_barrel_master Only relevant if in OB mode.
 ///           True: OB master. False: OB slave

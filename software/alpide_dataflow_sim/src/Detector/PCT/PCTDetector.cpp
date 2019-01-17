@@ -103,11 +103,11 @@ void PCTDetector::buildDetector(const PCTDetectorConfig& config,
     std::cout << std::endl;
 
     // Create sc_vectors with ReadoutUnit and Staves for this layer
-    mReadoutUnits[lay_id].init(PCT::READOUT_UNITS_PER_LAYER, RUCreator(lay_id,
-                                                                       num_data_links,
-                                                                       num_ctrl_links,
-                                                                       trigger_filter_time,
-                                                                       trigger_filter_enable));
+    mReadoutUnits[lay_id].init(/*PCT::READOUT_UNITS_PER_LAYER*/ 1, RUCreator(lay_id,
+                                                                             num_data_links,
+                                                                             num_ctrl_links,
+                                                                             trigger_filter_time,
+                                                                             trigger_filter_enable));
 
     mReadoutUnits[lay_id][0].s_system_clk_in(s_system_clk_in);
 

@@ -87,7 +87,8 @@ InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
     std::string chip_name = "Chip_" + std::to_string(global_chip_id);
 
     std::cout << "Creating chip with global ID " << global_chip_id;
-    std::cout << ", layer " << pos.layer_id << ", stave " << pos.stave_id << std::endl;
+    std::cout << ", layer " << pos.layer_id << ", stave " << pos.stave_id;
+    std::cout << ", local chip ID " << pos.module_chip_id << std::endl;
 
     mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
                                               global_chip_id,
@@ -162,7 +163,8 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
   std::string chip_name = "Chip_" + std::to_string(global_chip_id);
   std::cout << "Creating chip with global ID " << global_chip_id;
   std::cout << ", layer " << pos.layer_id << ", stave " << pos.stave_id;
-  std::cout << ", module " << pos.module_id << ", half-mod " << half_mod_id << std::endl;
+  std::cout << ", module " << pos.module_id << ", half-mod " << half_mod_id;
+  std::cout << ", module chip id " << pos.module_chip_id << std::endl;
 
   mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
                                             global_chip_id,

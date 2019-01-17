@@ -67,7 +67,7 @@ public:
   PixelHit(int col = 0, int row = 0, unsigned int chip_id = 0,
            const std::shared_ptr<PixelReadoutStats> &readout_stats =
            nullptr);
-  PixelHit(int region, int pri_enc, int addr, unsigned int chip_id = 0,
+  PixelHit(int region, int pri_enc, int addr, unsigned int chip_id,
            const std::shared_ptr<PixelReadoutStats> &readout_stats =
            nullptr);
   PixelHit(const PixelHit& p);
