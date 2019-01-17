@@ -84,9 +84,9 @@ int sc_main(int argc, char** argv)
 
   if(sim_type == "its") {
     stimuli = std::make_shared<StimuliITS>("stimuli", simulation_settings, output_dir_str);
-  } /* else if(sim_type == "pct") {
+  } else if(sim_type == "pct") {
     stimuli = std::make_shared<StimuliPCT>("stimuli", simulation_settings, output_dir_str);
-    } */ else {
+  }  else {
     std::cout << "Unknown simulation type " << sim_type.toStdString() << std::endl;
     std::cout << "Exiting..." << std::endl;
     return 0;

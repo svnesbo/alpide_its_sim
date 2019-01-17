@@ -15,8 +15,8 @@
 
 using namespace ITS;
 
-//Do I need SC_HAS_PROCESS if I only use SC_METHOD??
 SC_HAS_PROCESS(ITSDetector);
+///@param name SystemC module name
 ///@param config Configuration of the ITS detector to simulate
 ///              (ie. number of staves per layer to include in simulation)
 ///@param trigger_filter_time Readout Units will filter out triggers more closely
@@ -27,6 +27,8 @@ ITSDetector::ITSDetector(sc_core::sc_module_name name,
                          unsigned int trigger_filter_time,
                          bool trigger_filter_enable)
   : sc_core::sc_module(name)
+  , mReadoutUnits("RU", ITS::N_LAYERS)
+  , mDetectorStaves("Stave", ITS::N_LAYERS)
   , mConfig(config)
 {
   verifyDetectorConfig(config);
@@ -104,9 +106,6 @@ void ITSDetector::buildDetector(const ITSDetectorConfig& config,
       DATA_LINKS_PER_LAYER[lay_id]/STAVES_PER_LAYER[lay_id];
 
     unsigned int n_data_lines = num_staves * n_data_lines_per_stave;
-
-    // Create sc_vector with data lines to connect RUs and Alpides for this layer
-    s_alpide_data_lines[lay_id].init(n_data_lines);
 
     for(unsigned int sta_id = 0; sta_id < config.layer[lay_id].num_staves; sta_id++) {
       // Connect the busy in/out signals for the RUs in a daisy chain

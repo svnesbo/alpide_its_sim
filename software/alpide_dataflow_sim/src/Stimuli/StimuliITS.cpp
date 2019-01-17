@@ -23,7 +23,7 @@ extern volatile bool g_terminate_program;
 
 SC_HAS_PROCESS(StimuliITS);
 ///@brief Constructor for stimuli class.
-///       Instantiates and initializes the EventGenerator and Alpide objects,
+///       Instantiates and initializes the event generator and Alpide objects,
 ///       connects the SystemC ports
 ///@param[in] name SystemC module name
 ///@param[in] settings QSettings object with simulation settings.
@@ -101,13 +101,13 @@ StimuliITS::StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::s
   }
   else { // ITS Detector Simulation
     ITS::ITSDetectorConfig config;
-    config.layer[0].num_staves = settings->value("its/layer0_num_staves").toInt();
-    config.layer[1].num_staves = settings->value("its/layer1_num_staves").toInt();
-    config.layer[2].num_staves = settings->value("its/layer2_num_staves").toInt();
-    config.layer[3].num_staves = settings->value("its/layer3_num_staves").toInt();
-    config.layer[4].num_staves = settings->value("its/layer4_num_staves").toInt();
-    config.layer[5].num_staves = settings->value("its/layer5_num_staves").toInt();
-    config.layer[6].num_staves = settings->value("its/layer6_num_staves").toInt();
+    config.layer[0].num_staves = settings->value("its/layer0_num_staves").toUInt();
+    config.layer[1].num_staves = settings->value("its/layer1_num_staves").toUInt();
+    config.layer[2].num_staves = settings->value("its/layer2_num_staves").toUInt();
+    config.layer[3].num_staves = settings->value("its/layer3_num_staves").toUInt();
+    config.layer[4].num_staves = settings->value("its/layer4_num_staves").toUInt();
+    config.layer[5].num_staves = settings->value("its/layer5_num_staves").toUInt();
+    config.layer[6].num_staves = settings->value("its/layer6_num_staves").toUInt();
 
     config.chip_cfg = mChipCfg;
 
@@ -198,8 +198,8 @@ void StimuliITS::stimuliMainMethod(void)
     }
 
     if(mEventGen->getTriggeredEventCount() == mNumEvents) {
-      // When we have reached the desired number of events, or upon CTRL+C, allow simulation
-      // to run for another X us to allow readout of data remaining in MEBs, FIFOs etc.
+      // When we have reached the desired number of events, allow simulation to run for
+      // another X us to allow readout of data remaining in MEBs, FIFOs etc.
       next_trigger(100, SC_US);
       simulation_done = true;
       mEventGen->stopEventGeneration();
@@ -241,7 +241,7 @@ void StimuliITS::continuousTriggerMethod(void)
 
 
 ///@brief This SystemC method just toggles the s_physics_event for a clock cycle
-///       signal every time we get an E_physics_event from the event generator,
+///       signal every time we get an E_triggered_event from the event generator,
 ///       so that we can have a signal for this that we can add to the trace file.
 void StimuliITS::physicsEventSignalMethod(void)
 {
@@ -260,12 +260,10 @@ void StimuliITS::physicsEventSignalMethod(void)
 void StimuliITS::addTraces(sc_trace_file *wf) const
 {
   sc_trace(wf, s_physics_event, "PHYSICS_EVENT");
-
   sc_trace(wf, s_its_busy, "its_busy");
-  sc_trace(wf, s_alpide_data_line, "alpide_data_line");
 
   if(mSingleChipSimulation) {
-    //mReadoutUnit->addTraces(wf, "");
+    sc_trace(wf, s_alpide_data_line, "alpide_data_line");
     mAlpide->addTraces(wf, "");
   } else {
     mITS->addTraces(wf, "");

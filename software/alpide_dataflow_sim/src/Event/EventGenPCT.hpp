@@ -49,9 +49,11 @@ private:
   /// Beam is moving to the right when true
   bool mBeamDirectionRight = true;
 
-  unsigned int mEventTimeFrameLength_ns;
+  /// Indicates that the beam has reached the desired end coords,
+  /// and that the simulation should stop
+  bool mBeamEndCoordsReached = false;
 
-  uint64_t mPhysicsEventCount = 0;
+  unsigned int mEventTimeFrameLength_ns;
 
   std::ofstream mPhysicsEventsCSVFile;
 
@@ -86,6 +88,9 @@ public:
   ~EventGenPCT();
   void initRandomNumGenerators(const QSettings* settings);
   void stopEventGeneration(void);
+  bool getBeamEndCoordsReached(void) const {return mBeamEndCoordsReached;}
+  double getBeamCenterCoordX(void) const {return mBeamCenterCoordX_mm;}
+  double getBeamCenterCoordY(void) const {return mBeamCenterCoordY_mm;}
 
   const std::vector<std::shared_ptr<PixelHit>>& getTriggeredEvent(void) const;
   const std::vector<std::shared_ptr<PixelHit>>& getUntriggeredEvent(void) const;

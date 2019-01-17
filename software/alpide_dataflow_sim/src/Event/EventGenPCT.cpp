@@ -235,6 +235,8 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
 
   unsigned int num_particles_total = (*mRandParticlesPerEventFrameDist)(mRandParticleCountGen);
 
+  std::cout << "EventGenPCT: generating " << num_particles_total << " particles" << std::endl;
+
   for(unsigned int particle_num = 0; particle_num < num_particles_total; particle_num++) {
     double rand_x_mm = (*mRandHitXDist)(mRandHitCoordsXGen) + mBeamCenterCoordX_mm;
     double rand_y_mm = (*mRandHitYDist)(mRandHitCoordsYGen) + mBeamCenterCoordY_mm;
@@ -253,13 +255,13 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
     unsigned int stave_num = rand_y_mm / (CHIP_HEIGHT_CM*10);
 
     // Position of particle relative to the chip it will hit
-    double chip_x_mm = rand_x_mm / (CHIP_WIDTH_CM*10);
-    double chip_y_mm = rand_y_mm / (CHIP_HEIGHT_CM*10);
+    double chip_x_mm = rand_x_mm - (chip_num*(CHIP_WIDTH_CM*10));
+    double chip_y_mm = rand_y_mm - (stave_num*(CHIP_HEIGHT_CM*10));
 
-    unsigned int chip_x_coord = round(chip_x_mm/N_PIXEL_COLS);
-    unsigned int chip_y_coord = round(chip_y_mm/N_PIXEL_ROWS);
+    unsigned int chip_x_coord = round(chip_x_mm*(N_PIXEL_COLS/(CHIP_WIDTH_CM*10)));
+    unsigned int chip_y_coord = round(chip_y_mm*(N_PIXEL_ROWS/(CHIP_HEIGHT_CM*10)));
 
-    PixelHit pixel(chip_x_coord, chip_y_coord, 0);
+    PixelHit pixel(chip_x_coord, chip_y_coord);
 
     if(mRandomClusterGeneration) {
       std::vector<std::shared_ptr<PixelHit>> pix_cluster = createCluster(pixel,
@@ -341,7 +343,7 @@ void EventGenPCT::generateEvent(void)
   std::map<unsigned int, unsigned int> layer_hits;
   std::map<unsigned int, unsigned int> chip_hits;
 
-  mPhysicsEventCount++;
+  mUntriggeredEventCount++;
 
   if(mRandomHitGeneration == true) {
     generateRandomEventData(event_pixel_hit_count, chip_hits, layer_hits);
@@ -354,12 +356,15 @@ void EventGenPCT::generateEvent(void)
     addCsvEventLine(mEventTimeFrameLength_ns, event_pixel_hit_count, chip_hits, layer_hits);
 
   std::cout << "@ " << time_now << " ns: ";
-  std::cout << "\tPhysics event number: " << mPhysicsEventCount;
+  std::cout << "\tEvent number: " << mUntriggeredEventCount;
 }
 
 
 void EventGenPCT::updateBeamPosition(void)
 {
+  if(mBeamCenterCoordX_mm >= mBeamEndCoordX_mm && mBeamCenterCoordY_mm >= mBeamEndCoordY_mm)
+    mBeamEndCoordsReached = true;
+
   // Beam direction is initialized to start moving to the right in the class
   if(mBeamDirectionRight) {
     // Move beam down (y-direction) if we've reached the right end point,
@@ -386,9 +391,10 @@ void EventGenPCT::updateBeamPosition(void)
 ///@brief SystemC controlled method. Creates new physics events (hits)
 void EventGenPCT::physicsEventMethod(void)
 {
-  if(mStopEventGeneration == false) {
+  if(mStopEventGeneration == false && mBeamEndCoordsReached == false) {
     generateEvent();
     updateBeamPosition();
+
     E_untriggered_event.notify();
     next_trigger(mEventTimeFrameLength_ns, SC_NS);
   }

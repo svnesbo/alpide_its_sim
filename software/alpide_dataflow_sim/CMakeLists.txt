@@ -69,7 +69,8 @@ add_sources(
   src/Detector/Common/ITSModulesStaves.cpp
   src/Detector/ITS/ITSDetector.cpp
   src/Detector/ITS/ITSDetectorConfig.cpp
-  #src/Detector/PCT/PCTDetector.cpp
+  src/Detector/PCT/PCTDetector.cpp
+  src/Detector/PCT/PCTDetectorConfig.cpp
   src/ReadoutUnit/ReadoutUnit.cpp
   src/Event/EventGenBase.cpp
   src/Event/EventGenITS.cpp
@@ -80,7 +81,7 @@ add_sources(
   src/Settings/Settings.cpp
   src/Settings/parse_cmdline_args.cpp
   src/Stimuli/StimuliBase.cpp
-  #src/Stimuli/StimuliPCT.cpp
+  src/Stimuli/StimuliPCT.cpp
   src/Stimuli/StimuliITS.cpp
   src/main.cpp
   )

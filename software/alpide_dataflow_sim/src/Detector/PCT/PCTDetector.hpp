@@ -13,9 +13,9 @@
 #include <vector>
 #include <memory>
 
-#include "ITS_config.hpp"
-#include "ITSModulesStaves.hpp"
-#include "../ReadoutUnit/ReadoutUnit.hpp"
+#include "PCTDetectorConfig.hpp"
+#include "Detector/Common/ITSModulesStaves.hpp"
+#include "ReadoutUnit/ReadoutUnit.hpp"
 #include <Alpide/PixelHit.hpp>
 
 namespace PCT {
@@ -28,29 +28,28 @@ namespace PCT {
 
   private:
     std::vector<std::shared_ptr<Alpide>> mChipVector;
-    sc_vector<ReadoutUnit> mReadoutUnits[N_LAYERS];
-    sc_vector<StaveInterface> mDetectorStaves[N_LAYERS];
-    sc_vector<sc_signal<sc_uint<24>>> s_alpide_data_lines[N_LAYERS];
+    sc_vector<sc_vector<ReadoutUnit>> mReadoutUnits;
+    sc_vector<sc_vector<ITS::StaveInterface>> mDetectorStaves;
 
-    detectorConfig mConfig;
+    PCTDetectorConfig mConfig;
 
     unsigned int mNumChips;
 
-    void buildDetector(const detectorConfig& config, unsigned int trigger_filter_time,
+    void buildDetector(const PCTDetectorConfig& config, unsigned int trigger_filter_time,
                        bool trigger_filter_enable);
-    void verifyDetectorConfig(const detectorConfig& config) const;
+    void verifyDetectorConfig(const PCTDetectorConfig& config) const;
 
     void triggerMethod(void);
 
   public:
-    ITSDetector(sc_core::sc_module_name name,
-                const detectorConfig& config,
+    PCTDetector(sc_core::sc_module_name name,
+                const PCTDetectorConfig& config,
                 unsigned int trigger_filter_time,
                 bool trigger_filter_enable);
     void pixelInput(const std::shared_ptr<PixelHit>& pix);
     void setPixel(const std::shared_ptr<PixelHit>& p);
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);
-    void setPixel(const detectorPosition& pos, unsigned int row, unsigned int col);
+    void setPixel(const Detector::DetectorPosition& pos, unsigned int row, unsigned int col);
     unsigned int getNumChips(void) const { return mNumChips; }
     void addTraces(sc_trace_file *wf, std::string name_prefix) const;
     void writeSimulationStats(const std::string output_path) const;

@@ -30,9 +30,8 @@ namespace ITS {
 
   private:
     std::vector<std::shared_ptr<Alpide>> mChipVector;
-    sc_vector<ReadoutUnit> mReadoutUnits[N_LAYERS];
-    sc_vector<StaveInterface> mDetectorStaves[N_LAYERS];
-    sc_vector<sc_signal<sc_uint<24>>> s_alpide_data_lines[N_LAYERS];
+    sc_vector<sc_vector<ReadoutUnit>> mReadoutUnits;
+    sc_vector<sc_vector<StaveInterface>> mDetectorStaves;
 
     ITSDetectorConfig mConfig;
 

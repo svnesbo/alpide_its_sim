@@ -14,7 +14,7 @@
 #include "StimuliBase.hpp"
 #include "Alpide/Alpide.hpp"
 #include "Event/EventGenPCT.hpp"
-#include "Detector/ITS/ITSDetector.hpp"
+#include "Detector/PCT/PCTDetector.hpp"
 #include "Detector/Common/ITSModulesStaves.hpp"
 #include <QSettings>
 #include <memory>
@@ -23,8 +23,7 @@
 
 class StimuliPCT : public StimuliBase {
 public:
-  sc_signal<bool> s_physics_event;
-  sc_signal<bool> s_its_busy;
+  sc_signal<bool> s_pct_busy;
 
   // Only used in single chip simulation
   sc_signal<bool> s_alpide_data_line;
@@ -32,23 +31,21 @@ public:
 private:
   std::unique_ptr<EventGenPCT> mEventGen;
 
-  // mITS is only used for detector simulation
-  std::unique_ptr<ITS::ITSDetector> mITS;
+  // mPCT is only used for detector simulation
+  std::unique_ptr<PCT::PCTDetector> mPCT;
 
   // mReadoutUnit and mAlpide is only used for
   // single chip simulations
   std::unique_ptr<ReadoutUnit> mReadoutUnit;
   std::unique_ptr<ITS::SingleChip> mAlpide;
 
+  void stimuliMethod(void);
+  void triggerMethod(void);
+  void writeStimuliInfo(void) const;
+
 public:
   StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::string output_path);
-  void stimuliMainMethod(void);
-  void stimuliQedNoiseEventMethod(void);
-  void continuousTriggerMethod(void);
-  void physicsEventSignalMethod(void);
-  void stimuliEventProcess(void);
   void addTraces(sc_trace_file *wf) const;
-  void writeStimuliInfo(void) const;
 };
 
 
