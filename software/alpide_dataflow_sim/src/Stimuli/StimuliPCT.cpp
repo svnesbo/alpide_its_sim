@@ -66,8 +66,25 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
 
   std::cout << std::endl << std::endl;
 
+  // Initialize detector configuration for PCT.
+  // Doing it here because event generator expects this parameter,
+  // though it is not used for single chip simulation
+  PCT::PCTDetectorConfig config;
+  config.num_layers = settings->value("pct/num_layers").toUInt();
+
+  for(unsigned int i = 0; i < PCT::N_LAYERS; i++) {
+    if(i < config.num_layers) {
+      config.layer[i].num_staves = settings->value("pct/num_staves_per_layer").toUInt();
+    } else {
+      config.layer[i].num_staves = 0;
+    }
+  }
+
+  config.chip_cfg = mChipCfg;
+
   mEventGen = std::move(std::unique_ptr<EventGenPCT>(new EventGenPCT("event_gen",
                                                                      settings,
+                                                                     config,
                                                                      mOutputPath)));
 
   if(mSingleChipSimulation) {
@@ -93,19 +110,6 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
     mAlpide->socket_data_out[0].bind(mReadoutUnit->s_alpide_data_input[0]);
   }
   else { // ITS Detector Simulation
-    PCT::PCTDetectorConfig config;
-    config.num_layers = settings->value("pct/num_layers").toUInt();
-
-    for(unsigned int i = 0; i < PCT::N_LAYERS; i++) {
-      if(i < config.num_layers) {
-        config.layer[i].num_staves = settings->value("pct/num_staves_per_layer").toUInt();
-      } else {
-        config.layer[i].num_staves = 0;
-      }
-    }
-
-    config.chip_cfg = mChipCfg;
-
     mPCT = std::move(std::unique_ptr<PCT::PCTDetector>(new PCT::PCTDetector("PCT", config,
                                                                             mTriggerFilterTimeNs,
                                                                             mTriggerFilterEnabled)));

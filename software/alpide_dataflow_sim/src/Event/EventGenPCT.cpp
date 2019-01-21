@@ -20,11 +20,14 @@ SC_HAS_PROCESS(EventGenPCT);
 ///@brief Constructor for EventGenPCT
 ///@param[in] name SystemC module name
 ///@param[in] settings QSettings object with simulation settings.
+///@param[in] config Detector configuration for PCT
 ///@param[in] output_path Directory path to store simulation output data in
 EventGenPCT::EventGenPCT(sc_core::sc_module_name name,
-                               const QSettings* settings,
-                               std::string output_path)
+                         const QSettings* settings,
+                         const PCT::PCTDetectorConfig& config,
+                         std::string output_path)
   : EventGenBase(name, settings, output_path)
+  , mConfig(config)
 {
   mNumLayers = settings->value("pct/num_layers").toUInt();
   mNumStavesPerLayer = settings->value("pct/num_staves_per_layer").toUInt();
@@ -60,73 +63,66 @@ EventGenPCT::EventGenPCT(sc_core::sc_module_name name,
 
 void EventGenPCT::initCsvEventFileHeader(const QSettings* settings)
 {
-  // TODO
-  /*
-  std::string physics_events_csv_filename = mOutputPath + std::string("/physics_events_data.csv");
-  mPhysicsEventsCSVFile.open(physics_events_csv_filename);
-  mPhysicsEventsCSVFile << "delta_t;event_pixel_hit_multiplicity";
+  std::string physics_events_csv_filename = mOutputPath + std::string("/pct_events_data.csv");
+  mPCTEventsCSVFile.open(physics_events_csv_filename);
+  mPCTEventsCSVFile << "time_ns;beam_x_mm;beam_y_mm;";
+  mPCTEventsCSVFile << "particle_count_total;pixel_hit_count_total";
 
-  if(mITSConfig.layer[0].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_0";
-  if(mITSConfig.layer[1].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_1";
-  if(mITSConfig.layer[2].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_2";
-  if(mITSConfig.layer[3].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_3";
-  if(mITSConfig.layer[4].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_4";
-  if(mITSConfig.layer[5].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_5";
-  if(mITSConfig.layer[6].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_6";
-
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
-    for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
-      // Safe to ignore OB sub staves here, since we only include full staves in simulation,
-      // and this will include all chips from a full stave
-      for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
-        mPhysicsEventsCSVFile << ";chip_" << chip_id;
-        chip_id++;
+  if(mSingleChipSimulation == false) {
+    for(unsigned int layer_id = 0; layer_id < PCT::N_LAYERS; layer_id++) {
+      if(mConfig.layer[layer_id].num_staves > 0) {
+        std::string layer_str = std::string(";layer_") + std::to_string(layer_id);
+        mPCTEventsCSVFile << ";layer_0";
       }
     }
+
+    for(unsigned int layer_id = 0; layer_id < PCT::N_LAYERS; layer_id++) {
+      for(unsigned int stave_id = 0; stave_id < mConfig.layer[layer_id].num_staves; stave_id++) {
+        for(unsigned int stave_chip = 0; stave_chip < PCT::CHIPS_PER_STAVE; stave_chip++) {
+          Detector::DetectorPosition pos = {layer_id, stave_id, 0, 0, stave_chip};
+          mPCTEventsCSVFile << ";chip_" << PCT::PCT_position_to_global_chip_id(pos);;
+        }
+      }
+    }
+  } else { // Single chip simulation
+    mPCTEventsCSVFile << ";chip_0";
   }
 
-  mPhysicsEventsCSVFile << std::endl;
-  */
+  mPCTEventsCSVFile << std::endl;
 }
 
 
-void EventGenPCT::addCsvEventLine(uint64_t t_delta,
-                                  unsigned int event_pixel_hit_count,
-                                  std::map<unsigned int, unsigned int> &chip_hits,
-                                  std::map<unsigned int, unsigned int> &layer_hits)
+void EventGenPCT::addCsvEventLine(uint64_t time_ns,
+                                  uint64_t particle_count_total,
+                                  uint64_t pixel_hit_count_total,
+                                  std::map<unsigned int, unsigned int> &chip_pixel_hits,
+                                  std::map<unsigned int, unsigned int> &layer_pixel_hits)
 {
-  // TODO
-  /*
-  // Write time to next event, and multiplicity for the whole event
-  mPhysicsEventsCSVFile << t_delta << ";" << event_pixel_hit_count;
+  // Write time of event frame and particle count
+  mPCTEventsCSVFile << time_ns << ";" << mBeamCenterCoordX_mm << ";" << mBeamCenterCoordY_mm;
+  mPCTEventsCSVFile << ";" << particle_count_total << ";" << pixel_hit_count_total;
 
-  // Write multiplicity for whole layers of detectors (of included layers)
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    if(mITSConfig.layer[layer].num_staves > 0)
-      mPhysicsEventsCSVFile << ";" << layer_hits[layer];
-  }
+  if(mSingleChipSimulation == false) {
+    // Write number of pixel hits for whole layers of detectors (of included layers)
+    for(unsigned int layer = 0; layer < PCT::N_LAYERS; layer++) {
+      if(mConfig.layer[layer].num_staves > 0)
+        mPCTEventsCSVFile << ";" << layer_pixel_hits[layer];
+    }
 
-  // Write multiplicity for the chips that were included in the simulation
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
-    for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
-      for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
-        mPhysicsEventsCSVFile << ";" << chip_hits[chip_id];
-        chip_id++;
+    // Write number of pixel hits for individual chips
+    for(unsigned int layer_id = 0; layer_id < PCT::N_LAYERS; layer_id++) {
+      for(unsigned int stave_id = 0; stave_id < mConfig.layer[layer_id].num_staves; stave_id++) {
+        for(unsigned int stave_chip = 0; stave_chip < PCT::CHIPS_PER_STAVE; stave_chip++) {
+          Detector::DetectorPosition pos = {layer_id, stave_id, 0, 0, stave_chip};
+          mPCTEventsCSVFile << ";" << chip_pixel_hits[PCT::PCT_position_to_global_chip_id(pos)];
+        }
       }
     }
+  } else { // Single chip simulation
+    mPCTEventsCSVFile << ";" << chip_pixel_hits[0];
   }
 
-  mPhysicsEventsCSVFile << std::endl;
-  */
+  mPCTEventsCSVFile << std::endl;
 }
 
 
@@ -195,8 +191,8 @@ void EventGenPCT::initMonteCarloHitGen(const QSettings* settings)
 ///@brief Destructor for EventGenPCT class
 EventGenPCT::~EventGenPCT()
 {
-  if(mPhysicsEventsCSVFile.is_open())
-    mPhysicsEventsCSVFile.close();
+  if(mPCTEventsCSVFile.is_open())
+    mPCTEventsCSVFile.close();
 }
 
 
@@ -221,15 +217,20 @@ const std::vector<std::shared_ptr<PixelHit>>& EventGenPCT::getUntriggeredEvent(v
 
 
 ///@brief Generate a random event, and put it in the hit vector.
-///@param[out] event_pixel_hit_count Total number of pixel hits for this event,
-///            for all layers/chips, including chips/layers that are excluded from the simulation
-///@param[out] chip_hits Map with number of pixel hits for this event per chip ID
-///@param[out] layer_hits Map with number of pixel hits for this event per layer
-void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
-                                          std::map<unsigned int, unsigned int> &chip_hits,
-                                          std::map<unsigned int, unsigned int> &layer_hits)
+///@param[out] particle_count_out Total number of particles for this event frame, excluding
+///                               particles that fall outside the detector plane
+///@param[out] pixel_hit_count Number of pixel hits for this event frame
+///@param[out] chip_pixel_hits Map with number of pixel hits for this event per chip ID
+///@param[out] layer_pixel_hits Map with number of pixel hits for this event per layer
+void EventGenPCT::generateRandomEventData(unsigned int &particle_count_out,
+                                          unsigned int &pixel_hit_count_out,
+                                          std::map<unsigned int, unsigned int> &chip_pixel_hits,
+                                          std::map<unsigned int, unsigned int> &layer_pixel_hits)
 {
   uint64_t time_now = sc_time_stamp().value();
+
+  particle_count_out = 0;
+  pixel_hit_count_out = 0;
 
   // Clear old hit data
   mEventHitVector.clear();
@@ -250,10 +251,12 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
       continue;
     if(rand_y_mm < 0)
       continue;
-    if(rand_x_mm > ITS::CHIPS_PER_IB_STAVE * (CHIP_WIDTH_CM*10))
+    if(rand_x_mm > PCT::CHIPS_PER_STAVE * (CHIP_WIDTH_CM*10))
       continue;
     if(rand_y_mm > mNumStavesPerLayer * (CHIP_HEIGHT_CM*10))
       continue;
+
+    particle_count_out++;
 
     unsigned int stave_chip_id =  + (rand_x_mm / (CHIP_WIDTH_CM*10));
     unsigned int stave_id = rand_y_mm / (CHIP_HEIGHT_CM*10);
@@ -281,7 +284,8 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
       // if pixels are outside matrix boundaries then they are ignored. Hence it is sufficient
       // to add the number of pixels in the cluster, we don't have to check that they all
       // belong to the same chip.
-      chip_hits[global_chip_id] += pix_cluster.size();
+      chip_pixel_hits[global_chip_id] += pix_cluster.size();
+      pixel_hit_count_out += pix_cluster.size();
 
       // Copy pixels from cluster over to the event hit vector
       mEventHitVector.insert(mEventHitVector.end(), pix_cluster.begin(), pix_cluster.end());
@@ -294,7 +298,8 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
       mEventHitVector.back()->setActiveTimeStart(time_now+mPixelDeadTime);
       mEventHitVector.back()->setActiveTimeEnd(time_now+mPixelDeadTime+mPixelActiveTime);
 
-      chip_hits[pixel.getChipId()]++;
+      chip_pixel_hits[pixel.getChipId()]++;
+      pixel_hit_count_out++;
     }
   }
 }
@@ -303,11 +308,12 @@ void EventGenPCT::generateRandomEventData(unsigned int &event_pixel_hit_count,
 ///@brief Generate a monte carlo event (ie. read it from file), and put it in the hit vector.
 ///@param[out] event_pixel_hit_count Total number of pixel hits for this event,
 ///            for all layers/chips, including chips/layers that are excluded from the simulation
-///@param[out] chip_hits Map with number of pixel hits for this event per chip ID
-///@param[out] layer_hits Map with number of pixel hits for this event per layer
-void EventGenPCT::generateMonteCarloEventData(unsigned int &event_pixel_hit_count,
-                                              std::map<unsigned int, unsigned int> &chip_hits,
-                                              std::map<unsigned int, unsigned int> &layer_hits)
+///@param[out] chip_pixel_hits Map with number of pixel hits for this event per chip ID
+///@param[out] layer_pixel_hits Map with number of pixel hits for this event per layer
+void EventGenPCT::generateMonteCarloEventData(unsigned int &particle_count_out,
+                                              unsigned int &pixel_hit_count_out,
+                                              std::map<unsigned int, unsigned int> &chip_pixel_hits,
+                                              std::map<unsigned int, unsigned int> &layer_pixel_hits)
 {
   /*
   uint64_t time_now = sc_time_stamp().value();
@@ -338,8 +344,8 @@ void EventGenPCT::generateMonteCarloEventData(unsigned int &event_pixel_hit_coun
                            pix_cluster.begin(),
                            pix_cluster.end());
 
-    //layer_hits[pos.layer_id]++;
-    chip_hits[pix.getChipId()]++;
+    //layer_pixel_hits[pos.layer_id]++;
+    chip_pixel_hits[pix.getChipId()]++;
 
     digit_it++;
   }
@@ -350,23 +356,30 @@ void EventGenPCT::generateMonteCarloEventData(unsigned int &event_pixel_hit_coun
 void EventGenPCT::generateEvent(void)
 {
   uint64_t time_now = sc_time_stamp().value();
+  unsigned int event_particle_count = 0;
   unsigned int event_pixel_hit_count = 0;
 
 
-  std::map<unsigned int, unsigned int> layer_hits;
-  std::map<unsigned int, unsigned int> chip_hits;
+  std::map<unsigned int, unsigned int> layer_pixel_hits;
+  std::map<unsigned int, unsigned int> chip_pixel_hits;
 
   mUntriggeredEventCount++;
 
   if(mRandomHitGeneration == true) {
-    generateRandomEventData(event_pixel_hit_count, chip_hits, layer_hits);
+    generateRandomEventData(event_particle_count, event_pixel_hit_count,
+                            chip_pixel_hits, layer_pixel_hits);
   } else {
-    generateMonteCarloEventData(event_pixel_hit_count, chip_hits, layer_hits);
+    generateMonteCarloEventData(event_particle_count, event_pixel_hit_count,
+                                chip_pixel_hits, layer_pixel_hits);
   }
 
   // Write event rate and multiplicity numbers to CSV file
   if(mCreateCSVFile)
-    addCsvEventLine(mEventTimeFrameLength_ns, event_pixel_hit_count, chip_hits, layer_hits);
+    addCsvEventLine(time_now,
+                    event_particle_count,
+                    event_pixel_hit_count,
+                    chip_pixel_hits,
+                    layer_pixel_hits);
 
   std::cout << "@ " << time_now << " ns: ";
   std::cout << "\tEvent number: " << mUntriggeredEventCount;

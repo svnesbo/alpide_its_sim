@@ -12,7 +12,7 @@
 
 #include "EventGenBase.hpp"
 #include "EventBase.hpp"
-#include "Detector/ITS/ITS_constants.hpp"
+#include "Detector/PCT/PCTDetectorConfig.hpp"
 #include <fstream>
 #include <boost/random/poisson_distribution.hpp>
 
@@ -26,6 +26,8 @@ private:
   std::vector<std::shared_ptr<PixelHit>> mEventHitVector;
 
   EventBase* mMCEvents = nullptr;
+
+  PCT::PCTDetectorConfig mConfig;
 
   double mSingleChipDetectorArea;
 
@@ -55,7 +57,7 @@ private:
 
   unsigned int mEventTimeFrameLength_ns;
 
-  std::ofstream mPhysicsEventsCSVFile;
+  std::ofstream mPCTEventsCSVFile;
 
   boost::random::mt19937 mRandParticleCountGen;
   boost::random::mt19937 mRandHitCoordsXGen;
@@ -65,26 +67,30 @@ private:
   boost::random::normal_distribution<double> *mRandHitXDist, *mRandHitYDist;
 
   void initCsvEventFileHeader(const QSettings* settings);
-  void addCsvEventLine(uint64_t t_delta,
-                       unsigned int event_pixel_hit_count,
-                       std::map<unsigned int, unsigned int> &chip_hits,
-                       std::map<unsigned int, unsigned int> &layer_hits);
+  void addCsvEventLine(uint64_t time_ns,
+                       uint64_t particle_count_total,
+                       uint64_t pixel_hit_count_total,
+                       std::map<unsigned int, unsigned int> &chip_pixel_hits,
+                       std::map<unsigned int, unsigned int> &layer_pixel_hits);
   void initRandomHitGen(const QSettings* settings);
   void initMonteCarloHitGen(const QSettings* settings);
-  void generateRandomEventData(unsigned int &event_pixel_hit_count,
-                               std::map<unsigned int, unsigned int> &chip_hits,
-                               std::map<unsigned int, unsigned int> &layer_hits);
-  void generateMonteCarloEventData(unsigned int &event_pixel_hit_count,
-                                   std::map<unsigned int, unsigned int> &chip_hits,
-                                   std::map<unsigned int, unsigned int> &layer_hits);
+  void generateRandomEventData(unsigned int &particle_count_out,
+                               unsigned int &pixel_hit_count_out,
+                               std::map<unsigned int, unsigned int> &chip_pixel_hits,
+                               std::map<unsigned int, unsigned int> &layer_pixel_hits);
+  void generateMonteCarloEventData(unsigned int &particle_count_out,
+                                   unsigned int &pixel_hit_count_out,
+                                   std::map<unsigned int, unsigned int> &chip_pixel_hits,
+                                   std::map<unsigned int, unsigned int> &layer_pixel_hits);
   void generateEvent(void);
   void updateBeamPosition(void);
   void physicsEventMethod(void);
 
 public:
   EventGenPCT(sc_core::sc_module_name name,
-                 const QSettings* settings,
-                 std::string output_path);
+              const QSettings* settings,
+              const PCT::PCTDetectorConfig& config,
+              std::string output_path);
   ~EventGenPCT();
   void initRandomNumGenerators(const QSettings* settings);
   void stopEventGeneration(void);
