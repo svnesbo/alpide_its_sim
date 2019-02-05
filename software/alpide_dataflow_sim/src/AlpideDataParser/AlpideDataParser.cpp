@@ -63,12 +63,16 @@ bool AlpideEventFrame::getBusyTransition(void) const
 
 
 ///@brief Constructor for AlpideEventBuilder
+///@param data_rate_interval_ns Interval in nanoseconds over which number of data bytes should
+///                             be counted, to be used for data rate calculations
 ///@param save_events Specify if the parser should store all events in memory,
 ///            or discard old events and only keep the latest one.
 ///@param include_hit_data Include pixel hits in the events that are built
-AlpideEventBuilder::AlpideEventBuilder(bool save_events,
+AlpideEventBuilder::AlpideEventBuilder(unsigned int data_rate_interval_ns,
+                                       bool save_events,
                                        bool include_hit_data)
-  : mSaveEvents(save_events)
+  : mDataIntervalNs(data_rate_interval_ns)
+  , mSaveEvents(save_events)
   , mIncludeHitData(include_hit_data)
 {
   mProtocolStats[ALPIDE_IDLE] = 0;
@@ -131,8 +135,13 @@ void AlpideEventBuilder::popEvent(void)
 ///       3) If these are just idle words etc., nothing is done with them.
 ///@param[in] data Byte of Alpide data to parse.
 ///@param[in] trig_id Trigger ID for the currently incoming data
-void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
+///@param[in] time_now_ns Current simulation time (in nanoseconds)
+void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id, uint64_t time_now_ns)
 {
+  // This function is called repeatedly for each byte of data, but data words are up to 3 bytes
+  // in length. So we have to detect the start of a data word, construct the full data word
+  // consisting of up to 3 bytes, and only act on the data word (e.g. creating a frame, hit
+  // info on data long/short, etc.) when the whole word has been received.
   if(mDataWordStarted == false) {
     mCurrentDwType = parseDataByte(data);
     mDataWordStarted = true;
@@ -147,7 +156,18 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
   // Increase statistics counters for protocol utilization
   mProtocolStats[mCurrentDwType]++;
 
+  uint64_t data_interval_num = time_now_ns/mDataIntervalNs;
+
+  // Create entry for interval in map, if it does not exist. It is zero initialized.
+  // We want all data parsers to have the same sized maps, makes writing data to file
+  // easy. This will guarantee that.
+  mDataIntervalByteCounts[data_interval_num];
+
   mBusyStatusChanged = false;
+
+  std::cout << "time_now_ns: " << time_now_ns << std::endl;
+  std::cout << "mDataIntervalNs: " << mDataIntervalNs << std::endl;
+  std::cout << "time_now_ns/mDataIntervalNs: " << time_now_ns/mDataIntervalNs << std::endl;
 
   // Create new frame/event?
   switch(mCurrentDwType) {
@@ -164,6 +184,8 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
 
       mDataWordStarted = false;
     }
+    // Record data rate stats for every byte of data word
+    mDataIntervalByteCounts[data_interval_num]++;
     break;
 
   case ALPIDE_CHIP_TRAILER:
@@ -188,6 +210,8 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
 
       mDataWordStarted = false;
     }
+    // Record data rate stats for every byte of data word
+    mDataIntervalByteCounts[data_interval_num]++;
     break;
 
   case ALPIDE_CHIP_EMPTY_FRAME:
@@ -205,6 +229,8 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
 
       mDataWordStarted = false;
     }
+    // Record data rate stats for every byte of data word
+    mDataIntervalByteCounts[data_interval_num]++;
     break;
 
   case ALPIDE_REGION_HEADER:
@@ -215,6 +241,8 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
 
       mDataWordStarted = false;
     }
+    // Record data rate stats for every byte of data word
+    mDataIntervalByteCounts[data_interval_num]++;
     break;
 
   case ALPIDE_REGION_TRAILER:
@@ -240,6 +268,8 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
       }
       mDataWordStarted = false;
     }
+    // Record data rate stats for every byte of data word
+    mDataIntervalByteCounts[data_interval_num]++;
     break;
 
   case ALPIDE_DATA_LONG:
@@ -267,6 +297,8 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id)
       }
       mDataWordStarted = false;
     }
+    // Record data rate stats for every byte of data word
+    mDataIntervalByteCounts[data_interval_num]++;
     break;
 
     // Not used.. checking all 3 bytes at the bottom of this function
@@ -357,11 +389,16 @@ AlpideDataType AlpideEventBuilder::parseDataByte(std::uint8_t data)
 SC_HAS_PROCESS(AlpideDataParser);
 ///@brief Data parser constructor
 ///@param name SystemC module name
+///@param word_mode When true, data is clocked in as 3-byte words at a time (inner barrel).
+///                 When false, data is clocked in 1 byte at a time (outer barrel).
+///@param data_rate_interval_ns Interval in nanoseconds over which number of data bytes should
+///                             be counted, to be used for data rate calculations
 ///@param save_events Specify if the parser should store all events in memory,
 ///            or discard old events and only keep the latest one.
-AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name, bool word_mode, bool save_events)
+AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name, bool word_mode,
+                                   unsigned int data_rate_interval_ns, bool save_events)
   : sc_core::sc_module(name)
-  , AlpideEventBuilder(save_events)
+  , AlpideEventBuilder(data_rate_interval_ns, save_events)
   , mWordMode(word_mode)
 {
   s_link_busy_out(s_link_busy);
@@ -377,16 +414,18 @@ AlpideDataParser::AlpideDataParser(sc_core::sc_module_name name, bool word_mode,
 ///       A busy signal indicates if the parser has detected BUSY ON/OFF words.
 void AlpideDataParser::parserInputProcess(void)
 {
+  uint64_t time_now = sc_time_stamp().value();
+
   sc_uint<24> dw = s_serial_data_in.read();
   uint64_t trig_id = s_serial_data_trig_id.read();
 
-  inputDataByte((uint8_t)dw.range(23,16), trig_id);
+  inputDataByte((uint8_t)dw.range(23,16), trig_id, time_now);
 
   // Word mode is used for inner barrel chips
   // Outer barrel chips only output 1 byte per 40MHz clock cycle
   if(mWordMode) {
-    inputDataByte((uint8_t)dw.range(15,8), trig_id);
-    inputDataByte((uint8_t)dw.range(7,0), trig_id);
+    inputDataByte((uint8_t)dw.range(15,8), trig_id, time_now);
+    inputDataByte((uint8_t)dw.range(7,0), trig_id, time_now);
   }
 
   if(mBusyStatusChanged) {

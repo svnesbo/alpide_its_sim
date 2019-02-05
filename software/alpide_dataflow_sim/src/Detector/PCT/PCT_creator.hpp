@@ -25,19 +25,21 @@ namespace PCT {
     unsigned int mNumDataLinks;
     unsigned int mTriggerFilterTime;
     bool mTriggerFilterEnabled;
+    unsigned int mDataRateIntervalNs;
 
   public:
     RUCreator(unsigned int layer_id,
               unsigned int num_data_links, unsigned int num_ctrl_links,
-              unsigned int trigger_filter_time, bool trigger_filter_enable)
-      : mLayerId(layer_id)
+              unsigned int trigger_filter_time, bool trigger_filter_enable,
+              unsigned int data_rate_interval_ns)
+      : mInnerBarrelMode(true)
+      , mLayerId(layer_id)
+      , mNumCtrlLinks(num_ctrl_links)
+      , mNumDataLinks(num_data_links)
       , mTriggerFilterTime(trigger_filter_time)
       , mTriggerFilterEnabled(trigger_filter_enable)
+      , mDataRateIntervalNs(data_rate_interval_ns)
       {
-        mNumCtrlLinks = num_ctrl_links;
-        mNumDataLinks = num_data_links;
-
-        mInnerBarrelMode = true;
       }
 
     ///@brief The actual creator function
@@ -55,7 +57,8 @@ namespace PCT {
                              mNumDataLinks,
                              mTriggerFilterTime,
                              mTriggerFilterEnabled,
-                             mInnerBarrelMode);
+                             mInnerBarrelMode,
+                             mDataRateIntervalNs);
     }
   };
 

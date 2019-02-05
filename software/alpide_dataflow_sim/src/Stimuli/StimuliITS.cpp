@@ -91,7 +91,8 @@ StimuliITS::StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::s
                                                                           1,
                                                                           mTriggerFilterTimeNs,
                                                                           mTriggerFilterEnabled,
-                                                                          true)));
+                                                                          true,
+                                                                          mDataRateIntervalNs)));
 
     mReadoutUnit->s_busy_in(mReadoutUnit->s_busy_out);
     mReadoutUnit->s_system_clk_in(clock);
@@ -113,7 +114,8 @@ StimuliITS::StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::s
 
     mITS = std::move(std::unique_ptr<ITS::ITSDetector>(new ITS::ITSDetector("ITS", config,
                                                                             mTriggerFilterTimeNs,
-                                                                            mTriggerFilterEnabled)));
+                                                                            mTriggerFilterEnabled,
+                                                                            mDataRateIntervalNs)));
     mITS->s_system_clk_in(clock);
     mITS->s_detector_busy_out(s_its_busy);
   }

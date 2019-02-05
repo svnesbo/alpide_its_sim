@@ -86,6 +86,10 @@ add_sources(
   src/main.cpp
   )
 
+# Uncomment to enable output to stderr with debug info for each pixel
+# Useful for debugging if pixels are actually read out or not
+#add_compile_options(-D PIXEL_DEBUG)
+
 # Uncomment to keep track of when pixels are read out from pixel matrix,
 # RRUs, TRU, and finally off the chip. All this debug info is printed to stdout.
 #add_definitions(-DPIXEL_DEBUG)

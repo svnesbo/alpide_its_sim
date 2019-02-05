@@ -22,17 +22,20 @@ SC_HAS_PROCESS(ITSDetector);
 ///@param trigger_filter_time Readout Units will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds).
 ///@param trigger_filter_enable Enable/disable trigger filtering
+///@param data_rate_interval_ns Interval in nanoseconds over which number of data bytes should
+///                             be counted, to be used for data rate calculations
 ITSDetector::ITSDetector(sc_core::sc_module_name name,
                          const ITSDetectorConfig& config,
                          unsigned int trigger_filter_time,
-                         bool trigger_filter_enable)
+                         bool trigger_filter_enable,
+                         unsigned int data_rate_interval_ns)
   : sc_core::sc_module(name)
   , mReadoutUnits("RU", ITS::N_LAYERS)
   , mDetectorStaves("Stave", ITS::N_LAYERS)
   , mConfig(config)
 {
   verifyDetectorConfig(config);
-  buildDetector(config, trigger_filter_time, trigger_filter_enable);
+  buildDetector(config, trigger_filter_time, trigger_filter_enable, data_rate_interval_ns);
 
   SC_METHOD(triggerMethod);
   sensitive << E_trigger_in;
@@ -81,9 +84,12 @@ void ITSDetector::verifyDetectorConfig(const ITSDetectorConfig& config) const
 ///@param trigger_filter_time Readout Units will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds).
 ///@param trigger_filter_enable Enable/disable trigger filtering
+///@param data_rate_interval_ns Interval in nanoseconds over which number of data bytes should
+///                             be counted, to be used for data rate calculations
 void ITSDetector::buildDetector(const ITSDetectorConfig& config,
                                 unsigned int trigger_filter_time,
-                                bool trigger_filter_enable)
+                                bool trigger_filter_enable,
+                                unsigned int data_rate_interval_ns)
 {
   // Reserve space for all chips, even if they are not used (not allocated),
   // because we access/index them by index in the vectors, and vector access is O(1).
@@ -99,7 +105,8 @@ void ITSDetector::buildDetector(const ITSDetectorConfig& config,
     // Create sc_vectors with ReadoutUnit and Staves for this layer
     mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id,
                                                      trigger_filter_time,
-                                                     trigger_filter_enable));
+                                                     trigger_filter_enable,
+                                                     data_rate_interval_ns));
     mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id, mConfig));
 
     for(unsigned int sta_id = 0; sta_id < config.layer[lay_id].num_staves; sta_id++) {

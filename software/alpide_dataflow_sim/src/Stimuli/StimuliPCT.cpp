@@ -101,7 +101,8 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
                                                                           1,
                                                                           mTriggerFilterTimeNs,
                                                                           mTriggerFilterEnabled,
-                                                                          true)));
+                                                                          true,
+                                                                          mDataRateIntervalNs)));
 
     mReadoutUnit->s_busy_in(mReadoutUnit->s_busy_out);
     mReadoutUnit->s_system_clk_in(clock);
@@ -112,7 +113,8 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
   else { // ITS Detector Simulation
     mPCT = std::move(std::unique_ptr<PCT::PCTDetector>(new PCT::PCTDetector("PCT", config,
                                                                             mTriggerFilterTimeNs,
-                                                                            mTriggerFilterEnabled)));
+                                                                            mTriggerFilterEnabled,
+                                                                            mDataRateIntervalNs)));
     mPCT->s_system_clk_in(clock);
     mPCT->s_detector_busy_out(s_pct_busy);
   }
@@ -128,7 +130,7 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
 ///@brief Main control of simulation stimuli
 void StimuliPCT::stimuliMethod(void)
 {
-  if(simulation_done == true || g_terminate_program == true) {
+  if(simulation_done == true) {
     uint64_t time_now = sc_time_stamp().value();
     std::cout << "@ " << time_now << " ns: \tSimulation done" << std::endl;
 
@@ -171,11 +173,11 @@ void StimuliPCT::stimuliMethod(void)
       std::cout << "Creating event for next trigger.." << std::endl;
     }
 
-    if(mEventGen->getBeamEndCoordsReached() == true) {
+    if(mEventGen->getBeamEndCoordsReached() == true || g_terminate_program == true) {
       // When the beam has reached the specified end position, the simulation should end.
       // But we allow the simulation to run for another X us to allow readout of data
       // remaining in MEBs, FIFOs etc.
-      next_trigger(100, SC_US);
+      next_trigger(1000, SC_US);
       simulation_done = true;
       mEventGen->stopEventGeneration();
     } else {

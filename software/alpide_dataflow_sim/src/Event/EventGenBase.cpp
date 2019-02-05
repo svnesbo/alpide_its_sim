@@ -69,11 +69,10 @@ EventGenBase::createCluster(const PixelHit& pix,
   std::vector<std::shared_ptr<PixelHit>> pixel_cluster;
 
   // Always add the "source" hit
-  //pixel_cluster[0] = std::make_shared<PixelHit>(pix);
-  //pixel_cluster[0]->setPixelReadoutStatsObj(readout_stats);
-
   pixel_cluster.emplace_back(std::make_shared<PixelHit>(pix));
   pixel_cluster.back()->setPixelReadoutStatsObj(readout_stats);
+  pixel_cluster.back()->setActiveTimeStart(start_time_ns + dead_time_ns);
+  pixel_cluster.back()->setActiveTimeEnd(start_time_ns + dead_time_ns + active_time_ns);
 
   PixelHit new_cluster_pixel;
   new_cluster_pixel.setChipId(pix.getChipId());
@@ -92,9 +91,6 @@ EventGenBase::createCluster(const PixelHit& pix,
       rand_y  = round(rand_y);
 
       // Create random cluster pixels around base coordinate
-      //new_cluster_pixel.setCol(pix.getCol() + round((*mRandClusterXDist)(mRandClusterXGen)));
-      //new_cluster_pixel.setRow(pix.getRow() + round((*mRandClusterYDist)(mRandClusterYGen)));
-
       new_cluster_pixel.setCol(pix.getCol() + rand_x);
       new_cluster_pixel.setRow(pix.getRow() + rand_y);
 
@@ -120,8 +116,6 @@ EventGenBase::createCluster(const PixelHit& pix,
       pixel_cluster.back()->setPixelReadoutStatsObj(readout_stats);
       pixel_cluster.back()->setActiveTimeStart(start_time_ns + dead_time_ns);
       pixel_cluster.back()->setActiveTimeEnd(start_time_ns + dead_time_ns + active_time_ns);
-      //pixel_cluster[i] = std::make_shared<PixelHit>(new_cluster_pixel);
-      //pixel_cluster[i]->setPixelReadoutStatsObj(readout_stats);
     }
   }
 

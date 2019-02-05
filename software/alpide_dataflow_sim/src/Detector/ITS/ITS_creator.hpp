@@ -25,12 +25,15 @@ namespace ITS {
     unsigned int mNumDataLinks;
     unsigned int mTriggerFilterTime;
     bool mTriggerFilterEnabled;
+    unsigned int mDataRateIntervalNs;
 
   public:
-    RUCreator(unsigned int layer_id, unsigned int trigger_filter_time, bool trigger_filter_enable)
+    RUCreator(unsigned int layer_id, unsigned int trigger_filter_time,
+              bool trigger_filter_enable, unsigned int data_rate_interval_ns)
       : mLayerId(layer_id)
       , mTriggerFilterTime(trigger_filter_time)
       , mTriggerFilterEnabled(trigger_filter_enable)
+      , mDataRateIntervalNs(data_rate_interval_ns)
       {
         mNumCtrlLinks = CTRL_LINKS_PER_LAYER[layer_id]/STAVES_PER_LAYER[layer_id];
         mNumDataLinks = DATA_LINKS_PER_LAYER[layer_id]/STAVES_PER_LAYER[layer_id];
@@ -55,7 +58,8 @@ namespace ITS {
                              mNumDataLinks,
                              mTriggerFilterTime,
                              mTriggerFilterEnabled,
-                             mInnerBarrelMode);
+                             mInnerBarrelMode,
+                             mDataRateIntervalNs);
     }
   };
 

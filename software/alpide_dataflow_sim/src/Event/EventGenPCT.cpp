@@ -258,7 +258,7 @@ void EventGenPCT::generateRandomEventData(unsigned int &particle_count_out,
 
     particle_count_out++;
 
-    unsigned int stave_chip_id =  + (rand_x_mm / (CHIP_WIDTH_CM*10));
+    unsigned int stave_chip_id =  rand_x_mm / (CHIP_WIDTH_CM*10);
     unsigned int stave_id = rand_y_mm / (CHIP_HEIGHT_CM*10);
     unsigned int global_chip_id = (layer*PCT::CHIPS_PER_LAYER)
       + (stave_id*PCT::CHIPS_PER_STAVE)
@@ -272,6 +272,14 @@ void EventGenPCT::generateRandomEventData(unsigned int &particle_count_out,
     unsigned int chip_y_coord = round(chip_y_mm*(N_PIXEL_ROWS/(CHIP_HEIGHT_CM*10)));
 
     PixelHit pixel(chip_x_coord, chip_y_coord, global_chip_id);
+
+
+#ifdef PIXEL_DEBUG
+    std::cerr << "EventGenPCT: generated pixel X,Y(mm): " << rand_x_mm << "," << rand_y_mm;
+    std::cerr << "  stave: " << stave_id << " stave chip id: " << stave_chip_id;
+    std::cerr << " global chip id: " << global_chip_id;
+    std::cerr << " chip X,Y: " << chip_x_coord << " " << chip_y_coord << std::endl;
+#endif
 
     if(mRandomClusterGeneration) {
       std::vector<std::shared_ptr<PixelHit>> pix_cluster = createCluster(pixel,

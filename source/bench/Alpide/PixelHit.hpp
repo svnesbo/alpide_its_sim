@@ -155,25 +155,25 @@ inline PixelHit::~PixelHit()
 
   if(mPixelReadoutStats) {
     mPixelReadoutStats->addReadoutCount(mReadoutCount);
-  }
 
 #ifdef PIXEL_DEBUG
-  if(mReadoutCount == 0 && mCol != -1 && mRow != -1) {
-    std::cerr << "@" << time_now << "ns: I was never read out: ";
-    std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
-    std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns.";
-    std::cerr << " mPixInput: " << (mPixInput ? std::to_string(mPixInputTime) : "never");
-    std::cerr << " mPixMatrix: " << (mPixMatrix ? std::to_string(mPixMatrixTime) : "never");
-    std::cerr << " mRRU: " << (mRRU ? std::to_string(mRRUTime) : "never");
-    std::cerr << " mTRU: " << (mTRU ? std::to_string(mTRUTime) : "never");
-    std::cerr << " mAlpideDataOut: " << (mAlpideDataOut ? std::to_string(mAlpideDataOutTime) : "never");
-    std::cerr << std::endl;
-  } else if(mReadoutCount > 0 && mCol != -1 && mRow != -1) {
-    std::cerr << "@" << time_now << "ns: I was read out: ";
-    std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
-    std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns " << std::endl;
-  }
+    if(mReadoutCount == 0 && mCol != -1 && mRow != -1) {
+      std::cerr << "@" << time_now << "ns: I was never read out: ";
+      std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
+      std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns.";
+      std::cerr << " mPixInput: " << (mPixInput ? std::to_string(mPixInputTime) : "never");
+      std::cerr << " mPixMatrix: " << (mPixMatrix ? std::to_string(mPixMatrixTime) : "never");
+      std::cerr << " mRRU: " << (mRRU ? std::to_string(mRRUTime) : "never");
+      std::cerr << " mTRU: " << (mTRU ? std::to_string(mTRUTime) : "never");
+      std::cerr << " mAlpideDataOut: " << (mAlpideDataOut ? std::to_string(mAlpideDataOutTime) : "never");
+      std::cerr << std::endl;
+    } else if(mReadoutCount > 0 && mCol != -1 && mRow != -1) {
+      std::cerr << "@" << time_now << "ns: I was read out: ";
+      std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
+      std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns " << std::endl;
+    }
 #endif
+  }
 }
 
 

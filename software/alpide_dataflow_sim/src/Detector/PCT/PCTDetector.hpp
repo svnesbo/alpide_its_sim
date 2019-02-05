@@ -36,7 +36,7 @@ namespace PCT {
     unsigned int mNumChips;
 
     void buildDetector(const PCTDetectorConfig& config, unsigned int trigger_filter_time,
-                       bool trigger_filter_enable);
+                       bool trigger_filter_enable, unsigned int data_rate_interval_ns);
     void verifyDetectorConfig(const PCTDetectorConfig& config) const;
 
     void triggerMethod(void);
@@ -45,7 +45,8 @@ namespace PCT {
     PCTDetector(sc_core::sc_module_name name,
                 const PCTDetectorConfig& config,
                 unsigned int trigger_filter_time,
-                bool trigger_filter_enable);
+                bool trigger_filter_enable,
+                unsigned int data_rate_interval_ns);
     void pixelInput(const std::shared_ptr<PixelHit>& pix);
     void setPixel(const std::shared_ptr<PixelHit>& p);
     void setPixel(unsigned int chip_id, unsigned int row, unsigned int col);

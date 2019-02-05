@@ -23,17 +23,20 @@ SC_HAS_PROCESS(PCTDetector);
 ///@param trigger_filter_time Readout Units will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds).
 ///@param trigger_filter_enable Enable/disable trigger filtering
+///@param data_rate_interval_ns Interval in nanoseconds over which number of data bytes should
+///                             be counted, to be used for data rate calculations
 PCTDetector::PCTDetector(sc_core::sc_module_name name,
                          const PCTDetectorConfig& config,
                          unsigned int trigger_filter_time,
-                         bool trigger_filter_enable)
+                         bool trigger_filter_enable,
+                         unsigned int data_rate_interval_ns)
   : sc_core::sc_module(name)
   , mReadoutUnits("RU", PCT::N_LAYERS)
   , mDetectorStaves("Stave", PCT::N_LAYERS)
   , mConfig(config)
 {
   verifyDetectorConfig(config);
-  buildDetector(config, trigger_filter_time, trigger_filter_enable);
+  buildDetector(config, trigger_filter_time, trigger_filter_enable, data_rate_interval_ns);
 
   SC_METHOD(triggerMethod);
   sensitive << E_trigger_in;
@@ -85,9 +88,12 @@ void PCTDetector::verifyDetectorConfig(const PCTDetectorConfig& config) const
 ///@param trigger_filter_time Readout Units will filter out triggers more closely
 ///                           spaced than this time (specified in nano seconds).
 ///@param trigger_filter_enable Enable/disable trigger filtering
+///@param data_rate_interval_ns Interval in nanoseconds over which number of data bytes should
+///                             be counted, to be used for data rate calculations
 void PCTDetector::buildDetector(const PCTDetectorConfig& config,
                                 unsigned int trigger_filter_time,
-                                bool trigger_filter_enable)
+                                bool trigger_filter_enable,
+                                unsigned int data_rate_interval_ns)
 {
   // Reserve space for all chips, even if they are not used (not allocated),
   // because we access/index them by index in the vectors, and vector access is O(1).
@@ -107,7 +113,8 @@ void PCTDetector::buildDetector(const PCTDetectorConfig& config,
                                                                              num_data_links,
                                                                              num_ctrl_links,
                                                                              trigger_filter_time,
-                                                                             trigger_filter_enable));
+                                                                             trigger_filter_enable,
+                                                                             data_rate_interval_ns));
 
     mReadoutUnits[lay_id][0].s_system_clk_in(s_system_clk_in);
 

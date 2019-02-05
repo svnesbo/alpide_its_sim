@@ -27,6 +27,7 @@ StimuliBase::StimuliBase(sc_core::sc_module_name name,
   mTriggerDelayNs = settings->value("event/trigger_delay_ns").toUInt();
   mTriggerFilterTimeNs = settings->value("event/trigger_filter_time_ns").toUInt();
   mTriggerFilterEnabled = settings->value("event/trigger_filter_enable").toBool();
+  mDataRateIntervalNs = settings->value("data_output/data_rate_interval_ns").toUInt();
 
   mChipCfg.dtu_delay_cycles = settings->value("alpide/dtu_delay").toUInt();
   mChipCfg.strobe_length_ns = mStrobeActiveNs;
@@ -53,5 +54,11 @@ StimuliBase::StimuliBase(sc_core::sc_module_name name,
   std::cout << "Matrix readout speed fast: " << (mChipCfg.matrix_readout_speed ? "true" : "false") << std::endl;
   std::cout << "Strobe extension enabled: " << (mChipCfg.strobe_extension ? "true" : "false") << std::endl;
   std::cout << "Minimum busy cycles: " << mChipCfg.min_busy_cycles << std::endl;
+  std::cout << "Data rate interval (ns): " << mDataRateIntervalNs << std::endl;
 
+
+  if(mDataRateIntervalNs == 0) {
+    std::string error_msg = "Data rate interval can not be zero.";
+    throw std::runtime_error(error_msg);
+  }
 }

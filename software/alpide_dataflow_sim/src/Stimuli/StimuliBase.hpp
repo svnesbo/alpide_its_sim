@@ -39,6 +39,7 @@ protected:
   unsigned int mTriggerDelayNs;
   unsigned int mTriggerFilterTimeNs;
   bool mTriggerFilterEnabled;
+  unsigned int mDataRateIntervalNs;
 
   AlpideConfig mChipCfg;
 

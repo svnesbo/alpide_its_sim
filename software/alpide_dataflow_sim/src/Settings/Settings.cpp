@@ -49,6 +49,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["data_output/write_vcd"] = DEFAULT_DATA_OUTPUT_WRITE_VCD;
   defaultSettings["data_output/write_vcd_clock"] = DEFAULT_DATA_OUTPUT_WRITE_VCD_CLOCK;
   defaultSettings["data_output/write_event_csv"] = DEFAULT_DATA_OUTPUT_WRITE_EVENT_CSV;
+  defaultSettings["data_output/data_rate_interval_ns"] = DEFAULT_DATA_OUTPUT_DATA_RATE_INTERVAL_NS;
 
   defaultSettings["simulation/type"] = DEFAULT_SIMULATION_TYPE;
   defaultSettings["simulation/single_chip"] = DEFAULT_SIMULATION_SINGLE_CHIP;
