@@ -121,6 +121,12 @@ class ReadoutUnitStats {
   // Index in CSV file versus header field
   std::map<unsigned int, std::string> mProtUtilIndex;
 
+  // Data rate per time interval, total for RU and for each link
+  std::map<std::string, std::vector<double>> mDataRate;
+
+  // Index in CSV file versus header field
+  std::map<unsigned int, std::string> mDataRateIndex;
+
   // Index: [trigger_id][ctrl_link_id]
   std::vector<std::vector<uint8_t>> mTriggerActions;
 
@@ -166,6 +172,7 @@ class ReadoutUnitStats {
   void readTrigActionsFile(std::string file_path_base);
   void readBusyEventFiles(std::string file_path_base);
   void readProtocolUtilizationFile(std::string file_path_base);
+  void readDataRateFile(std::string file_path_base);
   void calcDataRates(void);
   void plotEventMapCount(const char* h_name, const char* title,
                          const std::vector<std::vector<uint64_t>*> &events,
