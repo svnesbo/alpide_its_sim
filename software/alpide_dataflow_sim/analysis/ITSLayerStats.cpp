@@ -7,7 +7,9 @@
  */
 
 #include "ITSLayerStats.hpp"
+#include "Detector/PCT/PCT_constants.hpp"
 #include <iostream>
+#include <cmath>
 #include "TFile.h"
 #include "TDirectory.h"
 #include "TCanvas.h"
@@ -23,18 +25,33 @@
 ///@param num_staves Number of staves simulated in this layer
 ///@param sim_time_ns Simulation time (in nanoseconds).
 ///       Used for data rate calculations.
+///@param sim_type "pct" or "its"
 ///@param path Path to simulation data directory
 ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
-                             unsigned long sim_time_ns, const char* path)
+                             unsigned long sim_time_ns, std::string sim_type,
+                             const char* path)
   : mLayer(layer_num)
   , mNumStaves(num_staves)
   , mSimTimeNs(sim_time_ns)
   , mSimDataPath(path)
   , mNumTriggers(0)
 {
+  if(sim_type == "pct") {
+    // Several staves per RU for pCT
+    unsigned int num_staves_per_readout_unit = PCT::STAVES_PER_LAYER/PCT::READOUT_UNITS_PER_LAYER;
+    mNumReadoutUnits = ceil(num_staves/(double)num_staves_per_readout_unit);
+  } else if (sim_type == "its")
+  {
+    // Only 1 stave per RU for ITS, regardless of layer
+    mNumReadoutUnits = num_staves;
+  } else {
+    std::cout << "Error: Unknown simulation type \"" << sim_type << "\"" << std::endl;
+    exit(-1);
+  }
+
   // Create and parse RU data
-  for(unsigned int stave = 0; stave < mNumStaves; stave++) {
-    mRUStats.emplace_back(layer_num, stave, sim_time_ns, path);
+  for(unsigned int RU_num = 0; RU_num < mNumReadoutUnits; RU_num++) {
+    mRUStats.emplace_back(layer_num, RU_num, sim_time_ns, path);
     mProtocolRatesMbps.push_back(mRUStats.back().getProtocolRateMbps());
     mDataRatesMbps.push_back(mRUStats.back().getDataRateMbps());
   }
@@ -53,11 +70,11 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
   gDirectory->mkdir(Form("Layer_%i", mLayer));
 
   // Create and parse RU data, and generate plots in TFile
-  for(unsigned int stave = 0; stave < mNumStaves; stave++) {
+  for(unsigned int RU_num = 0; RU_num < mNumReadoutUnits; RU_num++) {
     // Keep changing back to this layer's directory,
     // because the plotRU() function changes the current directory.
     current_dir->cd(Form("Layer_%i", mLayer));
-    mRUStats[stave].plotRU(create_png, create_pdf);
+    mRUStats[RU_num].plotRU(create_png, create_pdf);
   }
 
   current_dir->cd(Form("Layer_%i", mLayer));
@@ -97,17 +114,17 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
     double trig_sent_excl_filter_coverage = 0.0;
     double trig_readout_coverage = 0.0;
     double trig_readout_excl_filter_coverage = 0.0;
-    for(unsigned int stave = 0; stave < mNumStaves; stave++) {
-      trig_sent_coverage += mRUStats[stave].getTrigSentCoverage(trigger_id);
-      trig_sent_excl_filter_coverage += mRUStats[stave].getTrigSentExclFilteringCoverage(trigger_id);
-      trig_readout_coverage += mRUStats[stave].getTrigReadoutCoverage(trigger_id);
-      trig_readout_excl_filter_coverage += mRUStats[stave].getTrigReadoutExclFilteringCoverage(trigger_id);
+    for(unsigned int RU_num = 0; RU_num < mNumReadoutUnits; RU_num++) {
+      trig_sent_coverage += mRUStats[RU_num].getTrigSentCoverage(trigger_id);
+      trig_sent_excl_filter_coverage += mRUStats[RU_num].getTrigSentExclFilteringCoverage(trigger_id);
+      trig_readout_coverage += mRUStats[RU_num].getTrigReadoutCoverage(trigger_id);
+      trig_readout_excl_filter_coverage += mRUStats[RU_num].getTrigReadoutExclFilteringCoverage(trigger_id);
     }
 
-    mTrigSentCoverage[trigger_id] = trig_sent_coverage/mNumStaves;
-    mTrigSentExclFilteringCoverage[trigger_id] = trig_sent_excl_filter_coverage/mNumStaves;
-    mTrigReadoutCoverage[trigger_id] = trig_readout_coverage/mNumStaves;
-    mTrigReadoutExclFilteringCoverage[trigger_id] = trig_readout_excl_filter_coverage/mNumStaves;
+    mTrigSentCoverage[trigger_id] = trig_sent_coverage/mNumReadoutUnits;
+    mTrigSentExclFilteringCoverage[trigger_id] = trig_sent_excl_filter_coverage/mNumReadoutUnits;
+    mTrigReadoutCoverage[trigger_id] = trig_readout_coverage/mNumReadoutUnits;
+    mTrigReadoutExclFilteringCoverage[trigger_id] = trig_readout_excl_filter_coverage/mNumReadoutUnits;
 
     mAvgTrigDistrEfficiency += mTrigSentExclFilteringCoverage[trigger_id];
     mAvgTrigReadoutEfficiency += mTrigReadoutExclFilteringCoverage[trigger_id];
@@ -204,35 +221,35 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
                       Form("Trigger Distribution Efficiency - Layer %i",
                            mLayer),
                       mNumTriggers,0,mNumTriggers,
-                      mNumStaves, -0.5, mNumStaves-0.5);
+                      mNumReadoutUnits, -0.5, mNumReadoutUnits-0.5);
   TH2D* h6 = new TH2D(Form("h_trig_ctrl_link_excl_filter_efficiency_layer_%i", mLayer),
                       Form("Trigger Distribution Efficiency Excluding Filtering - Layer %i",
                            mLayer),
                       mNumTriggers,0,mNumTriggers,
-                      mNumStaves, -0.5, mNumStaves-0.5);
+                      mNumReadoutUnits, -0.5, mNumReadoutUnits-0.5);
   TH2D* h7 = new TH2D(Form("h_trig_readout_efficiency_layer_%i", mLayer),
                       Form("Trigger Readout Efficiency - Layer %i", mLayer),
                       mNumTriggers,0,mNumTriggers,
-                      mNumStaves, -0.5, mNumStaves-0.5);
+                      mNumReadoutUnits, -0.5, mNumReadoutUnits-0.5);
   TH2D* h8 = new TH2D(Form("h_trig_readout_excl_filter_efficiency_layer_%i", mLayer),
                       Form("Trigger Readout Efficiency Excluding Filtering - Layer %i",
                            mLayer),
                       mNumTriggers,0,mNumTriggers,
-                      mNumStaves, -0.5, mNumStaves-0.5);
+                      mNumReadoutUnits, -0.5, mNumReadoutUnits-0.5);
 
-  for(unsigned int stave = 0; stave < mNumStaves; stave++) {
+  for(unsigned int RU_num = 0; RU_num < mNumReadoutUnits; RU_num++) {
     for(uint64_t trigger_id = 0; trigger_id < mNumTriggers; trigger_id++) {
-      h5->Fill(trigger_id, stave, mRUStats[stave].getTrigSentCoverage(trigger_id));
-      h6->Fill(trigger_id, stave, mRUStats[stave].getTrigSentExclFilteringCoverage(trigger_id));
-      h7->Fill(trigger_id, stave, mRUStats[stave].getTrigReadoutCoverage(trigger_id));
-      h8->Fill(trigger_id, stave, mRUStats[stave].getTrigReadoutExclFilteringCoverage(trigger_id));
+      h5->Fill(trigger_id, RU_num, mRUStats[RU_num].getTrigSentCoverage(trigger_id));
+      h6->Fill(trigger_id, RU_num, mRUStats[RU_num].getTrigSentExclFilteringCoverage(trigger_id));
+      h7->Fill(trigger_id, RU_num, mRUStats[RU_num].getTrigReadoutCoverage(trigger_id));
+      h8->Fill(trigger_id, RU_num, mRUStats[RU_num].getTrigReadoutExclFilteringCoverage(trigger_id));
     }
   }
 
-  h5->GetYaxis()->SetTitle("Stave/RU Number");
-  h6->GetYaxis()->SetTitle("Stave/RU Number");
-  h7->GetYaxis()->SetTitle("Stave/RU Number");
-  h8->GetYaxis()->SetTitle("Stave/RU Number");
+  h5->GetYaxis()->SetTitle("RU Number");
+  h6->GetYaxis()->SetTitle("RU Number");
+  h7->GetYaxis()->SetTitle("RU Number");
+  h8->GetYaxis()->SetTitle("RU Number");
   h5->GetXaxis()->SetTitle("Trigger ID");
   h6->GetXaxis()->SetTitle("Trigger ID");
   h7->GetXaxis()->SetTitle("Trigger ID");
@@ -243,10 +260,10 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
   h7->SetStats(false);
   h8->SetStats(false);
 
-  h5->GetYaxis()->SetNdivisions(mNumStaves);
-  h6->GetYaxis()->SetNdivisions(mNumStaves);
-  h7->GetYaxis()->SetNdivisions(mNumStaves);
-  h8->GetYaxis()->SetNdivisions(mNumStaves);
+  h5->GetYaxis()->SetNdivisions(mNumReadoutUnits);
+  h6->GetYaxis()->SetNdivisions(mNumReadoutUnits);
+  h7->GetYaxis()->SetNdivisions(mNumReadoutUnits);
+  h8->GetYaxis()->SetNdivisions(mNumReadoutUnits);
 
 
   if(create_png) {
@@ -299,27 +316,27 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
                       Form("Busy Link Count - Layer %i",
                            mLayer),
                       mNumTriggers,0,mNumTriggers-1,
-                      mNumStaves, -0.5, mNumStaves-0.5);
+                      mNumReadoutUnits, -0.5, mNumReadoutUnits-0.5);
   TH2D* h10 = new TH2D(Form("h_busyv_link_count_map_layer_%i", mLayer),
                       Form("Busy Violation Link Count - Layer %i",
                            mLayer),
                       mNumTriggers,0,mNumTriggers-1,
-                      mNumStaves, -0.5, mNumStaves-0.5);
+                      mNumReadoutUnits, -0.5, mNumReadoutUnits-0.5);
   TH2D* h11 = new TH2D(Form("h_flush_link_count_map_layer_%i", mLayer),
                        Form("Flushed Incomplete Link Count - Layer %i",
                             mLayer),
                        mNumTriggers,0,mNumTriggers-1,
-                       mNumStaves, -0.5, mNumStaves-0.5);
+                       mNumReadoutUnits, -0.5, mNumReadoutUnits-0.5);
   TH2D* h12 = new TH2D(Form("h_abort_link_count_map_layer_%i", mLayer),
                        Form("Readout Abort Link Count - Layer %i",
                             mLayer),
                        mNumTriggers,0,mNumTriggers-1,
-                       mNumStaves, -0.5, mNumStaves-0.5);
+                       mNumReadoutUnits, -0.5, mNumReadoutUnits-0.5);
   TH2D* h13 = new TH2D(Form("h_fatal_link_count_map_layer_%i", mLayer),
                        Form("Fatal Mode Link Count - Layer %i",
                             mLayer),
                        mNumTriggers,0,mNumTriggers-1,
-                       mNumStaves, -0.5, mNumStaves-0.5);
+                       mNumReadoutUnits, -0.5, mNumReadoutUnits-0.5);
 
   // Resize and initialize vectors with counts of busy and busyv
   mBusyLinkCount.clear();
@@ -333,25 +350,25 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
   mAbortLinkCount.resize(mNumTriggers, 0);
   mFatalLinkCount.resize(mNumTriggers, 0);
 
-  for(unsigned int stave = 0; stave < mNumStaves; stave++) {
-    std::vector<unsigned int> RU_busy_link_count = mRUStats[stave].getBusyLinkCount();
-    std::vector<unsigned int> RU_busyv_link_count = mRUStats[stave].getBusyVLinkCount();
-    std::vector<unsigned int> RU_flush_link_count = mRUStats[stave].getFlushLinkCount();
-    std::vector<unsigned int> RU_abort_link_count = mRUStats[stave].getAbortLinkCount();
-    std::vector<unsigned int> RU_fatal_link_count = mRUStats[stave].getFatalLinkCount();
+  for(unsigned int RU_num = 0; RU_num < mNumReadoutUnits; RU_num++) {
+    std::vector<unsigned int> RU_busy_link_count = mRUStats[RU_num].getBusyLinkCount();
+    std::vector<unsigned int> RU_busyv_link_count = mRUStats[RU_num].getBusyVLinkCount();
+    std::vector<unsigned int> RU_flush_link_count = mRUStats[RU_num].getFlushLinkCount();
+    std::vector<unsigned int> RU_abort_link_count = mRUStats[RU_num].getAbortLinkCount();
+    std::vector<unsigned int> RU_fatal_link_count = mRUStats[RU_num].getFatalLinkCount();
 
     if(RU_busy_link_count.size() != mNumTriggers || RU_busyv_link_count.size() != mNumTriggers) {
-      std::cout << "Error: Number of triggers in busy/busyv link count vectors from RU " << stave;
+      std::cout << "Error: Number of triggers in busy/busyv link count vectors from RU " << RU_num;
       std::cout << " does not matched expected number of triggers. " << std::endl;
       exit(-1);
     }
 
     for(uint64_t trigger_id = 0; trigger_id < mNumTriggers; trigger_id++) {
-      h9->Fill(trigger_id, stave, RU_busy_link_count[trigger_id]);
-      h10->Fill(trigger_id, stave, RU_busyv_link_count[trigger_id]);
-      h11->Fill(trigger_id, stave, RU_flush_link_count[trigger_id]);
-      h12->Fill(trigger_id, stave, RU_abort_link_count[trigger_id]);
-      h13->Fill(trigger_id, stave, RU_fatal_link_count[trigger_id]);
+      h9->Fill(trigger_id, RU_num, RU_busy_link_count[trigger_id]);
+      h10->Fill(trigger_id, RU_num, RU_busyv_link_count[trigger_id]);
+      h11->Fill(trigger_id, RU_num, RU_flush_link_count[trigger_id]);
+      h12->Fill(trigger_id, RU_num, RU_abort_link_count[trigger_id]);
+      h13->Fill(trigger_id, RU_num, RU_fatal_link_count[trigger_id]);
 
       mBusyLinkCount[trigger_id] += RU_busy_link_count[trigger_id];
       mBusyVLinkCount[trigger_id] += RU_busyv_link_count[trigger_id];
@@ -367,11 +384,11 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
     }
   }
 
-  h9->GetYaxis()->SetTitle("Stave/RU Number");
-  h10->GetYaxis()->SetTitle("Stave/RU Number");
-  h11->GetYaxis()->SetTitle("Stave/RU Number");
-  h12->GetYaxis()->SetTitle("Stave/RU Number");
-  h13->GetYaxis()->SetTitle("Stave/RU Number");
+  h9->GetYaxis()->SetTitle("RU Number");
+  h10->GetYaxis()->SetTitle("RU Number");
+  h11->GetYaxis()->SetTitle("RU Number");
+  h12->GetYaxis()->SetTitle("RU Number");
+  h13->GetYaxis()->SetTitle("RU Number");
   h9->GetXaxis()->SetTitle("Trigger ID");
   h10->GetXaxis()->SetTitle("Trigger ID");
   h11->GetXaxis()->SetTitle("Trigger ID");
@@ -384,11 +401,11 @@ void ITSLayerStats::plotLayer(bool create_png, bool create_pdf)
   h12->SetStats(false);
   h13->SetStats(false);
 
-  h9->GetYaxis()->SetNdivisions(mNumStaves);
-  h10->GetYaxis()->SetNdivisions(mNumStaves);
-  h11->GetYaxis()->SetNdivisions(mNumStaves);
-  h12->GetYaxis()->SetNdivisions(mNumStaves);
-  h13->GetYaxis()->SetNdivisions(mNumStaves);
+  h9->GetYaxis()->SetNdivisions(mNumReadoutUnits);
+  h10->GetYaxis()->SetNdivisions(mNumReadoutUnits);
+  h11->GetYaxis()->SetNdivisions(mNumReadoutUnits);
+  h12->GetYaxis()->SetNdivisions(mNumReadoutUnits);
+  h13->GetYaxis()->SetNdivisions(mNumReadoutUnits);
 
   if(create_png) {
     h9->Draw("COLZ");

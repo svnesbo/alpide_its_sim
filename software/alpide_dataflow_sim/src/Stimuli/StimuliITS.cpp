@@ -283,8 +283,11 @@ void StimuliITS::writeStimuliInfo(void) const
     return;
   }
 
-  info_file << "Number of physics events requested: " << mNumEvents << std::endl;
-
-  info_file << "Number of physics events simulated: ";
+  info_file << "Number of triggered events requested: " << mNumEvents << std::endl;
+  info_file << "Number of triggered events simulated: ";
   info_file << mEventGen->getTriggeredEventCount() << std::endl;
+
+  info_file << "Number of untriggered events requested: " << 0 << std::endl;
+  info_file << "Number of untriggered events simulated: ";
+  info_file << mEventGen->getUntriggeredEventCount() << std::endl;
 }

@@ -12,28 +12,28 @@
 #include <TH1F.h>
 #include <TH1I.h>
 #include "DetectorStats.hpp"
-#include "../src/settings/Settings.hpp"
-#include "../src/ITS/ITS_config.hpp"
-
+#include "../src/Settings/Settings.hpp"
+#include "../src/Detector/ITS/ITSDetectorConfig.hpp"
+#include "../src/Detector/PCT/PCTDetectorConfig.hpp"
 
 const std::string csv_delim(";");
 
 const float chip_width_cm = 3.0;
 const float chip_height_cm = 1.5;
 
-unsigned long get_num_events_simulated(std::string sim_run_data_path);
+unsigned long get_num_triggered_events_simulated(std::string sim_run_data_path);
+unsigned long get_num_untriggered_events_simulated(std::string sim_run_data_path);
 std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
+                                         std::string filename_csv,
                                          bool create_png, bool create_pdf);
 
 
 
-int process_readout_trigger_stats(const char* sim_run_data_path,
-                                  bool create_png,
-                                  bool create_pdf)
+int process_its_readout_trigger_stats(const char* sim_run_data_path,
+                                      bool create_png,
+                                      bool create_pdf,
+                                      const QSettings* sim_settings)
 {
-  QString settings_file_path = QString(sim_run_data_path) + "/settings.txt";
-  QSettings *sim_settings = new QSettings(settings_file_path, QSettings::IniFormat);
-
   unsigned int event_rate_ns = sim_settings->value("event/average_event_rate_ns").toUInt();
 
   // Round event rate to nearest kilohertz
@@ -43,7 +43,7 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
 
   bool single_chip_mode = sim_settings->value("simulation/single_chip").toBool();
 
-  ITS::detectorConfig det_config;
+  ITS::ITSDetectorConfig det_config;
 
   det_config.layer[0].num_staves = sim_settings->value("its/layer0_num_staves").toInt();
   det_config.layer[1].num_staves = sim_settings->value("its/layer1_num_staves").toInt();
@@ -70,19 +70,22 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
   std::vector<uint64_t> event_time_vec;
 
   if(event_csv_available) {
-    event_time_vec = process_event_data(sim_run_data_path, create_png, create_pdf);
+    event_time_vec = process_event_data(sim_run_data_path, "physics_events_data.csv", create_png, create_pdf);
   }
 
-  unsigned long num_physics_events = get_num_events_simulated(sim_run_data_path);
+  unsigned long num_physics_events = get_num_triggered_events_simulated(sim_run_data_path);
   unsigned long sim_time_ns = event_rate_ns*num_physics_events;
 
   std::cout << "Num physics_events: " << num_physics_events << std::endl;
   std::cout << "Event rate (ns): " << event_rate_ns << std::endl;
   std::cout << "Sim time (ns): " << sim_time_ns << std::endl;
 
+  std::map<std::string, double> sim_params;
+  sim_params["event_rate_khz"] = event_rate_khz;
 
-  DetectorStats its_detector_stats(det_config, event_rate_khz,
-                                   sim_time_ns, sim_run_data_path);
+  DetectorStats its_detector_stats(det_config, sim_params,
+                                   sim_time_ns, "its",
+                                   sim_run_data_path);
 
   its_detector_stats.plotDetector(create_png, create_pdf);
 
@@ -90,10 +93,84 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
 }
 
 
-///@brief Get the number of physics events actually simulated.
+int process_pct_readout_trigger_stats(const char* sim_run_data_path,
+                                      bool create_png,
+                                      bool create_pdf,
+                                      const QSettings* sim_settings)
+{
+  PCT::PCTDetectorConfig det_config;
+
+  unsigned long time_frame_length_ns = sim_settings->value("pct/time_frame_length_ns").toInt();
+
+  det_config.num_layers = sim_settings->value("pct/num_layers").toInt();
+
+  std::cout << "Number of layers " << det_config.num_layers << std::endl;
+
+  for(unsigned int lay_num = 0; lay_num < det_config.layer.size(); lay_num++) {
+    if(lay_num < det_config.num_layers)
+      det_config.layer[lay_num].num_staves = sim_settings->value("pct/num_staves_per_layer").toInt();
+    else
+      det_config.layer[lay_num].num_staves = 0;
+
+    std::cout << "Staves layer " << lay_num << ": " << det_config.layer[lay_num].num_staves << std::endl;
+  }
+
+  bool single_chip_mode = sim_settings->value("simulation/single_chip").toBool();
+  std::cout << "Single chip mode: " << (single_chip_mode ? "true" : "false") << std::endl;
+
+  bool event_csv_available = sim_settings->value("data_output/write_event_csv").toBool();
+  std::cout << "Event CSV file available: " << (event_csv_available ? "true" : "false") << std::endl;
+
+  gROOT->SetBatch(kTRUE);
+
+  std::vector<uint64_t> event_time_vec;
+
+  if(event_csv_available) {
+    event_time_vec = process_event_data(sim_run_data_path, "pct_events_data.csv", create_png, create_pdf);
+  }
+
+  unsigned long num_event_frames = get_num_untriggered_events_simulated(sim_run_data_path);
+  unsigned long sim_time_ns = time_frame_length_ns*num_event_frames;
+
+  std::map<std::string, double> sim_params;
+  sim_params["random_particles_per_s"] = sim_settings->value("pct/random_particles_per_s").toDouble();
+
+  DetectorStats pct_detector_stats(det_config, sim_params,
+                                   sim_time_ns, "pct",
+                                   sim_run_data_path);
+
+  pct_detector_stats.plotDetector(create_png, create_pdf);
+
+  return 0;
+}
+
+
+int process_readout_trigger_stats(const char* sim_run_data_path,
+                                  bool create_png,
+                                  bool create_pdf)
+{
+  QString settings_file_path = QString(sim_run_data_path) + "/settings.txt";
+  QSettings *sim_settings = new QSettings(settings_file_path, QSettings::IniFormat);
+
+  QString sim_type = sim_settings->value("simulation/type").toString();
+
+  if(sim_type == "its") {
+    process_its_readout_trigger_stats(sim_run_data_path,
+                                      create_png,
+                                      create_pdf,
+                                      sim_settings);
+  } else {
+    process_pct_readout_trigger_stats(sim_run_data_path,
+                                      create_png,
+                                      create_pdf,
+                                      sim_settings);
+  }
+}
+
+///@brief Get the number of triggered events actually simulated.
 ///       Will exit if simulation_info.txt file can not be opened,
 ///       or if there is a problem reading the file.
-unsigned long get_num_events_simulated(std::string sim_run_data_path)
+unsigned long get_num_triggered_events_simulated(std::string sim_run_data_path)
 {
   std::string sim_info_filename = sim_run_data_path + "/simulation_info.txt";
 
@@ -103,18 +180,56 @@ unsigned long get_num_events_simulated(std::string sim_run_data_path)
     exit(-1);
   }
 
-  // Number of events simulated should be on the second line
+  // Number of triggered events simulated should be on the second line
   std::string events_simulated_str;
   std::getline(sim_info_file, events_simulated_str);
   std::getline(sim_info_file, events_simulated_str);
 
-  if(events_simulated_str.find("Number of physics events simulated: ") == std::string::npos) {
-    std::cout << "Error: number of physics events simulated not found in ";
+  if(events_simulated_str.find("Number of triggered events simulated: ") == std::string::npos) {
+    std::cout << "Error: number of triggered events simulated not found in ";
     std::cout << sim_info_filename << std::endl;
     exit(-1);
   }
 
-  size_t text_len = strlen("Number of physics events simulated: ");
+  size_t text_len = strlen("Number of triggered events simulated: ");
+  std::string num_events_str = events_simulated_str.substr(text_len);
+  unsigned long num_events = std::stoul(num_events_str);
+  if(num_events == 0) {
+    std::cout << "Error: no events simulated?" << std::endl;
+    exit(-1);
+  }
+
+  return num_events;
+}
+
+
+///@brief Get the number of untriggered events actually simulated.
+///       Will exit if simulation_info.txt file can not be opened,
+///       or if there is a problem reading the file.
+unsigned long get_num_untriggered_events_simulated(std::string sim_run_data_path)
+{
+  std::string sim_info_filename = sim_run_data_path + "/simulation_info.txt";
+
+  std::ifstream sim_info_file(sim_info_filename);
+  if(!sim_info_file.is_open()) {
+    std::cerr << "Error opening file " << sim_info_filename << std::endl;
+    exit(-1);
+  }
+
+  // Number of untriggered events simulated should be on the fourth line
+  std::string events_simulated_str;
+  std::getline(sim_info_file, events_simulated_str);
+  std::getline(sim_info_file, events_simulated_str);
+  std::getline(sim_info_file, events_simulated_str);
+  std::getline(sim_info_file, events_simulated_str);
+
+  if(events_simulated_str.find("Number of untriggered events simulated: ") == std::string::npos) {
+    std::cout << "Error: number of untriggered events simulated not found in ";
+    std::cout << sim_info_filename << std::endl;
+    exit(-1);
+  }
+
+  size_t text_len = strlen("Number of untriggered events simulated: ");
   std::string num_events_str = events_simulated_str.substr(text_len);
   unsigned long num_events = std::stoul(num_events_str);
   if(num_events == 0) {
@@ -133,18 +248,20 @@ unsigned long get_num_events_simulated(std::string sim_run_data_path)
 ///       of columns after the first column, and a histogram plot of multiplicity will be
 ///       generated for each column (one can plot multiplicity for each chip for instance).
 ///@param sim_run_data_path Path to directory with simulation run data
+///@param filename_csv Filename of csv file (including .csv extension)
 ///@param create_png Set to true to save histograms as png files
 ///@param create_pdf Set to true to save histograms as pdf files
 ///@return Vector with time to next event for, where index corresponds to event number.
 ///        Empty vector is returned if something went wrong.
 std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
+                                         std::string filename_csv,
                                          bool create_png, bool create_pdf)
 {
   std::vector<uint64_t> event_time_vec;
-
-  std::string csv_filename = sim_run_data_path + "/physics_events_data.csv";
-  std::string root_filename = sim_run_data_path + "/physics_events_data.root";
-  std::string summary_filename = sim_run_data_path + "/summary.txt";
+  std::string csv_filename = sim_run_data_path + "/" + filename_csv;
+  std::string filename_base = csv_filename.substr(0, csv_filename.find(".csv"));
+  std::string root_filename =  filename_base + ".root";
+  std::string summary_filename = filename_base + "_summary.txt";
 
   TFile *f = new TFile(root_filename.c_str(), "recreate");
 

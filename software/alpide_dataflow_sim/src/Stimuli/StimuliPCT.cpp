@@ -225,8 +225,10 @@ void StimuliPCT::writeStimuliInfo(void) const
     return;
   }
 
-  info_file << "Number of event frames requested: " << mNumEvents << std::endl;
-
-  info_file << "Number of event frames simulated: ";
+  // Analysis scripts expects the file to have this format
+  info_file << "Number of triggered events requested: " << 0 << std::endl;
+  info_file << "Number of triggered events simulated: " << 0 << std::endl;
+  info_file << "Number of untriggered events requested: " << 0 << std::endl;
+  info_file << "Number of untriggered events simulated: ";
   info_file << mEventGen->getUntriggeredEventCount() << std::endl;
 }

@@ -20,16 +20,19 @@
 
 
 ///@brief Constructor for DetectorStats class.
-///@param event_rate_khz Interaction event rate in kilohertz
+///@param sim_params Simulation parameters that should be stored in root file.
+///                  Key: name of parameter, value: simulation parameter value
 ///@param sim_time_ns Simulation time (in nanoseconds).
 ///                   Used for data rate calculations.
+///@param sim_type "pct" or "its"
 ///@param sim_run_data_path Path to directory with simulation data.
-DetectorStats::DetectorStats(ITS::detectorConfig config,
-                             unsigned int event_rate_khz,
+DetectorStats::DetectorStats(Detector::DetectorConfigBase config,
+                             std::map<std::string, double> sim_params,
                              unsigned long sim_time_ns,
+                             std::string sim_type,
                              const char* sim_run_data_path)
   : mConfig(config)
-  , mEventRateKhz(event_rate_khz)
+  , mSimParams(sim_params)
   , mSimTimeNs(sim_time_ns)
   , mSimRunDataPath(sim_run_data_path)
 {
@@ -37,11 +40,12 @@ DetectorStats::DetectorStats(ITS::detectorConfig config,
 
   mLayerStats.resize(ITS::N_LAYERS, nullptr);
 
-  for(unsigned int layer_num = 0; layer_num < 7; layer_num++) {
+  for(unsigned int layer_num = 0; layer_num < config.num_layers; layer_num++) {
     if(config.layer[layer_num].num_staves > 0) {
       mLayerStats[layer_num] = new ITSLayerStats(layer_num,
                                                  config.layer[layer_num].num_staves,
                                                  sim_time_ns,
+                                                 sim_type,
                                                  sim_run_data_path);
       mNumLayers++;
     }
@@ -659,10 +663,11 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
 
 
-
-
-  TNamed event_rate("event_rate_khz", Form("%d", mEventRateKhz));
-  event_rate.Write();
+  // Write simulation parameters to root file
+  for(auto sim_param_it = mSimParams.begin(); sim_param_it != mSimParams.end(); sim_param_it++) {
+    TNamed sim_param(sim_param_it->first.c_str(), Form("%f", sim_param_it->second));
+    sim_param.Write();
+  }
 
   delete h1;
   delete h2;
