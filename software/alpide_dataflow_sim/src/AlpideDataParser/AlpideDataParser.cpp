@@ -165,10 +165,6 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id, uint
 
   mBusyStatusChanged = false;
 
-  std::cout << "time_now_ns: " << time_now_ns << std::endl;
-  std::cout << "mDataIntervalNs: " << mDataIntervalNs << std::endl;
-  std::cout << "time_now_ns/mDataIntervalNs: " << time_now_ns/mDataIntervalNs << std::endl;
-
   // Create new frame/event?
   switch(mCurrentDwType) {
   case ALPIDE_CHIP_HEADER:

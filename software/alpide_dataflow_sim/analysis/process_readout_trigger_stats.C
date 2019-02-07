@@ -125,9 +125,11 @@ int process_pct_readout_trigger_stats(const char* sim_run_data_path,
 
   std::vector<uint64_t> event_time_vec;
 
+  /*
   if(event_csv_available) {
     event_time_vec = process_event_data(sim_run_data_path, "pct_events_data.csv", create_png, create_pdf);
   }
+  */
 
   unsigned long num_event_frames = get_num_untriggered_events_simulated(sim_run_data_path);
   unsigned long sim_time_ns = time_frame_length_ns*num_event_frames;
@@ -405,7 +407,7 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
     c1->Print(Form("%s/pdf/event_rate.pdf", sim_run_data_path.c_str()), "pdf");
 
   summary_file << "Mean delta t: " << h0->GetMean() << " ns" << std::endl;
-  summary_file << "Average event rate: " << (int(1.0E9) / h0->GetMean()) / 1000 << " kHz" << std::endl;
+  summary_file << "Average event rate: " << (int(1.0E9) / h0->GetMean()) / 1000.0 << " kHz" << std::endl;
 
 
 

@@ -128,15 +128,18 @@ void EventGenPCT::addCsvEventLine(uint64_t time_ns,
 
 void EventGenPCT::initRandomHitGen(const QSettings* settings)
 {
-  unsigned int particles_per_second = settings->value("pct/random_particles_per_s").toDouble();
+  double particles_per_second_mean = settings->value("pct/random_particles_per_s_mean").toDouble();
+  double particles_per_second_stddev = settings->value("pct/random_particles_per_s_stddev").toDouble();
   unsigned int beam_std_dev_mm = settings->value("pct/random_beam_stddev_mm").toDouble();
 
   // Initialize random number distributions
   mRandHitXDist = new boost::random::normal_distribution<double>(0, beam_std_dev_mm);
   mRandHitYDist = new boost::random::normal_distribution<double>(0, beam_std_dev_mm);
 
-  double particles_per_timeframe_mean = (mEventTimeFrameLength_ns/1E9) * particles_per_second;
-  mRandParticlesPerEventFrameDist = new boost::random::poisson_distribution<uint32_t,double>(particles_per_timeframe_mean);
+  double particles_per_timeframe_mean = (mEventTimeFrameLength_ns/1E9) * particles_per_second_mean;
+  double particles_per_timeframe_stddev = (mEventTimeFrameLength_ns/1E9) * particles_per_second_stddev;
+  mRandParticlesPerEventFrameDist = new boost::random::normal_distribution<double>(particles_per_timeframe_mean,
+                                                                                   particles_per_timeframe_stddev);
 
   // Initialize random number generators
   // If seed was set to 0 in settings file, initialize with a non-deterministic
@@ -235,7 +238,12 @@ void EventGenPCT::generateRandomEventData(unsigned int &particle_count_out,
   // Clear old hit data
   mEventHitVector.clear();
 
-  unsigned int num_particles_total = (*mRandParticlesPerEventFrameDist)(mRandParticleCountGen);
+  double rand_particle_count = (*mRandParticlesPerEventFrameDist)(mRandParticleCountGen);
+
+  if(rand_particle_count < 0)
+    rand_particle_count = 0;
+
+  unsigned int num_particles_total = (unsigned int)rand_particle_count;
 
   std::cout << "EventGenPCT: generating " << num_particles_total << " particles" << std::endl;
 

@@ -40,8 +40,11 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
   std::cout << "Length of event time frame (ns): ";
   std::cout << settings->value("pct/time_frame_length_ns").toUInt() << std::endl;
 
-  std::cout << "Number of particles generated with random generator per second: ";
-  std::cout << settings->value("pct/random_particles_per_s").toDouble() << std::endl;
+  std::cout << "Number of particles generated with random generator per second (mean): ";
+  std::cout << settings->value("pct/random_particles_per_s_mean").toDouble() << std::endl;
+
+  std::cout << "Number of particles generated with random generator per second (stddev): ";
+  std::cout << settings->value("pct/random_particles_per_s_stddev").toDouble() << std::endl;
 
   std::cout << "Standard deviation for beam coords with random generator (mm): ";
   std::cout << settings->value("pct/random_beam_stddev_mm").toDouble() << std::endl;

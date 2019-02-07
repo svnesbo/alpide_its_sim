@@ -87,7 +87,8 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["pct/num_staves_per_layer"] = DEFAULT_PCT_NUM_STAVES_PER_LAYER;
   defaultSettings["pct/monte_carlo_file_path"] = DEFAULT_PCT_MONTE_CARLO_FILE_PATH;
   defaultSettings["pct/time_frame_length_ns"] = DEFAULT_PCT_TIME_FRAME_LENGTH_NS;
-  defaultSettings["pct/random_particles_per_s"] = DEFAULT_PCT_RANDOM_PARTICLES_PER_S;
+  defaultSettings["pct/random_particles_per_s_mean"] = DEFAULT_PCT_RANDOM_PARTICLES_PER_S_MEAN;
+  defaultSettings["pct/random_particles_per_s_stddev"] = DEFAULT_PCT_RANDOM_PARTICLES_PER_S_STDDEV;
   defaultSettings["pct/random_beam_stddev_mm"] = DEFAULT_PCT_RANDOM_BEAM_STDDEV_MM;
   defaultSettings["pct/beam_start_coord_x_mm"] = DEFAULT_PCT_BEAM_START_COORD_X_MM;
   defaultSettings["pct/beam_start_coord_y_mm"] = DEFAULT_PCT_BEAM_START_COORD_Y_MM;

@@ -63,7 +63,7 @@ private:
   boost::random::mt19937 mRandHitCoordsXGen;
   boost::random::mt19937 mRandHitCoordsYGen;
 
-  boost::random::poisson_distribution<uint32_t, double> *mRandParticlesPerEventFrameDist;
+  boost::random::normal_distribution<double> *mRandParticlesPerEventFrameDist;
   boost::random::normal_distribution<double> *mRandHitXDist, *mRandHitYDist;
 
   void initCsvEventFileHeader(const QSettings* settings);
