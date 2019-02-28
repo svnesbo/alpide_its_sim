@@ -94,8 +94,8 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["pct/beam_start_coord_y_mm"] = DEFAULT_PCT_BEAM_START_COORD_Y_MM;
   defaultSettings["pct/beam_end_coord_x_mm"] = DEFAULT_PCT_BEAM_END_COORD_X_MM;
   defaultSettings["pct/beam_end_coord_y_mm"] = DEFAULT_PCT_BEAM_END_COORD_Y_MM;
-  defaultSettings["pct/beam_speed_x_mm_per_us"] = DEFAULT_PCT_BEAM_SPEED_X_MM_PER_US;
-  defaultSettings["pct/beam_step_y_mm"] = DEFAULT_PCT_BEAM_STEP_Y_MM;
+  defaultSettings["pct/beam_step_mm"] = DEFAULT_PCT_BEAM_STEP_MM;
+  defaultSettings["pct/beam_time_per_step_us"] = DEFAULT_PCT_BEAM_TIME_PER_STEP_US;
 
   defaultSettings["event/random_hit_generation"] = DEFAULT_EVENT_RANDOM_HIT_GENERATION;
   defaultSettings["event/random_cluster_generation"] = DEFAULT_EVENT_RANDOM_CLUSTER_GENERATION;

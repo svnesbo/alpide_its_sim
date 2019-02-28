@@ -45,8 +45,10 @@ private:
   double mBeamEndCoordX_mm;
   double mBeamEndCoordY_mm;
 
-  double mBeamSpeedX_mm_per_us;
-  double mBeamStepY_mm;
+  double mBeamStep_mm;
+  double mBeamTimePerStep_us;
+
+  int mBeamStepCounter = 0;
 
   /// Beam is moving to the right when true
   bool mBeamDirectionRight = true;

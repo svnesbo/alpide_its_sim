@@ -1,5 +1,5 @@
 [General]
-output_dir_prefix=sim_output_pixhit-new
+output_dir_prefix=sim_output_new_pct_stuff
 verbose=false
 
 [alpide]
@@ -15,6 +15,7 @@ strobe_extension_enable=false
 write_event_csv=true
 write_vcd=false
 write_vcd_clock=false
+data_rate_interval_ns=20000
 
 [event]
 average_event_rate_ns=20000
@@ -24,11 +25,11 @@ qed_noise_feed_rate_ns=5000
 qed_noise_input=true
 qed_noise_path=config/monte_carlo_events/pp
 qed_noise_rate_ns=250
-random_cluster_generation=false
-random_cluster_size_mean=4
-random_cluster_size_stddev=2
+random_cluster_generation=true
+random_cluster_size_mean=8
+random_cluster_size_stddev=3
 random_hit_generation=true
-strobe_active_length_ns=50
+strobe_active_length_ns=9900
 strobe_inactive_length_ns=100
 trigger_delay_ns=930
 trigger_filter_enable=false
@@ -54,27 +55,23 @@ layer6_num_staves=1
 monte_carlo_dir_path=config/monte_carlo_events/PbPb
 
 [pct]
-beam_end_coord_x_mm=27.5
-beam_end_coord_y_mm=2.0
-beam_speed_x_mm_per_us=0.0027
-beam_start_coord_x_mm=-0.5
-beam_start_coord_y_mm=-0.5
-beam_step_y_mm=0.01
+beam_end_coord_x_mm=275
+beam_end_coord_y_mm=20
+beam_start_coord_x_mm=-5
+beam_start_coord_y_mm=-5
+beam_step_mm=3.0
+beam_time_per_step_us=125.0
 monte_carlo_file_path=config/monte_carlo_events/pct/pct_data.xml
 num_layers=1
-num_staves=1
 num_staves_per_layer=1
-random_beam_diameter_mean_mm=1.0
-random_beam_diameter_stddev_mm=0.1
-random_beam_stddev_mm=0.1
-random_flux_mean_per_s=1E9
-random_flux_stddev_per_s=1E7
-random_particles_per_s=1E9
+random_beam_stddev_mm=3.0
+random_particles_per_s_mean=1E7
+random_particles_per_s_stddev=0.5E9
 time_frame_length_ns=200
 
 [simulation]
-continuous_mode=false
+continuous_mode=true
 n_events=10
 random_seed=1337
 single_chip=false
-type=its
+type=pct

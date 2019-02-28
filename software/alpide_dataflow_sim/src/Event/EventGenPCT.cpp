@@ -40,10 +40,15 @@ EventGenPCT::EventGenPCT(sc_core::sc_module_name name,
   mBeamCenterCoordX_mm = mBeamStartCoordX_mm;
   mBeamCenterCoordY_mm = mBeamStartCoordY_mm;
 
-  mBeamSpeedX_mm_per_us = settings->value("pct/beam_speed_x_mm_per_us").toDouble();
-  mBeamStepY_mm = settings->value("pct/beam_step_y_mm").toDouble();
+  mBeamStep_mm = settings->value("pct/beam_step_mm").toDouble();
+  mBeamTimePerStep_us = settings->value("pct/beam_time_per_step_us").toDouble();
 
   mEventTimeFrameLength_ns = settings->value("pct/time_frame_length_ns").toDouble();
+
+  if(mEventTimeFrameLength_ns > (mBeamTimePerStep_us*1000)/10) {
+    std::string error_msg = "Event time frame length should be much smaller than beam time per step (1/10 minimum).";
+    throw std::runtime_error(error_msg);
+  }
 
   if(mRandomHitGeneration) {
     initRandomHitGen(settings);
@@ -404,27 +409,34 @@ void EventGenPCT::generateEvent(void)
 
 void EventGenPCT::updateBeamPosition(void)
 {
-  if(mBeamCenterCoordX_mm >= mBeamEndCoordX_mm && mBeamCenterCoordY_mm >= mBeamEndCoordY_mm)
-    mBeamEndCoordsReached = true;
+  uint64_t time_now_ns = sc_time_stamp().value();
+  uint64_t beam_step_num = (time_now_ns/1000)/mBeamTimePerStep_us;
 
-  // Beam direction is initialized to start moving to the right in the class
-  if(mBeamDirectionRight) {
-    // Move beam down (y-direction) if we've reached the right end point,
-    // and start moving the beam back towards the left
-    if(mBeamCenterCoordX_mm >= mBeamEndCoordX_mm) {
-      mBeamCenterCoordY_mm += mBeamStepY_mm;
-      mBeamDirectionRight = false;
+  if(beam_step_num > mBeamStepCounter) {
+    mBeamStepCounter++;
+
+    if(mBeamCenterCoordX_mm >= mBeamEndCoordX_mm && mBeamCenterCoordY_mm >= mBeamEndCoordY_mm)
+      mBeamEndCoordsReached = true;
+
+    // Beam direction is initialized to start moving to the right in the class
+    if(mBeamDirectionRight) {
+      // Move beam down (y-direction) if we've reached the right end point,
+      // and start moving the beam back towards the left
+      if(mBeamCenterCoordX_mm >= mBeamEndCoordX_mm) {
+        mBeamCenterCoordY_mm += mBeamStep_mm;
+        mBeamDirectionRight = false;
+      } else {
+        mBeamCenterCoordX_mm += mBeamStep_mm;
+      }
     } else {
-      mBeamCenterCoordX_mm += (mBeamSpeedX_mm_per_us/1000) * mEventTimeFrameLength_ns;
-    }
-  } else {
-    // Move beam down (y-direction) if we've reached the left end point,
-    // and start moving the beam back towards the left
-    if(mBeamCenterCoordX_mm <= mBeamStartCoordX_mm) {
-      mBeamCenterCoordY_mm += mBeamStepY_mm;
-      mBeamDirectionRight = true;
-    } else {
-      mBeamCenterCoordX_mm -= (mBeamSpeedX_mm_per_us/1000) * mEventTimeFrameLength_ns;
+      // Move beam down (y-direction) if we've reached the left end point,
+      // and start moving the beam back towards the left
+      if(mBeamCenterCoordX_mm <= mBeamStartCoordX_mm) {
+        mBeamCenterCoordY_mm += mBeamStep_mm;
+        mBeamDirectionRight = true;
+      } else {
+        mBeamCenterCoordX_mm -= mBeamStep_mm;
+      }
     }
   }
 }
