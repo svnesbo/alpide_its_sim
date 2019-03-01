@@ -26,7 +26,23 @@ message(${CMAKE_MODULE_PATH})
 
 find_package(Boost REQUIRED)
 if(Boost_FOUND)
-	include_directories(${Boost_INCLUDE_DIRS})
+  include_directories(${Boost_INCLUDE_DIRS})
+endif()
+
+if(DEFINED ENV{ROOTSYS})
+  message(STATUS "Compiling with ROOT support")
+
+  # Find ROOT with CMake:
+  # https://root.cern.ch/how/integrate-root-my-project-cmake
+  list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
+
+  # Locate the ROOT package and defines a number of variables (e.g. ROOT_INCLUDE_DIRS)
+  find_package(ROOT REQUIRED COMPONENTS)
+
+  # Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
+  include(${ROOT_USE_FILE})
+else()
+  message(STATUS "Compiling without ROOT support. Monte Carlo input in pCT simulation not supported.")
 endif()
 
 
@@ -93,11 +109,14 @@ add_sources(
 # Uncomment to keep track of when pixels are read out from pixel matrix,
 # RRUs, TRU, and finally off the chip. All this debug info is printed to stdout.
 #add_definitions(-DPIXEL_DEBUG)
-
 add_executable(alpide_dataflow_sim  ${SRCS})
 target_link_libraries(alpide_dataflow_sim ${SystemC_LIBRARIES} pthread boost_random Qt5Core)
 set_target_properties(alpide_dataflow_sim PROPERTIES LINKER_LANGUAGE CXX)
 qt5_use_modules(alpide_dataflow_sim Core Xml)
+
+if(DEFINED ENV{ROOTSYS})
+  target_link_libraries(alpide_dataflow_sim ${ROOT_LIBRARIES})
+endif()
 
 # add a target to generate API documentation with Doxygen
 find_package(Doxygen)
@@ -109,11 +128,6 @@ if(DOXYGEN_FOUND)
     COMMENT "Generating API documentation with Doxygen" VERBATIM
     )
 endif(DOXYGEN_FOUND)
-
-get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message(STATUS "dir='${dir}'")
-endforeach()
 
 enable_testing()
 add_subdirectory(src/unit_tests/)

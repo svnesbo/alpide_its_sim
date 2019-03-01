@@ -11,8 +11,9 @@
 #ifndef STIMULI_BASE_HPP
 #define STIMULI_BASE_HPP
 
-// Ignore warnings about use of auto_ptr in SystemC library
+// Ignore warnings about use of auto_ptr and unused parameters in SystemC library
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
 #pragma GCC diagnostic pop
