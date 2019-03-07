@@ -174,25 +174,31 @@ void EventGenPCT::initMonteCarloHitGen(const QSettings* settings)
   QString monte_carlo_data_file_str = settings->value("pct/monte_carlo_file_path").toString();
 
 
-  /* if(monte_carlo_file_type == "xml") { */
-  /*   name_filters << "*.xml"; */
-  /*   QStringList MC_files = monte_carlo_event_dir.entryList(name_filters); */
-
-  /*   if(MC_files.isEmpty()) { */
-  /*     std::cerr << "Error: No .xml files found in MC event path"; */
-  /*     std::cerr << std::endl; */
-  /*     exit(-1); */
-  /*   } */
-  /*   // TODO: Finish this */
-  /*   //mMCPhysicsEvents = new EventXML(mITSConfig, */
-  /*   //                                monte_carlo_data_file_str, */
-  /*   //                                /\* TODO: Add more params here... *\/ */
-  /*   //                                mRandomSeed); */
-  /* } */
-  /* else { */
-  /*   throw std::runtime_error("Only XML type Monte Carlo files supported for PCT simulation."); */
-  /* } */
-
+  if(monte_carlo_file_type == "xml") {
+    std::cerr << "Error: MC files in XML format not supported for PCT simulation" << std::endl;
+    exit(-1);
+  }
+  if(monte_carlo_file_type == "binary") {
+    std::cerr << "Error: MC files in binary format not supported for PCT simulation" << std::endl;
+    exit(-1);
+  }
+  else if(monte_carlo_file_type == "root") {
+#ifdef ROOT_ENABLED
+    mMCEvents = new EventRootPCT(mConfig,
+                                 &PCT::PCT_global_chip_id_to_position,
+                                 &PCT::PCT_position_to_global_chip_id,
+                                 monte_carlo_data_file_str,
+                                 mEventTimeFrameLength_ns);
+#else
+    std::cerr << "Error: Simulation must be compiled with ROOT support to use MC events for pCT simulation." << std::endl;
+    exit(-1);
+#endif
+  }
+  else {
+    std::cerr << "Error: Unknown MC event format \"";
+    std::cerr << monte_carlo_file_type.toStdString() << "\"";
+    exit(-1);
+  }
 }
 
 
@@ -331,54 +337,76 @@ void EventGenPCT::generateRandomEventData(unsigned int &particle_count_out,
 ///            for all layers/chips, including chips/layers that are excluded from the simulation
 ///@param[out] chip_pixel_hits Map with number of pixel hits for this event per chip ID
 ///@param[out] layer_pixel_hits Map with number of pixel hits for this event per layer
-void EventGenPCT::generateMonteCarloEventData(unsigned int &particle_count_out,
+///@return True if this is the last event, false if not
+bool EventGenPCT::generateMonteCarloEventData(unsigned int &particle_count_out,
                                               unsigned int &pixel_hit_count_out,
                                               std::map<unsigned int, unsigned int> &chip_pixel_hits,
                                               std::map<unsigned int, unsigned int> &layer_pixel_hits)
 {
-  /*
+#ifdef ROOT_ENABLED
   uint64_t time_now = sc_time_stamp().value();
 
   // Clear old hit data
   mEventHitVector.clear();
 
-  const EventDigits* digits = mMCPhysicsEvents->getNextEvent(time_now, mEventtimeframelength);
-
-  if(digits == nullptr)
-    throw std::runtime_error("EventDigits::getNextEvent() returned no new Monte Carlo event.");
+  std::shared_ptr<EventDigits> digits = mMCEvents->getNextEvent();
 
   auto digit_it = digits->getDigitsIterator();
   auto digit_end_it = digits->getDigitsEndIterator();
 
-  event_pixel_hit_count = digits->size();
-
   while(digit_it != digit_end_it) {
-    const PixelHit &pix = *digit_it;
+    const PixelHit &pixel = *digit_it;
 
-    std::vector<std::shared_ptr<PixelHit>> pix_cluster = createCluster(pix,
-                                                                       time_now,
-                                                                       mPixelDeadTime,
-                                                                       mPixelActiveTime,
-                                                                       mUntriggeredReadoutStats);
+    if(mRandomClusterGeneration) {
+      std::vector<std::shared_ptr<PixelHit>> pix_cluster = createCluster(pixel,
+                                                                         time_now,
+                                                                         mPixelDeadTime,
+                                                                         mPixelActiveTime,
+                                                                         mUntriggeredReadoutStats);
 
-    mEventHitVector.insert(mEventHitVector.end(),
-                           pix_cluster.begin(),
-                           pix_cluster.end());
+      // Update hit counters. createCluster() only generates hits for _one_ chip,
+      // if pixels are outside matrix boundaries then they are ignored. Hence it is sufficient
+      // to add the number of pixels in the cluster, we don't have to check that they all
+      // belong to the same chip.
+      chip_pixel_hits[pixel.getChipId()] += pix_cluster.size();
+      pixel_hit_count_out += pix_cluster.size();
 
-    //layer_pixel_hits[pos.layer_id]++;
-    chip_pixel_hits[pix.getChipId()]++;
+      // Copy pixels from cluster over to the event hit vector
+      mEventHitVector.insert(mEventHitVector.end(), pix_cluster.begin(), pix_cluster.end());
+    } else {
+      mEventHitVector.emplace_back(std::make_shared<PixelHit>(pixel));
+
+      // Do this after inserting (copy) of pixel, to avoid double registering of
+      // readout stats when pixel is destructed
+      mEventHitVector.back()->setPixelReadoutStatsObj(mUntriggeredReadoutStats);
+      mEventHitVector.back()->setActiveTimeStart(time_now+mPixelDeadTime);
+      mEventHitVector.back()->setActiveTimeEnd(time_now+mPixelDeadTime+mPixelActiveTime);
+
+      chip_pixel_hits[pixel.getChipId()]++;
+      pixel_hit_count_out++;
+    }
 
     digit_it++;
   }
-  */
+
+  return !mMCEvents->getMoreEventsLeft();
+
+#else
+  std::cerr << "Error: generateMonteCarloEventData() called, but simulation not compiled with ROOT support." << std::endl;
+  exit(-1);
+#endif
 }
 
 
-void EventGenPCT::generateEvent(void)
+///@brief Generate an event, either random or using data for MC files
+///@return For MC events: True when last event was generated. For random events, always false.
+bool EventGenPCT::generateEvent(void)
 {
   uint64_t time_now = sc_time_stamp().value();
   unsigned int event_particle_count = 0;
   unsigned int event_pixel_hit_count = 0;
+
+  bool last_event = false;
 
 
   std::map<unsigned int, unsigned int> layer_pixel_hits;
@@ -390,8 +418,8 @@ void EventGenPCT::generateEvent(void)
     generateRandomEventData(event_particle_count, event_pixel_hit_count,
                             chip_pixel_hits, layer_pixel_hits);
   } else {
-    generateMonteCarloEventData(event_particle_count, event_pixel_hit_count,
-                                chip_pixel_hits, layer_pixel_hits);
+    last_event = generateMonteCarloEventData(event_particle_count, event_pixel_hit_count,
+                                             chip_pixel_hits, layer_pixel_hits);
   }
 
   // Write event rate and multiplicity numbers to CSV file
@@ -404,6 +432,8 @@ void EventGenPCT::generateEvent(void)
 
   std::cout << "@ " << time_now << " ns: ";
   std::cout << "\tEvent number: " << mUntriggeredEventCount;
+
+  return last_event;
 }
 
 
@@ -446,8 +476,13 @@ void EventGenPCT::updateBeamPosition(void)
 void EventGenPCT::physicsEventMethod(void)
 {
   if(mStopEventGeneration == false && mBeamEndCoordsReached == false) {
-    generateEvent();
-    updateBeamPosition();
+    bool last_mc_event = generateEvent();
+
+    // Beam position is included in MC events
+    if(mRandomHitGeneration)
+      updateBeamPosition();
+    else
+      mBeamEndCoordsReached = last_mc_event;
 
     E_untriggered_event.notify();
     next_trigger(mEventTimeFrameLength_ns, SC_NS);

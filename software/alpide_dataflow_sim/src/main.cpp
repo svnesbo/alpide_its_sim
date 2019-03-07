@@ -5,12 +5,15 @@
  * @brief  Main source file for Alpide Dataflow SystemC simulation testbench
  */
 
-
-#include "Settings/Settings.hpp"
-#include "Settings/parse_cmdline_args.hpp"
-#include "Stimuli/StimuliITS.hpp"
-#include "Stimuli/StimuliPCT.hpp"
-#include "version.hpp"
+#include <set>
+#include <iostream>
+#include <chrono>
+#include <ctime>
+#include <unistd.h>
+#include <signal.h>
+#include <QDir>
+#include <QFile>
+#include "boost/date_time/posix_time/posix_time.hpp"
 
 // Ignore warnings about use of auto_ptr and unused parameters in SystemC library
 #pragma GCC diagnostic push
@@ -19,15 +22,15 @@
 #include <systemc.h>
 #pragma GCC diagnostic pop
 
-#include "boost/date_time/posix_time/posix_time.hpp"
-#include <set>
-#include <iostream>
-#include <chrono>
-#include <ctime>
-#include <QDir>
-#include <QFile>
-#include <unistd.h>
-#include <signal.h>
+#ifdef ROOT_ENABLED
+#include "TSystem.h"
+#endif
+
+#include "Settings/Settings.hpp"
+#include "Settings/parse_cmdline_args.hpp"
+#include "Stimuli/StimuliITS.hpp"
+#include "Stimuli/StimuliPCT.hpp"
+#include "version.hpp"
 
 
 void signal_callback_handler(int signum);
@@ -42,6 +45,10 @@ int sc_main(int argc, char** argv)
   boost::posix_time::ptime simulation_start_time = boost::posix_time::second_clock::local_time();
 
   std::cout << std::endl; // Print a new line after SystemC info
+
+#ifdef ROOT_ENABLED
+  gSystem->Load("libTree");
+#endif
 
   // Parse configuration file here
   QSettings* simulation_settings = getSimSettings();

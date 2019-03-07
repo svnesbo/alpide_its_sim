@@ -648,9 +648,6 @@ void ReadoutUnitStats::readProtocolUtilizationFile(std::string file_path_base)
         csv_line = csv_line.substr(csv_line.find(";")+1);
 
       index++;
-
-      if(index > 30)
-        exit(-1);
     }
 
     if(index != mProtUtilIndex.size()) {
@@ -741,10 +738,9 @@ void ReadoutUnitStats::readDataRateFile(std::string file_path_base)
     index++;
   }
 
-
   while(data_rate_file.good()) {
     unsigned int line_num = 1;
-    unsigned int index = 0;
+    index = 0;
     std::string csv_line;
     std::getline(data_rate_file, csv_line);
 
@@ -764,10 +760,6 @@ void ReadoutUnitStats::readDataRateFile(std::string file_path_base)
         csv_line = csv_line.substr(csv_line.find(";")+1);
 
       index++;
-
-      if(index > 30)
-        exit(-1);
-
       line_num++;
     }
 

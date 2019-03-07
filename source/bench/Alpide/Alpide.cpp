@@ -201,10 +201,6 @@ void Alpide::triggerMethod(void)
 {
   uint64_t time_now = sc_time_stamp().value();
 
-  ///@todo What happens if I get one trigger at the exact time the strobe goes inactive???
-
-  std::cout << "@" << time_now << ": Alpide with ID " << mChipId << " triggered." << std::endl;
-
   mTriggersReceived++;
 
   if(s_strobe_n.read() == true) {

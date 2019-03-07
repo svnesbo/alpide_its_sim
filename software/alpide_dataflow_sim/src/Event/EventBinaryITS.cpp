@@ -1,5 +1,5 @@
 /**
- * @file   EventBinary.cpp
+ * @file   EventBinaryITS.cpp
  * @author Simon Voigt Nesbo
  * @date   March 5, 2018
  * @brief  Class for handling events from AliRoot MC simulations,
@@ -9,10 +9,10 @@
 #include <iostream>
 #include <fstream>
 #include <boost/random/random_device.hpp>
-#include "EventBinary.hpp"
-#include "EventBinaryFormat.hpp"
+#include "EventBinaryITS.hpp"
+#include "EventBinaryITSFormat.hpp"
 
-///@brief Constructor for EventBinary class, which handles a set of events
+///@brief Constructor for EventBinaryITS class, which handles a set of events
 ///       stored in binary data files.
 ///@param config detectorConfig object which specifies which staves in ITS should
 ///              be included. To save time/memory the class will only read data
@@ -28,22 +28,22 @@
 ///@param random_seed Random seed for event sequence randomizer.
 ///@param load_all If set to true, load all event files into memory. If not they are read
 ///                from file as they are used, and do not persist in memory.
-EventBinary::EventBinary(Detector::DetectorConfigBase config,
-                         Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
-                         Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
-                         const QString& path,
-                         const QStringList& event_filenames,
-                         bool random_event_order,
-                         int random_seed,
-                         bool load_all)
-  : EventBase(config,
-              global_chip_id_to_position_func,
-              position_to_global_chip_id_func,
-              path,
-              event_filenames,
-              random_event_order,
-              random_seed,
-              load_all)
+EventBinaryITS::EventBinaryITS(Detector::DetectorConfigBase config,
+                               Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
+                               Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
+                               const QString& path,
+                               const QStringList& event_filenames,
+                               bool random_event_order,
+                               int random_seed,
+                               bool load_all)
+  : EventBaseDiscrete(config,
+                      global_chip_id_to_position_func,
+                      position_to_global_chip_id_func,
+                      path,
+                      event_filenames,
+                      random_event_order,
+                      random_seed,
+                      load_all)
 {
   if(load_all)
     readEventFiles();
@@ -51,7 +51,7 @@ EventBinary::EventBinary(Detector::DetectorConfigBase config,
 
 
 ///@brief Read the whole list of event files into memory
-void EventBinary::readEventFiles()
+void EventBinaryITS::readEventFiles()
 {
   for(int i = 0; i < mEventFileNames.size(); i++) {
     std::cout << "Reading event binary data file " << i+1;
@@ -65,7 +65,7 @@ void EventBinary::readEventFiles()
 ///@brief Read a monte carlo event from a binary data file
 ///@param event_filename File name and path of binary data file
 ///@return Pointer to EventDigits object with the event that was read from file
-EventDigits* EventBinary::readEventFile(const QString& event_filename)
+EventDigits* EventBinaryITS::readEventFile(const QString& event_filename)
 {
   std::uint8_t code_id;
   std::ifstream event_file(event_filename.toStdString(),
@@ -115,7 +115,7 @@ EventDigits* EventBinary::readEventFile(const QString& event_filename)
 }
 
 
-bool EventBinary::readLayer(std::string event_filename, EventDigits* event)
+bool EventBinaryITS::readLayer(std::string event_filename, EventDigits* event)
 {
   bool done = true;
   std::uint8_t code_id;
@@ -152,7 +152,7 @@ bool EventBinary::readLayer(std::string event_filename, EventDigits* event)
 }
 
 
-void EventBinary::readStave(std::string event_filename,
+void EventBinaryITS::readStave(std::string event_filename,
                             EventDigits* event,
                             std::uint8_t layer_id)
 {
@@ -182,12 +182,12 @@ void EventBinary::readStave(std::string event_filename,
 }
 
 
-void EventBinary::readModule(std::string event_filename,
-                             EventDigits* event,
-                             std::uint8_t layer_id,
-                             std::uint8_t stave_id,
-                             std::uint8_t sub_stave_id,
-                             bool skip)
+void EventBinaryITS::readModule(std::string event_filename,
+                                EventDigits* event,
+                                std::uint8_t layer_id,
+                                std::uint8_t stave_id,
+                                std::uint8_t sub_stave_id,
+                                bool skip)
 {
   bool done = false;
   std::uint8_t code_id;
@@ -209,13 +209,13 @@ void EventBinary::readModule(std::string event_filename,
 }
 
 
-void EventBinary::readChip(std::string event_filename,
-                           EventDigits* event,
-                           std::uint8_t layer_id,
-                           std::uint8_t stave_id,
-                           std::uint8_t sub_stave_id,
-                           std::uint8_t mod_id,
-                           bool skip)
+void EventBinaryITS::readChip(std::string event_filename,
+                              EventDigits* event,
+                              std::uint8_t layer_id,
+                              std::uint8_t stave_id,
+                              std::uint8_t sub_stave_id,
+                              std::uint8_t mod_id,
+                              bool skip)
 {
   bool done = false;
   std::uint16_t col, row;

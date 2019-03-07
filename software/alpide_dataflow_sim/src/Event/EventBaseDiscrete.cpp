@@ -1,18 +1,19 @@
 /**
- * @file   EventBase.cpp
+ * @file   EventBaseDiscrete.cpp
  * @author Simon Voigt Nesbo
  * @date   March 5, 2018
- * @brief  Base class for MC events read from files
+ * @brief  Base class for handling discrete events, such as collisions in LHC.
+ *         This class assumes that each discrete is stored in its own file.
  */
 
 #include <iostream>
 #include <boost/random/random_device.hpp>
-#include "EventBase.hpp"
+#include "EventBaseDiscrete.hpp"
 
 using boost::random::uniform_int_distribution;
 
 
-///@brief Constructor for EventBase class
+///@brief Constructor for EventBaseDiscrete class
 ///@param config detectorConfig object which specifies which staves in ITS should
 ///              be included.
 ///@param global_chip_id_to_position_func Pointer to function used to determine global
@@ -26,14 +27,14 @@ using boost::random::uniform_int_distribution;
 ///@param random_seed Random seed for event sequence randomizer.
 ///@param load_all If set to true, load all event files into memory. If not they are read
 ///                from file as they are used, and do not persist in memory.
-EventBase::EventBase(Detector::DetectorConfigBase config,
-                     Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
-                     Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
-                     const QString& path,
-                     const QStringList& event_filenames,
-                     bool random_event_order,
-                     int random_seed,
-                     bool load_all)
+EventBaseDiscrete::EventBaseDiscrete(Detector::DetectorConfigBase config,
+                                     Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
+                                     Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
+                                     const QString& path,
+                                     const QStringList& event_filenames,
+                                     bool random_event_order,
+                                     int random_seed,
+                                     bool load_all)
   : mConfig(config)
   , mGlobalChipIdToPositionFunc(global_chip_id_to_position_func)
   , mPositionToGlobalChipIdFunc(position_to_global_chip_id_func)
@@ -90,7 +91,7 @@ EventBase::EventBase(Detector::DetectorConfigBase config,
 }
 
 
-EventBase::~EventBase()
+EventBaseDiscrete::~EventBaseDiscrete()
 {
   for(unsigned int i = 0; i < mEvents.size(); i++)
     delete mEvents[i];
@@ -106,7 +107,7 @@ EventBase::~EventBase()
 ///       set to true, then this will return a random event from the pool of events.
 ///       If not they will be in sequential order.
 ///@return Const pointer to EventDigits object for event.
-const EventDigits* EventBase::getNextEvent(void)
+const EventDigits* EventBaseDiscrete::getNextEvent(void)
 {
   EventDigits* event = nullptr;
   int current_event_index;
@@ -144,7 +145,7 @@ const EventDigits* EventBase::getNextEvent(void)
 
 ///@brief Create a uniform random distribution used to pick event ID,
 ///       with a range that matches the number of available events.
-void EventBase::createEventIdDistribution(void)
+void EventBaseDiscrete::createEventIdDistribution(void)
 {
   if(mRandEventIdDist != nullptr)
     delete mRandEventIdDist;

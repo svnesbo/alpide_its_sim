@@ -10,8 +10,8 @@
 #define PCT_CONSTANTS_HPP
 
 namespace PCT {
-  static const unsigned int N_LAYERS = 20;
-  static const unsigned int STAVES_PER_LAYER = 18;
+  static const unsigned int N_LAYERS = 41;
+  static const unsigned int STAVES_PER_LAYER = 12;
 
   // PCT consists entirely of IB staves
   static const unsigned int SUB_STAVES_PER_STAVE = 1;

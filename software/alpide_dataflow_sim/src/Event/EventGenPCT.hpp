@@ -10,11 +10,14 @@
 #ifndef EVENT_GEN_PCT_HPP
 #define EVENT_GEN_PCT_HPP
 
-#include "EventGenBase.hpp"
-#include "EventBase.hpp"
-#include "Detector/PCT/PCTDetectorConfig.hpp"
 #include <fstream>
 #include <boost/random/poisson_distribution.hpp>
+#include "Detector/PCT/PCTDetectorConfig.hpp"
+#include "EventGenBase.hpp"
+#ifdef ROOT_ENABLED
+#include "EventRootPCT.hpp"
+#endif
+
 
 using std::uint64_t;
 
@@ -25,7 +28,9 @@ class EventGenPCT : public EventGenBase
 private:
   std::vector<std::shared_ptr<PixelHit>> mEventHitVector;
 
-  EventBase* mMCEvents = nullptr;
+#ifdef ROOT_ENABLED
+  EventRootPCT* mMCEvents = nullptr;
+#endif
 
   PCT::PCTDetectorConfig mConfig;
 
@@ -80,11 +85,11 @@ private:
                                unsigned int &pixel_hit_count_out,
                                std::map<unsigned int, unsigned int> &chip_pixel_hits,
                                std::map<unsigned int, unsigned int> &layer_pixel_hits);
-  void generateMonteCarloEventData(unsigned int &particle_count_out,
+  bool generateMonteCarloEventData(unsigned int &particle_count_out,
                                    unsigned int &pixel_hit_count_out,
                                    std::map<unsigned int, unsigned int> &chip_pixel_hits,
                                    std::map<unsigned int, unsigned int> &layer_pixel_hits);
-  void generateEvent(void);
+  bool generateEvent(void);
   void updateBeamPosition(void);
   void physicsEventMethod(void);
 

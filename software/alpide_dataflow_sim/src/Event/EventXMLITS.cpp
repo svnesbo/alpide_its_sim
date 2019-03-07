@@ -1,8 +1,9 @@
 /**
- * @file   EventXML.cpp
+ * @file   EventXMLITS.cpp
  * @author Simon Voigt Nesbo
  * @date   May 26, 2017
- * @brief  Class for handling events from AliRoot MC simulations, stored in an XML file.
+ * @brief  Class for handling events from AliRoot MC simulations for ITS,
+ *         stored in an XML file.
  *         Based on the loadPattern() function that parses XML event files in ITSReadoutSim,
  *         by Adam Szczepankiewicz, but rewritten and updated for the Alpide Dataflow Model.
  */
@@ -90,10 +91,10 @@
 ///@}
 
 #include <iostream>
-#include "EventXML.hpp"
+#include "EventXMLITS.hpp"
 
 
-///@brief Constructor for EventXML class, which handles a set of events stored in XML files.
+///@brief Constructor for EventXMLITS class, which handles a set of events stored in XML files.
 ///@param config detectorConfig object which specifies which staves in ITS should
 ///              be included. To save time/memory the class will only read data
 ///              from the XML files for the chips that are included in the simulation.
@@ -108,22 +109,22 @@
 ///@param random_seed Random seed for event sequence randomizer.
 ///@param load_all If set to true, load all event files into memory. If not they are read
 ///                from file as they are used, and do not persist in memory.
-EventXML::EventXML(Detector::DetectorConfigBase config,
-                   Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
-                   Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
-                   const QString& path,
-                   const QStringList& event_filenames,
-                   bool random_event_order,
-                   int random_seed,
-                   bool load_all)
-  : EventBase(config,
-              global_chip_id_to_position_func,
-              position_to_global_chip_id_func,
-              path,
-              event_filenames,
-              random_event_order,
-              random_seed,
-              load_all)
+EventXMLITS::EventXMLITS(Detector::DetectorConfigBase config,
+                         Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
+                         Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
+                         const QString& path,
+                         const QStringList& event_filenames,
+                         bool random_event_order,
+                         int random_seed,
+                         bool load_all)
+  : EventBaseDiscrete(config,
+                      global_chip_id_to_position_func,
+                      position_to_global_chip_id_func,
+                      path,
+                      event_filenames,
+                      random_event_order,
+                      random_seed,
+                      load_all)
 {
   if(load_all)
     readEventFiles();
@@ -137,7 +138,7 @@ EventXML::EventXML(Detector::DetectorConfigBase config,
 ///@param[out] element_out Reference to QDomElement object, which is used as an output to store
 ///            the element that was found
 ///@return True if element with desired ID was found, false if not.
-bool EventXML::findXMLElementInListById(const QDomNodeList& list, int id, QDomElement& element_out)
+bool EventXMLITS::findXMLElementInListById(const QDomNodeList& list, int id, QDomElement& element_out)
 {
   // Search for element in list
   for(int i = 0; i < list.size(); i++) {
@@ -152,7 +153,7 @@ bool EventXML::findXMLElementInListById(const QDomNodeList& list, int id, QDomEl
 
 
 ///@brief Read the whole list of event files into memory
-void EventXML::readEventFiles()
+void EventXMLITS::readEventFiles()
 {
   for(int i = 0; i < mEventFileNames.size(); i++) {
     std::cout << "Reading event XML file " << i+1;
@@ -166,7 +167,7 @@ void EventXML::readEventFiles()
 ///@brief Read a monte carlo event from an XML file
 ///@param event_filename File name and path of .xml file
 ///@return Pointer to EventDigits object with the event that was read from file
-EventDigits* EventXML::readEventFile(const QString& event_filename)
+EventDigits* EventXMLITS::readEventFile(const QString& event_filename)
 {
   QDomDocument xml_dom_document;
   QFile event_file(event_filename);
@@ -231,9 +232,9 @@ EventDigits* EventXML::readEventFile(const QString& event_filename)
 ///@param[out] chip_element_out Reference to a QDomElement object, which is used as an output and
 ///            set to the chip element in the XML DOM object (if it was found).
 ///@return True if chip was found, false if not.
-bool EventXML::locateChipInEventXML(const Detector::DetectorPosition& chip_position,
-                                    const QDomElement& event_xml_dom_root,
-                                    QDomElement& chip_element_out)
+bool EventXMLITS::locateChipInEventXML(const Detector::DetectorPosition& chip_position,
+                                       const QDomElement& event_xml_dom_root,
+                                       QDomElement& chip_element_out)
 {
   // Search for layer in XML file
   // ---------------------------------------------------------------------------

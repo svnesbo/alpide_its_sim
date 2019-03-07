@@ -11,7 +11,7 @@
 #define EVENT_GEN_ITS_HPP
 
 #include "EventGenBase.hpp"
-#include "EventBase.hpp"
+#include "EventBaseDiscrete.hpp"
 #include "Detector/ITS/ITSDetectorConfig.hpp"
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/random/exponential_distribution.hpp>
@@ -38,8 +38,8 @@ private:
   int mBunchCrossingRate_ns;
   int mAverageEventRate_ns;
 
-  EventBase* mMCPhysicsEvents = nullptr;
-  EventBase* mMCQedNoiseEvents = nullptr;
+  EventBaseDiscrete* mMCPhysicsEvents = nullptr;
+  EventBaseDiscrete* mMCQedNoiseEvents = nullptr;
 
   ITS::ITSDetectorConfig mITSConfig;
 

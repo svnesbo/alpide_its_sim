@@ -37,7 +37,8 @@ if(DEFINED ENV{ROOTSYS})
   list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 
   # Locate the ROOT package and defines a number of variables (e.g. ROOT_INCLUDE_DIRS)
-  find_package(ROOT REQUIRED COMPONENTS)
+  #find_package(ROOT REQUIRED COMPONENTS)
+  find_package(ROOT REQUIRED COMPONENTS RooFit Html Minuit RooFitCore RooStats HistFactory Tree)
 
   # Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
   include(${ROOT_USE_FILE})
@@ -91,9 +92,9 @@ add_sources(
   src/Event/EventGenBase.cpp
   src/Event/EventGenITS.cpp
   src/Event/EventGenPCT.cpp
-  src/Event/EventBase.cpp
-  src/Event/EventBinary.cpp
-  src/Event/EventXML.cpp
+  src/Event/EventBaseDiscrete.cpp
+  src/Event/EventBinaryITS.cpp
+  src/Event/EventXMLITS.cpp
   src/Settings/Settings.cpp
   src/Settings/parse_cmdline_args.cpp
   src/Stimuli/StimuliBase.cpp
@@ -101,6 +102,12 @@ add_sources(
   src/Stimuli/StimuliITS.cpp
   src/main.cpp
   )
+
+if(DEFINED ENV{ROOTSYS})
+  add_sources(
+    src/Event/EventRootPCT.cpp
+  )
+endif()
 
 # Uncomment to enable output to stderr with debug info for each pixel
 # Useful for debugging if pixels are actually read out or not
@@ -116,6 +123,7 @@ qt5_use_modules(alpide_dataflow_sim Core Xml)
 
 if(DEFINED ENV{ROOTSYS})
   target_link_libraries(alpide_dataflow_sim ${ROOT_LIBRARIES})
+  add_definitions(-DROOT_ENABLED)
 endif()
 
 # add a target to generate API documentation with Doxygen

@@ -6,8 +6,8 @@
  */
 
 #include "EventGenITS.hpp"
-#include "EventXML.hpp"
-#include "EventBinary.hpp"
+#include "EventXMLITS.hpp"
+#include "EventBinaryITS.hpp"
 #include "Alpide/alpide_constants.hpp"
 #include "../utils.hpp"
 #include <boost/random/random_device.hpp>
@@ -201,13 +201,13 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
       exit(-1);
     }
 
-    mMCPhysicsEvents = new EventXML(mITSConfig,
-                                    &ITS::ITS_global_chip_id_to_position,
-                                    &ITS::ITS_position_to_global_chip_id,
-                                    monte_carlo_event_path_str,
-                                    MC_files,
-                                    true,
-                                    mRandomSeed);
+    mMCPhysicsEvents = new EventXMLITS(mITSConfig,
+                                       &ITS::ITS_global_chip_id_to_position,
+                                       &ITS::ITS_position_to_global_chip_id,
+                                       monte_carlo_event_path_str,
+                                       MC_files,
+                                       true,
+                                       mRandomSeed);
   }
   else if(monte_carlo_file_type == "binary") {
     name_filters << "*.dat";
@@ -219,13 +219,17 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
       exit(-1);
     }
 
-    mMCPhysicsEvents = new EventBinary(mITSConfig,
-                                       &ITS::ITS_global_chip_id_to_position,
-                                       &ITS::ITS_position_to_global_chip_id,
-                                       monte_carlo_event_path_str,
-                                       MC_files,
-                                       true,
-                                       mRandomSeed);
+    mMCPhysicsEvents = new EventBinaryITS(mITSConfig,
+                                          &ITS::ITS_global_chip_id_to_position,
+                                          &ITS::ITS_position_to_global_chip_id,
+                                          monte_carlo_event_path_str,
+                                          MC_files,
+                                          true,
+                                          mRandomSeed);
+  }
+  else if(monte_carlo_file_type == "root") {
+    std::cerr << "Error: MC files in ROOT format not supported for ITS simulation" << std::endl;
+    exit(-1);
   }
   else {
     std::cerr << "Error: Unknown MC event format \"";
@@ -268,13 +272,13 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
         exit(-1);
       }
 
-      mMCQedNoiseEvents = new EventXML(mITSConfig,
-                                       &ITS::ITS_global_chip_id_to_position,
-                                       &ITS::ITS_position_to_global_chip_id,
-                                       qed_noise_event_path_str,
-                                       QED_noise_event_files,
-                                       true,
-                                       mRandomSeed);
+      mMCQedNoiseEvents = new EventXMLITS(mITSConfig,
+                                          &ITS::ITS_global_chip_id_to_position,
+                                          &ITS::ITS_position_to_global_chip_id,
+                                          qed_noise_event_path_str,
+                                          QED_noise_event_files,
+                                          true,
+                                          mRandomSeed);
     }
     else if(monte_carlo_file_type == "binary") {
       name_filters << "*.dat";
@@ -286,13 +290,13 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
         exit(-1);
       }
 
-      mMCQedNoiseEvents = new EventBinary(mITSConfig,
-                                          &ITS::ITS_global_chip_id_to_position,
-                                          &ITS::ITS_position_to_global_chip_id,
-                                          qed_noise_event_path_str,
-                                          QED_noise_event_files,
-                                          true,
-                                          mRandomSeed);
+      mMCQedNoiseEvents = new EventBinaryITS(mITSConfig,
+                                             &ITS::ITS_global_chip_id_to_position,
+                                             &ITS::ITS_position_to_global_chip_id,
+                                             qed_noise_event_path_str,
+                                             QED_noise_event_files,
+                                             true,
+                                             mRandomSeed);
     }
     else {
       std::cerr << "Error: Unknown MC event format \"";
