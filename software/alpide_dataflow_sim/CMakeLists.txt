@@ -100,12 +100,14 @@ add_sources(
   src/Stimuli/StimuliBase.cpp
   src/Stimuli/StimuliPCT.cpp
   src/Stimuli/StimuliITS.cpp
+  src/Stimuli/StimuliFocal.cpp
   src/main.cpp
   )
 
 if(DEFINED ENV{ROOTSYS})
   add_sources(
     src/Event/EventRootPCT.cpp
+    src/Event/EventRootFocal.cpp
   )
 endif()
 

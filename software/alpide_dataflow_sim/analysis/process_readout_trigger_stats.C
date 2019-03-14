@@ -96,7 +96,8 @@ int process_its_readout_trigger_stats(const char* sim_run_data_path,
 int process_pct_readout_trigger_stats(const char* sim_run_data_path,
                                       bool create_png,
                                       bool create_pdf,
-                                      const QSettings* sim_settings)
+                                      const QSettings* sim_settings,
+                                      QString sim_type)
 {
   PCT::PCTDetectorConfig det_config;
 
@@ -131,7 +132,15 @@ int process_pct_readout_trigger_stats(const char* sim_run_data_path,
   }
   */
 
-  unsigned long num_event_frames = get_num_untriggered_events_simulated(sim_run_data_path);
+  unsigned long num_event_frames;
+
+  if(sim_type == "pct") {
+    num_event_frames = get_num_untriggered_events_simulated(sim_run_data_path);
+  } else {
+    // Focal
+    num_event_frames = get_num_triggered_events_simulated(sim_run_data_path);
+  }
+
   unsigned long sim_time_ns = time_frame_length_ns*num_event_frames;
 
   std::map<std::string, double> sim_params;
@@ -161,12 +170,17 @@ int process_readout_trigger_stats(const char* sim_run_data_path,
                                       create_png,
                                       create_pdf,
                                       sim_settings);
-  } else {
+  } else if(sim_type == "pct" || sim_type == "focal"){
     process_pct_readout_trigger_stats(sim_run_data_path,
                                       create_png,
                                       create_pdf,
-                                      sim_settings);
+                                      sim_settings,
+                                      sim_type);
+  } else {
+    std::cerr << "Unknown simulation type." << std::endl;
+    exit(-1);
   }
+
 }
 
 ///@brief Get the number of triggered events actually simulated.
@@ -195,6 +209,7 @@ unsigned long get_num_triggered_events_simulated(std::string sim_run_data_path)
 
   size_t text_len = strlen("Number of triggered events simulated: ");
   std::string num_events_str = events_simulated_str.substr(text_len);
+  std::cout << "num_events_str: " << num_events_str << std::endl;
   unsigned long num_events = std::stoul(num_events_str);
   if(num_events == 0) {
     std::cout << "Error: no events simulated?" << std::endl;

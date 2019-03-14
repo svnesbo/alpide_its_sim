@@ -30,6 +30,7 @@
 #include "Settings/parse_cmdline_args.hpp"
 #include "Stimuli/StimuliITS.hpp"
 #include "Stimuli/StimuliPCT.hpp"
+#include "Stimuli/StimuliFocal.hpp"
 #include "version.hpp"
 
 
@@ -94,7 +95,9 @@ int sc_main(int argc, char** argv)
     stimuli = std::make_shared<StimuliITS>("stimuli", simulation_settings, output_dir_str);
   } else if(sim_type == "pct") {
     stimuli = std::make_shared<StimuliPCT>("stimuli", simulation_settings, output_dir_str);
-  }  else {
+  } else if(sim_type == "focal") {
+    stimuli = std::make_shared<StimuliFocal>("stimuli", simulation_settings, output_dir_str);
+  } else {
     std::cout << "Unknown simulation type " << sim_type.toStdString() << std::endl;
     std::cout << "Exiting..." << std::endl;
     return 0;

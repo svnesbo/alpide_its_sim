@@ -82,6 +82,7 @@ protected:
   bool mCreateCSVFile = true;
 
   std::string mOutputPath;
+  std::string mSimType;
 
   /// Readout stats objects for triggered data
   std::shared_ptr<PixelReadoutStats> mTriggeredReadoutStats = nullptr;

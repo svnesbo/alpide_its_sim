@@ -174,7 +174,7 @@ void PCTDetector::pixelInput(const std::shared_ptr<PixelHit>& pix)
   if(mChipVector[pix->getChipId()]) {
     mChipVector[pix->getChipId()]->pixelFrontEndInput(pix);
   } else {
-    std::cout << "Chip " << pix->getChipId() << " does not exist.";
+    std::cout << "Chip " << pix->getChipId() << " does not exist." << std::endl;
   }
 }
 

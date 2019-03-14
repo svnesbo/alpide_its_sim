@@ -10,12 +10,18 @@
 #ifndef EVENT_GEN_ITS_HPP
 #define EVENT_GEN_ITS_HPP
 
-#include "EventGenBase.hpp"
-#include "EventBaseDiscrete.hpp"
-#include "Detector/ITS/ITSDetectorConfig.hpp"
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/random/exponential_distribution.hpp>
 #include <boost/random/discrete_distribution.hpp>
+#include "Detector/PCT/PCTDetectorConfig.hpp"
+#include "Detector/ITS/ITSDetectorConfig.hpp"
+#include "EventGenBase.hpp"
+#include "EventBaseDiscrete.hpp"
+
+#ifdef ROOT_ENABLED
+#include "EventRootFocal.hpp"
+#endif
+
 
 ///@brief   A simple event generator for ITS simulation with Alpide SystemC simulation model.
 ///@details Physics events are generated at a rate that has an exponential distribution,
@@ -41,7 +47,11 @@ private:
   EventBaseDiscrete* mMCPhysicsEvents = nullptr;
   EventBaseDiscrete* mMCQedNoiseEvents = nullptr;
 
-  ITS::ITSDetectorConfig mITSConfig;
+#ifdef ROOT_ENABLED
+  EventRootFocal* mFocalEvents = nullptr;
+#endif
+
+  Detector::DetectorConfigBase mDetectorConfig;
 
   double mHitDensities[ITS::N_LAYERS];
   double mDetectorArea[ITS::N_LAYERS];
@@ -102,6 +112,7 @@ private:
 
 public:
   EventGenITS(sc_core::sc_module_name name,
+              Detector::DetectorConfigBase config,
               const QSettings* settings,
               std::string output_path);
   ~EventGenITS();

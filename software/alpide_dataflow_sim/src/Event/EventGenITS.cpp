@@ -5,16 +5,22 @@
  * @details A simple event generator for ITS simulation with Alpide SystemC simulation model.
  */
 
-#include "EventGenITS.hpp"
-#include "EventXMLITS.hpp"
-#include "EventBinaryITS.hpp"
-#include "Alpide/alpide_constants.hpp"
-#include "../utils.hpp"
-#include <boost/random/random_device.hpp>
+
+
 #include <stdexcept>
 #include <cmath>
 #include <map>
+#include <boost/random/random_device.hpp>
 #include <QDir>
+#include "Alpide/alpide_constants.hpp"
+#include "../utils.hpp"
+#include "EventGenITS.hpp"
+#include "EventXMLITS.hpp"
+#include "EventBinaryITS.hpp"
+
+#ifdef ROOT_ENABLED
+#include "EventRootFocal.hpp"
+#endif
 
 
 using boost::random::uniform_int_distribution;
@@ -26,23 +32,18 @@ using boost::random::discrete_distribution;
 SC_HAS_PROCESS(EventGenITS);
 ///@brief Constructor for EventGenITS
 ///@param[in] name SystemC module name
+///@param[in] config Detector configuration (number of layers/staves etc.)
 ///@param[in] settings QSettings object with simulation settings.
 ///@param[in] output_path Directory path to store simulation output data in
 EventGenITS::EventGenITS(sc_core::sc_module_name name,
-                               const QSettings* settings,
-                               std::string output_path)
+                         Detector::DetectorConfigBase config,
+                         const QSettings* settings,
+                         std::string output_path)
   : EventGenBase(name, settings, output_path)
+  , mDetectorConfig(config)
 {
   mBunchCrossingRate_ns = settings->value("its/bunch_crossing_rate_ns").toInt();
   mAverageEventRate_ns = settings->value("event/average_event_rate_ns").toInt();
-
-  mITSConfig.layer[0].num_staves = settings->value("its/layer0_num_staves").toInt();
-  mITSConfig.layer[1].num_staves = settings->value("its/layer1_num_staves").toInt();
-  mITSConfig.layer[2].num_staves = settings->value("its/layer2_num_staves").toInt();
-  mITSConfig.layer[3].num_staves = settings->value("its/layer3_num_staves").toInt();
-  mITSConfig.layer[4].num_staves = settings->value("its/layer4_num_staves").toInt();
-  mITSConfig.layer[5].num_staves = settings->value("its/layer5_num_staves").toInt();
-  mITSConfig.layer[6].num_staves = settings->value("its/layer6_num_staves").toInt();
 
   if(mRandomHitGeneration) {
     initRandomHitGen(settings);
@@ -142,7 +143,7 @@ void EventGenITS::initRandomHitGen(const QSettings* settings)
       mMultiplicityScaleFactor[layer] = mHitAverage[layer] / multpl_dist_mean;
 
       // Number of chips to actually simulate
-      mNumChips += mITSConfig.layer[layer].num_staves * ITS::CHIPS_PER_STAVE_IN_LAYER[layer];
+      mNumChips += mDetectorConfig.layer[layer].num_staves * ITS::CHIPS_PER_STAVE_IN_LAYER[layer];
 
       std::cout << "Num chips so far: " << mNumChips << std::endl;
 
@@ -188,10 +189,11 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
 {
   QString monte_carlo_file_type = settings->value("event/monte_carlo_file_type").toString();
   QString monte_carlo_event_path_str = settings->value("its/monte_carlo_dir_path").toString();
+  QString monte_carlo_focal_data_file_str = settings->value("pct/monte_carlo_file_path").toString();
   QDir monte_carlo_event_dir(monte_carlo_event_path_str);
   QStringList name_filters;
 
-  if(monte_carlo_file_type == "xml") {
+  if(monte_carlo_file_type == "xml" && mSimType == "its") {
     name_filters << "*.xml";
     QStringList MC_files = monte_carlo_event_dir.entryList(name_filters);
 
@@ -201,7 +203,7 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
       exit(-1);
     }
 
-    mMCPhysicsEvents = new EventXMLITS(mITSConfig,
+    mMCPhysicsEvents = new EventXMLITS(mDetectorConfig,
                                        &ITS::ITS_global_chip_id_to_position,
                                        &ITS::ITS_position_to_global_chip_id,
                                        monte_carlo_event_path_str,
@@ -209,7 +211,7 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
                                        true,
                                        mRandomSeed);
   }
-  else if(monte_carlo_file_type == "binary") {
+  else if(monte_carlo_file_type == "binary" && mSimType == "its") {
     name_filters << "*.dat";
     QStringList MC_files = monte_carlo_event_dir.entryList(name_filters);
 
@@ -219,7 +221,7 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
       exit(-1);
     }
 
-    mMCPhysicsEvents = new EventBinaryITS(mITSConfig,
+    mMCPhysicsEvents = new EventBinaryITS(mDetectorConfig,
                                           &ITS::ITS_global_chip_id_to_position,
                                           &ITS::ITS_position_to_global_chip_id,
                                           monte_carlo_event_path_str,
@@ -227,7 +229,30 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
                                           true,
                                           mRandomSeed);
   }
-  else if(monte_carlo_file_type == "root") {
+  else if(monte_carlo_file_type == "root" && mSimType == "focal") {
+#ifdef ROOT_ENABLED
+    unsigned int random_seed = mRandomSeed;
+
+    if(random_seed == 0) {
+      boost::random::random_device r;
+      random_seed = r();
+    }
+
+    mFocalEvents = new EventRootFocal(mDetectorConfig,
+                                      &PCT::PCT_global_chip_id_to_position,
+                                      &PCT::PCT_position_to_global_chip_id,
+                                      monte_carlo_focal_data_file_str,
+                                      random_seed);
+#else
+    std::cerr << "Error: Simulation must be compiled with ROOT support for Focal simulation." << std::endl;
+    exit(-1);
+#endif
+  }
+  else if(mSimType == "focal") {
+    std::cerr << "Error: Only monte carlo files in ROOT format supported for Focal simulation." << std::endl;
+    exit(-1);
+  }
+  else if(monte_carlo_file_type == "root" && mSimType == "its") {
     std::cerr << "Error: MC files in ROOT format not supported for ITS simulation" << std::endl;
     exit(-1);
   }
@@ -262,7 +287,12 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
     QString qed_noise_event_path_str = settings->value("event/qed_noise_path").toString();
     QDir qed_noise_event_dir(qed_noise_event_path_str);
 
-    if(monte_carlo_file_type == "xml") {
+    if(mSimType == "focal") {
+      std::cerr << "QED/noise not supported for Focal.";
+      std::cerr << std::endl;
+      exit(-1);
+    }
+    else if(monte_carlo_file_type == "xml") {
       name_filters << "*.xml";
       QStringList QED_noise_event_files = qed_noise_event_dir.entryList(name_filters);
 
@@ -272,7 +302,7 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
         exit(-1);
       }
 
-      mMCQedNoiseEvents = new EventXMLITS(mITSConfig,
+      mMCQedNoiseEvents = new EventXMLITS(mDetectorConfig,
                                           &ITS::ITS_global_chip_id_to_position,
                                           &ITS::ITS_position_to_global_chip_id,
                                           qed_noise_event_path_str,
@@ -290,7 +320,7 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
         exit(-1);
       }
 
-      mMCQedNoiseEvents = new EventBinaryITS(mITSConfig,
+      mMCQedNoiseEvents = new EventBinaryITS(mDetectorConfig,
                                              &ITS::ITS_global_chip_id_to_position,
                                              &ITS::ITS_position_to_global_chip_id,
                                              qed_noise_event_path_str,
@@ -313,24 +343,24 @@ void EventGenITS::initCsvEventFileHeader(const QSettings* settings)
   mPhysicsEventsCSVFile.open(physics_events_csv_filename);
   mPhysicsEventsCSVFile << "delta_t;event_pixel_hit_multiplicity";
 
-  if(mITSConfig.layer[0].num_staves > 0)
+  if(mDetectorConfig.layer[0].num_staves > 0)
     mPhysicsEventsCSVFile << ";layer_0";
-  if(mITSConfig.layer[1].num_staves > 0)
+  if(mDetectorConfig.layer[1].num_staves > 0)
     mPhysicsEventsCSVFile << ";layer_1";
-  if(mITSConfig.layer[2].num_staves > 0)
+  if(mDetectorConfig.layer[2].num_staves > 0)
     mPhysicsEventsCSVFile << ";layer_2";
-  if(mITSConfig.layer[3].num_staves > 0)
+  if(mDetectorConfig.layer[3].num_staves > 0)
     mPhysicsEventsCSVFile << ";layer_3";
-  if(mITSConfig.layer[4].num_staves > 0)
+  if(mDetectorConfig.layer[4].num_staves > 0)
     mPhysicsEventsCSVFile << ";layer_4";
-  if(mITSConfig.layer[5].num_staves > 0)
+  if(mDetectorConfig.layer[5].num_staves > 0)
     mPhysicsEventsCSVFile << ";layer_5";
-  if(mITSConfig.layer[6].num_staves > 0)
+  if(mDetectorConfig.layer[6].num_staves > 0)
     mPhysicsEventsCSVFile << ";layer_6";
 
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
     unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
-    for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
+    for(unsigned int stave = 0; stave < mDetectorConfig.layer[layer].num_staves; stave++) {
       // Safe to ignore OB sub staves here, since we only include full staves in simulation,
       // and this will include all chips from a full stave
       for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
@@ -354,14 +384,14 @@ void EventGenITS::addCsvEventLine(uint64_t t_delta,
 
   // Write multiplicity for whole layers of detectors (of included layers)
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    if(mITSConfig.layer[layer].num_staves > 0)
+    if(mDetectorConfig.layer[layer].num_staves > 0)
       mPhysicsEventsCSVFile << ";" << layer_hits[layer];
   }
 
   // Write multiplicity for the chips that were included in the simulation
   for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
     unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
-    for(unsigned int stave = 0; stave < mITSConfig.layer[layer].num_staves; stave++) {
+    for(unsigned int stave = 0; stave < mDetectorConfig.layer[layer].num_staves; stave++) {
       for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
         mPhysicsEventsCSVFile << ";" << chip_hits[chip_id];
         chip_id++;
@@ -632,7 +662,7 @@ void EventGenITS::generateRandomEventData(uint64_t event_time_ns,
 
       // Skip this layer if no staves are configured for this
       // layer in simulation settings file
-      if(mITSConfig.layer[layer].num_staves == 0)
+      if(mDetectorConfig.layer[layer].num_staves == 0)
         continue;
 
       n_particle_hits_scaled = n_particle_hits_unscaled * mMultiplicityScaleFactor[layer];
@@ -649,7 +679,7 @@ void EventGenITS::generateRandomEventData(uint64_t event_time_ns,
 
         // Skip hits for staves in this layer other than the first
         // N staves that were defined in the simulation settings file
-        if(rand_stave_id >= mITSConfig.layer[layer].num_staves)
+        if(rand_stave_id >= mDetectorConfig.layer[layer].num_staves)
           continue;
 
         unsigned int rand_sub_stave_id = 0;
@@ -750,7 +780,14 @@ void EventGenITS::generateMonteCarloEventData(uint64_t event_time_ns,
   // Clear old hit data
   mEventHitVector.clear();
 
-  const EventDigits* digits = mMCPhysicsEvents->getNextEvent();
+  const EventDigits* digits;
+
+  if(mSimType == "its")
+    digits = mMCPhysicsEvents->getNextEvent();
+  else if(mSimType == "focal")
+    digits = mFocalEvents->getNextEvent();
+  else
+    throw std::runtime_error("EventGenITS::generateMonteCarloEventData(): Invalid sim type.");
 
   if(digits == nullptr)
     throw std::runtime_error("EventDigits::getNextEvent() returned no new Monte Carlo event.");
@@ -771,7 +808,12 @@ void EventGenITS::generateMonteCarloEventData(uint64_t event_time_ns,
 
     mEventHitVector.push_back(pix_shared);
 
-    Detector::DetectorPosition pos = ITS::ITS_global_chip_id_to_position(pix.getChipId());
+    Detector::DetectorPosition pos;
+
+    if(mSimType == "its")
+      pos = ITS::ITS_global_chip_id_to_position(pix.getChipId());
+    else // Focal
+      pos = PCT::PCT_global_chip_id_to_position(pix.getChipId());
 
     layer_hits[pos.layer_id]++;
     chip_hits[pix.getChipId()]++;
