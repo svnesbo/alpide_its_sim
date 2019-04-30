@@ -32,6 +32,7 @@ SingleChip::SingleChip(sc_core::sc_module_name const &name,
     mChip->s_data_output(socket_data_out[0]);
     mChip->s_system_clk_in(s_system_clk_in);
     s_alpide_data_out_exp(mChip->s_serial_data_out_exp);
+    s_serial_data_trig_id_exp(mChip->s_serial_data_trig_id_exp);
 }
 
 

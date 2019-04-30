@@ -54,6 +54,7 @@ namespace ITS {
   struct SingleChip : public StaveInterface
   {
     sc_export<sc_signal<sc_uint<24>>> s_alpide_data_out_exp;
+    sc_export<sc_signal<uint64_t>> s_serial_data_trig_id_exp;
 
     SingleChip(sc_core::sc_module_name const &name,
                int chip_id, AlpideConfig const &chip_cfg);

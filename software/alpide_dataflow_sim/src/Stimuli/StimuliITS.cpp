@@ -109,6 +109,7 @@ StimuliITS::StimuliITS(sc_core::sc_module_name name, QSettings* settings, std::s
     mReadoutUnit->s_busy_in(mReadoutUnit->s_busy_out);
     mReadoutUnit->s_system_clk_in(clock);
     mReadoutUnit->s_serial_data_input[0](mAlpide->s_alpide_data_out_exp);
+    mReadoutUnit->s_serial_data_trig_id[0](mAlpide->s_serial_data_trig_id_exp);
     mReadoutUnit->s_alpide_control_output[0].bind(mAlpide->socket_control_in[0]);
     mAlpide->socket_data_out[0].bind(mReadoutUnit->s_alpide_data_input[0]);
   }
