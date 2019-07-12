@@ -784,9 +784,13 @@ void EventGenITS::generateMonteCarloEventData(uint64_t event_time_ns,
 
   if(mSimType == "its")
     digits = mMCPhysicsEvents->getNextEvent();
-  else if(mSimType == "focal")
+  else if(mSimType == "focal") {
+#ifdef ROOT_ENABLED
     digits = mFocalEvents->getNextEvent();
-  else
+#else
+    throw std::runtime_error("EventGenITS::generateMonteCarloEventData(): Compile with ROOT for focal sim.");
+#endif
+  } else
     throw std::runtime_error("EventGenITS::generateMonteCarloEventData(): Invalid sim type.");
 
   if(digits == nullptr)
