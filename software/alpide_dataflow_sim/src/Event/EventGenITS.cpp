@@ -71,18 +71,20 @@ EventGenITS::EventGenITS(sc_core::sc_module_name name,
 ///@brief Destructor for EventGenITS class
 EventGenITS::~EventGenITS()
 {
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    delete mRandChipID[layer];
-    delete mRandStave[layer];
-    delete mRandSubStave[layer];
-    delete mRandModule[layer];
+  if(mRandomHitGeneration) {
+    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+      delete mRandChipID[layer];
+      delete mRandStave[layer];
+      delete mRandSubStave[layer];
+      delete mRandModule[layer];
+    }
+
+    delete mRandHitChipX;
+    delete mRandHitChipY;
+    delete mRandHitMultiplicity;
   }
 
-  delete mRandHitChipX;
-  delete mRandHitChipY;
   delete mRandEventTime;
-
-  delete mRandHitMultiplicity;
 
   if(mPhysicsEventsCSVFile.is_open())
     mPhysicsEventsCSVFile.close();
