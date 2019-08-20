@@ -12,8 +12,9 @@
 #ifndef READOUT_UNIT_HPP
 #define READOUT_UNIT_HPP
 
-// Ignore warnings about use of auto_ptr in SystemC library
+// Ignore warnings about use of auto_ptr and unused parameters in SystemC library
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
 #pragma GCC diagnostic pop
@@ -100,7 +101,8 @@ public:
               unsigned int n_data_links,
               unsigned int trigger_filter_time,
               bool trigger_filter_enable,
-              bool inner_barrel);
+              bool inner_barrel,
+              unsigned int data_rate_interval_ns);
   void end_of_elaboration();
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
   void writeSimulationStats(const std::string output_path) const;

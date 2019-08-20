@@ -8,15 +8,12 @@
 #ifndef PIXEL_HIT_HPP
 #define PIXEL_HIT_HPP
 
-
-
-// Ignore warnings about use of auto_ptr in SystemC library
+// Ignore warnings about use of auto_ptr and unused parameters in SystemC library
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
 #pragma GCC diagnostic pop
-
-
 
 #include "PixelReadoutStats.hpp"
 #include <cstdint>
@@ -67,7 +64,7 @@ public:
   PixelHit(int col = 0, int row = 0, unsigned int chip_id = 0,
            const std::shared_ptr<PixelReadoutStats> &readout_stats =
            nullptr);
-  PixelHit(int region, int pri_enc, int addr, unsigned int chip_id = 0,
+  PixelHit(int region, int pri_enc, int addr, unsigned int chip_id,
            const std::shared_ptr<PixelReadoutStats> &readout_stats =
            nullptr);
   PixelHit(const PixelHit& p);
@@ -155,25 +152,25 @@ inline PixelHit::~PixelHit()
 
   if(mPixelReadoutStats) {
     mPixelReadoutStats->addReadoutCount(mReadoutCount);
-  }
 
 #ifdef PIXEL_DEBUG
-  if(mReadoutCount == 0 && mCol != -1 && mRow != -1) {
-    std::cerr << "@" << time_now << "ns: I was never read out: ";
-    std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
-    std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns.";
-    std::cerr << " mPixInput: " << (mPixInput ? std::to_string(mPixInputTime) : "never");
-    std::cerr << " mPixMatrix: " << (mPixMatrix ? std::to_string(mPixMatrixTime) : "never");
-    std::cerr << " mRRU: " << (mRRU ? std::to_string(mRRUTime) : "never");
-    std::cerr << " mTRU: " << (mTRU ? std::to_string(mTRUTime) : "never");
-    std::cerr << " mAlpideDataOut: " << (mAlpideDataOut ? std::to_string(mAlpideDataOutTime) : "never");
-    std::cerr << std::endl;
-  } else if(mReadoutCount > 0 && mCol != -1 && mRow != -1) {
-    std::cerr << "@" << time_now << "ns: I was read out: ";
-    std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
-    std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns " << std::endl;
-  }
+    if(mReadoutCount == 0 && mCol != -1 && mRow != -1) {
+      std::cerr << "@" << time_now << "ns: I was never read out: ";
+      std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
+      std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns.";
+      std::cerr << " mPixInput: " << (mPixInput ? std::to_string(mPixInputTime) : "never");
+      std::cerr << " mPixMatrix: " << (mPixMatrix ? std::to_string(mPixMatrixTime) : "never");
+      std::cerr << " mRRU: " << (mRRU ? std::to_string(mRRUTime) : "never");
+      std::cerr << " mTRU: " << (mTRU ? std::to_string(mTRUTime) : "never");
+      std::cerr << " mAlpideDataOut: " << (mAlpideDataOut ? std::to_string(mAlpideDataOutTime) : "never");
+      std::cerr << std::endl;
+    } else if(mReadoutCount > 0 && mCol != -1 && mRow != -1) {
+      std::cerr << "@" << time_now << "ns: I was read out: ";
+      std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
+      std::cerr << mActiveTimeStartNs << "-" << mActiveTimeEndNs << " ns " << std::endl;
+    }
 #endif
+  }
 }
 
 

@@ -11,6 +11,7 @@
 #ifndef ALPIDE_H
 #define ALPIDE_H
 
+#include "AlpideConfig.hpp"
 #include "AlpideDataWord.hpp"
 #include "AlpideInterface.hpp"
 #include "PixelMatrix.hpp"
@@ -18,8 +19,9 @@
 #include "RegionReadoutUnit.hpp"
 #include "TopReadoutUnit.hpp"
 
-// Ignore warnings about use of auto_ptr in SystemC library
+// Ignore warnings about use of auto_ptr and unused parameters in SystemC library
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
 #pragma GCC diagnostic pop
@@ -234,9 +236,7 @@ private:
   ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
 public:
-  Alpide(sc_core::sc_module_name name, int chip_id, int dtu_delay_cycles,
-         int strobe_length_ns, bool strobe_extension, bool enable_clustering,
-         bool continuous_mode, bool matrix_readout_speed, int min_busy_cycles = 8,
+  Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConfig& chip_cfg,
          bool outer_barrel_mode = false, bool outer_barrel_master = false,
          int outer_barrel_slave_count = 0);
   int getChipId(void) {return mChipId;}

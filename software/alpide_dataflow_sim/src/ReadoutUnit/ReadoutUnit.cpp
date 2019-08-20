@@ -29,6 +29,8 @@ SC_HAS_PROCESS(ReadoutUnit);
 ///                           spaced than this time (specified in nano seconds)
 ///@param trigger_filter_enable Enable trigger filtering
 ///@param inner_barrel Set to true if RU is connected to inner barrel stave
+///@param data_rate_interval_ns Interval in nanoseconds over which number of data bytes should
+///                             be counted, to be used for data rate calculations
 ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int layer_id,
                          unsigned int stave_id,
@@ -36,8 +38,10 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
                          unsigned int n_data_links,
                          unsigned int trigger_filter_time,
                          bool trigger_filter_enable,
-                         bool inner_barrel)
+                         bool inner_barrel,
+                         unsigned int data_rate_interval_ns)
   : sc_core::sc_module(name)
+  , s_system_clk_in("system_clk_in")
   , s_alpide_control_output(n_ctrl_links)
   , s_alpide_data_input(n_data_links)
   , s_serial_data_input(n_data_links)
@@ -61,7 +65,10 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
 
   for(unsigned int i = 0; i < n_data_links; i++) {
     // Data parsers should not save events, that just eats memory.. :(
-    mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("", inner_barrel, false);
+    mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("",
+                                                             inner_barrel,
+                                                             data_rate_interval_ns,
+                                                             false);
 
     mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
     mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
@@ -270,11 +277,69 @@ void ReadoutUnit::addTraces(sc_trace_file *wf, std::string name_prefix) const
 ///@param[in] output_path Path to simulation output directory
 void ReadoutUnit::writeSimulationStats(const std::string output_path) const
 {
+  // ------------------------------------------------------
+  // Write data rate CSV file
+  // ------------------------------------------------------
+
+  std::string data_rate_csv_filename = output_path + std::string("_Data_rate.csv");
+  ofstream data_rate_csv_file(data_rate_csv_filename);
+
+  if(!data_rate_csv_file.is_open()) {
+    std::cerr << "Error opening data rate stats file: " << data_rate_csv_filename << std::endl;
+    return;
+  } else {
+    std::cout << "Writing data rate stats to file:\n\"";
+    std::cout << data_rate_csv_filename << "\"" << std::endl;
+  }
+
+  data_rate_csv_file << "Time (ns); RU total (Mbps)";
+
+  for(unsigned int i = 0; i < mDataLinkParsers.size(); i++) {
+    data_rate_csv_file << ";Link " << i << " (Mbps)";
+  }
+
+  uint64_t data_rate_interval_ns = mDataLinkParsers[0]->getDataIntervalNs();
+
+  // Assuming that each link parser has the recorded the same number of intervals, which should
+  // hold true since they starts and stop at the same time, and use the same interval length
+  for(auto interval_it = mDataLinkParsers[0]->getDataIntervalByteCounts().begin();
+      interval_it != mDataLinkParsers[0]->getDataIntervalByteCounts().end();
+      interval_it++)
+  {
+    data_rate_csv_file << std::endl;
+
+    uint64_t interval_num = interval_it->first;
+    uint64_t data_bytes_total = 0;
+
+    data_rate_csv_file << interval_num*data_rate_interval_ns << ";";
+
+    // Calculate total data rate (for readout unit)
+    for(unsigned int i = 0; i < mDataLinkParsers.size(); i++) {
+      data_bytes_total += mDataLinkParsers[i]->getDataIntervalByteCounts()[interval_num];
+    }
+
+    // Convert number of bytes in interval to Mbps
+    double data_rate_total_mbps = 8*(data_bytes_total*(1E9/data_rate_interval_ns))/(1024.0*1024.0);
+    data_rate_csv_file << data_rate_total_mbps;
+
+    // Output data rate for each link
+    for(unsigned int i = 0; i < mDataLinkParsers.size(); i++) {
+      uint64_t data_bytes_link = mDataLinkParsers[i]->getDataIntervalByteCounts()[interval_num];
+
+      // Convert number of bytes in interval to Mbps
+      double data_rate_link_mbps = 8*(data_bytes_link*(1E9/data_rate_interval_ns))/(1024.0*1024.0);
+      data_rate_csv_file << ";" << data_rate_link_mbps;
+    }
+  }
+  data_rate_csv_file.close();
+
+
+  // ------------------------------------------------------
+  // Write file with Alpide data protocol word utilization
+  // ------------------------------------------------------
   std::string csv_filename = output_path + std::string("_Link_utilization.csv");
   ofstream prot_stats_csv_file(csv_filename);
 
-  // Write file with Alpide data protocol word utilization
-  // -----------------------------------------------------
   if(!prot_stats_csv_file.is_open()) {
     std::cerr << "Error opening link utilization stats file: " << csv_filename << std::endl;
     return;

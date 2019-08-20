@@ -26,7 +26,24 @@ message(${CMAKE_MODULE_PATH})
 
 find_package(Boost REQUIRED)
 if(Boost_FOUND)
-	include_directories(${Boost_INCLUDE_DIRS})
+  include_directories(${Boost_INCLUDE_DIRS})
+endif()
+
+if(DEFINED ENV{ROOTSYS})
+  message(STATUS "Compiling with ROOT support")
+
+  # Find ROOT with CMake:
+  # https://root.cern.ch/how/integrate-root-my-project-cmake
+  list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
+
+  # Locate the ROOT package and defines a number of variables (e.g. ROOT_INCLUDE_DIRS)
+  #find_package(ROOT REQUIRED COMPONENTS)
+  find_package(ROOT REQUIRED COMPONENTS RooFit Html Minuit RooFitCore RooStats HistFactory Tree)
+
+  # Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
+  include(${ROOT_USE_FILE})
+else()
+  message(STATUS "Compiling without ROOT support. Monte Carlo input in pCT simulation not supported.")
 endif()
 
 
@@ -60,33 +77,56 @@ include_directories(
   ${SystemC_INCLUDE_DIRS}
   ${MODULE_INCLUDES}
   vcd_hierarchy_manipulator
-  alpide_dataflow_sim
+  src
   )
 
 add_sources(
   src/AlpideDataParser/AlpideDataParser.cpp
-  src/ITS/ITSDetector.cpp
-  src/ITS/ITSModulesStaves.cpp
-  src/ITS/ITSSimulationStats.cpp
+  src/Detector/Common/DetectorSimulationStats.cpp
+  src/Detector/Common/ITSModulesStaves.cpp
+  src/Detector/ITS/ITSDetector.cpp
+  src/Detector/ITS/ITSDetectorConfig.cpp
+  src/Detector/PCT/PCTDetector.cpp
+  src/Detector/PCT/PCTDetectorConfig.cpp
   src/ReadoutUnit/ReadoutUnit.cpp
-  src/event/EventGenerator.cpp
-  src/event/EventBase.cpp
-  src/event/EventBinary.cpp
-  src/event/EventXML.cpp
-  src/settings/Settings.cpp
-  src/settings/parse_cmdline_args.cpp
-  src/stimuli/Stimuli.cpp
+  src/Event/EventGenBase.cpp
+  src/Event/EventGenITS.cpp
+  src/Event/EventGenPCT.cpp
+  src/Event/EventBaseDiscrete.cpp
+  src/Event/EventBinaryITS.cpp
+  src/Event/EventXMLITS.cpp
+  src/Settings/Settings.cpp
+  src/Settings/parse_cmdline_args.cpp
+  src/Stimuli/StimuliBase.cpp
+  src/Stimuli/StimuliPCT.cpp
+  src/Stimuli/StimuliITS.cpp
+  src/Stimuli/StimuliFocal.cpp
   src/main.cpp
   )
+
+if(DEFINED ENV{ROOTSYS})
+  add_sources(
+    src/Event/EventRootPCT.cpp
+    src/Event/EventRootFocal.cpp
+  )
+endif()
+
+# Uncomment to enable output to stderr with debug info for each pixel
+# Useful for debugging if pixels are actually read out or not
+#add_compile_options(-D PIXEL_DEBUG)
 
 # Uncomment to keep track of when pixels are read out from pixel matrix,
 # RRUs, TRU, and finally off the chip. All this debug info is printed to stdout.
 #add_definitions(-DPIXEL_DEBUG)
-
 add_executable(alpide_dataflow_sim  ${SRCS})
 target_link_libraries(alpide_dataflow_sim ${SystemC_LIBRARIES} pthread boost_random Qt5Core)
 set_target_properties(alpide_dataflow_sim PROPERTIES LINKER_LANGUAGE CXX)
 qt5_use_modules(alpide_dataflow_sim Core Xml)
+
+if(DEFINED ENV{ROOTSYS})
+  target_link_libraries(alpide_dataflow_sim ${ROOT_LIBRARIES})
+  add_definitions(-DROOT_ENABLED)
+endif()
 
 # add a target to generate API documentation with Doxygen
 find_package(Doxygen)
@@ -98,7 +138,6 @@ if(DOXYGEN_FOUND)
     COMMENT "Generating API documentation with Doxygen" VERBATIM
     )
 endif(DOXYGEN_FOUND)
-
 
 enable_testing()
 add_subdirectory(src/unit_tests/)

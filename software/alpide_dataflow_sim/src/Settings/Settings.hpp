@@ -1,0 +1,95 @@
+/**
+ * @file   Settings.hpp
+ * @author Simon Voigt Nesbo <svn@hib.no>
+ * @date   November 3, 2016
+ * @brief  Header file for simulation settings file handling.
+ *
+ *         This file has definitions for default simulation settings, which can
+ *         be used as default values or for generating the settings file if it is missing.
+ */
+
+
+///@defgroup settings Settings
+///@{
+#ifndef _SETTINGS_HPP
+#define _SETTINGS_HPP
+
+#include <QtCore>
+#include <QSettings>
+#include <QDir>
+#include <QString>
+
+
+#define DEFAULT_DATA_OUTPUT_WRITE_VCD "false"
+#define DEFAULT_DATA_OUTPUT_WRITE_VCD_CLOCK "false"
+#define DEFAULT_DATA_OUTPUT_WRITE_EVENT_CSV "true"
+#define DEFAULT_DATA_OUTPUT_DATA_RATE_INTERVAL_NS "10000"
+
+#define DEFAULT_SIMULATION_TYPE "its"
+#define DEFAULT_SIMULATION_SINGLE_CHIP "true"
+#define DEFAULT_SIMULATION_N_EVENTS "10000"
+#define DEFAULT_SIMULATION_CONTINUOUS_MODE "false"
+#define DEFAULT_SIMULATION_RANDOM_SEED "0"
+
+#define DEFAULT_ALPIDE_DATA_LONG_ENABLE "true"
+#define DEFAULT_ALPIDE_DTU_DELAY "10"
+#define DEFAULT_ALPIDE_PIXEL_SHAPING_DEAD_TIME_NS "200"
+#define DEFAULT_ALPIDE_PIXEL_SHAPING_ACTIVE_TIME_NS "6000"
+#define DEFAULT_ALPIDE_MATRIX_READOUT_SPEED_FAST "true"
+#define DEFAULT_ALPIDE_STROBE_EXTENSION_ENABLE "false"
+#define DEFAULT_ALPIDE_MINIMUM_BUSY_CYCLES "8"
+
+#define DEFAULT_ITS_LAYER0_NUM_STAVES "12"
+#define DEFAULT_ITS_LAYER1_NUM_STAVES "16"
+#define DEFAULT_ITS_LAYER2_NUM_STAVES "20"
+#define DEFAULT_ITS_LAYER3_NUM_STAVES "0"
+#define DEFAULT_ITS_LAYER4_NUM_STAVES "0"
+#define DEFAULT_ITS_LAYER5_NUM_STAVES "0"
+#define DEFAULT_ITS_LAYER6_NUM_STAVES "0"
+#define DEFAULT_ITS_HIT_MULTIPLICITY_DISTRIBUTION_FILE "config/multipl_dist_raw_bins.txt"
+#define DEFAULT_ITS_BUNCH_CROSSING_RATE_NS "25"
+#define DEFAULT_ITS_MONTE_CARLO_DIR_PATH "config/monte_carlo_events/PbPb"
+#define DEFAULT_ITS_HIT_DENSITY_LAYER0 "18.6"
+#define DEFAULT_ITS_HIT_DENSITY_LAYER1 "12.2"
+#define DEFAULT_ITS_HIT_DENSITY_LAYER2 "9.1"
+#define DEFAULT_ITS_HIT_DENSITY_LAYER3 "2.8"
+#define DEFAULT_ITS_HIT_DENSITY_LAYER4 "2.7"
+#define DEFAULT_ITS_HIT_DENSITY_LAYER5 "2.6"
+#define DEFAULT_ITS_HIT_DENSITY_LAYER6 "2.6"
+
+#define DEFAULT_PCT_NUM_LAYERS "1"
+#define DEFAULT_PCT_NUM_STAVES_PER_LAYER "1"
+#define DEFAULT_PCT_MONTE_CARLO_FILE_PATH "config/monte_carlo_events/pct/pct_data.xml"
+#define DEFAULT_PCT_TIME_FRAME_LENGTH_NS "200"
+#define DEFAULT_PCT_RANDOM_PARTICLES_PER_S_MEAN "1E9"
+#define DEFAULT_PCT_RANDOM_PARTICLES_PER_S_STDDEV "0.2E9"
+#define DEFAULT_PCT_RANDOM_BEAM_STDDEV_MM "0.1"
+#define DEFAULT_PCT_BEAM_START_COORD_X_MM "-0.5"
+#define DEFAULT_PCT_BEAM_START_COORD_Y_MM "-0.5"
+#define DEFAULT_PCT_BEAM_END_COORD_X_MM "27.5"
+#define DEFAULT_PCT_BEAM_END_COORD_Y_MM "2.0"
+#define DEFAULT_PCT_BEAM_STEP_MM "3.0"
+#define DEFAULT_PCT_BEAM_TIME_PER_STEP_US "125"
+
+#define DEFAULT_EVENT_RANDOM_HIT_GENERATION "true"
+#define DEFAULT_EVENT_RANDOM_CLUSTER_GENERATION "false"
+#define DEFAULT_EVENT_RANDOM_CLUSTER_SIZE_MEAN "4"
+#define DEFAULT_EVENT_RANDOM_CLUSTER_SIZE_STDDEV "2"
+#define DEFAULT_EVENT_MONTE_CARLO_FILE_TYPE "xml"
+#define DEFAULT_EVENT_QED_NOISE_PATH "config/monte_carlo_events/QED"
+#define DEFAULT_EVENT_QED_NOISE_INPUT "false"
+#define DEFAULT_EVENT_QED_NOISE_FEED_RATE_NS "250"
+#define DEFAULT_EVENT_QED_NOISE_EVENT_RATE_NS "20000"
+#define DEFAULT_EVENT_TRIGGER_DELAY_NS "1000"
+#define DEFAULT_EVENT_TRIGGER_FILTER_TIME_NS "10000"
+#define DEFAULT_EVENT_TRIGGER_FILTER_ENABLE "true"
+#define DEFAULT_EVENT_STROBE_ACTIVE_LENGTH_NS "100"
+#define DEFAULT_EVENT_STROBE_INACTIVE_LENGTH_NS "100"
+#define DEFAULT_EVENT_AVERAGE_EVENT_RATE_NS "2500"
+
+QSettings *getSimSettings(const char *fileName = "settings.txt");
+void setDefaultSimSettings(QSettings *readoutSimSettings);
+
+
+#endif
+///@}

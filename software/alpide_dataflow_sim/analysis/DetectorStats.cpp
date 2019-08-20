@@ -20,16 +20,19 @@
 
 
 ///@brief Constructor for DetectorStats class.
-///@param event_rate_khz Interaction event rate in kilohertz
+///@param sim_params Simulation parameters that should be stored in root file.
+///                  Key: name of parameter, value: simulation parameter value
 ///@param sim_time_ns Simulation time (in nanoseconds).
 ///                   Used for data rate calculations.
+///@param sim_type "pct" or "its"
 ///@param sim_run_data_path Path to directory with simulation data.
-DetectorStats::DetectorStats(ITS::detectorConfig config,
-                             unsigned int event_rate_khz,
+DetectorStats::DetectorStats(Detector::DetectorConfigBase config,
+                             std::map<std::string, double> sim_params,
                              unsigned long sim_time_ns,
+                             std::string sim_type,
                              const char* sim_run_data_path)
   : mConfig(config)
-  , mEventRateKhz(event_rate_khz)
+  , mSimParams(sim_params)
   , mSimTimeNs(sim_time_ns)
   , mSimRunDataPath(sim_run_data_path)
 {
@@ -37,11 +40,12 @@ DetectorStats::DetectorStats(ITS::detectorConfig config,
 
   mLayerStats.resize(ITS::N_LAYERS, nullptr);
 
-  for(unsigned int layer_num = 0; layer_num < 7; layer_num++) {
+  for(unsigned int layer_num = 0; layer_num < config.num_layers; layer_num++) {
     if(config.layer[layer_num].num_staves > 0) {
       mLayerStats[layer_num] = new ITSLayerStats(layer_num,
                                                  config.layer[layer_num].num_staves,
                                                  sim_time_ns,
+                                                 sim_type,
                                                  sim_run_data_path);
       mNumLayers++;
     }
@@ -62,7 +66,7 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   //----------------------------------------------------------------------------
   // Generate plots for each layer included in the simulation
   //----------------------------------------------------------------------------
-  for(unsigned int layer_num = 0; layer_num < ITS::N_LAYERS; layer_num++) {
+  for(unsigned int layer_num = 0; layer_num < mConfig.num_layers; layer_num++) {
     if(mLayerStats[layer_num] != nullptr) {
       mLayerStats[layer_num]->plotLayer(create_png, create_pdf);
       num_triggers = mLayerStats[layer_num]->getNumTriggers();
@@ -83,7 +87,7 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   busy_count_file << "Num_triggers; " << num_triggers << std::endl << std::endl;;
   busy_count_file << "Layer; BUSY; BUSYV; FLUSH; ABORT; FATAL" << std::endl;
 
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+  for(unsigned int layer = 0; layer < mConfig.num_layers; layer++) {
     if(mLayerStats[layer] != nullptr) {
       busy_count_file << layer << "; ";
       busy_count_file << mLayerStats[layer]->getNumBusyEvents() << "; ";
@@ -131,7 +135,7 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
     double trig_sent_excl_filter_coverage = 0.0;
     double trig_readout_coverage = 0.0;
     double trig_readout_excl_filter_coverage = 0.0;
-    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+    for(unsigned int layer = 0; layer < mConfig.num_layers; layer++) {
       if(mLayerStats[layer] != nullptr) {
         trig_sent_coverage += mLayerStats[layer]->getTrigSentCoverage(trigger_id);
         trig_sent_excl_filter_coverage += mLayerStats[layer]->getTrigSentExclFilteringCoverage(trigger_id);
@@ -226,21 +230,21 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   TH2D* h5 = new TH2D("h_trig_ctrl_link_efficiency_detector",
                       "Trigger Distribution Efficiency - Detector",
                       num_triggers,0,num_triggers-1,
-                      ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+                      mConfig.num_layers, -0.5, mConfig.num_layers-0.5);
   TH2D* h6 = new TH2D("h_trig_ctrl_link_excl_filter_efficiency_detector",
                       "Trigger Distribution Efficiency Excluding Filtering - Detector",
                       num_triggers,0,num_triggers-1,
-                      ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+                      mConfig.num_layers, -0.5, mConfig.num_layers-0.5);
   TH2D* h7 = new TH2D("h_trig_readout_efficiency_detector",
                       "Trigger Readout Efficiency - Detector",
                       num_triggers,0,num_triggers-1,
-                      ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+                      mConfig.num_layers, -0.5, mConfig.num_layers-0.5);
   TH2D* h8 = new TH2D("h_trig_readout_excl_filter_efficiency_detector",
                       "Trigger Readout Efficiency Excluding Filtering - Detector",
                       num_triggers,0,num_triggers-1,
-                      ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+                      mConfig.num_layers, -0.5, mConfig.num_layers-0.5);
 
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+  for(unsigned int layer = 0; layer < mConfig.num_layers; layer++) {
     if(mLayerStats[layer] != nullptr) {
       for(uint64_t trigger_id = 0; trigger_id < num_triggers; trigger_id++) {
         h5->Fill(trigger_id, layer, mLayerStats[layer]->getTrigSentCoverage(trigger_id));
@@ -270,10 +274,10 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   h7->SetStats(false);
   h8->SetStats(false);
 
-  h5->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
-  h6->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
-  h7->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
-  h8->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
+  h5->GetYaxis()->SetNdivisions(mConfig.num_layers);
+  h6->GetYaxis()->SetNdivisions(mConfig.num_layers);
+  h7->GetYaxis()->SetNdivisions(mConfig.num_layers);
+  h8->GetYaxis()->SetNdivisions(mConfig.num_layers);
 
 
   if(create_png) {
@@ -326,25 +330,25 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   TH2D* h9 = new TH2D("h_busy_link_count_map_detector",
                       "Busy Link Count - Detector",
                       num_triggers,0,num_triggers-1,
-                      ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+                      mConfig.num_layers, -0.5, mConfig.num_layers-0.5);
   TH2D* h10 = new TH2D("h_busyv_link_count_map_detector",
                       "Busy Violation Link Count - Detector",
                       num_triggers,0,num_triggers-1,
-                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+                       mConfig.num_layers, -0.5, mConfig.num_layers-0.5);
   TH2D* h11 = new TH2D("h_flush_link_count_map_detector",
                        "Flushed Incomplete Link Count - Detector",
                        num_triggers,0,num_triggers-1,
-                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+                       mConfig.num_layers, -0.5, mConfig.num_layers-0.5);
   TH2D* h12 = new TH2D("h_abort_link_count_map_detector",
                        "Readout Abort Link Count - Detector",
                        num_triggers,0,num_triggers-1,
-                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+                       mConfig.num_layers, -0.5, mConfig.num_layers-0.5);
   TH2D* h13 = new TH2D("h_fatal_link_count_map_detector",
                        "Fatal Mode Link Count - Detector",
                        num_triggers,0,num_triggers-1,
-                       ITS::N_LAYERS, -0.5, ITS::N_LAYERS-0.5);
+                       mConfig.num_layers, -0.5, mConfig.num_layers-0.5);
 
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+  for(unsigned int layer = 0; layer < mConfig.num_layers; layer++) {
     if(mLayerStats[layer] != nullptr) {
       std::vector<unsigned int> Layer_busy_link_count = mLayerStats[layer]->getBusyLinkCount();
       std::vector<unsigned int> Layer_busyv_link_count = mLayerStats[layer]->getBusyVLinkCount();
@@ -391,11 +395,11 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   h12->SetStats(false);
   h13->SetStats(false);
 
-  h9->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
-  h10->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
-  h11->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
-  h12->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
-  h13->GetYaxis()->SetNdivisions(ITS::N_LAYERS);
+  h9->GetYaxis()->SetNdivisions(mConfig.num_layers);
+  h10->GetYaxis()->SetNdivisions(mConfig.num_layers);
+  h11->GetYaxis()->SetNdivisions(mConfig.num_layers);
+  h12->GetYaxis()->SetNdivisions(mConfig.num_layers);
+  h13->GetYaxis()->SetNdivisions(mConfig.num_layers);
 
   if(create_png) {
     h9->Draw("COLZ");
@@ -445,23 +449,23 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   //----------------------------------------------------------------------------
   TH1D *h14 = new TH1D("h_busy_vs_layer",
                        "Total busy event count vs layer",
-                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+                       mConfig.num_layers,-0.5,mConfig.num_layers-0.5);
 
   TH1D *h15 = new TH1D("h_busyv_vs_layer",
                        "Total busy violation event count vs layer",
-                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+                       mConfig.num_layers,-0.5,mConfig.num_layers-0.5);
 
   TH1D *h16 = new TH1D("h_flush_vs_layer",
                        "Total flushed incomplete event count vs layer",
-                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+                       mConfig.num_layers,-0.5,mConfig.num_layers-0.5);
 
   TH1D *h17 = new TH1D("h_abort_vs_layer",
                        "Total readout abort event count vs layer",
-                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+                       mConfig.num_layers,-0.5,mConfig.num_layers-0.5);
 
   TH1D *h18 = new TH1D("h_fatal_vs_layer",
                        "Total fatal mode event count vs layer",
-                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+                       mConfig.num_layers,-0.5,mConfig.num_layers-0.5);
 
   h14->GetXaxis()->SetTitle("Layer number");
   h15->GetXaxis()->SetTitle("Layer number");
@@ -475,7 +479,7 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   h17->GetYaxis()->SetTitle("Readout abort event count");
   h18->GetYaxis()->SetTitle("Fatal mode event count");
 
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+  for(unsigned int layer = 0; layer < mConfig.num_layers; layer++) {
     if(mLayerStats[layer] != nullptr) {
       h14->Fill(layer, mLayerStats[layer]->getNumBusyEvents());
       h15->Fill(layer, mLayerStats[layer]->getNumBusyVEvents());
@@ -544,11 +548,11 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   //----------------------------------------------------------------------------
   TH1D *h19 = new TH1D("h_avg_trig_distr_efficiency_vs_layer",
                        "Average trigger distribution efficiency vs layer",
-                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+                       mConfig.num_layers,-0.5,mConfig.num_layers-0.5);
 
   TH1D *h20 = new TH1D("h_avg_readout_efficiency_vs_layer",
                        "Average readout efficiency vs layer",
-                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+                       mConfig.num_layers,-0.5,mConfig.num_layers-0.5);
 
   h19->GetXaxis()->SetTitle("Layer number");
   h19->GetYaxis()->SetTitle("Efficiency");
@@ -556,7 +560,7 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   h20->GetXaxis()->SetTitle("Layer number");
   h20->GetYaxis()->SetTitle("Efficiency");
 
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+  for(unsigned int layer = 0; layer < mConfig.num_layers; layer++) {
     if(mLayerStats[layer] != nullptr) {
       h19->Fill(layer, mLayerStats[layer]->getAvgTrigDistrEfficiency());
       h20->Fill(layer, mLayerStats[layer]->getAvgTrigReadoutEfficiency());
@@ -598,11 +602,11 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   //----------------------------------------------------------------------------
   TH1D *h21 = new TH1D("h_data_rates",
                        "Data",
-                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+                       mConfig.num_layers,-0.5,mConfig.num_layers-0.5);
 
   TH1D *h22 = new TH1D("h_protocol_rates",
                        "Protocol",
-                       ITS::N_LAYERS,-0.5,ITS::N_LAYERS-0.5);
+                       mConfig.num_layers,-0.5,mConfig.num_layers-0.5);
 
   h21->GetXaxis()->SetTitle("Layer number");
   h21->GetYaxis()->SetTitle("Data rate [Mpbs]");
@@ -610,7 +614,7 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
   h22->GetXaxis()->SetTitle("Layer number");
   h22->GetYaxis()->SetTitle("Data rate [Mpbs]");
 
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+  for(unsigned int layer = 0; layer < mConfig.num_layers; layer++) {
     if(mLayerStats[layer] != nullptr) {
       auto data_rates = mLayerStats[layer]->getDataRatesMbps();
       unsigned int num_staves = data_rates.size();
@@ -659,10 +663,11 @@ void DetectorStats::plotDetector(bool create_png, bool create_pdf)
 
 
 
-
-
-  TNamed event_rate("event_rate_khz", Form("%d", mEventRateKhz));
-  event_rate.Write();
+  // Write simulation parameters to root file
+  for(auto sim_param_it = mSimParams.begin(); sim_param_it != mSimParams.end(); sim_param_it++) {
+    TNamed sim_param(sim_param_it->first.c_str(), Form("%f", sim_param_it->second));
+    sim_param.Write();
+  }
 
   delete h1;
   delete h2;

@@ -22,8 +22,19 @@
 
 #pragma once
 
+// Ignore warnings about use of auto_ptr in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc>
+#pragma GCC diagnostic pop
+
+// Ignore warnings about functions with unused variables in TLM library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
 #include <tlm>
+#pragma GCC diagnostic pop
+
 #include <functional>
 
 template <typename TRequest, typename TResponse,

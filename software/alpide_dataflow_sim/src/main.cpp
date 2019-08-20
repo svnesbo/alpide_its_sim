@@ -5,42 +5,38 @@
  * @brief  Main source file for Alpide Dataflow SystemC simulation testbench
  */
 
-
-#include "settings/Settings.hpp"
-#include "settings/parse_cmdline_args.hpp"
-#include "event/EventGenerator.hpp"
-#include "Alpide/Alpide.hpp"
-#include "stimuli/Stimuli.hpp"
-#include "version.hpp"
-
-// Ignore warnings about use of auto_ptr in SystemC library
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#include <systemc.h>
-#pragma GCC diagnostic pop
-
-#include "boost/date_time/posix_time/posix_time.hpp"
 #include <set>
 #include <iostream>
 #include <chrono>
 #include <ctime>
-#include <QDir>
-#include <QFile>
 #include <unistd.h>
 #include <signal.h>
+#include <QDir>
+#include <QFile>
+#include "boost/date_time/posix_time/posix_time.hpp"
 
+// Ignore warnings about use of auto_ptr and unused parameters in SystemC library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <systemc.h>
+#pragma GCC diagnostic pop
 
-// Some rough numbers based on a couple of simulation runs
-#define EVENT_CSV_KB_PER_EVENT         0.035
-#define VCD_TRACES_KB_PER_EVENT       40.000
-#define VCD_CLOCK_KB_PER_EVENT         1.500
+#ifdef ROOT_ENABLED
+#include "TSystem.h"
+#endif
 
-#define DATA_SIZE_WARNING_MB         512.000
+#include "Settings/Settings.hpp"
+#include "Settings/parse_cmdline_args.hpp"
+#include "Stimuli/StimuliITS.hpp"
+#include "Stimuli/StimuliPCT.hpp"
+#include "Stimuli/StimuliFocal.hpp"
+#include "version.hpp"
 
 
 void signal_callback_handler(int signum);
 bool create_output_dir(const QSettings* settings, std::string& output_path);
-double estimate_data_size(const QSettings* settings);
+double get_data_size_warning(const QSettings* settings);
 
 volatile bool g_terminate_program = false;
 
@@ -50,6 +46,10 @@ int sc_main(int argc, char** argv)
   boost::posix_time::ptime simulation_start_time = boost::posix_time::second_clock::local_time();
 
   std::cout << std::endl; // Print a new line after SystemC info
+
+#ifdef ROOT_ENABLED
+  gSystem->Load("libTree");
+#endif
 
   // Parse configuration file here
   QSettings* simulation_settings = getSimSettings();
@@ -67,16 +67,9 @@ int sc_main(int argc, char** argv)
   if(parseCommandLine(parser, app, *simulation_settings) == false)
     return 0;
 
-  double sim_data_size = estimate_data_size(simulation_settings);
-
-  std::cout << "Estimated size of simulation data: " << sim_data_size << " kilobytes" << std::endl;
-  if((sim_data_size/1024) > DATA_SIZE_WARNING_MB) {
-    std::cout << "Warning! Very large files will be generated.. ";
-
-    if(simulation_settings->value("data_output/write_vcd").toBool() == true) {
-      std::cout << "Note: VCD file generation is enabled. This will generate lots ";
-      std::cout << "of waveform data which is not necessary for analysis" << std::endl;
-    }
+  if(get_data_size_warning(simulation_settings) == true) {
+    std::cout << "Warning! VCD trace generation is enabled with a high number of events.\n";
+    std::cout << "This will likely consume a lot of disk space (and slow down simulation).\n";
 
     std::cout << "Are you sure you want to proceed? [y/N]: ";
     char choice = getchar();
@@ -94,7 +87,21 @@ int sc_main(int argc, char** argv)
   signal(SIGINT, signal_callback_handler);
 
   // Setup SystemC simulation
-  Stimuli stimuli("stimuli", simulation_settings, output_dir_str);
+  std::shared_ptr<StimuliBase> stimuli;
+
+  QString sim_type = simulation_settings->value("simulation/type").toString();
+
+  if(sim_type == "its") {
+    stimuli = std::make_shared<StimuliITS>("stimuli", simulation_settings, output_dir_str);
+  } else if(sim_type == "pct") {
+    stimuli = std::make_shared<StimuliPCT>("stimuli", simulation_settings, output_dir_str);
+  } else if(sim_type == "focal") {
+    stimuli = std::make_shared<StimuliFocal>("stimuli", simulation_settings, output_dir_str);
+  } else {
+    std::cout << "Unknown simulation type " << sim_type.toStdString() << std::endl;
+    std::cout << "Exiting..." << std::endl;
+    return 0;
+  }
 
   sc_trace_file *wf = NULL;
   sc_core::sc_set_time_resolution(1, sc_core::SC_NS);
@@ -102,20 +109,16 @@ int sc_main(int argc, char** argv)
   // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
   sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true);
 
-  stimuli.clock(clock_40MHz);
+  stimuli->clock(clock_40MHz);
 
   // Open VCD file
   if(simulation_settings->value("data_output/write_vcd").toBool() == true) {
     std::string vcd_filename = output_dir_str + "/alpide_sim_traces";
     wf = sc_create_vcd_trace_file(vcd_filename.c_str());
-    stimuli.addTraces(wf);
+    stimuli->addTraces(wf);
 
-    ///@todo Pass vcd trace object to constructor of Stimuli class and Alpide classes?
-    if(simulation_settings->value("data_output/write_vcd_clock").toBool() == true) {
-      ///@todo Add a warning here if user tries to simulate over 1000 events with this option enabled,
-      ///      because it will consume 100s of megabytes
+    if(simulation_settings->value("data_output/write_vcd_clock").toBool() == true)
       sc_trace(wf, clock_40MHz, "clock");
-    }
   }
 
 
@@ -128,7 +131,6 @@ int sc_main(int argc, char** argv)
   if(wf != NULL) {
     sc_close_vcd_trace_file(wf);
   }
-
 
 
   boost::posix_time::ptime simulation_end_time  = boost::posix_time::second_clock::local_time();
@@ -243,23 +245,13 @@ bool create_output_dir(const QSettings* settings, std::string& output_path)
 }
 
 
-///@brief Estimate how much size the data generated by the simulation will take
-///@return Estimated size in kilobytes
-double estimate_data_size(const QSettings* settings)
+///@brief Check if simulation is likely to generate a lot of data when VCD traces are enabled
+///@return True if it will, false if not.
+double get_data_size_warning(const QSettings* settings)
 {
   double data_size = 0;
   int num_events = settings->value("simulation/n_events").toInt();
+  bool vcd_enabled = settings->value("data_output/write_vcd").toBool();
 
-
-  if(settings->value("data_output/write_event_csv").toBool())
-    data_size += EVENT_CSV_KB_PER_EVENT * num_events;
-
-  if(settings->value("data_output/write_vcd").toBool()) {
-    data_size += VCD_TRACES_KB_PER_EVENT * num_events;
-
-    if(settings->value("data_output/write_vcd_clock").toBool())
-      data_size += VCD_CLOCK_KB_PER_EVENT * num_events;
-  }
-
-  return data_size;
+  return (vcd_enabled && num_events > 1000);
 }

@@ -19,8 +19,9 @@
 #include "Alpide/EventFrame.hpp"
 #include <vector>
 
-// Ignore warnings about use of auto_ptr in SystemC library
+// Ignore warnings about use of auto_ptr and unused parameters in SystemC library
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
 #pragma GCC diagnostic pop
@@ -97,6 +98,16 @@ private:
 
   unsigned int mCurrentRegion = 0;
   std::map<AlpideDataType, uint64_t> mProtocolStats;
+
+  /// Key: time (ns), value: number of data bytes for interval
+  /// Data rate is only recorded for chip header/trailer, region header,
+  /// and data long/short. Idle and busy on/off are words that the RU does
+  /// not have to transmit further upstreams.
+  /// Comma, unknown, and region trailer are simply ignored.
+  std::map<uint64_t, unsigned int> mDataIntervalByteCounts;
+
+  const unsigned int mDataIntervalNs;
+
   std::vector<uint64_t> mFatalTriggers;
   std::vector<uint64_t> mReadoutAbortTriggers;
   std::vector<uint64_t> mBusyViolationTriggers;
@@ -121,7 +132,8 @@ protected:
   AlpideDataType mCurrentDwType;
 
 public:
-  AlpideEventBuilder(bool save_events = true,
+  AlpideEventBuilder(unsigned int data_rate_interval_ns,
+                     bool save_events = true,
                      bool include_hit_data = false);
 
   void setCurrentTriggerId(uint64_t trigger_id) {
@@ -129,28 +141,35 @@ public:
   }
 
   void popEvent(void);
-  void inputDataByte(std::uint8_t data, uint64_t trig_id);
+  void inputDataByte(std::uint8_t data, uint64_t trig_id, uint64_t time_now_ns);
   AlpideDataType parseDataByte(std::uint8_t data);
 
   unsigned int getNumEvents(void) const;
   const AlpideEventFrame* getNextEvent(void) const;
 
-  std::map<AlpideDataType, uint64_t> getProtocolStats(void) {
+  unsigned int getDataIntervalNs(void) const {
+    return mDataIntervalNs;
+  }
+
+  std::map<AlpideDataType, uint64_t>& getProtocolStats(void) {
     return mProtocolStats;
   }
-  std::vector<uint64_t> getFatalTriggers(void) {
+  std::map<uint64_t, unsigned int>& getDataIntervalByteCounts(void) {
+    return mDataIntervalByteCounts;
+  }
+  std::vector<uint64_t>& getFatalTriggers(void) {
     return mFatalTriggers;
   }
-  std::vector<uint64_t> getReadoutAbortTriggers(void) {
+  std::vector<uint64_t>& getReadoutAbortTriggers(void) {
     return mReadoutAbortTriggers;
   }
-  std::vector<uint64_t> getBusyViolationTriggers(void) {
+  std::vector<uint64_t>& getBusyViolationTriggers(void) {
     return mBusyViolationTriggers;
   }
-  std::vector<uint64_t> getFlushedIncomplTriggers(void) {
+  std::vector<uint64_t>& getFlushedIncomplTriggers(void) {
     return mFlushedIncomplTriggers;
   }
-  std::vector<BusyEvent> getBusyEvents(void) {
+  std::vector<BusyEvent>& getBusyEvents(void) {
     return mBusyEvents;
   }
 };
@@ -173,7 +192,8 @@ private:
   void parserInputProcess(void);
 
 public:
-  AlpideDataParser(sc_core::sc_module_name name, bool word_mode, bool save_events = false);
+  AlpideDataParser(sc_core::sc_module_name name, bool word_mode,
+                   unsigned int data_rate_interval_ns, bool save_events = false);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 

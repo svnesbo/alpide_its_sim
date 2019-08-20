@@ -50,6 +50,10 @@ macro (add_sources)
     endif()
   endmacro()
 
+include_directories(
+  ../src/
+  ../../../source/bench
+  )
 
 add_sources(
   misc.cpp

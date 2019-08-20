@@ -12,7 +12,8 @@
 #include <TH1F.h>
 #include <TH1I.h>
 #include <THStack.h>
-#include "../src/ITS/ITS_config.hpp"
+#include "../src/Detector/ITS/ITSDetectorConfig.hpp"
+#include "../src/Detector/PCT/PCTDetectorConfig.hpp"
 
 #define MAX_SIMS 12
 

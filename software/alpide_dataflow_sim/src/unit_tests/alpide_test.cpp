@@ -31,7 +31,7 @@ int sc_main(int argc, char** argv)
   int event_id = 0;
   int dtu_delay_cycles = 10;
   bool continuous_mode = false;
-  bool enable_clustering = true;
+  bool enable_data_long = true;
   bool matrix_readout_speed = true;
   bool test_passed = true;
 
@@ -53,7 +53,7 @@ int sc_main(int argc, char** argv)
                 128,
                 64,
                 dtu_delay_cycles,
-                enable_clustering,
+                enable_data_long,
                 continuous_mode,
                 matrix_readout_speed);
 
@@ -194,7 +194,7 @@ int sc_main(int argc, char** argv)
     sc_close_vcd_trace_file(wf);
   }
 
-  ///@todo Create more advanced tests of Alpide chip here.. test that clusters are generated
+  ///@todo Create more advanced tests of Alpide chip here.. test that clusters (data long) are generated
   ///      correctly, that data is read out sufficiently fast, etc.
 
   if(test_passed == true) {

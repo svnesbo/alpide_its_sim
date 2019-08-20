@@ -21,6 +21,8 @@
 #include "TProfile.h"
 #include "TH2F.h"
 #include "TH1F.h"
+#include "TGraph.h"
+#include "TMultiGraph.h"
 #include "TStyle.h"
 #include "TFile.h"
 #include "TDirectory.h"
@@ -47,6 +49,7 @@ ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave,
   readTrigActionsFile(ss_file_path_base.str());
   readBusyEventFiles(ss_file_path_base.str());
   readProtocolUtilizationFile(ss_file_path_base.str());
+  readDataRateFile(ss_file_path_base.str());
   calcDataRates();
 }
 
@@ -645,9 +648,6 @@ void ReadoutUnitStats::readProtocolUtilizationFile(std::string file_path_base)
         csv_line = csv_line.substr(csv_line.find(";")+1);
 
       index++;
-
-      if(index > 30)
-        exit(-1);
     }
 
     if(index != mProtUtilIndex.size()) {
@@ -681,7 +681,100 @@ void ReadoutUnitStats::readProtocolUtilizationFile(std::string file_path_base)
 }
 
 
+///@brief Read and parse CSV file with data rate stats.
+///       Must be called after readBusyEventFiles(), because it needs to know
+///       how many links to expect.
+void ReadoutUnitStats::readDataRateFile(std::string file_path_base)
+{
+  if(mLinkStats.empty()) {
+    std::cout << "ReadoutUnitStats::readDataRateFile(): called without";
+    std::cout << " initializing LinkStats objects first." << std::endl;
+    exit(-1);
+  }
+
+  std::stringstream ss_data_rate;
+
+  ss_data_rate  << file_path_base << "_Data_rate.csv";
+
+  std::string data_rate_filename = ss_data_rate.str();
+
+  std::cout << "Opening file: " << data_rate_filename << std::endl;
+  std::ifstream data_rate_file(data_rate_filename, std::ios_base::in);
+
+  if(!data_rate_file.is_open()) {
+    std::cerr << "Error opening file " << data_rate_filename << std::endl;
+    exit(-1);
+  }
+
+  std::string csv_header;
+  std::getline(data_rate_file, csv_header);
+
+  if(csv_header.length() == 0) {
+    std::cout << "ReadoutUnitStats::readDataRateFile(): ";
+    std::cout << "Error reading or empty CSV header read." << std::endl;
+    exit(-1);
+  }
+
+  unsigned int index = 0;
+  while(csv_header.length() > 0) {
+    size_t end_of_field_pos = csv_header.find(";");
+    std::string header_field = csv_header.substr(0, end_of_field_pos);
+
+    // Create entry for field in map
+    mDataRate[header_field];
+
+    // Index used to find correct field when reading in data later
+    mDataRateIndex[index] = header_field;
+
+    std::cout << "Found field: " << header_field << std::endl;
+
+    // Remove the current field, accounting for both with
+    // or without semicolon at the end
+    if(end_of_field_pos == std::string::npos)
+      csv_header = "";
+    else
+      csv_header = csv_header.substr(csv_header.find(";")+1);
+
+    index++;
+  }
+
+  while(data_rate_file.good()) {
+    unsigned int line_num = 1;
+    index = 0;
+    std::string csv_line;
+    std::getline(data_rate_file, csv_line);
+
+    while(csv_line.length() > 0) {
+      size_t end_of_field_pos = csv_line.find(";");
+      std::string value_str = csv_line.substr(0, end_of_field_pos);
+      std::string field = mDataRateIndex[index];
+
+      // Read in data for field
+      mDataRate[field].push_back(std::stod(value_str));
+
+      // Remove the current field, accounting for both with
+      // or without semicolon at the end
+      if(end_of_field_pos == std::string::npos)
+        csv_line = "";
+      else
+        csv_line = csv_line.substr(csv_line.find(";")+1);
+
+      index++;
+      line_num++;
+    }
+
+    if(index != mDataRateIndex.size()) {
+      std::cout << "Incorrect number of fields on line " << line_num;
+      std::cout << " in file " << data_rate_filename << std::endl;
+      exit(-1);
+    }
+  }
+}
+
+
 ///@brief Calculate data rates (protocol and data separately) in Mbps
+///       This uses the protocol utilization data to calculate an averate
+///       rate for the whole simulation
 void ReadoutUnitStats::calcDataRates(void)
 {
   unsigned long data_bytes = mProtocolUtilization["DATA_SHORT (bytes)"];
@@ -1387,6 +1480,52 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   }
 
 
+
+  //----------------------------------------------------------------------------
+  // Plot data rate versus time
+  //----------------------------------------------------------------------------
+  std::vector<TGraph*> g_vector;
+
+  TMultiGraph  *mg  = new TMultiGraph();
+
+  mg->SetTitle(Form("RU %i:%i data rate; Time [ns]; Data rate [Mbps]", mLayer, mStave));
+
+  std::vector<double>& time_vector = mDataRate["Time (ns)"];
+
+  for(unsigned int i = 1; i < mDataRateIndex.size(); i++) {
+    std::vector<double>& data_rate_vector = mDataRate[mDataRateIndex[i]];
+    g_vector.push_back(new TGraph(time_vector.size(), time_vector.data(), data_rate_vector.data()));
+
+    g_vector.back()->SetTitle(mDataRateIndex[i].c_str());
+    g_vector.back()->SetLineColor(i);
+
+    mg->Add(g_vector.back());
+
+    std::cout << std::endl << std::endl << mDataRateIndex[i] << std::endl;
+    std::cout << "---------------------------------------" << std::endl;
+    for(unsigned int j = 0; j < time_vector.size(); j++) {
+      std::cout << time_vector[j] << ": " << data_rate_vector[j] << " Mbps" << std::endl;
+    }
+  }
+
+  c1->SetLogy(0);
+  c1->Update();
+  mg->Draw("ALP");
+  c1->BuildLegend();
+  mg->Write();
+
+  if(create_png) {
+    c1->Print(Form("%s/png/RU_%i_%i_data_rate.png",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+
+  }
+  if(create_pdf) {
+    c1->Print(Form("%s/pdf/RU_%i_%i_data_rate.pdf",
+                   mSimDataPath.c_str(),
+                   mLayer, mStave));
+  }
+
   //----------------------------------------------------------------------------
   // Plot link histograms
   //----------------------------------------------------------------------------
@@ -1408,4 +1547,7 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   delete h12;
   delete h13;
   delete h14;
+
+  for(auto it = g_vector.begin(); it != g_vector.end(); it++)
+    delete *it;
 }

@@ -12,12 +12,13 @@
 #include <string>
 #include <map>
 #include "ITSLayerStats.hpp"
-#include "../src/settings/Settings.hpp"
-#include "../src/ITS/ITS_config.hpp"
+#include "../src/Settings/Settings.hpp"
+#include "Detector/Common/DetectorConfig.hpp"
+#include "Detector/ITS/ITS_constants.hpp"
 
 class DetectorStats {
-  ITS::detectorConfig mConfig;
-  unsigned int mEventRateKhz;
+  Detector::DetectorConfigBase mConfig;
+  std::map<std::string, double> mSimParams;
   unsigned long mSimTimeNs;
   unsigned int mNumLayers;
   std::string mSimRunDataPath;
@@ -40,9 +41,10 @@ class DetectorStats {
   std::vector<double> mTrigReadoutExclFilteringCoverage;
 
 public:
-  DetectorStats(ITS::detectorConfig config,
-		unsigned int event_rate_khz,
+  DetectorStats(Detector::DetectorConfigBase config,
+                std::map<std::string, double> sim_params,
                 unsigned long sim_time_ns,
+                std::string sim_type,
                 const char* sim_run_data_path);
 
   void plotDetector(bool create_png, bool create_pdf);
