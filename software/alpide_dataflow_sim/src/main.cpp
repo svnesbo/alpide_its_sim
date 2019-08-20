@@ -126,7 +126,7 @@ int sc_main(int argc, char** argv)
 
   sc_core::sc_start();
 
-  std::cout << "Started simulation.." << std::endl;
+  std::cout << "Ending simulation.." << std::endl;
 
   if(wf != NULL) {
     sc_close_vcd_trace_file(wf);
