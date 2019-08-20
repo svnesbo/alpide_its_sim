@@ -151,7 +151,7 @@ inline PixelHit::~PixelHit()
   uint64_t time_now = sc_time_stamp().value();
 
   if(mPixelReadoutStats) {
-    mPixelReadoutStats->addReadoutCount(mReadoutCount);
+    mPixelReadoutStats->addReadoutCount(mReadoutCount, mChipId);
 
 #ifdef PIXEL_DEBUG
     if(mReadoutCount == 0 && mCol != -1 && mRow != -1) {
