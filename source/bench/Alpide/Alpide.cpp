@@ -490,7 +490,6 @@ void Alpide::frameReadout(void)
 void Alpide::dataTransmission(void)
 {
   uint64_t time_now = sc_time_stamp().value();
-  uint64_t data_out_trig_id;
 
   // Trace signals for fifo sizes
   s_dmu_fifo_size = s_dmu_fifo.num_available();
@@ -566,7 +565,7 @@ void Alpide::dataTransmission(void)
           // Update trigger id signal used by AlpideDataParser to know
           // which trigger ID the data belongs to. Delay with DTU cycles
           // so that it comes out at the same time as the corresponding data
-          data_out_trig_id = mObDataWord.trigger_id;
+          mDataOutTrigId = mObDataWord.trigger_id;
         } else if(mObDataWord.data_type == ALPIDE_DATA_SHORT) {
           // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
           // the pixels in the data word was read out, and can increase readout counters.
@@ -611,7 +610,7 @@ void Alpide::dataTransmission(void)
        data_word.data_type == ALPIDE_CHIP_EMPTY_FRAME) {
       // Update trigger id signal used by AlpideDataParser to know
       // which trigger ID the data belongs to
-      data_out_trig_id = data_word.trigger_id;
+      mDataOutTrigId = data_word.trigger_id;
     } else if(data_word.data_type == ALPIDE_DATA_SHORT) {
       // When DATA_SHORT/LONG are finally put out on the DTU FIFO, we can be sure that
       // the pixels in the data word was read out, and can increase readout counters.
@@ -656,14 +655,14 @@ void Alpide::dataTransmission(void)
       dw_dtu_fifo_output = dw_idle_data;
     }
 
-    s_dtu_delay_fifo_trig.nb_write(data_out_trig_id);
+    s_dtu_delay_fifo_trig.nb_write(mDataOutTrigId);
     if(s_dtu_delay_fifo_trig.nb_read(trig_dtu_delay_fifo_output) == false) {
       trig_dtu_delay_fifo_output = 0;
     }
 
   } else {
     dw_dtu_fifo_output = dw_dtu_fifo_input;
-    trig_dtu_delay_fifo_output = data_out_trig_id;
+    trig_dtu_delay_fifo_output = mDataOutTrigId;
   }
 
 

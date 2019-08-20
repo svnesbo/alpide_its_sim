@@ -191,6 +191,9 @@ private:
   ///       in outer barrel mode.
   AlpideDataWord mObDataWord;
 
+  ///@brief Trigger ID for current frame that is being outputted on the link out
+  uint64_t mDataOutTrigId = 0;
+
   ///@brief Trigger ID counter
   uint64_t mTrigIdCount = 0;
 
