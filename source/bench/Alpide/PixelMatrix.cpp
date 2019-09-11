@@ -114,8 +114,6 @@ void PixelMatrix::setPixel(unsigned int col, unsigned int row)
 ///@throw out_of_range If there are no events, or if col or row is outside the allowed range
 void PixelMatrix::setPixel(const std::shared_ptr<PixelHit> &pixel)
 {
-  std::uint64_t time_now = sc_time_stamp().value();
-
 #ifdef EXCEPTION_CHECKS
   // Out of range exception check
   if(mColumnBuffs.empty() == true) {
@@ -135,6 +133,7 @@ void PixelMatrix::setPixel(const std::shared_ptr<PixelHit> &pixel)
     current_event_buffer_hits_remaining++;
     mLatchedPixelHitCount++;
 #ifdef PIXEL_DEBUG
+    std::uint64_t time_now = sc_time_stamp().value();
     pixel->mPixMatrix = true;
     pixel->mPixMatrixTime = time_now;
 #endif

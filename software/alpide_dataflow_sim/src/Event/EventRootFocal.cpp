@@ -147,13 +147,33 @@ void EventRootFocal::createHits(unsigned int col, unsigned int row, unsigned int
     unsigned int x_coord = round(chip_x_mm*(N_PIXEL_COLS/(CHIP_WIDTH_CM*10)));
     unsigned int y_coord = round(chip_y_mm*(N_PIXEL_ROWS/(CHIP_HEIGHT_CM*10)));
 
+    // Make sure that x and y coords are within chip boundaries
     if(x_coord >= N_PIXEL_COLS)
       x_coord = N_PIXEL_COLS-1;
-
     if(y_coord >= N_PIXEL_ROWS)
       y_coord = N_PIXEL_ROWS-1;
 
+    unsigned int x_coord2, y_coord2;
+
+    // Create a simple 2x2 pixel cluster around x_coord and y_coord
+    // Makes sure that we don't get pixels below row/col 0, and not above
+    // row 511 or above column 1023
+    if(x_coord < N_PIXEL_COLS/2) {
+      x_coord2 = x_coord+1;
+    } else {
+      x_coord2 = x_coord-1;
+    }
+
+    if(y_coord < N_PIXEL_ROWS/2) {
+      y_coord2 = y_coord+1;
+    } else {
+      y_coord2 = y_coord-1;
+    }
+
     event->addHit(x_coord, y_coord, global_chip_id);
+    event->addHit(x_coord, y_coord2, global_chip_id);
+    event->addHit(x_coord2, y_coord, global_chip_id);
+    event->addHit(x_coord2, y_coord2, global_chip_id);
   }
 }
 
