@@ -150,12 +150,12 @@ inline PixelHit::PixelHit(const PixelHit& p)
 
 inline PixelHit::~PixelHit()
 {
-  uint64_t time_now = sc_time_stamp().value();
-
   if(mPixelReadoutStats) {
     mPixelReadoutStats->addReadoutCount(mReadoutCount, mChipId);
 
 #ifdef PIXEL_DEBUG
+    uint64_t time_now = sc_time_stamp().value();
+
     if(mReadoutCount == 0 && mCol != -1 && mRow != -1) {
       std::cerr << "@" << time_now << "ns: I was never read out: ";
       std::cerr << "Chip " << mChipId << ", " << mCol << ":" << mRow << ", ";
