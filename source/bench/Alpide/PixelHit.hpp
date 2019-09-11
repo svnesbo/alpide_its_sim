@@ -8,12 +8,14 @@
 #ifndef PIXEL_HIT_HPP
 #define PIXEL_HIT_HPP
 
+#ifdef PIXEL_DEBUG
 // Ignore warnings about use of auto_ptr and unused parameters in SystemC library
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <systemc.h>
 #pragma GCC diagnostic pop
+#endif
 
 #include "PixelReadoutStats.hpp"
 #include <cstdint>
