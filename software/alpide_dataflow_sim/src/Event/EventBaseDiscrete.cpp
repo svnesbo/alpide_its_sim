@@ -46,16 +46,16 @@ EventBaseDiscrete::EventBaseDiscrete(Detector::DetectorConfigBase config,
   , mNextEvent(0)
   , mLoadAllEvents(load_all)
 {
-  if(mRandomSeed == 0) {
+  if(random_seed == 0) {
     boost::random::random_device r;
 
     std::cout << "Boost random_device entropy: " << r.entropy() << std::endl;
 
-    unsigned int random_seed = r();
-    mRandEventIdGen.seed(random_seed);
+    unsigned int random_seed2 = r();
+    mRandEventIdGen.seed(random_seed2);
     std::cout << "Random event ID generator random seed: " << random_seed << std::endl;
   } else {
-    mRandEventIdGen.seed(mRandomSeed);
+    mRandEventIdGen.seed(random_seed);
   }
 
   mRandEventIdDist = nullptr;

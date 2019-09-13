@@ -61,6 +61,8 @@ add_sources(
   ReadoutUnitStats.cpp
   ITSLayerStats.cpp
   DetectorStats.cpp
+  ../src/Detector/ITS/ITSDetectorConfig.cpp
+  ../src/Detector/PCT/PCTDetectorConfig.cpp
   process_readout_trigger_stats.C
 )
 

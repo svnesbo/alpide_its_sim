@@ -319,7 +319,7 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
     }
 
     // Convert number of bytes in interval to Mbps
-    double data_rate_total_mbps = 8*(data_bytes_total*(1E9/data_rate_interval_ns))/(1024.0*1024.0);
+    double data_rate_total_mbps = 8*(data_bytes_total*(data_rate_interval_ns/1E9))/(1E6);
     data_rate_csv_file << data_rate_total_mbps;
 
     // Output data rate for each link
@@ -327,7 +327,7 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
       uint64_t data_bytes_link = mDataLinkParsers[i]->getDataIntervalByteCounts()[interval_num];
 
       // Convert number of bytes in interval to Mbps
-      double data_rate_link_mbps = 8*(data_bytes_link*(1E9/data_rate_interval_ns))/(1024.0*1024.0);
+      double data_rate_link_mbps = 8*(data_bytes_link*(data_rate_interval_ns/1E9))/(1E6);
       data_rate_csv_file << ";" << data_rate_link_mbps;
     }
   }

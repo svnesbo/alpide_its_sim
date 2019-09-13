@@ -10,8 +10,10 @@
 #define READOUT_UNIT_STATS_HPP
 
 #include "LinkStats.hpp"
+#include "EventData.hpp"
 //#include <cstdint>
 #include <stdint.h>
+#include <memory>
 #include <vector>
 #include <map>
 #include <string>
@@ -41,7 +43,6 @@ static const uint8_t TRIGGER_FILTERED = 2;
 
 
 class ReadoutUnitStats {
-  // Indexing: [trigger_id][link_id]
   std::vector<LinkStats> mLinkStats;
 
   // Distribution of for how long the links are busy
@@ -167,7 +168,9 @@ class ReadoutUnitStats {
   double mProtocolRateMbps;
 
   std::string mSimDataPath;
+  std::string mSimType;
 
+  std::shared_ptr<EventData> mEventData;
 
   void readTrigActionsFile(std::string file_path_base);
   void readBusyEventFiles(std::string file_path_base);
@@ -178,6 +181,7 @@ class ReadoutUnitStats {
                          const std::vector<std::vector<uint64_t>*> &events,
                          std::vector<unsigned int>& link_count_vec_out,
                          bool create_png, bool create_pdf);
+  void plotMultiplicityAndBusyv(bool create_png, bool create_pdf);
   void plotEventDistribution(const char* h_name, const char* title,
                              const char* x_title, const char* y_title,
                              std::vector<uint64_t> &event_distr,
@@ -186,7 +190,8 @@ class ReadoutUnitStats {
 
 public:
   ReadoutUnitStats(unsigned int layer, unsigned int stave,
-                   unsigned long sim_time_ns, const char* path);
+                   unsigned long sim_time_ns, const char* path,
+                   std::string sim_type, std::shared_ptr<EventData> event_data);
   double getTrigSentCoverage(uint64_t trigger_id) const;
   double getTrigSentExclFilteringCoverage(uint64_t trigger_id) const;
   double getTrigReadoutCoverage(uint64_t trigger_id) const;

@@ -10,6 +10,8 @@
 
 
 #include "ReadoutUnitStats.hpp"
+#include "Detector/ITS/ITSDetectorConfig.hpp"
+#include "Detector/PCT/PCTDetectorConfig.hpp"
 #include <sstream>
 #include <fstream>
 #include <iostream>
@@ -36,12 +38,17 @@
 ///@param sim_time_ns Simulation time (in nanoseconds).
 ///                   Used to calculate data rates.
 ///@param path Path to simulation data directory
+///@param sim_type "pct" or "its"
+///@param event_data Pointer to event data (time of events, number of hits/multiplicities)
 ReadoutUnitStats::ReadoutUnitStats(unsigned int layer, unsigned int stave,
-                                   unsigned long sim_time_ns, const char* path)
+                                   unsigned long sim_time_ns, const char* path,
+                                   std::string sim_type, std::shared_ptr<EventData> event_data)
   : mLayer(layer)
   , mStave(stave)
   , mSimTimeNs(sim_time_ns)
   , mSimDataPath(path)
+  , mSimType(sim_type)
+  , mEventData(event_data)
 {
   std::stringstream ss_file_path_base;
   ss_file_path_base << path << "/" << "RU_" << layer << "_" << stave;
@@ -637,8 +644,8 @@ void ReadoutUnitStats::readProtocolUtilizationFile(std::string file_path_base)
       std::string field = mProtUtilIndex[index];
 
       // Update stats for both links, and combined stats for all links for in RU
-      mLinkStats[link_count].mProtocolUtilization[field] = std::stoul(value_str);;
-      mProtocolUtilization[field] += std::stoul(value_str);;
+      mLinkStats[link_count].mProtocolUtilization[field] = std::stoul(value_str);
+      mProtocolUtilization[field] += std::stoul(value_str);
 
       // Remove the current field, accounting for both with
       // or without semicolon at the end
@@ -924,6 +931,125 @@ void ReadoutUnitStats::plotEventMapCount(const char* h_name, const char* title,
 }
 
 
+///@brief Create a plot for each chip with time on X-axis and pixel hit multiplicity on Y-axis,
+///       with busy violations superimposed/indicated where they happen
+///@todo  This will only work for IB chips where there is one link per IB link
+///       ..that's probably the case for other plots that deal with busy violations as well
+void ReadoutUnitStats::plotMultiplicityAndBusyv(bool create_png, bool create_pdf)
+{
+  unsigned int num_data_links = mLinkStats.size();
+
+  for(unsigned int link_id = 0; link_id < num_data_links; link_id++) {
+    Detector::DetectorPosition pos = {mLayer, mStave, 0, 0, link_id};
+
+    unsigned int global_chip_id;
+
+    if(mSimType == "its") {
+      global_chip_id = ITS::ITS_position_to_global_chip_id(pos);
+    } else { // pct/focal
+      global_chip_id = PCT::PCT_position_to_global_chip_id(pos);
+    }
+
+    // We have to find the right set of data in mEventData,
+    // where multipl_entry_names have names from the header of the events .csv file
+    std::string chip_str = "chip_" + std::to_string(global_chip_id);
+
+    bool chip_found = false;
+    unsigned int idx;
+
+    for(idx = 0; idx < mEventData->multipl_entry_names.size() && chip_found == false; idx++) {
+      std::string asdf = mEventData->multipl_entry_names[idx];
+
+      if(mEventData->multipl_entry_names[idx] == chip_str) {
+        std::cout << "chip found" << std::endl;
+        chip_found = true;
+        break;
+      }
+    }
+
+    // Found the set of data for this chip, plot it
+    if(chip_found) {
+      TCanvas* c = new TCanvas();
+      c->cd();
+
+      // Create a graph and add the points for hit multiplicity first
+      unsigned int num_triggers = mEventData->event_time_vec.size();
+      TGraph* graph1 = new TGraph(num_triggers);
+      uint64_t t = 0;
+      uint64_t t_max;
+      uint64_t y_max;
+
+      for(unsigned int trig_id = 0; trig_id < num_triggers; trig_id++) {
+        // The time stored in the .csv file (delta_t) is the time to the next event,
+        // but the first event starts at time = 0.
+        // So we force time=0 for the first value here, and then accumulate time as we plot
+
+        std::cout << "idx: " << idx << std::endl;
+
+        // SetPoint(point_num, x, y)
+        graph1->SetPoint(trig_id, t, mEventData->multipl_data[idx][trig_id]);
+
+        t += mEventData->event_time_vec[trig_id];
+      }
+
+      t_max = t;
+
+      // Find the largest y-value without messing up the data
+      auto vec_copy = mEventData->multipl_data[idx];
+      std::sort(vec_copy.begin(), vec_copy.end());
+      y_max = vec_copy.back();
+
+      // Create a new graph for the markers where busy violations occur,
+      // and superimpose the new graph on top of the previous graph
+      unsigned int number_of_busyv = mLinkStats[link_id].mBusyVTriggers.size();
+      TGraph* graph2 = new TGraph(number_of_busyv);
+
+      for(unsigned int busyv_num = 0; busyv_num < number_of_busyv; busyv_num++) {
+        unsigned int busyv_trig_id = mLinkStats[link_id].mBusyVTriggers[busyv_num];
+
+        // Find the time of the trigger, trigger ID should correspond
+        // to indexes in mEventData.event_time_vec
+        t = 0;
+        for(uint64_t trig_id = 0; trig_id < busyv_trig_id; trig_id++) {
+          t += mEventData->event_time_vec[trig_id];
+        }
+
+        // Take the y-value for the point from the multiplicity for this trigger,
+        // so that the point for the busy violation appears nicely over the multiplicity plot
+        graph2->SetPoint(busyv_num, t, mEventData->multipl_data[idx][busyv_trig_id]);
+      }
+
+      graph1->SetTitle(Form("Chip/Link %d:%d:%d - Multiplicity and BusyV", mLayer, mStave, link_id));
+      graph1->GetYaxis()->SetTitle("Pixel hit multiplicity");
+      graph1->GetXaxis()->SetTitle("Time [ns]");
+      graph1->Draw("AB1");
+      graph1->GetXaxis()->SetRangeUser(0,t_max+1000);
+      graph1->GetYaxis()->SetRangeUser(0,y_max*1.2);
+      graph1->Draw("AB1");
+      graph2->SetMarkerStyle(20);
+      graph2->SetMarkerSize(0.6);
+      graph2->SetMarkerColor(kRed);
+      graph2->Draw("p"); // Superimpose on top of graph1
+      c->Update();
+
+      if(create_png)
+        c->Print(Form("%s/png/chip_event_plots/chip_%i_%i_%i_multipl_busyv.png",
+                      mSimDataPath.c_str(),
+                      mLayer, mStave, link_id));
+
+      if(create_pdf)
+        c->Print(Form("%s/pdf/chip_event_plots/RU_%i_%i_%i_multipl_busyv.pdf",
+                      mSimDataPath.c_str(),
+                      mLayer, mStave, link_id));
+
+      delete graph1;
+      delete graph2;
+      delete c;
+    }
+  }
+}
+
+
 void ReadoutUnitStats::plotEventDistribution(const char* h_name, const char* title,
                                              const char* x_title, const char* y_title,
                                              std::vector<uint64_t> &event_distr,
@@ -1082,9 +1208,15 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
                     mFatalLinkCount, create_png, create_pdf);
 
 
+  //----------------------------------------------------------------------------
+  // Plot multiplicity per trigger with busy violations superimposed,
+  // per chip/link
+  //----------------------------------------------------------------------------
+  plotMultiplicityAndBusyv(create_png, create_pdf);
+
+
+
   c1->cd();
-
-
   //----------------------------------------------------------------------------
   // Plot busy time distribution
   //----------------------------------------------------------------------------

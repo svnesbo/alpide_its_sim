@@ -14,6 +14,7 @@
 #include "EventRootFocal.hpp"
 
 using boost::random::uniform_real_distribution;
+using boost::random::uniform_int_distribution;
 
 // Hardcoded constants for ROOT file used
 static const unsigned int c_det_top_left_macro_cell_x = 1329;
@@ -40,13 +41,28 @@ EventRootFocal::EventRootFocal(Detector::DetectorConfigBase config,
                                Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
                                Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
                                const QString& event_filename,
-                               unsigned int random_seed
-  )
+                               unsigned int random_seed,
+                               bool random_event_order)
   : mConfig(config)
   , mGlobalChipIdToPositionFunc(global_chip_id_to_position_func)
   , mPositionToGlobalChipIdFunc(position_to_global_chip_id_func)
+  , mRandomEventOrder(random_event_order)
 {
-  mRandHitGen.seed(random_seed);
+  if(random_seed == 0) {
+    boost::random::random_device r;
+
+    std::cout << "Boost random_device entropy: " << r.entropy() << std::endl;
+
+    unsigned int random_seed2 = r();
+    mRandHitGen.seed(random_seed2);
+    mRandEventIdGen.seed(random_seed2);
+    std::cout << "Random event ID generator random seed: " << random_seed << std::endl;
+  } else {
+    mRandHitGen.seed(random_seed);
+    mRandEventIdGen.seed(random_seed);
+  }
+
+
   mRandHitMacroCellX = new uniform_real_distribution<double>(0, c_macro_cell_x_size_mm);
   mRandHitMacroCellY = new uniform_real_distribution<double>(0, c_macro_cell_y_size_mm);
 
@@ -86,6 +102,8 @@ EventRootFocal::EventRootFocal(Detector::DetectorConfigBase config,
 
   mNumEntries = mTree->GetEntries();
 
+  mRandEventIdDist = new uniform_int_distribution<int>(0, mNumEntries-1);
+
   if(mNumEntries == 0)
     mMoreEventsLeft = false;
 }
@@ -107,6 +125,7 @@ EventRootFocal::~EventRootFocal()
   delete mBranchAmpS3;
   delete mTree;
   delete mRootFile;
+  delete mRandEventIdDist;
 }
 
 void EventRootFocal::createHits(unsigned int col, unsigned int row, unsigned int num_hits,
@@ -189,6 +208,9 @@ EventDigits* EventRootFocal::getNextEvent(void)
 
   std::cout << "Getting next event..." << std::endl;
 
+  if(mRandomEventOrder)
+    mEntryCounter = (*mRandEventIdDist)(mRandEventIdGen);
+
   mBranch_iEvent->GetEntry(mEntryCounter);
   mBranch_iFolder->GetEntry(mEntryCounter);
   mBranch_nPixS1->GetEntry(mEntryCounter);
@@ -209,11 +231,13 @@ EventDigits* EventRootFocal::getNextEvent(void)
     createHits(mEvent->colS3[i], mEvent->rowS3[i], mEvent->ampS3[i], 1, mEventDigits);
   }
 
-  mEntryCounter++;
+  if(mRandomEventOrder == false) {
+    mEntryCounter++;
 
-  if(mEntryCounter == mNumEntries) {
-    mEntryCounter = 0;
-    //mMoreEventsLeft = false;
+    if(mEntryCounter == mNumEntries) {
+      mEntryCounter = 0;
+      //mMoreEventsLeft = false;
+    }
   }
 
   std::cout << "Event size: " << mEventDigits->size() << std::endl;

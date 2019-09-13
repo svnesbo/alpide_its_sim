@@ -26,15 +26,19 @@
 ///                   Used for data rate calculations.
 ///@param sim_type "pct" or "its"
 ///@param sim_run_data_path Path to directory with simulation data.
+///@param event_data Pointer to event data (time of events, number of hits/multiplicities)
 DetectorStats::DetectorStats(Detector::DetectorConfigBase config,
                              std::map<std::string, double> sim_params,
                              unsigned long sim_time_ns,
                              std::string sim_type,
-                             const char* sim_run_data_path)
+                             const char* sim_run_data_path,
+                             std::shared_ptr<EventData> event_data)
   : mConfig(config)
   , mSimParams(sim_params)
   , mSimTimeNs(sim_time_ns)
+  , mSimType(sim_type)
   , mSimRunDataPath(sim_run_data_path)
+  , mEventData(event_data)
 {
   mNumLayers = 0;
 
@@ -46,7 +50,8 @@ DetectorStats::DetectorStats(Detector::DetectorConfigBase config,
                                                  config.layer[layer_num].num_staves,
                                                  sim_time_ns,
                                                  sim_type,
-                                                 sim_run_data_path);
+                                                 sim_run_data_path,
+                                                 event_data);
       mNumLayers++;
     }
   }

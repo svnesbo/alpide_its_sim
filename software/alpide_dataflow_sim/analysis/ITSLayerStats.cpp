@@ -27,13 +27,17 @@
 ///       Used for data rate calculations.
 ///@param sim_type "pct" or "its"
 ///@param path Path to simulation data directory
+///@param sim_type "pct" or "its"
+///@param event_data Pointer to event data (time of events, number of hits/multiplicities)
 ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
                              unsigned long sim_time_ns, std::string sim_type,
-                             const char* path)
+                             const char* path, std::shared_ptr<EventData> event_data)
   : mLayer(layer_num)
   , mNumStaves(num_staves)
   , mSimTimeNs(sim_time_ns)
+  , mSimType(sim_type)
   , mSimDataPath(path)
+  , mEventData(event_data)
   , mNumTriggers(0)
 {
   if(sim_type == "pct") {
@@ -51,7 +55,7 @@ ITSLayerStats::ITSLayerStats(unsigned int layer_num, unsigned int num_staves,
 
   // Create and parse RU data
   for(unsigned int RU_num = 0; RU_num < mNumReadoutUnits; RU_num++) {
-    mRUStats.emplace_back(layer_num, RU_num, sim_time_ns, path);
+    mRUStats.emplace_back(layer_num, RU_num, sim_time_ns, path, sim_type, event_data);
     mProtocolRatesMbps.push_back(mRUStats.back().getProtocolRateMbps());
     mDataRatesMbps.push_back(mRUStats.back().getDataRateMbps());
   }

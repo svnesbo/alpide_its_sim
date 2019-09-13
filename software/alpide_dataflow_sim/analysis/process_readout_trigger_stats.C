@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include <iomanip>
 #include <fstream>
 #include <cstring>
@@ -12,6 +13,7 @@
 #include <TH1F.h>
 #include <TH1I.h>
 #include "DetectorStats.hpp"
+#include "EventData.hpp"
 #include "../src/Settings/Settings.hpp"
 #include "../src/Detector/ITS/ITSDetectorConfig.hpp"
 #include "../src/Detector/PCT/PCTDetectorConfig.hpp"
@@ -23,9 +25,9 @@ const float chip_height_cm = 1.5;
 
 unsigned long get_num_triggered_events_simulated(std::string sim_run_data_path);
 unsigned long get_num_untriggered_events_simulated(std::string sim_run_data_path);
-std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
-                                         std::string filename_csv,
-                                         bool create_png, bool create_pdf);
+EventData process_event_data(std::string sim_run_data_path,
+                             std::string filename_csv,
+                             bool create_png, bool create_pdf);
 
 
 
@@ -67,10 +69,12 @@ int process_its_readout_trigger_stats(const char* sim_run_data_path,
 
   gROOT->SetBatch(kTRUE);
 
-  std::vector<uint64_t> event_time_vec;
+  std::shared_ptr<EventData> event_data;
 
   if(event_csv_available) {
-    event_time_vec = process_event_data(sim_run_data_path, "physics_events_data.csv", create_png, create_pdf);
+    event_data = std::make_shared<EventData>(process_event_data(sim_run_data_path,
+                                                                "physics_events_data.csv",
+                                                                create_png, create_pdf));
   }
 
   unsigned long num_physics_events = get_num_triggered_events_simulated(sim_run_data_path);
@@ -85,7 +89,8 @@ int process_its_readout_trigger_stats(const char* sim_run_data_path,
 
   DetectorStats its_detector_stats(det_config, sim_params,
                                    sim_time_ns, "its",
-                                   sim_run_data_path);
+                                   sim_run_data_path,
+                                   event_data);
 
   its_detector_stats.plotDetector(create_png, create_pdf);
 
@@ -124,13 +129,7 @@ int process_pct_readout_trigger_stats(const char* sim_run_data_path,
 
   gROOT->SetBatch(kTRUE);
 
-  std::vector<uint64_t> event_time_vec;
-
-  /*
-  if(event_csv_available) {
-    event_time_vec = process_event_data(sim_run_data_path, "pct_events_data.csv", create_png, create_pdf);
-  }
-  */
+  std::shared_ptr<EventData> event_data;
 
   unsigned long num_event_frames;
 
@@ -139,6 +138,12 @@ int process_pct_readout_trigger_stats(const char* sim_run_data_path,
   } else {
     // Focal
     num_event_frames = get_num_triggered_events_simulated(sim_run_data_path);
+
+    if(event_csv_available) {
+      event_data = std::make_shared<EventData>(process_event_data(sim_run_data_path,
+                                                                  "physics_events_data.csv",
+                                                                  create_png, create_pdf));
+    }
   }
 
   unsigned long sim_time_ns = time_frame_length_ns*num_event_frames;
@@ -148,7 +153,8 @@ int process_pct_readout_trigger_stats(const char* sim_run_data_path,
 
   DetectorStats pct_detector_stats(det_config, sim_params,
                                    sim_time_ns, "pct",
-                                   sim_run_data_path);
+                                   sim_run_data_path,
+                                   event_data);
 
   pct_detector_stats.plotDetector(create_png, create_pdf);
 
@@ -268,13 +274,13 @@ unsigned long get_num_untriggered_events_simulated(std::string sim_run_data_path
 ///@param filename_csv Filename of csv file (including .csv extension)
 ///@param create_png Set to true to save histograms as png files
 ///@param create_pdf Set to true to save histograms as pdf files
-///@return Vector with time to next event for, where index corresponds to event number.
-///        Empty vector is returned if something went wrong.
-std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
-                                         std::string filename_csv,
-                                         bool create_png, bool create_pdf)
+///@return EventData object with info about multiplicity and time between events
+///        Empty EventData object is returned if something went wrong.
+EventData process_event_data(std::string sim_run_data_path,
+                             std::string filename_csv,
+                             bool create_png, bool create_pdf)
 {
-  std::vector<uint64_t> event_time_vec;
+  EventData event_data;
   std::string csv_filename = sim_run_data_path + "/" + filename_csv;
   std::string filename_base = csv_filename.substr(0, csv_filename.find(".csv"));
   std::string root_filename =  filename_base + ".root";
@@ -285,13 +291,13 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
   std::ofstream summary_file(summary_filename);
   if(!summary_file.is_open()) {
     std::cerr << "Error opening file " << summary_filename << std::endl;
-    return event_time_vec;
+    return event_data;
   }
 
   std::ifstream csv_file(csv_filename);
   if(!csv_file.is_open()) {
     std::cerr << "Error opening file " << csv_filename << std::endl;
-    return event_time_vec;
+    return event_data;
   }
 
   // Extract header from CSV file
@@ -300,14 +306,16 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
 
   std::cout << "CSV header: \"" << csv_header << "\"" << std::endl;
 
-  std::vector<std::string> csv_fields;
-
+  // Parse/read header
   {
     size_t current_position = 0;
     size_t next_position;
     size_t len;
 
     while(current_position != std::string::npos) {
+      // Find header names, put them _all_ in multipl_entry_names vector
+      // All the fields before chip_ fields are removed later..
+      // delta_t does not have a corresponding entry in multipl_data..
       next_position = csv_header.find(csv_delim, current_position);
       if(next_position != std::string::npos) {
         len = next_position - current_position;
@@ -317,7 +325,7 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
       }
 
       std::string field_name = csv_header.substr(current_position, len);
-      csv_fields.push_back(field_name);
+      event_data.multipl_entry_names.push_back(field_name);
       std::cout << field_name << std::endl;
       current_position = next_position;
     }
@@ -325,8 +333,7 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
 
 
   long value;
-  std::vector<std::vector<unsigned int>> multipl_vec;
-  multipl_vec.resize(csv_fields.size()-1);
+  event_data.multipl_data.resize(event_data.multipl_entry_names.size()-1);
 
   csv_file.setf(std::ios::skipws);
   while(csv_file.good()) {
@@ -355,10 +362,10 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
 
       // First column has time between events
       if(i == 0) {
-        event_time_vec.push_back(value);
+        event_data.event_time_vec.push_back(value);
       }
       else { // The next column has multiplicities
-        multipl_vec[i-1].push_back(value);
+        event_data.multipl_data[i-1].push_back(value);
       }
       i++;
 
@@ -370,14 +377,14 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
   // and initialize histogram to that size.
   unsigned int max_time = 0;
   std::vector<uint64_t>::iterator max_time_it =
-    std::max_element(event_time_vec.begin(), event_time_vec.end());
+    std::max_element(event_data.event_time_vec.begin(), event_data.event_time_vec.end());
 
-  if(max_time_it != event_time_vec.end())
+  if(max_time_it != event_data.event_time_vec.end())
     max_time = *max_time_it;
 
   TH1I* h0 = new TH1I("h0", "#Deltat", max_time+1, 0, max_time);
-  for(auto time_it = event_time_vec.begin();
-      time_it != event_time_vec.end();
+  for(auto time_it = event_data.event_time_vec.begin();
+      time_it != event_data.event_time_vec.end();
       time_it++)
   {
     h0->Fill(*time_it);
@@ -387,24 +394,24 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
   // Create a vector of histograms with an entry
   // for each multiplicity field in the CSV file
   std::vector<TH1I*> h_vector;
-  for(unsigned int i = 1; i < csv_fields.size(); i++) {
+  for(unsigned int i = 1; i < event_data.multipl_entry_names.size(); i++) {
     std::string h_name = std::string("h") + std::to_string(i);
 
     // Find maximum multiplicity value,
     // and initialize histogram to that size
     unsigned int max_val = 0;
     std::vector<unsigned int>::iterator max_val_it =
-      std::max_element(multipl_vec[i-1].begin(), multipl_vec[i-1].end());
+      std::max_element(event_data.multipl_data[i-1].begin(), event_data.multipl_data[i-1].end());
 
     // Just draw an empty plot if vector was empty
-    if(max_val_it != multipl_vec[i-1].end())
+    if(max_val_it != event_data.multipl_data[i-1].end())
       max_val = *max_val_it;
 
-    h_vector.push_back(new TH1I(h_name.c_str(), csv_fields[i].c_str(), max_val+1, 0, max_val));
-    std::cout << "Created histogram " << h_name << " : " << csv_fields[i] << std::endl;
+    h_vector.push_back(new TH1I(h_name.c_str(), event_data.multipl_entry_names[i].c_str(), max_val+1, 0, max_val));
+    std::cout << "Created histogram " << h_name << " : " << event_data.multipl_entry_names[i] << std::endl;
 
-    for(auto multipl_it = multipl_vec[i-1].begin();
-        multipl_it != multipl_vec[i-1].end();
+    for(auto multipl_it = event_data.multipl_data[i-1].begin();
+        multipl_it != event_data.multipl_data[i-1].end();
         multipl_it++)
     {
       h_vector.back()->Fill(*multipl_it);
@@ -472,7 +479,19 @@ std::vector<uint64_t> process_event_data(std::string sim_run_data_path,
   delete c2;
   delete f;
 
-  return event_time_vec;
+
+  // Remove stuff that messes with our calculations later... :(
+
+  // remove delta_t field entry (no corresponding entry in multipl_data)
+  event_data.multipl_entry_names.erase(event_data.multipl_entry_names.begin());
+
+  while(event_data.multipl_entry_names[0].find("chip") == std::string::npos) {
+    // remove all fields and data not for chip columns in csv file
+    event_data.multipl_entry_names.erase(event_data.multipl_entry_names.begin());
+    event_data.multipl_data.erase(event_data.multipl_data.begin());
+  }
+
+  return event_data;
 }
 
 
@@ -486,6 +505,7 @@ void print_help(void)
   std::cout << "-h, --help: \tPrint this screen" << std::endl;
   std::cout << "-png, --png: \tWrite all plots to PNG files." << std::endl;
   std::cout << "-pdf, --pdf: \tWrite all plots to PDF files." << std::endl;
+  std::cout << "-b, --brew: \tBrew coffee." << std::endl;
 }
 
 
@@ -506,9 +526,13 @@ int main(int argc, char** argv)
   for(unsigned int arg_num = 1; arg_num < argc; arg_num++) {
     if(strcmp(argv[arg_num], "-png") == 0 || strcmp(argv[arg_num], "--png") == 0) {
       png_path = std::string(argv[argc-1]) + "/png";
-      std::cout << "Creating directory " << pdf_path << std::endl;
+      std::cout << "Creating directory " << png_path << std::endl;
       std::string mkdir_png_path = "mkdir " + png_path;
       system(mkdir_png_path.c_str());
+
+      mkdir_png_path += "/chip_event_plots";
+      system(mkdir_png_path.c_str());
+
       create_png = true;
     }
     else if(strcmp(argv[arg_num], "-pdf") == 0 || strcmp(argv[arg_num], "--pdf") == 0) {
@@ -516,6 +540,10 @@ int main(int argc, char** argv)
       std::cout << "Creating directory " << pdf_path << std::endl;
       std::string mkdir_pdf_path = "mkdir " + pdf_path;
       system(mkdir_pdf_path.c_str());
+
+      mkdir_pdf_path += "/chip_event_plots";
+      system(mkdir_pdf_path.c_str());
+
       create_pdf = true;
     }
     else if(strcmp(argv[arg_num], "-h") == 0 || strcmp(argv[arg_num], "--help") == 0) {

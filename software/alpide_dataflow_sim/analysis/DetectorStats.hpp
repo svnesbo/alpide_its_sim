@@ -11,9 +11,11 @@
 
 #include <string>
 #include <map>
+#include <memory>
 #include "ITSLayerStats.hpp"
 #include "../src/Settings/Settings.hpp"
 #include "Detector/Common/DetectorConfig.hpp"
+#include "EventData.hpp"
 #include "Detector/ITS/ITS_constants.hpp"
 
 class DetectorStats {
@@ -21,8 +23,11 @@ class DetectorStats {
   std::map<std::string, double> mSimParams;
   unsigned long mSimTimeNs;
   unsigned int mNumLayers;
+  std::string mSimType;
   std::string mSimRunDataPath;
   std::vector<ITSLayerStats*> mLayerStats;
+
+  std::shared_ptr<EventData> mEventData;
 
   // Index: trigger id
   // For each trigger it has the ratio between number of links a
@@ -45,7 +50,8 @@ public:
                 std::map<std::string, double> sim_params,
                 unsigned long sim_time_ns,
                 std::string sim_type,
-                const char* sim_run_data_path);
+                const char* sim_run_data_path,
+                std::shared_ptr<EventData> event_data);
 
   void plotDetector(bool create_png, bool create_pdf);
 };

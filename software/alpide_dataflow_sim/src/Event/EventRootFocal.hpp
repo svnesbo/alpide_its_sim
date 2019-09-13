@@ -61,12 +61,16 @@ private:
 
   EventDigits* mEventDigits = nullptr;
 
+  bool mRandomEventOrder;
   bool mMoreEventsLeft = true;
   uint64_t mNumEntries; // Number of entries in TTree
   uint64_t mEntryCounter = 0;
 
   boost::random::mt19937 mRandHitGen;
   boost::random::uniform_real_distribution<double> *mRandHitMacroCellX, *mRandHitMacroCellY;
+
+  boost::random::mt19937 mRandEventIdGen;
+  boost::random::uniform_int_distribution<int> *mRandEventIdDist;
 
   void createHits(unsigned int col, unsigned int row, unsigned int num_hits,
                   unsigned int layer, EventDigits* event);
@@ -76,7 +80,8 @@ public:
                  Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
                  Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
                  const QString& event_filename,
-                 unsigned int random_seed);
+                 unsigned int random_seed,
+                 bool random_event_order = true);
   ~EventRootFocal();
   /// Indicates if there are more events left, or if we reached the end
   bool getMoreEventsLeft() const {return mMoreEventsLeft;}
