@@ -1,5 +1,5 @@
 [General]
-output_dir_prefix=sim_output_new_pct_stuff
+output_dir_prefix=sim_output
 verbose=false
 
 [alpide]
@@ -7,32 +7,33 @@ data_long_enable=true
 dtu_delay=10
 matrix_readout_speed_fast=true
 minimum_busy_cycles=8
-pixel_shaping_active_time_ns=6000
+pixel_shaping_active_time_ns=5000
 pixel_shaping_dead_time_ns=200
 strobe_extension_enable=false
+chip_continuous_mode=false
 
 [data_output]
+data_rate_interval_ns=100000
 write_event_csv=true
 write_vcd=false
 write_vcd_clock=false
-data_rate_interval_ns=20000
 
 [event]
-average_event_rate_ns=20000
-monte_carlo_file_type=xml
+average_event_rate_ns=10000
+monte_carlo_file_type=root
 qed_noise_event_rate_ns=10000
 qed_noise_feed_rate_ns=5000
-qed_noise_input=true
+qed_noise_input=false
 qed_noise_path=config/monte_carlo_events/pp
 qed_noise_rate_ns=250
 random_cluster_generation=true
-random_cluster_size_mean=8
-random_cluster_size_stddev=3
+random_cluster_size_mean=4
+random_cluster_size_stddev=1
 random_hit_generation=true
-strobe_active_length_ns=9900
+strobe_active_length_ns=100
 strobe_inactive_length_ns=100
 trigger_delay_ns=930
-trigger_filter_enable=false
+trigger_filter_enable=true
 trigger_filter_time_ns=1230
 
 [its]
@@ -49,9 +50,9 @@ layer0_num_staves=1
 layer1_num_staves=1
 layer2_num_staves=1
 layer3_num_staves=1
-layer4_num_staves=1
-layer5_num_staves=1
-layer6_num_staves=1
+layer4_num_staves=0
+layer5_num_staves=0
+layer6_num_staves=0
 monte_carlo_dir_path=config/monte_carlo_events/PbPb
 
 [pct]
@@ -61,17 +62,18 @@ beam_start_coord_x_mm=-5
 beam_start_coord_y_mm=-5
 beam_step_mm=3.0
 beam_time_per_step_us=125.0
-monte_carlo_file_path=config/monte_carlo_events/pct/pct_data.xml
-num_layers=1
-num_staves_per_layer=1
+monte_carlo_file_path=config/monte_carlo_events/focal/pixel_event_tree_pythia_MB.root
+num_layers=2
+num_staves_per_layer=12
 random_beam_stddev_mm=3.0
-random_particles_per_s_mean=1E7
+random_particles_per_s_mean=1E9
 random_particles_per_s_stddev=0.5E9
-time_frame_length_ns=200
+time_frame_length_ns=10000
 
 [simulation]
-continuous_mode=true
-n_events=10
+system_continuous_mode=false
+system_continuous_period_ns=5000
+n_events=1000
 random_seed=1337
-single_chip=false
-type=pct
+single_chip=true
+type=its

@@ -30,11 +30,12 @@ protected:
   const QSettings* mSettings;
   std::string mOutputPath;
   bool simulation_done = false;
-  bool mContinuousMode;
+  bool mSystemContinuousMode;
   bool mSingleChipSimulation;
 
   uint64_t mNumEvents;
   unsigned int mNumChips;
+  unsigned int mSystemContinuousPeriodNs;
   unsigned int mStrobeActiveNs;
   unsigned int mStrobeInactiveNs;
   unsigned int mTriggerDelayNs;

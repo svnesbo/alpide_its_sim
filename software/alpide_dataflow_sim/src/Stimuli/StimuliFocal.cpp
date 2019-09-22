@@ -75,7 +75,7 @@ StimuliFocal::StimuliFocal(sc_core::sc_module_name name, QSettings* settings, st
 
   s_physics_event = false;
 
-  if(mContinuousMode == true) {
+  if(mSystemContinuousMode == true) {
     SC_METHOD(continuousTriggerMethod);
   }
 
@@ -133,7 +133,7 @@ void StimuliFocal::stimuliMainMethod(void)
 
       std::cout << "Creating event for next trigger.." << std::endl;
 
-      if(mContinuousMode == false) {
+      if(mSystemContinuousMode == false) {
         // Create an event for the next trigger, delayed by the
         // total/specified trigger delay (to account for cable/CTP delays etc.)
         mReadoutUnit->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
@@ -145,7 +145,7 @@ void StimuliFocal::stimuliMainMethod(void)
 
       std::cout << "Creating event for next trigger.." << std::endl;
 
-      if(mContinuousMode == false) {
+      if(mSystemContinuousMode == false) {
       // Create an event for the next trigger, delayed by the
       // total/specified trigger delay (to account for cable/CTP delays etc.)
         mFocal->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
@@ -183,7 +183,15 @@ void StimuliFocal::stimuliQedNoiseEventMethod(void)
 }
 
 
-///@brief SystemC method for generating triggers in continuous mode
+///@brief SystemC method for generating triggers in system continuous mode.
+///       This is the continuous mode at the _system level_, which means that
+///       periodic triggers are genrated and sent to the chips.
+///       Note that the continuous/triggered mode at the _chip level_ is decoupled
+///       from this in the simulation. At the chip level the difference between
+///       the triggered and continuous mode parameters is in how the chip handles
+///       the multi event buffers and incoming triggers. How the strobe is set up
+///       and whether the triggers are periodic or not is irrelevant to the mode
+///       in the chip.
 void StimuliFocal::continuousTriggerMethod(void)
 {
   if(mSingleChipSimulation)
@@ -191,7 +199,7 @@ void StimuliFocal::continuousTriggerMethod(void)
   else
     mFocal->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
 
-  next_trigger(mStrobeActiveNs+mStrobeInactiveNs, SC_NS);
+  next_trigger(mSystemContinuousPeriodNs, SC_NS);
 }
 
 

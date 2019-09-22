@@ -21,7 +21,8 @@ StimuliBase::StimuliBase(sc_core::sc_module_name name,
   // Initialize variables for StimuliBase object
   mNumEvents = settings->value("simulation/n_events").toULongLong();
   mSingleChipSimulation = settings->value("simulation/single_chip").toBool();
-  mContinuousMode = settings->value("simulation/continuous_mode").toBool();
+  mSystemContinuousMode = settings->value("simulation/system_continuous_mode").toBool();
+  mSystemContinuousPeriodNs = settings->value("simulation/system_continuous_period_ns").toUInt();
   mStrobeActiveNs = settings->value("event/strobe_active_length_ns").toUInt();
   mStrobeInactiveNs = settings->value("event/strobe_inactive_length_ns").toUInt();
   mTriggerDelayNs = settings->value("event/trigger_delay_ns").toUInt();
@@ -34,8 +35,13 @@ StimuliBase::StimuliBase(sc_core::sc_module_name name,
   mChipCfg.min_busy_cycles = settings->value("alpide/minimum_busy_cycles").toUInt();
   mChipCfg.strobe_extension = settings->value("alpide/strobe_extension_enable").toBool();
   mChipCfg.data_long_en = settings->value("alpide/data_long_enable").toBool();
-  mChipCfg.continuous_mode = mContinuousMode;
+  mChipCfg.chip_continuous_mode = settings->value("alpide/chip_continuous_mode").toBool();
   mChipCfg.matrix_readout_speed = settings->value("alpide/matrix_readout_speed_fast").toBool();
+
+  if((mStrobeActiveNs+mStrobeInactiveNs) > mSystemContinuousPeriodNs) {
+    std::string error_msg = "Alpide strobe active + inactive time > system continuous period.";
+    throw std::runtime_error(error_msg);
+  }
 
   std::cout << std::endl;
   std::cout << "-------------------------------------------------" << std::endl;
@@ -43,7 +49,9 @@ StimuliBase::StimuliBase(sc_core::sc_module_name name,
   std::cout << "-------------------------------------------------" << std::endl;
   std::cout << "Number of events: " << mNumEvents << std::endl;
   std::cout << "Single chip simulation: " << (mSingleChipSimulation ? "true" : "false") << std::endl;
-  std::cout << "Trigger mode: " << (mContinuousMode ? "continuous" : "triggered") << std::endl;
+  std::cout << "System continuous mode: " << (mSystemContinuousMode ? "continuous" : "triggered") << std::endl;
+  std::cout << "System continuous period: " << mSystemContinuousPeriodNs << std::endl;
+  std::cout << "Chip continuous mode: " << (mChipCfg.chip_continuous_mode ? "continuous" : "triggered") << std::endl;
   std::cout << "Strobe active time (ns): " << mStrobeActiveNs << std::endl;
   std::cout << "Strobe inactive time (ns): " << mStrobeInactiveNs << std::endl;
   std::cout << "Trigger delay (ns): " << mTriggerDelayNs << std::endl;

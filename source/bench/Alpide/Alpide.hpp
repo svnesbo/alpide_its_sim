@@ -155,8 +155,7 @@ private:
 private:
   int mChipId;
 
-  ///@brief True: Continuous, False: Triggered
-  bool mContinuousMode;
+  bool mChipContinuousMode;
 
   bool mEnableReadoutTraces;
   bool mEnableDtuDelay;

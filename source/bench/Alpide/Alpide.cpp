@@ -39,7 +39,7 @@ Alpide::Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConf
   , s_busy_fifo(BUSY_FIFO_SIZE)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
-  , mContinuousMode(chip_cfg.continuous_mode)
+  , mChipContinuousMode(chip_cfg.chip_continuous_mode)
   , mStrobeExtensionEnable(chip_cfg.strobe_extension)
   , mStrobeLengthNs(chip_cfg.strobe_length_ns)
   , mMinBusyCycles(chip_cfg.min_busy_cycles)
@@ -267,9 +267,9 @@ void Alpide::strobeInput(void)
     ///      transmission of CHIP HEADER/TRAILER words. This is currently done by the frameReadout()
     ///      method, which requires there to be events in the MEB.
     ///@todo Should rejected event frame count be increased in data overrun mode?
-    if(mContinuousMode) {
+    if(mChipContinuousMode) {
       if(getNumEvents() == 3) {
-        // Reject events if all MEBs are full in continuous.
+        // Reject events if all MEBs are full in continuous mode.
         // And yes, this can happen! Also in the real chip..
         mTriggersRejected++;
         s_busy_violation = true;
@@ -281,7 +281,7 @@ void Alpide::strobeInput(void)
         // The TRU code will set all the other readout flags to zero.
         // s_flushed_incomplete = false;
       } else if(getNumEvents() == 2) {
-        // Flush oldest event to make room if we are becoming full in continuous
+        // Flush oldest event to make room if we are becoming full in continuous mode
         flushOldestEvent();
         newEvent(time_now);
 
@@ -300,7 +300,7 @@ void Alpide::strobeInput(void)
         s_chip_ready_internal = true;
       }
     }
-    else if(!mContinuousMode) {
+    else if(!mChipContinuousMode) {
       s_flushed_incomplete = false; // No flushing in triggered mode
 
       if(getNumEvents() == 3) {
@@ -710,7 +710,7 @@ bool Alpide::getFrameReadoutDone(void)
 ///@brief Update internal busy status signals
 void Alpide::updateBusyStatus(void)
 {
-  if(mContinuousMode) {
+  if(mChipContinuousMode) {
     if(getNumEvents() > 1) {
       s_multi_event_buffers_busy = true;
     } else {

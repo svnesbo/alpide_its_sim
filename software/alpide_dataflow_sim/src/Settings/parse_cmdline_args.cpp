@@ -48,9 +48,13 @@ bool parseCommandLine(QCommandLineParser &parser,
                                            "Number of events to simulate.",
                                            "number of events");
 
-  const QCommandLineOption triggerModeOption({"m", "trigger_mode"},
-                                             "Specify \"continuous\" or \"triggered\" mode.",
-                                             "mode");
+  const QCommandLineOption systemModeOption({"sm", "system_mode"},
+                                            "Specify \"continuous\" or \"triggered\" mode at the system level.",
+                                            "system_mode");
+
+  const QCommandLineOption chipModeOption({"cm", "chip_mode"},
+                                          "Specify \"continuous\" or \"triggered\" mode at the chip level.",
+                                          "chip_mode");
 
   const QCommandLineOption randomSeedOption({"s", "random_seed"},
                                             "Random seed for random number generators. "
@@ -124,7 +128,8 @@ bool parseCommandLine(QCommandLineParser &parser,
   parser.addOption(writeCSVOption);
   parser.addOption(singleChipOption);
   parser.addOption(numEventsOption);
-  parser.addOption(triggerModeOption);
+  parser.addOption(systemModeOption);
+  parser.addOption(chipModeOption);
   parser.addOption(randomSeedOption);
   parser.addOption(layer0HitDensityOption);
   parser.addOption(layer1HitDensityOption);
@@ -189,13 +194,25 @@ bool parseCommandLine(QCommandLineParser &parser,
       }
     }
 
-    if(parser.isSet(triggerModeOption)) {
-      if(parser.value(triggerModeOption) == "triggered")
-        settings.setValue("simulation/continuous_mode", "false");
-      else if(parser.value(triggerModeOption) == "continuous")
-        settings.setValue("simulation/continuous_mode", "true");
+    if(parser.isSet(systemModeOption)) {
+      if(parser.value(systemModeOption) == "triggered")
+        settings.setValue("simulation/system_continuous_mode", "false");
+      else if(parser.value(systemModeOption) == "continuous")
+        settings.setValue("simulation/system_continuous_mode", "true");
       else {
-        std::cout << "Error: Unknown trigger mode \"" << parser.value(triggerModeOption).toStdString();
+        std::cout << "Error: Unknown system mode \"" << parser.value(systemModeOption).toStdString();
+        std::cout << "\". Specify 'triggered' or 'continuous'." << std::endl;
+        start_program = false;
+      }
+    }
+
+    if(parser.isSet(chipModeOption)) {
+      if(parser.value(chipModeOption) == "triggered")
+        settings.setValue("alpide/chip_continuous_mode", "false");
+      else if(parser.value(chipModeOption) == "continuous")
+        settings.setValue("alpide/chip_continuous_mode", "true");
+      else {
+        std::cout << "Error: Unknown chip mode \"" << parser.value(chipModeOption).toStdString();
         std::cout << "\". Specify 'triggered' or 'continuous'." << std::endl;
         start_program = false;
       }

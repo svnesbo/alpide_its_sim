@@ -478,10 +478,10 @@ void EventGenPCT::physicsEventMethod(void)
   if(mStopEventGeneration == false && mBeamEndCoordsReached == false) {
     bool last_mc_event = generateEvent();
 
-    // Beam position is included in MC events
     if(mRandomHitGeneration)
       updateBeamPosition();
     else
+      // Beam position is included in MC events, stop at last event
       mBeamEndCoordsReached = last_mc_event;
 
     E_untriggered_event.notify();

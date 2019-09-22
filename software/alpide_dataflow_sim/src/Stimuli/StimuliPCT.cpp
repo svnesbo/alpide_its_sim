@@ -70,6 +70,11 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
 
   std::cout << std::endl << std::endl;
 
+  if(mSystemContinuousMode == false) {
+    std::string error_msg = "System continuous mode must be true for pCT.";
+    throw std::runtime_error(error_msg);
+  }
+
   // Initialize detector configuration for PCT.
   // Doing it here because event generator expects this parameter,
   // though it is not used for single chip simulation
@@ -199,7 +204,7 @@ void StimuliPCT::triggerMethod(void)
   else
     mPCT->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
 
-  next_trigger(mStrobeActiveNs+mStrobeInactiveNs, SC_NS);
+  next_trigger(mSystemContinuousPeriodNs, SC_NS);
 }
 
 

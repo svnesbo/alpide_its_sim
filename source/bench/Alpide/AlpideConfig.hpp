@@ -30,7 +30,7 @@ struct AlpideConfig {
   bool data_long_en;
 
   ///@brief Enable continuous mode (triggered mode if false)
-  bool continuous_mode;
+  bool chip_continuous_mode;
 
   ///@brief True for fast readout (2 clock cycles), false is slow (4 cycles).
   bool matrix_readout_speed;

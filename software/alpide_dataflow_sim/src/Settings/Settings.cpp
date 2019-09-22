@@ -54,7 +54,8 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["simulation/type"] = DEFAULT_SIMULATION_TYPE;
   defaultSettings["simulation/single_chip"] = DEFAULT_SIMULATION_SINGLE_CHIP;
   defaultSettings["simulation/n_events"] = DEFAULT_SIMULATION_N_EVENTS;
-  defaultSettings["simulation/continuous_mode"] = DEFAULT_SIMULATION_CONTINUOUS_MODE;
+  defaultSettings["simulation/system_continuous_mode"] = DEFAULT_SIMULATION_SYSTEM_CONTINUOUS_MODE;
+  defaultSettings["simulation/system_continuous_period_ns"] = DEFAULT_SIMULATION_SYSTEM_CONTINUOUS_PERIOD_NS;
   defaultSettings["simulation/random_seed"] = DEFAULT_SIMULATION_RANDOM_SEED;
 
   defaultSettings["alpide/data_long_enable"] = DEFAULT_ALPIDE_DATA_LONG_ENABLE;
@@ -64,6 +65,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["alpide/matrix_readout_speed_fast"] = DEFAULT_ALPIDE_MATRIX_READOUT_SPEED_FAST;
   defaultSettings["alpide/strobe_extension_enable"] = DEFAULT_ALPIDE_STROBE_EXTENSION_ENABLE;
   defaultSettings["alpide/minimum_busy_cycles"] = DEFAULT_ALPIDE_MINIMUM_BUSY_CYCLES;
+  defaultSettings["alpide/chip_continuous_mode"] = DEFAULT_ALPIDE_CHIP_CONTINUOUS_MODE;
 
   defaultSettings["its/layer0_num_staves"] = DEFAULT_ITS_LAYER0_NUM_STAVES;
   defaultSettings["its/layer1_num_staves"] = DEFAULT_ITS_LAYER1_NUM_STAVES;
