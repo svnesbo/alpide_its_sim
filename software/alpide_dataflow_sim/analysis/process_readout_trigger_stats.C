@@ -108,17 +108,29 @@ int process_pct_readout_trigger_stats(const char* sim_run_data_path,
 
   unsigned long time_frame_length_ns = sim_settings->value("pct/time_frame_length_ns").toInt();
 
-  det_config.num_layers = sim_settings->value("pct/num_layers").toInt();
+  std::string layer_config_str = sim_settings->value("pct/layers").toString().toStdString();
 
-  std::cout << "Number of layers " << det_config.num_layers << std::endl;
+  // Deactive all layers..
+  for(unsigned int i = 0; i < PCT::N_LAYERS; i++) {
+    det_config.layer[i].num_staves = 0;
+  }
 
-  for(unsigned int lay_num = 0; lay_num < det_config.layer.size(); lay_num++) {
-    if(lay_num < det_config.num_layers)
-      det_config.layer[lay_num].num_staves = sim_settings->value("pct/num_staves_per_layer").toInt();
+  // ..and then active the layers that are included in the configuration
+  while(layer_config_str.length() > 0) {
+    // Expect a semicolon delimited string of layers, eg. "0;5;10"
+    std::string::size_type delim_pos = layer_config_str.find(";");
+    std::string layer_str = layer_config_str.substr(0, delim_pos);
+    unsigned int layer = std::stoi(layer_str);
+
+    if(delim_pos == std::string::npos)
+      layer_config_str.erase(0);
     else
-      det_config.layer[lay_num].num_staves = 0;
+      layer_config_str.erase(0, delim_pos+1);
 
-    std::cout << "Staves layer " << lay_num << ": " << det_config.layer[lay_num].num_staves << std::endl;
+    std::cout << "Layer: " << layer << std::endl;
+
+    // Add layer to detector configuration
+    det_config.layer[layer].num_staves = sim_settings->value("pct/num_staves_per_layer").toUInt();
   }
 
   bool single_chip_mode = sim_settings->value("simulation/single_chip").toBool();
@@ -155,7 +167,6 @@ int process_pct_readout_trigger_stats(const char* sim_run_data_path,
                                    sim_time_ns, "pct",
                                    sim_run_data_path,
                                    event_data);
-
   pct_detector_stats.plotDetector(create_png, create_pdf);
 
   return 0;
