@@ -29,7 +29,6 @@ EventGenPCT::EventGenPCT(sc_core::sc_module_name name,
   : EventGenBase(name, settings, output_path)
   , mConfig(config)
 {
-  mNumLayers = settings->value("pct/num_layers").toUInt();
   mNumStavesPerLayer = settings->value("pct/num_staves_per_layer").toUInt();
   mBeamStartCoordX_mm = settings->value("pct/beam_start_coord_x_mm").toDouble();
   mBeamStartCoordY_mm = settings->value("pct/beam_start_coord_y_mm").toDouble();

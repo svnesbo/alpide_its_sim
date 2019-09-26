@@ -79,14 +79,30 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
   // Doing it here because event generator expects this parameter,
   // though it is not used for single chip simulation
   PCT::PCTDetectorConfig config;
-  config.num_layers = settings->value("pct/num_layers").toUInt();
+  std::string layer_config_str = settings->value("pct/layers").toString().toStdString();
 
+  // Deactive all layers..
   for(unsigned int i = 0; i < PCT::N_LAYERS; i++) {
-    if(i < config.num_layers) {
-      config.layer[i].num_staves = settings->value("pct/num_staves_per_layer").toUInt();
-    } else {
       config.layer[i].num_staves = 0;
-    }
+  }
+
+
+  // ..and then active the layers that are included in the configuration
+  while(layer_config_str.length() > 0) {
+    // Expect a semicolon delimited string of layers, eg. "0;5;10"
+    std::string::size_type delim_pos = layer_config_str.find(";");
+    std::string layer_str = layer_config_str.substr(0, delim_pos);
+    unsigned int layer = std::stoi(layer_str);
+
+    if(delim_pos == std::string::npos)
+      layer_config_str.erase(0);
+    else
+      layer_config_str.erase(0, delim_pos+1);
+
+    std::cout << "Layer: " << layer << std::endl;
+
+    // Add layer to detector configuration
+    config.layer[layer].num_staves = settings->value("pct/num_staves_per_layer").toUInt();
   }
 
   config.chip_cfg = mChipCfg;
@@ -186,7 +202,7 @@ void StimuliPCT::stimuliMethod(void)
       // When the beam has reached the specified end position, the simulation should end.
       // But we allow the simulation to run for another X us to allow readout of data
       // remaining in MEBs, FIFOs etc.
-      next_trigger(1000, SC_US);
+      next_trigger(100, SC_US);
       simulation_done = true;
       mEventGen->stopEventGeneration();
     } else {

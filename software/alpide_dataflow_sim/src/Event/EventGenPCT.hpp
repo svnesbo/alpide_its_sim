@@ -36,7 +36,6 @@ private:
 
   double mSingleChipDetectorArea;
 
-  unsigned int mNumLayers;
   unsigned int mNumStavesPerLayer;
 
   unsigned int mRandomParticleCountMean_per_second;

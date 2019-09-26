@@ -86,8 +86,13 @@ std::shared_ptr<EventDigits> EventRootPCT::getNextEvent(void)
     double z_mm = mPosZ;
     unsigned int layer = round(z_mm/c_event_layer_z_distance_mm);
 
+    if(layer >= PCT::N_LAYERS) {
+      mEntryCounter++;
+      continue;
+    }
+
     // Skip hits for layers that are not included in detector configuration
-    if(layer < mConfig.num_layers) {
+    if(mConfig.layer[layer].num_staves > 0) {
       // Simulation expects the 0,0 coord to be in the top left corner.
       // In the ROOT files the center coord is in the middle of the detector plane,
       // with positive y coords going upwards (simulation expects downwards)
@@ -96,18 +101,22 @@ std::shared_ptr<EventDigits> EventRootPCT::getNextEvent(void)
 
       unsigned int stave_chip_id =  x_mm / (CHIP_WIDTH_CM*10);
       unsigned int stave_id = y_mm / (CHIP_HEIGHT_CM*10);
-      unsigned int global_chip_id = (layer*PCT::CHIPS_PER_LAYER)
-        + (stave_id*PCT::CHIPS_PER_STAVE)
-        + stave_chip_id;
 
-      // Position of particle relative to the chip it will hit
-      double chip_x_mm = x_mm - (stave_chip_id*(CHIP_WIDTH_CM*10));
-      double chip_y_mm = y_mm - (stave_id*(CHIP_HEIGHT_CM*10));
+      // Skip hits for staves in this layer that are not included in detector configuration
+      if(stave_id < mConfig.layer[layer].num_staves) {
+        unsigned int global_chip_id = (layer*PCT::CHIPS_PER_LAYER)
+          + (stave_id*PCT::CHIPS_PER_STAVE)
+          + stave_chip_id;
 
-      unsigned int x_coord = round(chip_x_mm*(N_PIXEL_COLS/(CHIP_WIDTH_CM*10)));
-      unsigned int y_coord = round(chip_y_mm*(N_PIXEL_ROWS/(CHIP_HEIGHT_CM*10)));
+        // Position of particle relative to the chip it will hit
+        double chip_x_mm = x_mm - (stave_chip_id*(CHIP_WIDTH_CM*10));
+        double chip_y_mm = y_mm - (stave_id*(CHIP_HEIGHT_CM*10));
 
-      event->addHit(x_coord, y_coord, global_chip_id);
+        unsigned int x_coord = round(chip_x_mm*(N_PIXEL_COLS/(CHIP_WIDTH_CM*10)));
+        unsigned int y_coord = round(chip_y_mm*(N_PIXEL_ROWS/(CHIP_HEIGHT_CM*10)));
+
+        event->addHit(x_coord, y_coord, global_chip_id);
+      }
     }
 
     mEntryCounter++;

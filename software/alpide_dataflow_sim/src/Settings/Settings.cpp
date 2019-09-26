@@ -85,7 +85,7 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["its/hit_density_layer5"] = DEFAULT_ITS_HIT_DENSITY_LAYER5;
   defaultSettings["its/hit_density_layer6"] = DEFAULT_ITS_HIT_DENSITY_LAYER6;
 
-  defaultSettings["pct/num_layers"] = DEFAULT_PCT_NUM_LAYERS;
+  defaultSettings["pct/layers"] = DEFAULT_PCT_LAYERS;
   defaultSettings["pct/num_staves_per_layer"] = DEFAULT_PCT_NUM_STAVES_PER_LAYER;
   defaultSettings["pct/monte_carlo_file_path"] = DEFAULT_PCT_MONTE_CARLO_FILE_PATH;
   defaultSettings["pct/time_frame_length_ns"] = DEFAULT_PCT_TIME_FRAME_LENGTH_NS;
