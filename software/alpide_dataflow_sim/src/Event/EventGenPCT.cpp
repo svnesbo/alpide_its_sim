@@ -359,7 +359,12 @@ bool EventGenPCT::generateMonteCarloEventData(unsigned int &particle_count_out,
                                               std::map<unsigned int, unsigned int> &layer_pixel_hits)
 {
 #ifdef ROOT_ENABLED
+  int x_prev = 0;
+  int y_prev = 0;
+  unsigned int chip_id_prev = 0;
+
   uint64_t time_now = sc_time_stamp().value();
+  uint64_t hit_time = time_now;
 
   // Clear old hit data
   mEventHitVector.clear();
@@ -372,9 +377,9 @@ bool EventGenPCT::generateMonteCarloEventData(unsigned int &particle_count_out,
   while(digit_it != digit_end_it) {
     const PixelHit &pixel = *digit_it;
 
-    uint64_t hit_time = time_now + (*mRandHitTime)(mRandHitTimeGen);
-
     if(mRandomClusterGeneration) {
+      hit_time = time_now + (*mRandHitTime)(mRandHitTimeGen);
+
       std::vector<std::shared_ptr<PixelHit>> pix_cluster = createCluster(pixel,
                                                                          hit_time,
                                                                          mPixelDeadTime,
@@ -393,14 +398,40 @@ bool EventGenPCT::generateMonteCarloEventData(unsigned int &particle_count_out,
     } else {
       mEventHitVector.emplace_back(std::make_shared<PixelHit>(pixel));
 
+      // Very rudimentary algorithm for determining if pixels are in a cluster
+      // Pixel hits are assumed to be in a cluster if chip id matches and the difference
+      // in x/y between two hits is less than 10.
+      // It is also assumed that neighboring pixels (in a cluster) appear
+      // in a sequence in the ROOT data file.
+      //
+      // We spread out the hits over the 10 us readout frame in the ROOT files,
+      // but we want all the pixel hits in a cluster to have the same timestamp,
+      // which is what this is used for.
+      if(pixel.getChipId() != chip_id_prev ||
+         abs(pixel.getCol() - x_prev) > 10 ||
+         abs(pixel.getRow() - y_prev) > 10)
+      {
+        hit_time = time_now + (*mRandHitTime)(mRandHitTimeGen);
+      }
+
       // Do this after inserting (copy) of pixel, to avoid double registering of
       // readout stats when pixel is destructed
       mEventHitVector.back()->setPixelReadoutStatsObj(mUntriggeredReadoutStats);
       mEventHitVector.back()->setActiveTimeStart(hit_time+mPixelDeadTime);
       mEventHitVector.back()->setActiveTimeEnd(hit_time+mPixelDeadTime+mPixelActiveTime);
 
+      unsigned int layer_id = PCT::PCT_global_chip_id_to_position(pixel.getChipId()).layer_id;
+
+      // Increase pixel hit counters
+      layer_pixel_hits[layer_id]++;
       chip_pixel_hits[pixel.getChipId()]++;
       pixel_hit_count_out++;
+
+      // Remember hit position, to determine if next pixel hit
+      // is in a new cluster or not
+      x_prev = pixel.getCol();
+      y_prev = pixel.getRow();
+      chip_id_prev = pixel.getChipId();
     }
 
     digit_it++;
