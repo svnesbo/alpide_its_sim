@@ -61,7 +61,11 @@ void PCTDetector::verifyDetectorConfig(const PCTDetectorConfig& config) const
     throw std::runtime_error(error_msg);
   }
 
-  for(unsigned int i = 0; i < config.num_layers; i++) {
+  for(unsigned int i = 0; i < PCT::N_LAYERS; i++) {
+    // Skip layers that are not included in simulation
+    if(config.layer[i].num_staves == 0)
+      continue;
+
     if(config.layer[i].num_sub_staves_per_full_stave != SUB_STAVES_PER_STAVE) {
       std::string error_msg = "Incorrect number of sub-staves specified for layer " + std::to_string(i);
       throw std::runtime_error(error_msg);
@@ -99,7 +103,11 @@ void PCTDetector::buildDetector(const PCTDetectorConfig& config,
   // because we access/index them by index in the vectors, and vector access is O(1).
   mChipVector.resize(PCT::CHIP_COUNT_TOTAL, nullptr);
 
-  for(unsigned int lay_id = 0; lay_id < config.num_layers; lay_id++) {
+  for(unsigned int lay_id = 0; lay_id < PCT::N_LAYERS; lay_id++) {
+    // Skip layers that are not included in simulation
+    if(config.layer[lay_id].num_staves == 0)
+      continue;
+
     unsigned int num_staves = config.layer[lay_id].num_staves;
     unsigned int num_data_links = num_staves * PCT::DATA_LINKS_PER_STAVE;
     unsigned int num_ctrl_links = num_staves * PCT::CTRL_LINKS_PER_STAVE;

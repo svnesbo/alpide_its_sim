@@ -1212,9 +1212,9 @@ void ReadoutUnitStats::plotRU(bool create_png, bool create_pdf)
   // Plot multiplicity per trigger with busy violations superimposed,
   // per chip/link
   //----------------------------------------------------------------------------
-  plotMultiplicityAndBusyv(create_png, create_pdf);
-
-
+  if(mSimType != "pct") {
+    plotMultiplicityAndBusyv(create_png, create_pdf);
+  }
 
   c1->cd();
   //----------------------------------------------------------------------------
