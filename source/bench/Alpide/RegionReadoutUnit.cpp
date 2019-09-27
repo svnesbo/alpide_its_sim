@@ -101,48 +101,11 @@ void RegionReadoutUnit::updateRegionDataOut(void)
   // the REGION TRAILER word as a normal data word, and this will prevent that.
   // AFAIK this condition is not in the ALPIDE chip (not indicated in EDR presentation slides),
   // but I don't see any other way of preventing this from happening.
-  //bool read_or_pop = s_region_event_pop_in || (s_region_data_read_in && s_region_valid_out);
   bool read_dataword = (s_region_data_read_in && s_region_valid_out);
-  bool pop_trailer = s_region_event_pop_in;
 
-  /* if(s_generate_region_header && !read_or_pop) { */
-  /*   s_region_data_out = mRegionHeader; */
-  /*   mRegionDataOutIsTrailer = false; */
-  /* } else { */
-  /*   // Pop region trailer or read data from fifo */
-  /*   /\* if(!s_generate_region_header && read_or_pop) { *\/ */
-  /*   /\*   s_region_fifo.nb_get(data_out); *\/ */
-  /*   /\* } *\/ */
-
-  /*   // Update region's data output with next data on fifo */
-  /*   s_region_data_out = data_out; */
-
-  /*   if(s_region_fifo.nb_peek(data_out)) { */
-  /*     s_region_data_out = data_out; */
-
-  /*     if(data_out.data[0] == DW_REGION_TRAILER) */
-  /*       mRegionDataOutIsTrailer = true; */
-  /*     else */
-  /*       mRegionDataOutIsTrailer = false; */
-
-  /*   } else { */
-  /*     // Just put an IDLE word on the FIFO if there is nothing in the FIFO */
-  /*     // Shouldn't really happen.. */
-  /*     s_region_data_out = AlpideIdle(); */
-  /*   } */
-
-  /*   // Pop region trailer or read data from fifo */
-  /*   if(!s_generate_region_header && read_or_pop) { */
-  /*     s_region_fifo.nb_get(data_out); */
-  /*   } */
-  /* } */
-
-  // Pop region trailer or read data from fifo
-  /* if(read_or_pop && !s_generate_region_header) { */
-  /*   //AlpideDataWord data; */
-  /*   //s_region_fifo.nb_get(data); */
-  /*   s_region_fifo.nb_get(mRegionDataOut); */
-  /* } */
+  // Pop trailer when TRU requests it, but not in readout abort mode.
+  // In RO abort mode the flushRegionFifo() function will take care of emptying the RRU FIFO
+  bool pop_trailer = s_region_event_pop_in && !s_readout_abort_in;
 
   if((read_dataword && !s_generate_region_header) || pop_trailer) {
     AlpideDataWord data;
