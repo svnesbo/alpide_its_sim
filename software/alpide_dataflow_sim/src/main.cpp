@@ -106,8 +106,8 @@ int sc_main(int argc, char** argv)
   sc_trace_file *wf = NULL;
   sc_core::sc_set_time_resolution(1, sc_core::SC_NS);
 
-  // 25ns period, 0.5 duty cycle, first edge at 2 time units, first value is true
-  sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 2, true);
+  // 25ns period, 0.5 duty cycle, first edge at 25 time units, first value is true
+  sc_clock clock_40MHz("clock_40MHz", 25, 0.5, 25, true);
 
   stimuli->clock(clock_40MHz);
 
