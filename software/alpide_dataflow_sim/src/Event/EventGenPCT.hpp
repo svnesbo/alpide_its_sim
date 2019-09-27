@@ -12,6 +12,7 @@
 
 #include <fstream>
 #include <boost/random/poisson_distribution.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
 #include "Detector/PCT/PCTDetectorConfig.hpp"
 #include "EventGenBase.hpp"
 #ifdef ROOT_ENABLED
@@ -68,9 +69,11 @@ private:
   boost::random::mt19937 mRandParticleCountGen;
   boost::random::mt19937 mRandHitCoordsXGen;
   boost::random::mt19937 mRandHitCoordsYGen;
+  boost::random::mt19937 mRandHitTimeGen;
 
   boost::random::normal_distribution<double> *mRandParticlesPerEventFrameDist;
   boost::random::normal_distribution<double> *mRandHitXDist, *mRandHitYDist;
+  boost::random::uniform_int_distribution<int> *mRandHitTime;
 
   void initCsvEventFileHeader(const QSettings* settings);
   void addCsvEventLine(uint64_t time_ns,

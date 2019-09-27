@@ -15,6 +15,8 @@
 #include <map>
 #include <QDir>
 
+static bool comparePixelHitActiveTime(const std::shared_ptr<PixelHit>& p1, const std::shared_ptr<PixelHit>& p2);
+
 
 SC_HAS_PROCESS(EventGenPCT);
 ///@brief Constructor for EventGenPCT
@@ -172,7 +174,6 @@ void EventGenPCT::initMonteCarloHitGen(const QSettings* settings)
   QString monte_carlo_file_type = settings->value("event/monte_carlo_file_type").toString();
   QString monte_carlo_data_file_str = settings->value("pct/monte_carlo_file_path").toString();
 
-
   if(monte_carlo_file_type == "xml") {
     std::cerr << "Error: MC files in XML format not supported for PCT simulation" << std::endl;
     exit(-1);
@@ -198,6 +199,14 @@ void EventGenPCT::initMonteCarloHitGen(const QSettings* settings)
     std::cerr << monte_carlo_file_type.toStdString() << "\"";
     exit(-1);
   }
+
+  // Create distribution used to "spread out" hits in time over the timeframe
+  // In the ROOT event files the hits have timestamps at certain intervals
+  // (10 us in the files used till now), but it is undesirable to have all the hits
+  // come in big chunks at these specific intervals.
+  // So we spread them out over the timeframe with a uniform distribution.
+  int timeframe_length_ns = settings->value("pct/time_frame_length_ns").toInt();
+  mRandHitTime = new boost::random::uniform_int_distribution<int>(0, timeframe_length_ns);
 }
 
 
@@ -226,6 +235,13 @@ const std::vector<std::shared_ptr<PixelHit>>& EventGenPCT::getTriggeredEvent(voi
 const std::vector<std::shared_ptr<PixelHit>>& EventGenPCT::getUntriggeredEvent(void) const
 {
   return mEventHitVector;
+}
+
+
+///@brief Compare the active time of two PixelHit objects. Return if p1 is active before p2.
+static bool comparePixelHitActiveTime(const std::shared_ptr<PixelHit>& p1, const std::shared_ptr<PixelHit>& p2)
+{
+  return (p1->getActiveTimeStart() < p2->getActiveTimeStart());
 }
 
 
@@ -356,9 +372,11 @@ bool EventGenPCT::generateMonteCarloEventData(unsigned int &particle_count_out,
   while(digit_it != digit_end_it) {
     const PixelHit &pixel = *digit_it;
 
+    uint64_t hit_time = time_now + (*mRandHitTime)(mRandHitTimeGen);
+
     if(mRandomClusterGeneration) {
       std::vector<std::shared_ptr<PixelHit>> pix_cluster = createCluster(pixel,
-                                                                         time_now,
+                                                                         hit_time,
                                                                          mPixelDeadTime,
                                                                          mPixelActiveTime,
                                                                          mUntriggeredReadoutStats);
@@ -378,8 +396,8 @@ bool EventGenPCT::generateMonteCarloEventData(unsigned int &particle_count_out,
       // Do this after inserting (copy) of pixel, to avoid double registering of
       // readout stats when pixel is destructed
       mEventHitVector.back()->setPixelReadoutStatsObj(mUntriggeredReadoutStats);
-      mEventHitVector.back()->setActiveTimeStart(time_now+mPixelDeadTime);
-      mEventHitVector.back()->setActiveTimeEnd(time_now+mPixelDeadTime+mPixelActiveTime);
+      mEventHitVector.back()->setActiveTimeStart(hit_time+mPixelDeadTime);
+      mEventHitVector.back()->setActiveTimeEnd(hit_time+mPixelDeadTime+mPixelActiveTime);
 
       chip_pixel_hits[pixel.getChipId()]++;
       pixel_hit_count_out++;
@@ -387,6 +405,10 @@ bool EventGenPCT::generateMonteCarloEventData(unsigned int &particle_count_out,
 
     digit_it++;
   }
+
+  // Sort the hits in the frame, because the Alpide front end code
+  // assumes that chips are inputted in the order that they become active
+  std::sort(mEventHitVector.begin(), mEventHitVector.end(), comparePixelHitActiveTime);
 
   return !mMCEvents->getMoreEventsLeft();
 
