@@ -166,7 +166,6 @@ private:
   uint16_t mStrobeLengthNs;
   uint64_t mStrobeStartTime;
   uint16_t mMinBusyCycles;
-  uint16_t mBusyCycleCount = 0;
 
   bool mObMode;
   bool mObMaster;
@@ -208,8 +207,14 @@ private:
   ///@brief Number of triggers that were "rejected" (ie. all 3 MEBs were full)
   uint64_t mTriggersRejected = 0;
 
-  ///@brief Number of "positive" busy transitions (ie. chip went into busy state)
+  ///@brief Number of "positive" busy transitions, ie. chip was busy for longer
+  ///       than BUSY MIN WIDTH and went into busy state by sending out BUSY_ON
   uint64_t mBusyTransitions = 0;
+
+  ///@brief Number of cycles that internal busy signal has been high.
+  ///       When it has been high for BUSY MIN WIDTH, the chip will send out
+  ///       the BUSY_ON data word.
+  uint16_t mBusyCycleCount = 0;
 
   ///@brief Number of busy violations.
   ///@todo This counter is currently only increased by the strobeInput() function,

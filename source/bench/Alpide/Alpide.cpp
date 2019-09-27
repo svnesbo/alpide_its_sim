@@ -262,20 +262,29 @@ void Alpide::strobeInput(void)
     // Remove "expired" hits from hit list in the pixel front end
     removeInactiveHits(time_now);
 
-    ///@todo What should I do in data overrun mode (when readout_abort is set)?
-    ///      Should I still accept events? I need the frame end word to be added, for the normal
-    ///      transmission of CHIP HEADER/TRAILER words. This is currently done by the frameReadout()
-    ///      method, which requires there to be events in the MEB.
-    ///@todo Should rejected event frame count be increased in data overrun mode?
     if(mChipContinuousMode) {
-      if(getNumEvents() == 3) {
+      if(s_frame_fifo_busy.read() == true) {
+        // Reject events if frame FIFO is at or above ALMOST_FULL1 watermark
+
+        // End strobe interval immediately in this case
+        E_strobe_interval_done.cancel();
+        E_strobe_interval_done.notify(0, SC_NS);
+
+        mTriggersRejected++;
+        mBusyViolations++;
+        s_chip_ready_internal = false;
+        s_busy_violation = true;
+      } else if(getNumEvents() == 3) {
+        // End strobe interval immediately in this case
+        E_strobe_interval_done.cancel();
+        E_strobe_interval_done.notify(0, SC_NS);
+
         // Reject events if all MEBs are full in continuous mode.
         // And yes, this can happen! Also in the real chip..
         mTriggersRejected++;
         s_busy_violation = true;
         mBusyViolations++;
         s_chip_ready_internal = false;
-
         // Flushed incomplete flag doesn't matter, in a busy violation
         // you only get the busy violation flag (see Alpide manual).
         // The TRU code will set all the other readout flags to zero.
@@ -303,10 +312,27 @@ void Alpide::strobeInput(void)
     else if(!mChipContinuousMode) {
       s_flushed_incomplete = false; // No flushing in triggered mode
 
-      if(getNumEvents() == 3) {
-        s_chip_ready_internal = false;
+      if(s_frame_fifo_busy.read() == true) {
+        // Reject events if frame FIFO is at or above ALMOST_FULL1 watermark
+
+        // End strobe interval immediately in this case
+        E_strobe_interval_done.cancel();
+        E_strobe_interval_done.notify(0, SC_NS);
+
         mTriggersRejected++;
         mBusyViolations++;
+        s_chip_ready_internal = false;
+        s_busy_violation = true;
+      } else if(getNumEvents() == 3) {
+        // All MEBs are full - busy violation
+        //
+        // End strobe interval immediately in this case
+        E_strobe_interval_done.cancel();
+        E_strobe_interval_done.notify(0, SC_NS);
+
+        mTriggersRejected++;
+        mBusyViolations++;
+        s_chip_ready_internal = false;
         s_busy_violation = true;
       } else {
         newEvent(time_now);
@@ -362,7 +388,7 @@ void Alpide::strobeInput(void)
       ///@todo The FATAL overflow bit/signal has to be cleared by a RORST/GRST command
       ///      in the Alpide chip, it will not be cleared by automatically.
       s_fatal_state = true;
-    } else if(frame_start_fifo_size > TRU_FRAME_FIFO_ALMOST_FULL2) {
+    } else if(frame_start_fifo_size >= TRU_FRAME_FIFO_ALMOST_FULL2) {
       // DATA OVERRUN MODE
       ///@todo Need to clear RRU FIFOs, and MEBs when entering this state
 
@@ -373,7 +399,7 @@ void Alpide::strobeInput(void)
 
       s_frame_fifo_busy = true;
       s_readout_abort = true;
-    } else if(frame_start_fifo_size > TRU_FRAME_FIFO_ALMOST_FULL1) {
+    } else if(frame_start_fifo_size >= TRU_FRAME_FIFO_ALMOST_FULL1) {
       // BUSY
       s_frame_fifo_busy = true;
     } else if(!s_readout_abort) {
@@ -445,9 +471,9 @@ void Alpide::frameReadout(void)
       ///@todo Strobe extended not implemented yet
       mNextFrameEndWord.strobe_extended = false;
 
-      ///@todo Should the busy_transition flag always be set like this when chip is busy,
-      ///      or should it only happen when the chip goes into or out of busy state?
-      mNextFrameEndWord.busy_transition = s_busy_status;
+      ///@todo Should the busy_transition flag should only be set when
+      ///      the chip goes into or out of busy state.. not implemented yet
+      mNextFrameEndWord.busy_transition = false;
 
       s_flushed_incomplete = false;
       s_fromu_readout_state = REGION_READOUT_DONE;
@@ -535,6 +561,8 @@ void Alpide::dataTransmission(void)
             mObDataWord = AlpideIdle();
           }
         } else {
+          // Transmit our own data (from this master chip)
+          // when mObChipSel == mObSlaveCount
           if(s_dmu_fifo.num_available() > 0) {
             s_dmu_fifo.nb_read(mObDataWord);
           } else {
@@ -553,6 +581,8 @@ void Alpide::dataTransmission(void)
 
           // And give away "token" (ie going to the next chip) after
           // transmitting the data word
+          // Slave chips: mObSlaveCount > mObChipSel >= 0
+          // Master chip: mObChipSel == mObSlaveCount
           if(mObChipSel == mObSlaveCount) {
             mObNextChipSel = 0;
           } else {
@@ -587,6 +617,12 @@ void Alpide::dataTransmission(void)
         }
       }
 
+      // In outer barrel mode the data link is 400 Mbps, as opposed to 1200 Mbps
+      // for inner barrel. To simplify the code we still send 24 bit each 40 MHz
+      // clock cycle, but for OB we only fill 8 of the 24 bits (the MSB ones),
+      // effectively leading to 1200/3 = 400 Mbps data rate.
+      // The AlpideDataParser object that receives the data knows if it is an IB
+      // or OB link, whether to expect data in all 24 bits or only the 8 MSB ones
       dw_dtu_fifo_input = mObDataWord.data[mObDwByteIndex] << 16;
 
       mObDwByteIndex--;
@@ -723,13 +759,31 @@ void Alpide::updateBusyStatus(void)
       s_multi_event_buffers_busy = false;
   }
 
-  bool new_busy_status = (s_frame_fifo_busy || s_multi_event_buffers_busy);
+  bool internal_busy_status = (s_frame_fifo_busy || s_multi_event_buffers_busy);
+  bool slave_busy_status = false;
 
-  // The internal busy signal needs to be asserted for a minimum number of cycles
-  // (mMinBusyCycles, equivalent to reg 0x001B BUSY min width in real chip),
-  // before the busy signal is asserted and BUSY_ON is transmitted.
+  // For OB masters: Also check the slave chips' busy lines,
+  // and assert the busy status if any of the slaves are busy
+  if(mObMode && mObMaster) {
+    // Check busy status of slave chips in OB
+    for(auto busy_it = s_local_busy_in.begin(); busy_it != s_local_busy_in.end(); busy_it++)
+      slave_busy_status = slave_busy_status || busy_it->read();
+  }
+
+  bool new_busy_status = internal_busy_status || slave_busy_status;
+
+
   if(new_busy_status == true && new_busy_status != s_busy_status) {
-    if(mBusyCycleCount == mMinBusyCycles) {
+    if(slave_busy_status == true) {
+      // Assert busy status leading to BUSY_ON transmission immediately
+      // if a slave indicates that it is busy
+      mBusyTransitions++;
+      s_busy_status = true;
+    } else if(internal_busy_status == true && mBusyCycleCount == mMinBusyCycles) {
+      // For internal busy status, wait for the internal busy signal to be
+      // asserted for a minimum number of cycles (mMinBusyCycles, equivalent
+      // to reg 0x001B BUSY min width in real chip), before the busy signal
+      // is asserted and BUSY_ON is transmitted.
       mBusyTransitions++;
       s_busy_status = true;
     }
@@ -738,17 +792,6 @@ void Alpide::updateBusyStatus(void)
     mBusyCycleCount = 0;
     s_busy_status = false;
   }
-
-  // For OB masters: Also check the slave chips' busy lines,
-  // and assert the busy status if any of the slaves are busy
-  if(mObMode & mObMaster) {
-    // Check busy status of slave chips in OB
-    for(auto busy_it = s_local_busy_in.begin(); busy_it != s_local_busy_in.end(); busy_it++)
-      ///@todo THIS WON'T WORK! READING FROM SIGNAL THAT HASN'T BEEN UPDATED!!
-      s_busy_status = s_busy_status || busy_it->read();
-  }
-
-  s_busy_status = new_busy_status;
 }
 
 
