@@ -227,7 +227,7 @@ void ReadoutUnit::busyChainMethod(void)
   if(s_busy_in->nb_read(busy_word)) {
 
     uint64_t time_now = sc_time_stamp().value();
-    std::cout << "@" << time_now << ": RU " << mStaveId << ":" << mLayerId << " Got busy word." << std::endl;
+    std::cout << "@" << time_now << ": RU " << mLayerId << ":" << mStaveId << " Got busy word." << std::endl;
     std::cout << "Origin ID: " << busy_word.mOriginAddress << std::endl;
     std::cout << "Timestamp : " << busy_word.mTimeStamp << std::endl;
     std::cout << "Busy word type: " << busy_word.getString();
@@ -576,10 +576,14 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   //   uint8_t:  number of data links
   //
   //   For each data link:
-  //       Header:
-  //          uint64_t: Number of "busy violation events"
-  //       Data (for each busy violation event)
-  //          uint64_t: trigger ID for busy violation
+  //       uint8_t: Number of chips with data for this link
+  //
+  //       For each chip in data link which has data:
+  //          Header:
+  //             uint8_t:  Chip ID
+  //             uint64_t: Number of "busy violation events"
+  //          Data (for each busy violation event)
+  //             uint64_t: trigger ID for busy violation
 
   std::string busyv_events_filename = output_path + std::string("_busyv_events.dat");
   ofstream busyv_events_file(busyv_events_filename, std::ios_base::out | std::ios_base::binary);
@@ -598,23 +602,38 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
 
   // Write busy events for each link
   for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
-    std::vector<uint64_t> busyv_events = mDataLinkParsers[link_id]->getBusyViolationTriggers();
-    uint64_t num_busyv_events = busyv_events.size();
-    busyv_events_file.write((char*)&num_busyv_events, sizeof(uint64_t));
+    std::map<unsigned int, std::vector<uint64_t>> busyv_events =
+      mDataLinkParsers[link_id]->getBusyViolationTriggers();
 
-    for(auto busy_event_it = busyv_events.begin();
-        busy_event_it != busyv_events.end();
-        busy_event_it++)
+    // Write number of chips that had busyv events for this link
+    uint8_t num_chips_with_data = busyv_events.size();
+    busyv_events_file.write((char*)&num_chips_with_data, sizeof(uint8_t));
+
+    // Write busyv events per chip in this link
+    for(auto busyv_chip_it = busyv_events.begin();
+        busyv_chip_it != busyv_events.end();
+        busyv_chip_it++)
     {
-      uint64_t busyv_trigger_id = *busy_event_it;
-      busyv_events_file.write((char*)&busyv_trigger_id, sizeof(uint64_t));
+      uint8_t chip_id = busyv_chip_it->first;
+      busyv_events_file.write((char*)&chip_id, sizeof(uint8_t));
+
+      uint64_t num_busyv_events = busyv_chip_it->second.size();
+      busyv_events_file.write((char*)&num_busyv_events, sizeof(uint64_t));
+
+      for(auto busyv_event_it = busyv_chip_it->second.begin();
+          busyv_event_it != busyv_chip_it->second.end();
+          busyv_event_it++)
+      {
+        uint64_t busyv_trigger_id = *busyv_event_it;
+        busyv_events_file.write((char*)&busyv_trigger_id, sizeof(uint64_t));
+      }
     }
   }
   busyv_events_file.close();
 
 
   // ------------------------------------------------------
-  // Write binary data file with flushed incomplete  events
+  // Write binary data file with flushed incomplete events
   // ------------------------------------------------------
   // File format (same as for busyv basically):
   //
@@ -622,10 +641,14 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   //   uint8_t:  number of data links
   //
   //   For each data link:
-  //       Header:
-  //          uint64_t: Number of "flushed incomplete events"
-  //       Data (for each flushed incomplete event)
-  //          uint64_t: trigger ID for flushed incomplete
+  //       uint8_t: Number of chips with data for this link
+  //
+  //       For each chip in data link which has data:
+  //          Header:
+  //             uint8_t:  Chip ID
+  //             uint64_t: Number of "flushed incomplete events"
+  //          Data (for each flushed incomplete event)
+  //             uint64_t: trigger ID for flushed incomplete
 
   std::string flush_events_filename = output_path + std::string("_flush_events.dat");
   ofstream flush_events_file(flush_events_filename, std::ios_base::out | std::ios_base::binary);
@@ -645,16 +668,31 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
 
   // Write flushed incomplete events for each link
   for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
-    std::vector<uint64_t> flush_events = mDataLinkParsers[link_id]->getFlushedIncomplTriggers();
-    uint64_t num_flush_events = flush_events.size();
-    flush_events_file.write((char*)&num_flush_events, sizeof(uint64_t));
+    std::map<unsigned int, std::vector<uint64_t>> flush_events
+      = mDataLinkParsers[link_id]->getFlushedIncomplTriggers();
 
-    for(auto flush_event_it = flush_events.begin();
-        flush_event_it != flush_events.end();
-        flush_event_it++)
+    // Write number of chips that had flush events for this link
+    uint8_t num_chips_with_data = flush_events.size();
+    flush_events_file.write((char*)&num_chips_with_data, sizeof(uint8_t));
+
+    // Write flush events per chip in this link
+    for(auto flush_chip_it = flush_events.begin();
+        flush_chip_it != flush_events.end();
+        flush_chip_it++)
     {
-      uint64_t flush_trigger_id = *flush_event_it;
-      flush_events_file.write((char*)&flush_trigger_id, sizeof(uint64_t));
+      uint8_t chip_id = flush_chip_it->first;
+      flush_events_file.write((char*)&chip_id, sizeof(uint8_t));
+
+      uint64_t num_flush_events = flush_chip_it->second.size();
+      flush_events_file.write((char*)&num_flush_events, sizeof(uint64_t));
+
+      for(auto flush_event_it = flush_chip_it->second.begin();
+          flush_event_it != flush_chip_it->second.end();
+          flush_event_it++)
+      {
+        uint64_t flush_trigger_id = *flush_event_it;
+        flush_events_file.write((char*)&flush_trigger_id, sizeof(uint64_t));
+      }
     }
   }
   flush_events_file.close();
@@ -669,10 +707,14 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   //   uint8_t:  number of data links
   //
   //   For each data link:
-  //       Header:
-  //          uint64_t: Number of "readout abort events"
-  //       Data (for each trigger chip was in readout abort)
-  //          uint64_t: trigger ID for readout abort event
+  //       uint8_t: Number of chips with data for this link
+  //
+  //       For each chip in data link which has data:
+  //          Header:
+  //             uint8_t:  Chip ID
+  //             uint64_t: Number of "readout abort events"
+  //          Data (for each trigger chip was in readout abort)
+  //             uint64_t: trigger ID for readout abort event
 
   std::string ro_abort_event_filename = output_path + std::string("_ro_abort_events.dat");
   ofstream ro_abort_event_file(ro_abort_event_filename, std::ios_base::out | std::ios_base::binary);
@@ -692,16 +734,31 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
 
   // Write readout abort events for each link
   for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
-    std::vector<uint64_t> ro_abort_event = mDataLinkParsers[link_id]->getReadoutAbortTriggers();
-    uint64_t num_ro_abort_event = ro_abort_event.size();
-    ro_abort_event_file.write((char*)&num_ro_abort_event, sizeof(uint64_t));
+    std::map<unsigned int, std::vector<uint64_t>> ro_abort_event
+      = mDataLinkParsers[link_id]->getReadoutAbortTriggers();
 
-    for(auto readout_abort_it = ro_abort_event.begin();
-        readout_abort_it != ro_abort_event.end();
-        readout_abort_it++)
+    // Write number of chips that had readout abort events for this link
+    uint8_t num_chips_with_data = ro_abort_event.size();
+    ro_abort_event_file.write((char*)&num_chips_with_data, sizeof(uint8_t));
+
+    // Write readout abort events per chip in this link
+    for(auto readout_abort_chip_it = ro_abort_event.begin();
+        readout_abort_chip_it != ro_abort_event.end();
+        readout_abort_chip_it++)
     {
-      uint64_t ro_abort_trigger_id = *readout_abort_it;
-      ro_abort_event_file.write((char*)&ro_abort_trigger_id, sizeof(uint64_t));
+      uint8_t chip_id = readout_abort_chip_it->first;
+      ro_abort_event_file.write((char*)&chip_id, sizeof(uint8_t));
+
+      uint64_t num_ro_abort_event = readout_abort_chip_it->second.size();
+      ro_abort_event_file.write((char*)&num_ro_abort_event, sizeof(uint64_t));
+
+      for(auto readout_abort_it = readout_abort_chip_it->second.begin();
+          readout_abort_it != readout_abort_chip_it->second.end();
+          readout_abort_it++)
+      {
+        uint64_t ro_abort_trigger_id = *readout_abort_it;
+        ro_abort_event_file.write((char*)&ro_abort_trigger_id, sizeof(uint64_t));
+      }
     }
   }
   ro_abort_event_file.close();
@@ -716,10 +773,14 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
   //   uint8_t:  number of data links
   //
   //   For each data link:
-  //       Header:
-  //          uint64_t: Number of "fatal events"
-  //       Data (for each trigger chip was in fatal mode)
-  //          uint64_t: trigger ID for fatal event
+  //       uint8_t: Number of chips with data for this link
+  //
+  //       For each chip in data link which has data:
+  //          Header:
+  //             uint8_t:  Chip ID
+  //             uint64_t: Number of "fatal events"
+  //          Data (for each trigger chip was in fatal mode)
+  //             uint64_t: trigger ID for fatal event
 
   std::string fatal_event_filename = output_path + std::string("_fatal_events.dat");
   ofstream fatal_event_file(fatal_event_filename, std::ios_base::out | std::ios_base::binary);
@@ -739,16 +800,31 @@ void ReadoutUnit::writeSimulationStats(const std::string output_path) const
 
   // Write fatal events for each link
   for(uint64_t link_id = 0; link_id < mDataLinkParsers.size(); link_id++) {
-    std::vector<uint64_t> fatal_event = mDataLinkParsers[link_id]->getFatalTriggers();
-    uint64_t num_fatal_event = fatal_event.size();
-    fatal_event_file.write((char*)&num_fatal_event, sizeof(uint64_t));
+    std::map<unsigned int, std::vector<uint64_t>> fatal_event
+      = mDataLinkParsers[link_id]->getFatalTriggers();
 
-    for(auto fatal_it = fatal_event.begin();
-        fatal_it != fatal_event.end();
-        fatal_it++)
+    // Write number of chips that had fatal events for this link
+    uint8_t num_chips_with_data = fatal_event.size();
+    fatal_event_file.write((char*)&num_chips_with_data, sizeof(uint8_t));
+
+    // Write fatal events per chip in this link
+    for(auto fatal_chip_it = fatal_event.begin();
+        fatal_chip_it != fatal_event.end();
+        fatal_chip_it++)
     {
-      uint64_t fatal_trigger_id = *fatal_it;
-      fatal_event_file.write((char*)&fatal_trigger_id, sizeof(uint64_t));
+      uint8_t chip_id = fatal_chip_it->first;
+      fatal_event_file.write((char*)&chip_id, sizeof(uint8_t));
+
+      uint64_t num_fatal_event = fatal_chip_it->second.size();
+      fatal_event_file.write((char*)&num_fatal_event, sizeof(uint64_t));
+
+      for(auto fatal_it = fatal_chip_it->second.begin();
+          fatal_it != fatal_chip_it->second.end();
+          fatal_it++)
+      {
+        uint64_t fatal_trigger_id = *fatal_it;
+        fatal_event_file.write((char*)&fatal_trigger_id, sizeof(uint64_t));
+      }
     }
   }
   fatal_event_file.close();

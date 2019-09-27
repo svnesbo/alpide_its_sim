@@ -108,10 +108,18 @@ private:
 
   const unsigned int mDataIntervalNs;
 
-  std::vector<uint64_t> mFatalTriggers;
-  std::vector<uint64_t> mReadoutAbortTriggers;
-  std::vector<uint64_t> mBusyViolationTriggers;
-  std::vector<uint64_t> mFlushedIncomplTriggers;
+  /// Key: Chip ID, value: trigger that fatal mode occured
+  std::map<unsigned int, std::vector<uint64_t>> mFatalTriggers;
+
+  /// Key: Chip ID, value: trigger that readout abort mode occured
+  std::map<unsigned int, std::vector<uint64_t>> mReadoutAbortTriggers;
+
+  /// Key: Chip ID, value: trigger that busy violation occured
+  std::map<unsigned int, std::vector<uint64_t>> mBusyViolationTriggers;
+
+  /// Key: Chip ID, value: trigger that flushed incomplete occured
+  std::map<unsigned int, std::vector<uint64_t>> mFlushedIncomplTriggers;
+
   std::vector<BusyEvent> mBusyEvents;
   bool mSaveEvents;
 
@@ -157,16 +165,16 @@ public:
   std::map<uint64_t, unsigned int>& getDataIntervalByteCounts(void) {
     return mDataIntervalByteCounts;
   }
-  std::vector<uint64_t>& getFatalTriggers(void) {
+  std::map<unsigned int, std::vector<uint64_t>>& getFatalTriggers(void) {
     return mFatalTriggers;
   }
-  std::vector<uint64_t>& getReadoutAbortTriggers(void) {
+  std::map<unsigned int, std::vector<uint64_t>>& getReadoutAbortTriggers(void) {
     return mReadoutAbortTriggers;
   }
-  std::vector<uint64_t>& getBusyViolationTriggers(void) {
+  std::map<unsigned int, std::vector<uint64_t>>& getBusyViolationTriggers(void) {
     return mBusyViolationTriggers;
   }
-  std::vector<uint64_t>& getFlushedIncomplTriggers(void) {
+  std::map<unsigned int, std::vector<uint64_t>>& getFlushedIncomplTriggers(void) {
     return mFlushedIncomplTriggers;
   }
   std::vector<BusyEvent>& getBusyEvents(void) {

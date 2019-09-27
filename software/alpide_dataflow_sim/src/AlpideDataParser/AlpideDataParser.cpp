@@ -191,17 +191,20 @@ void AlpideEventBuilder::inputDataByte(std::uint8_t data, uint64_t trig_id, uint
         mEvents.back().setReadoutFlags(mCurrentDataWord[2] & 0x0F);
         mEvents.back().setFrameCompleted(true);
 
+        unsigned int chip_id = mEvents.back().getChipId();
+        uint64_t event_trigger_id = mEvents.back().getTriggerId();
+
         // Maintain vectors of trigger IDs for triggers
         // that resulted in FATAL condition, READOUT ABORT,
         // BUSY VIOLATION, or FLUSHED INCOMPLETE
         if(mEvents.back().getFatal() == true)
-          mFatalTriggers.push_back(mEvents.back().getTriggerId());
+          mFatalTriggers[chip_id].push_back(event_trigger_id);
         else if(mEvents.back().getReadoutAbort() == true)
-          mReadoutAbortTriggers.push_back(mEvents.back().getTriggerId());
+          mReadoutAbortTriggers[chip_id].push_back(event_trigger_id);
         else if(mEvents.back().getBusyViolation() == true)
-          mBusyViolationTriggers.push_back(mEvents.back().getTriggerId());
+          mBusyViolationTriggers[chip_id].push_back(event_trigger_id);
         else if(mEvents.back().getFlushedIncomplete() == true)
-          mFlushedIncomplTriggers.push_back(mEvents.back().getTriggerId());
+          mFlushedIncomplTriggers[chip_id].push_back(event_trigger_id);
       }
 
       mDataWordStarted = false;
