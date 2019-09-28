@@ -11,27 +11,33 @@
  */
 
 #include "parse_cmdline_args.hpp"
+#include "Settings.hpp"
 #include <iostream>
 
 ///@brief Parse command line options. Settings specified on the command line
 ///       will overwrite settings in the QSettings object.
 ///@param parser QCommandLineParser object
 ///@param app QCoreApplication object
-///@param settigns QSettings file, which holds settings for the simulation.
-///                These settings are overwritten by settings specifed as
-///                command line arguments.
-///@return True if parsing is ok and the program can start. Program should not
-///        start if false is returned, which indicates that either the user
-///        asked for help or version information, or there was an error parsing
-///        the command line arguments.
-bool parseCommandLine(QCommandLineParser &parser,
-                      const QCoreApplication &app,
-                      QSettings& settings)
+///@return Returns pointer to QSettings object with all the user settings.
+///        If there is a problem parsing command line options, or if the user
+///        wants the help info printed etc., then nullptr is returned, to indicate
+///        that the program should not resume.
+QSettings* parseCommandLine(QCommandLineParser &parser,
+                      const QCoreApplication &app)
 {
+  QSettings *settings = nullptr;
   bool start_program = true;
   bool conversion_ok = false;
 
   parser.setSingleDashWordOptionMode(QCommandLineParser::ParseAsLongOptions);
+
+  const QCommandLineOption readConfigOption({"cfg", "config"},
+                                            "Read configuration from user specified file instead of "
+                                            "using the default config file. Settings in the specified "
+                                            "config file can still be overwritten by other command "
+                                            "line options.",
+                                            "cfg_file_path");
+
   const QCommandLineOption writeVCDOption({"vcd", "write_vcd"},
                                           "Write waveform data to VCD file.");
 
@@ -117,12 +123,13 @@ bool parseCommandLine(QCommandLineParser &parser,
   const QCommandLineOption outputDirPrefixOption({"o", "output_dir_prefix"},
                                                  "Output directory prefix (default: sim_output/). "
                                                  "Simulations are stored in directories named "
-                                                 "\"Run <timestamp>\" in this directory",
+                                                 "\"run_<sequence num>\" in this directory",
                                                  "output_dir_prefix");
 
   const QCommandLineOption helpOption = parser.addHelpOption();
   const QCommandLineOption versionOption = parser.addVersionOption();
 
+  parser.addOption(readConfigOption);
   parser.addOption(writeVCDOption);
   parser.addOption(writeVCDClockOption);
   parser.addOption(writeCSVOption);
@@ -166,20 +173,32 @@ bool parseCommandLine(QCommandLineParser &parser,
     std::cout << std::endl;
     start_program = false;
   } else {
+    if(parser.isSet(readConfigOption)) {
+      if(parser.value(readConfigOption).length() > 0) {
+        // Read config file specified by user
+        std::cout << "Reading user config file." << std::endl;
+        settings = getSimSettings(parser.value(readConfigOption).toStdString().c_str());
+      }
+    } else {
+      // Read default config file if none was specified
+      std::cout << "Reading default config file." << std::endl;
+      settings = getSimSettings();
+    }
+
     if(parser.isSet(writeVCDOption)) {
-      settings.setValue("data_output/write_vcd", "true");
+      settings->setValue("data_output/write_vcd", "true");
     }
 
     if(parser.isSet(writeVCDClockOption)) {
-      settings.setValue("data_output/write_vcd_clock", "true");
+      settings->setValue("data_output/write_vcd_clock", "true");
     }
 
     if(parser.isSet(writeCSVOption)) {
-      settings.setValue("data_output/write_event_csv", "true");
+      settings->setValue("data_output/write_event_csv", "true");
     }
 
     if(parser.isSet(singleChipOption)) {
-      settings.setValue("simulation/single_chip", "true");
+      settings->setValue("simulation/single_chip", "true");
     }
 
     if(parser.isSet(numEventsOption)) {
@@ -189,16 +208,16 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing number of events." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("simulation/n_events", parser.value(numEventsOption));
+        settings->setValue("simulation/n_events", parser.value(numEventsOption));
         std::cout << "parser.value(numEventsOption): " << parser.value(numEventsOption).toStdString() << std::endl;
       }
     }
 
     if(parser.isSet(systemModeOption)) {
       if(parser.value(systemModeOption) == "triggered")
-        settings.setValue("simulation/system_continuous_mode", "false");
+        settings->setValue("simulation/system_continuous_mode", "false");
       else if(parser.value(systemModeOption) == "continuous")
-        settings.setValue("simulation/system_continuous_mode", "true");
+        settings->setValue("simulation/system_continuous_mode", "true");
       else {
         std::cout << "Error: Unknown system mode \"" << parser.value(systemModeOption).toStdString();
         std::cout << "\". Specify 'triggered' or 'continuous'." << std::endl;
@@ -208,9 +227,9 @@ bool parseCommandLine(QCommandLineParser &parser,
 
     if(parser.isSet(chipModeOption)) {
       if(parser.value(chipModeOption) == "triggered")
-        settings.setValue("alpide/chip_continuous_mode", "false");
+        settings->setValue("alpide/chip_continuous_mode", "false");
       else if(parser.value(chipModeOption) == "continuous")
-        settings.setValue("alpide/chip_continuous_mode", "true");
+        settings->setValue("alpide/chip_continuous_mode", "true");
       else {
         std::cout << "Error: Unknown chip mode \"" << parser.value(chipModeOption).toStdString();
         std::cout << "\". Specify 'triggered' or 'continuous'." << std::endl;
@@ -225,7 +244,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing random seed." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("simulation/random_seed", parser.value(randomSeedOption));
+        settings->setValue("simulation/random_seed", parser.value(randomSeedOption));
       }
     }
 
@@ -236,7 +255,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing layer 0 hit density." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/hit_density_layer0", parser.value(layer0HitDensityOption));
+        settings->setValue("event/hit_density_layer0", parser.value(layer0HitDensityOption));
       }
     }
 
@@ -247,7 +266,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing layer 1 hit density." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/hit_density_layer1", parser.value(layer1HitDensityOption));
+        settings->setValue("event/hit_density_layer1", parser.value(layer1HitDensityOption));
       }
     }
 
@@ -258,7 +277,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing layer 2 hit density." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/hit_density_layer2", parser.value(layer2HitDensityOption));
+        settings->setValue("event/hit_density_layer2", parser.value(layer2HitDensityOption));
       }
     }
 
@@ -269,7 +288,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing layer 3 hit density." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/hit_density_layer3", parser.value(layer3HitDensityOption));
+        settings->setValue("event/hit_density_layer3", parser.value(layer3HitDensityOption));
       }
     }
 
@@ -280,7 +299,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing layer 4 hit density." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/hit_density_layer4", parser.value(layer4HitDensityOption));
+        settings->setValue("event/hit_density_layer4", parser.value(layer4HitDensityOption));
       }
     }
 
@@ -291,7 +310,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing layer 5 hit density." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/hit_density_layer5", parser.value(layer5HitDensityOption));
+        settings->setValue("event/hit_density_layer5", parser.value(layer5HitDensityOption));
       }
     }
 
@@ -302,7 +321,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing layer 6 hit density." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/hit_density_layer6", parser.value(layer6HitDensityOption));
+        settings->setValue("event/hit_density_layer6", parser.value(layer6HitDensityOption));
       }
     }
 
@@ -313,7 +332,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing average event rate." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/average_event_rate_ns", parser.value(avgEventRateOption));
+        settings->setValue("event/average_event_rate_ns", parser.value(avgEventRateOption));
       }
     }
 
@@ -324,7 +343,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing trigger delay." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/trigger_delay_ns", parser.value(triggerDelayOption));
+        settings->setValue("event/trigger_delay_ns", parser.value(triggerDelayOption));
       }
     }
 
@@ -335,12 +354,12 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing trigger filter time." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/trigger_filter_time_ns", parser.value(triggerFilterTimeOption));
+        settings->setValue("event/trigger_filter_time_ns", parser.value(triggerFilterTimeOption));
       }
     }
 
     if(parser.isSet(triggerFilterOption)) {
-      settings.setValue("event/trigger_filter_enable", "true");
+      settings->setValue("event/trigger_filter_enable", "true");
     }
 
     if(parser.isSet(strobeActiveLengthOption)) {
@@ -350,7 +369,7 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing strobe active length." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/strobe_active_length_ns", parser.value(strobeActiveLengthOption));
+        settings->setValue("event/strobe_active_length_ns", parser.value(strobeActiveLengthOption));
       }
     }
 
@@ -361,26 +380,31 @@ bool parseCommandLine(QCommandLineParser &parser,
         std::cout << "Error parsing strobe inactive length." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("event/strobe_inactive_length_ns", parser.value(strobeInactiveLengthOption));
+        settings->setValue("event/strobe_inactive_length_ns", parser.value(strobeInactiveLengthOption));
       }
     }
 
     if(parser.isSet(verboseOption))
-      settings.setValue("verbose", "true");
+      settings->setValue("verbose", "true");
     else
-      settings.setValue("verbose", "false");
+      settings->setValue("verbose", "false");
 
     if(parser.isSet(outputDirPrefixOption)) {
       if(parser.value(outputDirPrefixOption).length() == 0) {
         std::cout << "Error parsing output directory prefix." << std::endl;
         start_program = false;
       } else {
-        settings.setValue("output_dir_prefix", parser.value(outputDirPrefixOption));
+        settings->setValue("output_dir_prefix", parser.value(outputDirPrefixOption));
       }
     } else {
-      settings.setValue("output_dir_prefix", "sim_output");
+      settings->setValue("output_dir_prefix", "sim_output");
     }
   }
 
-  return start_program;
+  if(start_program == false) {
+    delete settings;
+    settings = nullptr;
+  }
+
+  return settings;
 }

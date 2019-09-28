@@ -51,9 +51,6 @@ int sc_main(int argc, char** argv)
   gSystem->Load("libTree");
 #endif
 
-  // Parse configuration file here
-  QSettings* simulation_settings = getSimSettings();
-
   QCoreApplication app(argc, argv);
   QCoreApplication::setApplicationName("Alpide Dataflow Simulation");
   QCoreApplication::setApplicationVersion(QString::number(VERSION_MAJOR) + "." +
@@ -62,9 +59,14 @@ int sc_main(int argc, char** argv)
   QCommandLineParser parser;
   parser.setApplicationDescription("\nAlpide Dataflow Simulation for the upgraded ITS detector");
 
-  // Parse command line arguments. Command line arguments will overwrite
-  // the settings specified in the settings file.
-  if(parseCommandLine(parser, app, *simulation_settings) == false)
+  // Parse command line and also read default configuration file
+  // Returns default settings if configuration file does not exist or is incomplete
+  QSettings* simulation_settings = parseCommandLine(parser, app);
+
+  // parseCommandLine returns nullptr for settings object if the program should
+  // not proceed (e.g. help was requested on command line, or error in command line
+  // options that were given by the user)
+  if(simulation_settings == nullptr)
     return 0;
 
   if(get_data_size_warning(simulation_settings) == true) {
@@ -139,6 +141,8 @@ int sc_main(int argc, char** argv)
   diff.total_milliseconds();
 
   std::cout << "Simulation complete. Elapsed time: " << diff << std::endl;
+
+  delete simulation_settings;
 
   return 0;
 }

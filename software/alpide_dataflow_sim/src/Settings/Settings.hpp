@@ -89,7 +89,7 @@
 #define DEFAULT_EVENT_STROBE_INACTIVE_LENGTH_NS "100"
 #define DEFAULT_EVENT_AVERAGE_EVENT_RATE_NS "2500"
 
-QSettings *getSimSettings(const char *fileName = "settings.txt");
+QSettings *getSimSettings(const char *fileName = "config/settings.txt");
 void setDefaultSimSettings(QSettings *readoutSimSettings);
 
 

@@ -6,11 +6,17 @@
  *
  *         Some functions for reading the simulation settings file, and for initializing
  *         default settings if the settings file, or certain settings, are missing.
+ *
+ *         Note: Apparently I shouldn't share pointers to QSettings object the way I do..
+ *         Deleting and recreating QSettings object makes the app crash.. I guess because it
+ *         shares settings with QApplication in some way.
+ *         https://stackoverflow.com/a/24418555
  */
 
 #include "Settings.hpp"
 #include <QStringList>
-
+#include <QFile>
+#include <iostream>
 
 
 ///@brief Open a file with simulation settings. Should reside in config/ directory, relative
@@ -24,8 +30,16 @@
 ///@return Pointer to QSettings object initialized with all settings, either from settings file or
 ///        with default settings if any settings were missing.
 QSettings *getSimSettings(const char *fileName) {
-  QString fileNameFullPath = QDir::currentPath() + "/config/" + fileName;
-  QSettings *readoutSimSettings = new QSettings(fileNameFullPath, QSettings::IniFormat);
+  QFile settings_file(fileName);
+
+  std::cout << "Reading settings file \"" << fileName << "\"." << std::endl;
+
+  if(settings_file.exists() == false) {
+    std::cout << "Settings file \"" << fileName << "\" does not exist." << std::endl;
+    exit(-1);
+  }
+
+  QSettings *readoutSimSettings = new QSettings(fileName, QSettings::IniFormat);
 
   // Sync QSettings object with file settings file contents
   readoutSimSettings->sync();

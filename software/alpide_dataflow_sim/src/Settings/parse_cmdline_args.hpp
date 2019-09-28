@@ -12,8 +12,7 @@
 #include <QCommandLineParser>
 #include <QString>
 
-bool parseCommandLine(QCommandLineParser &parser,
-                      const QCoreApplication &app,
-                      QSettings& settings);
+QSettings* parseCommandLine(QCommandLineParser &parser,
+                            const QCoreApplication &app);
 
 #endif // PARSE_CMDLINE_ARGS_HPP
