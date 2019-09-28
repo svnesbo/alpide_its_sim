@@ -39,6 +39,8 @@ private:
   std::unique_ptr<ReadoutUnit> mReadoutUnit;
   std::unique_ptr<ITS::SingleChip> mAlpide;
 
+  bool mRandomHitGen;
+
   void stimuliMethod(void);
   void triggerMethod(void);
   void writeStimuliInfo(void) const;

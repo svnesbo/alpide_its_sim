@@ -32,8 +32,8 @@ SC_HAS_PROCESS(StimuliPCT);
 StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::string output_path)
   : StimuliBase(name, settings, output_path)
 {
-  std::cout << "Number of layers: ";
-  std::cout << settings->value("pct/num_layers").toUInt() << std::endl;
+  std::cout << "Layers: ";
+  std::cout << settings->value("pct/layers").toString().toStdString() << std::endl;
 
   std::cout << "Number of staves per layer: ";
   std::cout << settings->value("pct/num_staves_per_layer").toUInt() << std::endl;
@@ -41,32 +41,37 @@ StimuliPCT::StimuliPCT(sc_core::sc_module_name name, QSettings* settings, std::s
   std::cout << "Length of event time frame (ns): ";
   std::cout << settings->value("pct/time_frame_length_ns").toUInt() << std::endl;
 
-  std::cout << "Number of particles generated with random generator per second (mean): ";
-  std::cout << settings->value("pct/random_particles_per_s_mean").toDouble() << std::endl;
+  mRandomHitGen = settings->value("event/random_hit_generation").toBool();
+  std::cout << "Random hit generation: " << (mRandomHitGen ? "true" : "false") << std::endl;
 
-  std::cout << "Number of particles generated with random generator per second (stddev): ";
-  std::cout << settings->value("pct/random_particles_per_s_stddev").toDouble() << std::endl;
+  if(mRandomHitGen) {
+    std::cout << "Number of particles generated with random generator per second (mean): ";
+    std::cout << settings->value("pct/random_particles_per_s_mean").toDouble() << std::endl;
 
-  std::cout << "Standard deviation for beam coords with random generator (mm): ";
-  std::cout << settings->value("pct/random_beam_stddev_mm").toDouble() << std::endl;
+    std::cout << "Number of particles generated with random generator per second (stddev): ";
+    std::cout << settings->value("pct/random_particles_per_s_stddev").toDouble() << std::endl;
 
-  std::cout << "Beam start coord (mm): (";
-  std::cout << settings->value("pct/beam_start_coord_x_mm").toDouble();
-  std::cout << ",";
-  std::cout << settings->value("pct/beam_start_coord_y_mm").toDouble();
-  std::cout << ")"  << std::endl;
+    std::cout << "Standard deviation for beam coords with random generator (mm): ";
+    std::cout << settings->value("pct/random_beam_stddev_mm").toDouble() << std::endl;
 
-  std::cout << "Beam end coord (mm): (";
-  std::cout << settings->value("pct/beam_end_coord_x_mm").toDouble();
-  std::cout << ",";
-  std::cout << settings->value("pct/beam_end_coord_y_mm").toDouble();
-  std::cout << ")"  << std::endl;
+    std::cout << "Beam start coord (mm): (";
+    std::cout << settings->value("pct/beam_start_coord_x_mm").toDouble();
+    std::cout << ",";
+    std::cout << settings->value("pct/beam_start_coord_y_mm").toDouble();
+    std::cout << ")"  << std::endl;
 
-  std::cout << "Beam speed along x-axis (mm per us): ";
-  std::cout << settings->value("pct/beam_speed_x_mm_per_us").toDouble() << std::endl;
+    std::cout << "Beam end coord (mm): (";
+    std::cout << settings->value("pct/beam_end_coord_x_mm").toDouble();
+    std::cout << ",";
+    std::cout << settings->value("pct/beam_end_coord_y_mm").toDouble();
+    std::cout << ")"  << std::endl;
 
-  std::cout << "Beam step along y-axis (mm): ";
-  std::cout << settings->value("pct/beam_step_y_mm").toDouble() << std::endl;
+    std::cout << "Beam speed along x-axis (mm per us): ";
+    std::cout << settings->value("pct/beam_speed_x_mm_per_us").toDouble() << std::endl;
+
+    std::cout << "Beam step along y-axis (mm): ";
+    std::cout << settings->value("pct/beam_step_y_mm").toDouble() << std::endl;
+  }
 
   std::cout << std::endl << std::endl;
 
@@ -176,9 +181,14 @@ void StimuliPCT::stimuliMethod(void)
     uint64_t time_now = sc_time_stamp().value();
     std::cout << "@ " << time_now << " ns: \tEvent frame number ";
     std::cout << mEventGen->getUntriggeredEventCount() << std::endl;
-    std::cout << "\tBeam coords (mm): (";
-    std::cout << mEventGen->getBeamCenterCoordX() << ",";
-    std::cout << mEventGen->getBeamCenterCoordY() << ")" << std::endl;
+
+    // Only print beam coords when we are generating random hits and
+    // control the beam coords ourselves
+    if(mRandomHitGen) {
+      std::cout << "\tBeam coords (mm): (";
+      std::cout << mEventGen->getBeamCenterCoordX() << ",";
+      std::cout << mEventGen->getBeamCenterCoordY() << ")" << std::endl;
+    }
 
     // Get hits for this event, and "feed" them to the PCT detector
     auto event_hits = mEventGen->getUntriggeredEvent();
