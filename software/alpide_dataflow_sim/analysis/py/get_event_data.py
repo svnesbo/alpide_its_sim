@@ -122,30 +122,58 @@ def calc_strobe_events(event_df: pd.DataFrame, trig_strobe_df: pd.DataFrame, cfg
         trig_strobe_df.at[trig_id, 'event_ids'] = event_list
 
 
-def get_strobe_multiplicity(layers: list, chips: list, event_data: pd.DataFrame, strobe_times, cfg: dict) -> list():
-    """Get pixel hit multiplicities for all strobes, summed for the specified layers and/or chips
+def get_strobe_multiplicity(event_df: pd.DataFrame, trig_strobe_event_df: pd.DataFrame, cfg: dict, layers: list, chips: list) -> pd.DataFrame:
+    """Get pixel hit multiplicities for all strobes for the specified layers and/or chips
     Parameters:
+        event_df: Pandas data frame for event_data.csv
+        trig_strobe_event_df: Pandas data frame with info on which events are included in which strobes (generated with calc_strobe_events()).
+        cfg: Dict with simulation settings/configuration
         layers: List of layers (if any, can be None) to sum hits per strobe
         chips: List of chips (if any, can be None) to sum hits per strobe
-        event_data: Pandas data frame for event_data.csv
-        strobe_times: Dict with strobes and time of strobe active, for the triggers that were sent (generated with get_strobe_times()).
-        cfg: Dict with simulation settings/configuration
     Return:
-        Dict with strobes and time of strobe active, for the triggers that were sent
+        Pandas dataframe with multiplicity for events included in each strobe
     """
 
+    strobe_multipl_df = trig_strobe_event_df[['trig_id', 'trig_action', 'event_ids']].copy()
+
+    for layer_id in layers:
+        column_name = 'layer_' + str(layer_id)
+        strobe_multipl_df[column_name] = np.empty((len(strobe_multipl_df), 0)).tolist()
+
+    for chip_id in chips:
+        column_name = 'chip_' + str(chip_id)
+        strobe_multipl_df[column_name] = np.empty((len(strobe_multipl_df), 0)).tolist()
+
+    multipl_columns = strobe_multipl_df.columns[3:]
+
+    for strobe_num in trig_strobe_event_df.index:
+        strobe_event_list = strobe_multipl_df.at[strobe_num, 'event_ids']
+
+        if len(strobe_event_list) > 0:
+            # Iterate over layer/chip columns and retrieve multiplicity for the events for the particular layer/chip
+            for col_name in multipl_columns:
+                col_multipl_list = []
+
+                # Create list of multiplicites for the events in this column (layer/chip)
+                for event_id in strobe_event_list:
+                    if event_id < len(event_df.index):
+                        col_multipl_list.append(event_df.at[event_id, col_name])
+
+                strobe_multipl_df.at[strobe_num, col_name] = col_multipl_list
+
+    return strobe_multipl_df
 
 
 if __name__ == '__main__':
-    ev_data = get_event_data('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/physics_events_data.csv')
+    ev_data = get_event_data('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/physics_events_data.csv')
 
     delta_t = ev_data['delta_t']
 
-    cfg = read_settings.read_settings('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/settings.txt')
+    cfg = read_settings.read_settings('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/settings.txt')
 
     calc_event_times(ev_data, cfg)
 
-    trig_actions = read_trig_action_files.read_trig_actions_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/RU_0_0_trigger_actions.dat')
+    trig_actions = read_trig_action_files.read_trig_actions_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/RU_0_0_trigger_actions.dat')
 
     trig_strobe = create_trig_strobe_df(ev_data, trig_actions, cfg)
 
@@ -156,3 +184,7 @@ if __name__ == '__main__':
 
     print(ev_data)
     print(trig_strobe)
+
+    strobe_multipl = get_strobe_multiplicity(ev_data, trig_strobe, cfg, [0,1], [1,2,3,4])
+
+    print(strobe_multipl)
