@@ -1,5 +1,6 @@
 import struct
 from enum import IntEnum
+import pandas as pd
 
 
 class TrigActions(IntEnum):
@@ -23,14 +24,13 @@ class TrigActions(IntEnum):
 #     Control link n-1:
 #       uint8_t: link action
 
-def read_trig_actions_file(filename: str):
+def read_trig_actions_file(filename: str) -> pd.DataFrame:
     """Read a file with trigger actions (sent, filtered, not sent due to busy)
     Parameters:
         filename: full path of filename to read
     Return:
-        List with trigger actions, one entry per link
+        Pandas dataframe with trigger actions per link
     """
-    trig_actions_data = list()
 
     with open(filename, 'rb') as file:
         file_data = file.read()
@@ -41,32 +41,34 @@ def read_trig_actions_file(filename: str):
         num_ctrl_links = int(file_data[idx])
         idx += 1
 
+        df_headers = ['trig_id']
 
+        # Note: Only care about first link currently (as they are all the same..)
+        #for link_id in range(0, num_ctrl_links):
+            #link_str = 'link_' + str(link_id) + '_trig_action'
+            #df_headers.append(link_str)
+        df_headers.append('link_0_trig_action')
 
-        for link_id in range(0, num_ctrl_links):
-            trig_actions_data.append({'ctrl_link_id': link_id,
-                                      'triggers_sent': list(),
-                                      'triggers_filtered': list(),
-                                      'triggers_not_sent_busy': list(),
-                                      'triggers_unknown': list()})
+        df_rows = []
 
         for trig_id in range(0, num_triggers):
+            df_row = [trig_id]
+
             for link_num in range(0, num_ctrl_links):
                 trig_action = file_data[idx]
                 idx += 1
 
-                if trig_action == TrigActions.TRIGGER_SENT:
-                    trig_actions_data[link_num]['triggers_sent'].append(trig_id)
-                elif trig_action == TrigActions.TRIGGER_FILTERED:
-                    trig_actions_data[link_num]['triggers_filtered'].append(trig_id)
-                elif trig_action == TrigActions.TRIGGER_NOT_SENT_BUSY:
-                    trig_actions_data[link_num]['triggers_not_sent_busy'].append(trig_id)
-                else:
-                    trig_actions_data[link_num]['triggers_unknown'].append(trig_id)
+                # Note: Only care about first link currently (as they are all the same..)
+                if link_num == 0:
+                    df_row.append(trig_action)
 
-    return trig_actions_data
+            df_rows.append(df_row)
+
+        trig_actions_df = pd.DataFrame(df_rows, columns=df_headers)
+
+    return trig_actions_df
 
 
 if __name__ == '__main__':
-    data = read_trig_actions_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/RU_0_0_trigger_actions.dat')
+    data = read_trig_actions_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/RU_3_0_trigger_actions.dat')
     print(data)
