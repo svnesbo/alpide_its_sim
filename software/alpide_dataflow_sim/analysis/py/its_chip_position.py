@@ -169,9 +169,25 @@ class ITS:
                     'stave_id': stave_id,
                     'sub_stave_id': sub_stave_id,
                     'module_id': module_id,
-                    'chip_num_in_module': chip_num_in_module}
+                    'module_chip_id': chip_num_in_module}
 
         return position
+
+    def data_link_id_to_sub_stave_and_module_id(self, data_link_id, layer):
+        if layer < 3:
+            module_id = 0
+            sub_stave_id = 0
+        else:
+            links_per_stave = int(self.DATA_LINKS_PER_LAYER[layer] / self.STAVES_PER_LAYER[layer])
+            links_per_sub_stave = int(links_per_stave / self.SUB_STAVES_PER_STAVE[layer])
+
+            sub_stave_id = int(data_link_id / links_per_sub_stave)
+
+            link_in_sub_stave = data_link_id % links_per_sub_stave
+
+            module_id = int(link_in_sub_stave / self.DATA_LINKS_PER_FULL_MODULE)
+
+        return {'sub_stave_id': sub_stave_id, 'module_id': module_id}
 
 
 if __name__ == '__main__':
