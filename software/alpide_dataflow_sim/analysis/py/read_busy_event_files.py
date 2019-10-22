@@ -1,4 +1,5 @@
 import struct
+import read_settings
 
 # File format for busy event file:
 #
@@ -118,16 +119,88 @@ def read_busyv_event_file(filename: str, inner_barrel: bool):
 
                     chip_event_data.append(event_trig_num)
 
-                link_data.append({'chip_id': chip_id, 'data': chip_event_data})
+                link_data.append({'chip_id': chip_id, 'trig_id': chip_event_data})
 
             event_data.append({'link_id': data_link_id, 'event_data': link_data})
 
     return event_data
 
 
-if __name__ == '__main__':
-    data = read_busyv_event_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/RU_0_0_busyv_events.dat', False)
-    print(data)
+def read_all_busy_files(sim_data_path: str, cfg: dict) -> list:
+    file_list = list()
+    busy_list = list()
 
-    data = read_busy_event_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/RU_0_0_busy_events.dat')
-    print(data)
+    if cfg['simulation']['type'] == 'its':
+        for layer in range(0,7):
+            num_staves_in_layer = cfg['its']['layer' + str(layer) + '_num_staves']
+
+            for stave in range(0,num_staves_in_layer):
+                filename_str = sim_data_path + '/RU_' + str(layer) + '_' + str(stave) + '_busy_events.dat'
+                if layer < 3:
+                    file_list.append({'layer': layer, 'stave': stave, 'inner_barrel': True, 'filename': filename_str})
+                else:
+                    file_list.append({'layer': layer, 'stave': stave, 'inner_barrel': False, 'filename': filename_str})
+    else:
+        raise NotImplementedError('Reading busyv files only implemented for ITS at the moment.')
+
+    for file_entry in file_list:
+        busy_data = read_busy_event_file(file_entry['filename'])
+        busy_list.append({'layer': file_entry['layer'],
+                          'stave': file_entry['stave'],
+                          'inner_barrel': file_entry['inner_barrel'],
+                          'busy_data': busy_data})
+
+    return busy_list
+
+def _read_all_busyv_files(sim_data_path: str, filetype: str, cfg: dict) -> list:
+    busyv_list = list()
+    file_list = list()
+
+    if cfg['simulation']['type'] == 'its':
+        for layer in range(0,7):
+            num_staves_in_layer = cfg['its']['layer' + str(layer) + '_num_staves']
+
+            for stave in range(0,num_staves_in_layer):
+                filename_str = sim_data_path + '/RU_' + str(layer) + '_' + str(stave) + '_' + filetype + '_events.dat'
+                if layer < 3:
+                    file_list.append({'layer': layer, 'stave': stave, 'inner_barrel': True, 'filename': filename_str})
+                else:
+                    file_list.append({'layer': layer, 'stave': stave, 'inner_barrel': False, 'filename': filename_str})
+    else:
+        raise NotImplementedError('Reading busyv files only implemented for ITS at the moment.')
+
+    for file_entry in file_list:
+        busyv_data = read_busyv_event_file(file_entry['filename'], file_entry['inner_barrel'])
+        data_key = filetype + '_data'
+        busyv_list.append({'layer': file_entry['layer'],
+                           'stave': file_entry['stave'],
+                           'inner_barrel': file_entry['inner_barrel'],
+                           data_key: busyv_data})
+
+    return busyv_list
+
+def read_all_busyv_files(sim_data_path: str, cfg: dict) -> list:
+    return _read_all_busyv_files(sim_data_path, 'busyv', cfg)
+
+def read_all_flush_files(sim_data_path: str, cfg: dict) -> list:
+    return _read_all_busyv_files(sim_data_path, 'flush', cfg)
+
+def read_all_abort_files(sim_data_path: str, cfg: dict) -> list:
+    return _read_all_busyv_files(sim_data_path, 'ro_abort', cfg)
+
+def read_all_fatal_files(sim_data_path: str, cfg: dict) -> list:
+    return _read_all_busyv_files(sim_data_path, 'fatal', cfg)
+
+
+if __name__ == '__main__':
+    cfg = read_settings.read_settings('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/settings.txt')
+
+    busy_data = read_all_busy_files('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/', cfg)
+    busyv_data = read_all_busyv_files('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/', cfg)
+
+    print('asdf')
+    #busyv_data = read_busyv_event_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/RU_0_0_busyv_events.dat', False)
+    #print(busyv_data)
+
+    #busy_data = read_busy_event_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/RU_0_0_busy_events.dat')
+    #print(busy_data)
