@@ -91,7 +91,7 @@ def calc_strobe_events(event_df: pd.DataFrame, trig_strobe_df: pd.DataFrame, cfg
     """
 
     trig_strobe_df['pileup'] = 0
-    trig_strobe_df['event_ids'] = ''
+    trig_strobe_df['event_ids'] = np.empty((len(trig_strobe_df), 0)).tolist()
 
     evt_df_idx = 0
     evt_df_len = len(event_df.index)
@@ -101,7 +101,7 @@ def calc_strobe_events(event_df: pd.DataFrame, trig_strobe_df: pd.DataFrame, cfg
         strobe_off_time = trig_strobe_df.at[trig_id, 'strobe_off_time_ns']
 
         pileup = 0
-        event_str = ''
+        event_list = []
         while evt_df_idx < evt_df_len:
             evt_on_time = event_df.at[evt_df_idx, 'event_time_active_start']
             evt_off_time = event_df.at[evt_df_idx, 'event_time_active_end']
@@ -114,15 +114,12 @@ def calc_strobe_events(event_df: pd.DataFrame, trig_strobe_df: pd.DataFrame, cfg
             # http://stackoverflow.com/a/12888920
             if(max(strobe_on_time, evt_on_time) <= min(strobe_off_time, evt_off_time)):
                 pileup += 1
-                if len(event_str) == 0:
-                    event_str = str(evt_df_idx)
-                else:
-                    event_str = event_str + ';' + str(evt_df_idx)
+                event_list.append(evt_df_idx)
 
             evt_df_idx += 1
 
         trig_strobe_df.at[trig_id, 'pileup'] = pileup
-        trig_strobe_df.at[trig_id, 'event_ids'] = event_str
+        trig_strobe_df.at[trig_id, 'event_ids'] = event_list
 
 
 def get_strobe_multiplicity(layers: list, chips: list, event_data: pd.DataFrame, strobe_times, cfg: dict) -> list():
@@ -140,15 +137,15 @@ def get_strobe_multiplicity(layers: list, chips: list, event_data: pd.DataFrame,
 
 
 if __name__ == '__main__':
-    ev_data = get_event_data('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/physics_events_data.csv')
+    ev_data = get_event_data('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/physics_events_data.csv')
 
     delta_t = ev_data['delta_t']
 
-    cfg = read_settings.read_settings('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/settings.txt')
+    cfg = read_settings.read_settings('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/settings.txt')
 
     calc_event_times(ev_data, cfg)
 
-    trig_actions = read_trig_action_files.read_trig_actions_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/RU_0_0_trigger_actions.dat')
+    trig_actions = read_trig_action_files.read_trig_actions_file('C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/RU_0_0_trigger_actions.dat')
 
     trig_strobe = create_trig_strobe_df(ev_data, trig_actions, cfg)
 
