@@ -136,13 +136,15 @@ def get_strobe_multiplicity(event_df: pd.DataFrame, trig_strobe_event_df: pd.Dat
 
     strobe_multipl_df = trig_strobe_event_df[['trig_id', 'trig_action', 'event_ids']].copy()
 
-    for layer_id in layers:
-        column_name = 'layer_' + str(layer_id)
-        strobe_multipl_df[column_name] = np.empty((len(strobe_multipl_df), 0)).tolist()
+    if layers is not None:
+        for layer_id in layers:
+            column_name = 'layer_' + str(layer_id)
+            strobe_multipl_df[column_name] = np.empty((len(strobe_multipl_df), 0)).tolist()
 
-    for chip_id in chips:
-        column_name = 'chip_' + str(chip_id)
-        strobe_multipl_df[column_name] = np.empty((len(strobe_multipl_df), 0)).tolist()
+    if chips is not None:
+        for chip_id in chips:
+            column_name = 'chip_' + str(chip_id)
+            strobe_multipl_df[column_name] = np.empty((len(strobe_multipl_df), 0)).tolist()
 
     multipl_columns = strobe_multipl_df.columns[3:]
 

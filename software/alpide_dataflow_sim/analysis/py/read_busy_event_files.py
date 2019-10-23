@@ -157,11 +157,7 @@ def read_busyv_event_file(filename: str, layer: int, stave: int):
 
                     chip_event_data.append(event_trig_num)
 
-                #link_data.append({'global_chip_id': global_chip_id, 'trig_id': chip_event_data})
-
-                position['global_chip_id'] = global_chip_id
-                position['trig_id'] = chip_event_data
-                link_data.append(position)
+                link_data.append({'global_chip_id': global_chip_id, 'trig_id': chip_event_data})
 
             event_data.append({'link_id': data_link_id, 'event_data': link_data})
 
@@ -212,7 +208,7 @@ def _read_all_busyv_files(sim_data_path: str, filetype: str, cfg: dict) -> list:
         raise NotImplementedError('Reading busyv files only implemented for ITS at the moment.')
 
     for file_entry in file_list:
-        busyv_data = read_busyv_event_file(file_entry['filename'], file_entry['inner_barrel'])
+        busyv_data = read_busyv_event_file(file_entry['filename'], file_entry['layer'], file_entry['stave'])
         data_key = filetype + '_data'
         busyv_list.append({'layer': file_entry['layer'],
                            'stave': file_entry['stave'],
