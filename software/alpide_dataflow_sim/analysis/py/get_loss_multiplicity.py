@@ -213,21 +213,45 @@ if __name__ == '__main__':
     bins = [100, 10, 10, 10, 5, 10, 10]
 
     sim_data = [
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_8/', 'title': 'Periodic trig 5us - 50 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_9/', 'title': 'Periodic trig 5us - 100 kHz'},
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_0/', 'title': 'MB trig 100ns - 50 kHz'},
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/', 'title': 'MB trig 100ns- 100 kHz'},
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_2/', 'title': 'MB trig 100ns - 150 kHz'},
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_3/', 'title': 'MB trig 100ns - 200 kHz'},
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_4/', 'title': 'Periodic 5us/trig 100ns - 50 kHz'},
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_5/', 'title': 'Periodic 5us/trig 100ns - 100 kHz'},
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_6/', 'title': 'Periodic 5us/trig 100ns - 150 kHz'},
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_7/', 'title': 'Periodic 5us/trig 100ns - 200 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_8/', 'title': 'Periodic trig 5us - 50 kHz'},  # Done
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_9/', 'title': 'Periodic trig 5us - 100 kHz'},  # Done
         {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_10/', 'title': 'Periodic trig 5us - 150 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_10/', 'title': 'Periodic trig 5us - 200 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_20/', 'title': 'Periodic cont 5us - 50 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_21/', 'title': 'Periodic cont 5us - 100 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_22/', 'title': 'Periodic cont 5us - 150 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_23/', 'title': 'Periodic cont 5us - 200 kHz'}
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/', 'title': 'Periodic trig 5us - 200 kHz'}
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_12/', 'title': 'Periodic cont 10us - 50 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_13/', 'title': 'Periodic cont 10us - 100 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_14/', 'title': 'Periodic cont 10us - 150 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_15/', 'title': 'Periodic cont 10us - 200 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_16/', 'title': 'Periodic cont 20us - 50 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_17/', 'title': 'Periodic cont 20us - 100 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_18/', 'title': 'Periodic cont 20us - 150 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_19/', 'title': 'Periodic cont 20us - 200 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_20/', 'title': 'Periodic cont 5us - 50 kHz'},  # Done
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_21/', 'title': 'Periodic cont 5us - 100 kHz'},  # Done
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_22/', 'title': 'Periodic cont 5us - 150 kHz'},  # Done
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_23/', 'title': 'Periodic cont 5us - 200 kHz'},  # Done
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_24/', 'title': 'Periodic cont 10us - 50 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_25/', 'title': 'Periodic cont 10us - 100 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_26/', 'title': 'Periodic cont 10us - 150 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_27/', 'title': 'Periodic cont 10us - 200 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_28/', 'title': 'Periodic cont 20us - 50 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_29/', 'title': 'Periodic cont 20us - 100 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_30/', 'title': 'Periodic cont 20us - 150 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_31/', 'title': 'Periodic cont 20us - 200 kHz'}
     ]
 
     #sim_data = [
     #    {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/test_data/run_0/', 'title': 'Test data'}
     #]
 
-    analyze_raw_data = True
+    analyze_raw_data = False
     save_analyzed_data = True
     generate_plots = True
     save_plots = True
@@ -304,7 +328,7 @@ if __name__ == '__main__':
             for sim in sim_data:
                 num_bins = ITS.CHIPS_PER_STAVE_IN_LAYER[layer]-1
                 plt.hist(busyv_abort_flush_counts[sim['title']][layer]['busyv_flush_abort_count'].values(),
-                         bins=num_bins, label=sim['title'])
+                         bins=num_bins, rwidth=1.0, range=(1, num_bins+1), histtype='step', log=False, label=sim['title'])
 
             plt.title('Number of chips with frame loss - Layer ' + str(layer))
             plt.xlabel('Number of chips')
@@ -316,5 +340,28 @@ if __name__ == '__main__':
                 fig.savefig(plot_output_dir + '/chip_frame_loss_hist_layer' + str(layer) + '.png', bbox_inches='tight',
                             facecolor=fig.get_facecolor(), edgecolor='none')
                 fig.savefig(plot_output_dir + '/chip_frame_loss_hist_layer' + str(layer) + '.pdf', bbox_inches='tight',
+                            facecolor=fig.get_facecolor(), edgecolor='none')
+                plt.close(fig)
+
+            # Plot it again with log axis
+            fig = plt.figure(layer)
+            plt.style.use('seaborn-whitegrid')
+
+            for sim in sim_data:
+                num_bins = ITS.CHIPS_PER_STAVE_IN_LAYER[layer] - 1
+                plt.hist(busyv_abort_flush_counts[sim['title']][layer]['busyv_flush_abort_count'].values(),
+                         bins=num_bins, rwidth=1.0, range=(1, num_bins + 1), histtype='step', log=True,
+                         label=sim['title'])
+
+            plt.title('Number of chips with frame loss - Layer ' + str(layer))
+            plt.xlabel('Number of chips')
+            plt.ylabel('Counts')
+            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            plt.show()
+
+            if save_plots:
+                fig.savefig(plot_output_dir + '/chip_frame_loss_hist_layer_log' + str(layer) + '.png', bbox_inches='tight',
+                            facecolor=fig.get_facecolor(), edgecolor='none')
+                fig.savefig(plot_output_dir + '/chip_frame_loss_hist_layer_log' + str(layer) + '.pdf', bbox_inches='tight',
                             facecolor=fig.get_facecolor(), edgecolor='none')
                 plt.close(fig)
