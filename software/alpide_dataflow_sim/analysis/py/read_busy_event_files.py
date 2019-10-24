@@ -1,6 +1,6 @@
 import struct
 import read_settings
-import its_chip_position
+from its_chip_position import *
 
 # File format for busy event file:
 #
@@ -112,7 +112,6 @@ def read_busyv_event_file(filename: str, layer: int, stave: int):
         List with event data, one entry per link. Each link entry contains another link with entries per chip that
         contain the actual busyv/flush/abort/fatal events.
     """
-    its = its_chip_position.ITS()
     event_data = list()
 
     with open(filename, 'rb') as file:
@@ -135,7 +134,7 @@ def read_busyv_event_file(filename: str, layer: int, stave: int):
                 chip_id = int(file_data[idx])
                 idx += 1
 
-                sub_stave_and_module_id = its.data_link_id_to_sub_stave_and_module_id(data_link_id, layer)
+                sub_stave_and_module_id = data_link_id_to_sub_stave_and_module_id(data_link_id, layer)
                 position = {'layer_id': layer,
                             'stave_id': stave,
                             'sub_stave_id': sub_stave_and_module_id['sub_stave_id'],
@@ -146,7 +145,7 @@ def read_busyv_event_file(filename: str, layer: int, stave: int):
                 # global chip ID, instead of their local chip ID. This function repairs it
                 chip_id = fix_position_and_chip_id(position, data_link_id, chip_id)
 
-                global_chip_id = its.position_to_global_chip_id(position)
+                global_chip_id = position_to_global_chip_id(position)
 
                 num_events = struct.unpack('Q', file_data[idx:idx+8])[0] # uint64_t
                 idx += 8
@@ -235,25 +234,23 @@ if __name__ == '__main__':
 
 
     # Test function for fixing chip IDs
-    its_stuff = its_chip_position.ITS()
-
-    for g_chip_id in range(0, its_stuff.CHIP_COUNT_TOTAL):
-        position = its_stuff.global_chip_id_to_position(g_chip_id)
+    for g_chip_id in range(0, ITS.CHIP_COUNT_TOTAL):
+        position = ITS.global_chip_id_to_position(g_chip_id)
         if position['layer_id'] < 3:
             link_id = position['module_chip_id']
         elif position['layer_id'] < 5:
-            link_id = position['module_id'] * its_stuff.DATA_LINKS_PER_FULL_MODULE
-            link_id += position['sub_stave_id'] * its_stuff.MODULES_PER_SUB_STAVE_IN_LAYER[position['layer_id']] * its_stuff.DATA_LINKS_PER_FULL_MODULE
+            link_id = position['module_id'] * ITS.DATA_LINKS_PER_FULL_MODULE
+            link_id += position['sub_stave_id'] * ITS.MODULES_PER_SUB_STAVE_IN_LAYER[position['layer_id']] * ITS.DATA_LINKS_PER_FULL_MODULE
             if position['module_chip_id'] > 6:
                 link_id += 1
 
         broken_local_chip_id = g_chip_id & 0xF
         fixed_local_chip_id = fix_position_and_chip_id(position, link_id, broken_local_chip_id)
 
-        new_global_chip_id = its_stuff.position_to_global_chip_id(position)
+        new_global_chip_id = position_to_global_chip_id(position)
 
         assert new_global_chip_id == g_chip_id
-        position2 = its_stuff.global_chip_id_to_position(g_chip_id)
+        position2 = global_chip_id_to_position(g_chip_id)
         assert position == position2
 
 
