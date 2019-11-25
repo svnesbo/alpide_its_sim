@@ -72,8 +72,8 @@ private:
   boost::random::mt19937 mRandEventIdGen;
   boost::random::uniform_int_distribution<int> *mRandEventIdDist;
 
-  void createHits(unsigned int col, unsigned int row, unsigned int num_hits,
-                  unsigned int layer, EventDigits* event);
+  void createHits(unsigned int macro_cell_col, unsigned int macro_cell_row,
+                  unsigned int num_hits, unsigned int layer, EventDigits* event);
 
 public:
   EventRootFocal(Detector::DetectorConfigBase config,

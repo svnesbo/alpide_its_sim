@@ -37,39 +37,23 @@ StimuliFocal::StimuliFocal(sc_core::sc_module_name name, QSettings* settings, st
     exit(-1);
   }
 
-  std::cout << "Number of layers: ";
-  std::cout << settings->value("pct/num_layers").toUInt() << std::endl;
-
-  std::cout << "Number of staves per layer: ";
-  std::cout << settings->value("pct/num_staves_per_layer").toUInt() << std::endl;
-
-  std::cout << std::endl << std::endl;
-
   // Initialize detector configuration for Focal.
   // Doing it here because event generator expects this parameter,
   // though it is not used for single chip simulation
-  PCT::PCTDetectorConfig config;
-  config.num_layers = settings->value("pct/num_layers").toUInt();
-
-  for(unsigned int i = 0; i < PCT::N_LAYERS; i++) {
-    if(i < 2) { // Only 2 layers in Focal
-      config.layer[i].num_staves = settings->value("pct/num_staves_per_layer").toUInt();
-    } else {
-      config.layer[i].num_staves = 0;
-    }
-  }
-
+  Focal::FocalDetectorConfig config;
   config.chip_cfg = mChipCfg;
 
+  // Focal uses same event generator as ITS
   mEventGen = std::move(std::unique_ptr<EventGenITS>(new EventGenITS("event_gen",
                                                                      config,
                                                                      settings,
                                                                      mOutputPath)));
 
-  mFocal = std::move(std::unique_ptr<PCT::PCTDetector>(new PCT::PCTDetector("PCT", config,
-                                                                            mTriggerFilterTimeNs,
-                                                                            mTriggerFilterEnabled,
-                                                                            mDataRateIntervalNs)));
+  mFocal = std::move(std::unique_ptr<Focal::FocalDetector>(new Focal::FocalDetector("Focal",
+                                                                                    config,
+                                                                                    mTriggerFilterTimeNs,
+                                                                                    mTriggerFilterEnabled,
+                                                                                    mDataRateIntervalNs)));
   mFocal->s_system_clk_in(clock);
   mFocal->s_detector_busy_out(s_focal_busy);
 
@@ -109,7 +93,7 @@ void StimuliFocal::stimuliMainMethod(void)
     if(mSingleChipSimulation)
       Detector::writeAlpideStatsToFile(mOutputPath,
                                        mAlpide->getChips(),
-                                       &PCT::PCT_global_chip_id_to_position);
+                                       &Focal::Focal_global_chip_id_to_position);
     else
       mFocal->writeSimulationStats(mOutputPath);
 
@@ -123,8 +107,8 @@ void StimuliFocal::stimuliMainMethod(void)
     std::cout << mEventGen->getTriggeredEventCount() << std::endl;
     //}
 
-    std::cout << "Feeding " << mEventGen->getTriggeredEvent().size() << " pixels to ITS detector." << std::endl;
-    // Get hits for this event, and "feed" them to the ITS detector
+    std::cout << "Feeding " << mEventGen->getTriggeredEvent().size() << " pixels to Focal detector." << std::endl;
+    // Get hits for this event, and "feed" them to the Focal detector
     auto event_hits = mEventGen->getTriggeredEvent();
 
     if(mSingleChipSimulation) {

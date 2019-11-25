@@ -2,7 +2,7 @@
  * @file   EventRootFocal.cpp
  * @author Simon Voigt Nesbo
  * @date   March 8, 2019
- * @brief  Class for handling events for PCT stored in .root files
+ * @brief  Class for handling events for Focal stored in .root files
  */
 
 #include <iostream>
@@ -10,21 +10,33 @@
 #include <cmath>
 #include <boost/random/random_device.hpp>
 #include "Alpide/alpide_constants.hpp"
-#include "Detector/PCT/PCT_constants.hpp"
+#include "Detector/Focal/Focal_constants.hpp"
+#include "Detector/Focal/FocalDetectorConfig.hpp"
 #include "EventRootFocal.hpp"
 
 using boost::random::uniform_real_distribution;
 using boost::random::uniform_int_distribution;
 
 // Hardcoded constants for ROOT file used
-static const unsigned int c_det_top_left_macro_cell_x = 1329;
-static const unsigned int c_det_top_left_macro_cell_y = 1419;
-static const unsigned int c_det_bottom_right_macro_cell_x = 1869;
-static const unsigned int c_det_bottom_right_macro_cell_y = 1779;
 static const double c_macro_cell_x_size_mm = 0.5;
 static const double c_macro_cell_y_size_mm = 0.5;
 
-//static const std::vector<double> c_event_z_range = {}
+// Size of gap/square in the middle of the Focal plane
+// which the beam pipe passes through
+static const double c_focal_gap_size_mm = 40;
+
+// The simulation is constructed of inner barrel staves extending left from the beam line
+// The macro cell limits below are used to limit the macro cell hits used to those
+// that fall within the staves
+// The simulation data consists of 3200 x 3200 macro cells of 0.5mm x 0.5mm,
+// with cell (0,0) in the upper left corner.
+static const unsigned int c_det_top_left_macro_cell_x = 1600;
+static const unsigned int c_det_top_left_macro_cell_y = 1600 - ceil((CHIP_HEIGHT_CM*10.0/2) /
+                                                                    c_macro_cell_y_size_mm);
+static const unsigned int c_det_bottom_right_macro_cell_x = 3200;
+static const unsigned int c_det_bottom_right_macro_cell_y = 1600 + ceil((CHIP_HEIGHT_CM*10.0/2) /
+                                                                        c_macro_cell_y_size_mm);
+
 
 ///@brief Constructor for EventRootFocal class, which handles a set of events
 ///       stored in binary data files.
@@ -63,8 +75,11 @@ EventRootFocal::EventRootFocal(Detector::DetectorConfigBase config,
   }
 
 
-  mRandHitMacroCellX = new uniform_real_distribution<double>(0, c_macro_cell_x_size_mm);
-  mRandHitMacroCellY = new uniform_real_distribution<double>(0, c_macro_cell_y_size_mm);
+  mRandHitMacroCellX = new uniform_real_distribution<double>(-c_macro_cell_x_size_mm/2,
+                                                             c_macro_cell_x_size_mm/2);
+
+  mRandHitMacroCellY = new uniform_real_distribution<double>(-c_macro_cell_y_size_mm/2,
+                                                             c_macro_cell_y_size_mm/2);
 
   mRootFile = new TFile(event_filename.toStdString().c_str());
 
@@ -128,24 +143,43 @@ EventRootFocal::~EventRootFocal()
   delete mRandEventIdDist;
 }
 
-void EventRootFocal::createHits(unsigned int col, unsigned int row, unsigned int num_hits,
-                                unsigned int layer, EventDigits* event)
+
+///@brief Create a number of pixel hits for ALPIDE chips, based on number of hits within a
+///       macro cell in the monte carlo simulation data.
+///       Recalculates macro cell column/row in the MC simulation data to x/y
+///       stave ID,
+///       chip ID, and x/y pixel coordinates in the chip, and generates random hits
+///@param macro_cell_col Macro cell column number
+///@param macro_cell_row Macro cell row number
+///@param
+void EventRootFocal::createHits(unsigned int macro_cell_col, unsigned int macro_cell_row,
+                                unsigned int num_hits, unsigned int layer, EventDigits* event)
 {
-  // Skip macropixel if it is outside the bounds of the detector plane,
-  // which is hardcoded to the size of the pCT detector plane (with 12 staves),
-  // centered around the middle macrocell coordinates for the Focal simulation
-  if(col < c_det_top_left_macro_cell_x || col >= c_det_bottom_right_macro_cell_x ||
-     row < c_det_top_left_macro_cell_y || row >= c_det_bottom_right_macro_cell_y)
+  // Skip macropixel if it is outside the bounds of the detector plane in the simulation
+  if(macro_cell_col < c_det_top_left_macro_cell_x || macro_cell_col > c_det_bottom_right_macro_cell_x ||
+     macro_cell_row < c_det_top_left_macro_cell_y || macro_cell_row > c_det_bottom_right_macro_cell_y)
   {
     return;
   }
 
-  // Calculate macro cell coords relative to top left corner of pCT detector plane
-  int local_macro_cell_x = col - c_det_top_left_macro_cell_x;
-  int local_macro_cell_y = row - c_det_top_left_macro_cell_y;
+  // Make macro cell (1600,1600) the center of the coordinate system: (0,0)
+  int local_macro_cell_x = macro_cell_col - 1600;
+  int local_macro_cell_y = macro_cell_row - 1600;
 
   double x_mm = local_macro_cell_x * c_macro_cell_x_size_mm;
   double y_mm = local_macro_cell_y * c_macro_cell_y_size_mm;
+
+  // Start x outside the gap in the middle of Focal, to simplify calculations
+  x_mm -= c_focal_gap_size_mm;
+
+  // Check that x falls inside detector plane (hardcoded to 3x IB staves on a line)
+  if(x_mm < 0 || (x_mm > Focal::STAVES_PER_LAYER[0] * CHIP_WIDTH_CM*10 * Focal::CHIPS_PER_STAVE_IN_LAYER[0]))
+    return;
+
+  // Check that y falls inside detector plane (the height of one chip)
+  if(y_mm < ((CHIP_HEIGHT_CM*10.0)/2)-c_macro_cell_y_size_mm/2 ||
+     y_mm > ((CHIP_HEIGHT_CM*10.0)/2)+c_macro_cell_y_size_mm/2)
+    return;
 
   // Create specified number of random hits within macro cell
   for(unsigned int hit_counter = 0; hit_counter < num_hits; hit_counter++) {
@@ -153,18 +187,25 @@ void EventRootFocal::createHits(unsigned int col, unsigned int row, unsigned int
     double pixel_hit_x_mm = x_mm + (*mRandHitMacroCellX)(mRandHitGen);
     double pixel_hit_y_mm = y_mm + (*mRandHitMacroCellY)(mRandHitGen);
 
-    unsigned int stave_chip_id =  pixel_hit_x_mm / (CHIP_WIDTH_CM*10);
-    unsigned int stave_id = pixel_hit_y_mm / (CHIP_HEIGHT_CM*10);
-    unsigned int global_chip_id = (layer*PCT::CHIPS_PER_LAYER)
-      + (stave_id*PCT::CHIPS_PER_STAVE)
-      + stave_chip_id;
+    unsigned int stave_id = pixel_hit_x_mm /
+      (Focal::CHIPS_PER_STAVE_IN_LAYER[layer] * CHIP_WIDTH_CM*10);
 
-    // Position of particle relative to the chip it will hit
-    double chip_x_mm = pixel_hit_x_mm - (stave_chip_id*(CHIP_WIDTH_CM*10));
-    double chip_y_mm = pixel_hit_y_mm - (stave_id*(CHIP_HEIGHT_CM*10));
+    // X coordinates from start of stave
+    double stave_x_mm = pixel_hit_x_mm -
+      (stave_id * Focal::CHIPS_PER_STAVE_IN_LAYER[layer] * CHIP_WIDTH_CM*10);
 
-    unsigned int x_coord = round(chip_x_mm*(N_PIXEL_COLS/(CHIP_WIDTH_CM*10)));
-    unsigned int y_coord = round(chip_y_mm*(N_PIXEL_ROWS/(CHIP_HEIGHT_CM*10)));
+    unsigned int stave_chip_id =  stave_x_mm / (CHIP_WIDTH_CM*10);
+
+    // X position of particle relative to the chip it will hit
+    double chip_x_mm = stave_x_mm - (stave_chip_id*(CHIP_WIDTH_CM*10));
+
+    // Y position of particle relative to the chip,
+    // with y = 0mm at the top edge of the chip
+    double chip_y_mm = pixel_hit_y_mm + (CHIP_HEIGHT_CM*10.0)/2;
+
+    // X/Y pixel coordinates in chip
+    unsigned int x_coord = round(chip_x_mm*(N_PIXEL_COLS/(CHIP_WIDTH_CM*10.0)));
+    unsigned int y_coord = round(chip_y_mm*(N_PIXEL_ROWS/(CHIP_HEIGHT_CM*10.0)));
 
     // Make sure that x and y coords are within chip boundaries
     if(x_coord >= N_PIXEL_COLS)
@@ -177,6 +218,7 @@ void EventRootFocal::createHits(unsigned int col, unsigned int row, unsigned int
     // Create a simple 2x2 pixel cluster around x_coord and y_coord
     // Makes sure that we don't get pixels below row/col 0, and not above
     // row 511 or above column 1023
+    /*
     if(x_coord < N_PIXEL_COLS/2) {
       x_coord2 = x_coord+1;
     } else {
@@ -188,11 +230,24 @@ void EventRootFocal::createHits(unsigned int col, unsigned int row, unsigned int
     } else {
       y_coord2 = y_coord-1;
     }
+    */
+
+    Detector::DetectorPosition pos = {
+      .layer_id = layer,
+      .stave_id = stave_id,
+      .sub_stave_id = 0,
+      .module_id = 0,
+      .module_chip_id = stave_chip_id
+    };
+
+    unsigned int global_chip_id = Focal::Focal_position_to_global_chip_id(pos);
 
     event->addHit(x_coord, y_coord, global_chip_id);
+    /*
     event->addHit(x_coord, y_coord2, global_chip_id);
     event->addHit(x_coord2, y_coord, global_chip_id);
     event->addHit(x_coord2, y_coord2, global_chip_id);
+    */
   }
 }
 
@@ -223,10 +278,11 @@ EventDigits* EventRootFocal::getNextEvent(void)
   mBranchColS3->GetEntry(mEntryCounter);
   mBranchAmpS3->GetEntry(mEntryCounter);
 
-
+  // S1: Layer 0 in simulation
   for(int i = 0; i < mEvent->nPixS1; i++) {
     createHits(mEvent->colS1[i], mEvent->rowS1[i], mEvent->ampS1[i], 0, mEventDigits);
   }
+  // S3: Layer 1 in simulation
   for(int i = 0; i < mEvent->nPixS3; i++) {
     createHits(mEvent->colS3[i], mEvent->rowS3[i], mEvent->ampS3[i], 1, mEventDigits);
   }

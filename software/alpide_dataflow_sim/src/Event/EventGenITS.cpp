@@ -17,6 +17,7 @@
 #include "EventGenITS.hpp"
 #include "EventXMLITS.hpp"
 #include "EventBinaryITS.hpp"
+#include "Detector/Focal/FocalDetectorConfig.hpp"
 
 #ifdef ROOT_ENABLED
 #include "EventRootFocal.hpp"
@@ -48,6 +49,10 @@ EventGenITS::EventGenITS(sc_core::sc_module_name name,
   if(mRandomHitGeneration) {
     initRandomHitGen(settings);
   } else {
+    if(mSimType == "its" && mRandomClusterGeneration) {
+      throw std::runtime_error("Random cluster generation for ITS MC sim (data includes clusters)");
+    }
+
     initMonteCarloHitGen(settings);
   }
 
@@ -191,7 +196,7 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
 {
   QString monte_carlo_file_type = settings->value("event/monte_carlo_file_type").toString();
   QString monte_carlo_event_path_str = settings->value("its/monte_carlo_dir_path").toString();
-  QString monte_carlo_focal_data_file_str = settings->value("pct/monte_carlo_file_path").toString();
+  QString monte_carlo_focal_data_file_str = settings->value("focal/monte_carlo_file_path").toString();
   QDir monte_carlo_event_dir(monte_carlo_event_path_str);
   QStringList name_filters;
 
@@ -241,8 +246,8 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
     }
 
     mFocalEvents = new EventRootFocal(mDetectorConfig,
-                                      &PCT::PCT_global_chip_id_to_position,
-                                      &PCT::PCT_position_to_global_chip_id,
+                                      &Focal::Focal_global_chip_id_to_position,
+                                      &Focal::Focal_position_to_global_chip_id,
                                       monte_carlo_focal_data_file_str,
                                       random_seed);
 #else
@@ -345,29 +350,34 @@ void EventGenITS::initCsvEventFileHeader(const QSettings* settings)
   mPhysicsEventsCSVFile.open(physics_events_csv_filename);
   mPhysicsEventsCSVFile << "delta_t;event_pixel_hit_multiplicity";
 
-  if(mDetectorConfig.layer[0].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_0";
-  if(mDetectorConfig.layer[1].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_1";
-  if(mDetectorConfig.layer[2].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_2";
-  if(mDetectorConfig.layer[3].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_3";
-  if(mDetectorConfig.layer[4].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_4";
-  if(mDetectorConfig.layer[5].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_5";
-  if(mDetectorConfig.layer[6].num_staves > 0)
-    mPhysicsEventsCSVFile << ";layer_6";
+  for(unsigned int layer_id = 0; layer_id < mDetectorConfig.num_layers; layer_id++) {
+    if(mDetectorConfig.layer[layer_id].num_staves > 0)
+      mPhysicsEventsCSVFile << ";layer_" << layer_id;
+  }
 
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
-    for(unsigned int stave = 0; stave < mDetectorConfig.layer[layer].num_staves; stave++) {
-      // Safe to ignore OB sub staves here, since we only include full staves in simulation,
-      // and this will include all chips from a full stave
-      for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
-        mPhysicsEventsCSVFile << ";chip_" << chip_id;
-        chip_id++;
+  for(unsigned int layer_id = 0; layer_id < mDetectorConfig.num_layers; layer_id++) {
+    unsigned int chip_id = 0;
+
+    if(mSimType == "its")
+      chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer_id];
+    else if(mSimType == "focal")
+      chip_id = Focal::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer_id];
+    else
+      throw std::runtime_error("Unknown sim type");
+
+    for(unsigned int stave = 0; stave < mDetectorConfig.layer[layer_id].num_staves; stave++) {
+      if(mSimType == "its") {
+        // Safe to ignore OB sub staves here, since we only include full staves in simulation,
+        // and this will include all chips from a full stave
+        for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer_id]; stave_chip++) {
+          mPhysicsEventsCSVFile << ";chip_" << chip_id;
+          chip_id++;
+        }
+      } else if(mSimType == "focal") {
+        for(unsigned int stave_chip = 0; stave_chip < Focal::CHIPS_PER_STAVE_IN_LAYER[layer_id]; stave_chip++) {
+          mPhysicsEventsCSVFile << ";chip_" << chip_id;
+          chip_id++;
+        }
       }
     }
   }
@@ -384,19 +394,39 @@ void EventGenITS::addCsvEventLine(uint64_t t_delta,
   // Write time to next event, and multiplicity for the whole event
   mPhysicsEventsCSVFile << t_delta << ";" << event_pixel_hit_count;
 
-  // Write multiplicity for whole layers of detectors (of included layers)
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    if(mDetectorConfig.layer[layer].num_staves > 0)
-      mPhysicsEventsCSVFile << ";" << layer_hits[layer];
-  }
 
-  // Write multiplicity for the chips that were included in the simulation
-  for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
-    unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
-    for(unsigned int stave = 0; stave < mDetectorConfig.layer[layer].num_staves; stave++) {
-      for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
-        mPhysicsEventsCSVFile << ";" << chip_hits[chip_id];
-        chip_id++;
+  if(mSimType == "its") {
+    // Write multiplicity for whole layers of detectors (of included layers)
+    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+      if(mDetectorConfig.layer[layer].num_staves > 0)
+        mPhysicsEventsCSVFile << ";" << layer_hits[layer];
+    }
+
+    // Write multiplicity for the chips that were included in the simulation
+    for(unsigned int layer = 0; layer < ITS::N_LAYERS; layer++) {
+      unsigned int chip_id = ITS::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
+      for(unsigned int stave = 0; stave < mDetectorConfig.layer[layer].num_staves; stave++) {
+        for(unsigned int stave_chip = 0; stave_chip < ITS::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
+          mPhysicsEventsCSVFile << ";" << chip_hits[chip_id];
+          chip_id++;
+        }
+      }
+    }
+  } else if(mSimType == "focal") {
+    // Write multiplicity for whole layers of detectors (of included layers)
+    for(unsigned int layer = 0; layer < Focal::N_LAYERS; layer++) {
+      if(mDetectorConfig.layer[layer].num_staves > 0)
+        mPhysicsEventsCSVFile << ";" << layer_hits[layer];
+    }
+
+    // Write multiplicity for the chips that were included in the simulation
+    for(unsigned int layer = 0; layer < Focal::N_LAYERS; layer++) {
+      unsigned int chip_id = Focal::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
+      for(unsigned int stave = 0; stave < mDetectorConfig.layer[layer].num_staves; stave++) {
+        for(unsigned int stave_chip = 0; stave_chip < Focal::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
+          mPhysicsEventsCSVFile << ";" << chip_hits[chip_id];
+          chip_id++;
+        }
       }
     }
   }
@@ -626,9 +656,6 @@ void EventGenITS::generateRandomEventData(uint64_t event_time_ns,
         rand_y2 = rand_y1-1;
       }
 
-      Detector::DetectorPosition pos = {0, 0, 0, 0, 0};
-
-
       ///@todo USE createCluster method in EventGenBase here....
       event_pixel_hit_count += 4;
 
@@ -806,23 +833,52 @@ void EventGenITS::generateMonteCarloEventData(uint64_t event_time_ns,
   while(digit_it != digit_end_it) {
     const PixelHit &pix = *digit_it;
 
-    // Recreate hit with timing information and pointer to readout stats object
-    std::shared_ptr<PixelHit> pix_shared = std::make_shared<PixelHit>(pix);
-    pix_shared->setActiveTimeStart(event_time_ns+mPixelDeadTime);
-    pix_shared->setActiveTimeEnd(event_time_ns+mPixelDeadTime+mPixelActiveTime);
-    pix_shared->setPixelReadoutStatsObj(mTriggeredReadoutStats);
+    if(mRandomClusterGeneration) {
+      // Create random cluster around pixel hit
 
-    mEventHitVector.push_back(pix_shared);
+      std::vector<std::shared_ptr<PixelHit>> pix_cluster = createCluster(pix,
+                                                                         event_time_ns,
+                                                                         mPixelDeadTime,
+                                                                         mPixelActiveTime,
+                                                                         mTriggeredReadoutStats);
+      Detector::DetectorPosition pos;
 
-    Detector::DetectorPosition pos;
+      if(mSimType == "its")
+        pos = ITS::ITS_global_chip_id_to_position(pix.getChipId());
+      else // Focal
+        pos = Focal::Focal_global_chip_id_to_position(pix.getChipId());
 
-    if(mSimType == "its")
-      pos = ITS::ITS_global_chip_id_to_position(pix.getChipId());
-    else // Focal
-      pos = PCT::PCT_global_chip_id_to_position(pix.getChipId());
+      // Update hit counters. createCluster() only generates hits for _one_ chip,
+      // if pixels are outside matrix boundaries then they are ignored. Hence it is sufficient
+      // to add the number of pixels in the cluster, we don't have to check that they all
+      // belong to the same chip.
+      layer_hits[pos.layer_id] += pix_cluster.size();
+      chip_hits[pix.getChipId()] += pix_cluster.size();
 
-    layer_hits[pos.layer_id]++;
-    chip_hits[pix.getChipId()]++;
+      // Copy pixels from cluster over to the event hit vector
+      mEventHitVector.insert(mEventHitVector.end(), pix_cluster.begin(), pix_cluster.end());
+    } else {
+      // Don't create random cluster around pixel hit
+      // (ie. the cluster hits are already included in the MC data)
+
+      // Recreate hit with timing information and pointer to readout stats object
+      std::shared_ptr<PixelHit> pix_shared = std::make_shared<PixelHit>(pix);
+      pix_shared->setActiveTimeStart(event_time_ns+mPixelDeadTime);
+      pix_shared->setActiveTimeEnd(event_time_ns+mPixelDeadTime+mPixelActiveTime);
+      pix_shared->setPixelReadoutStatsObj(mTriggeredReadoutStats);
+
+      mEventHitVector.push_back(pix_shared);
+
+      Detector::DetectorPosition pos;
+
+      if(mSimType == "its")
+        pos = ITS::ITS_global_chip_id_to_position(pix.getChipId());
+      else // Focal
+        pos = Focal::Focal_global_chip_id_to_position(pix.getChipId());
+
+      layer_hits[pos.layer_id]++;
+      chip_hits[pix.getChipId()]++;
+    }
 
     digit_it++;
   }

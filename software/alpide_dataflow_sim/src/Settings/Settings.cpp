@@ -113,6 +113,8 @@ void setDefaultSimSettings(QSettings *readoutSimSettings) {
   defaultSettings["pct/beam_step_mm"] = DEFAULT_PCT_BEAM_STEP_MM;
   defaultSettings["pct/beam_time_per_step_us"] = DEFAULT_PCT_BEAM_TIME_PER_STEP_US;
 
+  defaultSettings["focal/monte_carlo_file_path"] = DEFAULT_FOCAL_MONTE_CARLO_FILE_PATH;
+
   defaultSettings["event/random_hit_generation"] = DEFAULT_EVENT_RANDOM_HIT_GENERATION;
   defaultSettings["event/random_cluster_generation"] = DEFAULT_EVENT_RANDOM_CLUSTER_GENERATION;
   defaultSettings["event/random_cluster_size_mean"] = DEFAULT_EVENT_RANDOM_CLUSTER_SIZE_MEAN;

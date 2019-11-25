@@ -23,7 +23,8 @@ class PixelReadoutStats
 {
 private:
   ///@brief Readout stats for pixel hits.
-  ///Key = number of times pixel hit was read out (or pile up value)
+  ///Outer key = Chip id
+  ///Inner key = number of times pixel hit was read out (or pile up value)
   ///Value = number of pixel hits that was read out this number of times
   ///e.g.
   /// mReadoutStats[0] == 100 --> 100 hits were never read out

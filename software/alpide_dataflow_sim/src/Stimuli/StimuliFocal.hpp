@@ -14,7 +14,7 @@
 #include "StimuliBase.hpp"
 #include "Alpide/Alpide.hpp"
 #include "Event/EventGenITS.hpp"
-#include "Detector/PCT/PCTDetector.hpp"
+#include "Detector/Focal/FocalDetector.hpp"
 #include "Detector/Common/ITSModulesStaves.hpp"
 #include <QSettings>
 #include <memory>
@@ -33,7 +33,7 @@ private:
   std::unique_ptr<EventGenITS> mEventGen;
 
   // mFocal is only used for detector simulation
-  std::unique_ptr<PCT::PCTDetector> mFocal;
+  std::unique_ptr<Focal::FocalDetector> mFocal;
 
   // mReadoutUnit and mAlpide is only used for
   // single chip simulations
