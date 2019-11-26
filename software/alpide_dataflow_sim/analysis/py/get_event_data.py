@@ -108,6 +108,11 @@ def calc_strobe_events(event_df: pd.DataFrame, trig_strobe_df: pd.DataFrame, cfg
 
             # No more events for this strobe
             if evt_on_time > strobe_off_time:
+                # Start from the previous event when we check next strobe,
+                # to make sure we didn't skip an event that would be included
+                # in the next strobe
+                if evt_df_idx > 0:
+                    evt_df_idx = evt_df_idx - 1
                 break
 
             # Check for two overlapping integer ranges:

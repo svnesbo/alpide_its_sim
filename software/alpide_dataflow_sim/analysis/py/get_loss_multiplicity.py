@@ -5,6 +5,7 @@ from its_chip_position import *
 from itertools import chain
 import matplotlib.pyplot as plt
 import pickle
+import itertools
 
 def get_layer_loss_multiplicity(sim_data_path: str, layers: list) -> list:
     """
@@ -210,50 +211,50 @@ def save_busyv_abort_flush_counts(sim_path, busyv_abort_flush_data):
 
 if __name__ == '__main__':
     layers = [0,1,2,3,4,5,6]
-    bins = [100, 10, 10, 10, 5, 10, 10]
+    bins = [50, 10, 10, 10, 5, 10, 10]
 
     sim_data = [
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_0/', 'title': 'MB trig 100ns - 50 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/', 'title': 'MB trig 100ns- 100 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_2/', 'title': 'MB trig 100ns - 150 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_3/', 'title': 'MB trig 100ns - 200 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_4/', 'title': 'Periodic 5us/trig 100ns - 50 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_5/', 'title': 'Periodic 5us/trig 100ns - 100 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_6/', 'title': 'Periodic 5us/trig 100ns - 150 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_7/', 'title': 'Periodic 5us/trig 100ns - 200 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_8/', 'title': 'Periodic trig 5us - 50 kHz'},  # Done
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_9/', 'title': 'Periodic trig 5us - 100 kHz'},  # Done
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_10/', 'title': 'Periodic trig 5us - 150 kHz'},
-        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/', 'title': 'Periodic trig 5us - 200 kHz'}
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_12/', 'title': 'Periodic cont 10us - 50 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_13/', 'title': 'Periodic cont 10us - 100 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_14/', 'title': 'Periodic cont 10us - 150 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_15/', 'title': 'Periodic cont 10us - 200 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_16/', 'title': 'Periodic cont 20us - 50 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_17/', 'title': 'Periodic cont 20us - 100 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_18/', 'title': 'Periodic cont 20us - 150 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_19/', 'title': 'Periodic cont 20us - 200 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_20/', 'title': 'Periodic cont 5us - 50 kHz'},  # Done
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_21/', 'title': 'Periodic cont 5us - 100 kHz'},  # Done
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_22/', 'title': 'Periodic cont 5us - 150 kHz'},  # Done
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_23/', 'title': 'Periodic cont 5us - 200 kHz'},  # Done
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_24/', 'title': 'Periodic cont 10us - 50 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_25/', 'title': 'Periodic cont 10us - 100 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_26/', 'title': 'Periodic cont 10us - 150 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_27/', 'title': 'Periodic cont 10us - 200 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_28/', 'title': 'Periodic cont 20us - 50 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_29/', 'title': 'Periodic cont 20us - 100 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_30/', 'title': 'Periodic cont 20us - 150 kHz'},
-        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_31/', 'title': 'Periodic cont 20us - 200 kHz'}
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_0/', 'title': 'Min-bias/Trig. 100ns - 50 kHz'}, # Done
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_1/', 'title': 'Min-bias/Trig. 100ns- 100 kHz'}, # Done
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_2/', 'title': 'Min-bias/Trig. 100ns - 150 kHz'}, # Done
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_3/', 'title': 'Min-bias/Trig. 100ns - 200 kHz'},  # Include (done)
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_4/', 'title': 'Periodic/Trig. 5us/100ns - 50 kHz'}, # Done
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_5/', 'title': 'Periodic/Trig. 5us/100ns - 100 kHz'}, # Done
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_6/', 'title': 'Periodic/Trig. 5us/100ns - 150 kHz'}, # Done
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_7/', 'title': 'Periodic/Trig. 5us/100ns - 200 kHz'}, # Done
+        {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_8/', 'title': 'Periodic/Trig. 5us - 50 kHz'},  # Done
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_9/', 'title': 'Periodic/Trig. 5us - 100 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_10/', 'title': 'Periodic/Trig. 5us - 150 kHz'}, # Include (done)
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_11/', 'title': 'Periodic/Trig. 5us - 200 kHz'}, # Include (done)
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_12/', 'title': 'Periodic/Trig. 10us - 50 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_13/', 'title': 'Periodic/Trig. 10us - 100 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_14/', 'title': 'Periodic/Trig. 10us - 150 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_15/', 'title': 'Periodic/Trig. 10us - 200 kHz'}, # Include (done)
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_16/', 'title': 'Periodic/Trig. 20us - 50 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_17/', 'title': 'Periodic/Trig. 20us - 100 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_18/', 'title': 'Periodic/Trig. 20us - 150 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_19/', 'title': 'Periodic/Trig. 20us - 200 kHz'}.
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_20/', 'title': 'Periodic/Cont. 5us - 50 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_21/', 'title': 'Periodic/Cont. 5us - 100 kHz'}, # Include (maybe) (done)
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_22/', 'title': 'Periodic/Cont. 5us - 150 kHz'}, # Include (done)
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_23/', 'title': 'Periodic/Cont. 5us - 200 kHz'}, # Include (done)
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_24/', 'title': 'Periodic/Cont. 10us - 50 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_25/', 'title': 'Periodic/Cont. 10us - 100 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_26/', 'title': 'Periodic/Cont. 10us - 150 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_27/', 'title': 'Periodic/Cont. 10us - 200 kHz'} # Include (done)
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_28/', 'title': 'Periodic/Cont. 20us - 50 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_29/', 'title': 'Periodic/Cont. 20us - 100 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_30/', 'title': 'Periodic/Cont. 20us - 150 kHz'},
+        #{'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/run_31/', 'title': 'Periodic/Cont. 20us - 200 kHz'}
     ]
 
     #sim_data = [
     #    {'path': 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/systemc data temp/test_data/run_0/', 'title': 'Test data'}
     #]
 
-    analyze_raw_data = False
+    analyze_raw_data = True
     save_analyzed_data = True
-    generate_plots = True
+    generate_plots = False
     save_plots = True
     plot_output_dir = 'C:/Users/simon/cernbox/Documents/PhD/CHEP2019/plots/PbPb/'
 
@@ -283,17 +284,20 @@ if __name__ == '__main__':
         for layer in layers:
             # Plot multiplicity of affected events for the whole layer
             # --------------------------------------------------------
-            fig = plt.figure(layer)
+            fig = plt.figure(layer, figsize=(10,7))
             plt.style.use('seaborn-whitegrid')
 
             for sim in sim_data:
-                plt.hist(affected_multiplicity[sim['title']][layer], bins=bins[layer], histtype='step', log=True, label=sim['title'])
+                plt.hist(affected_multiplicity[sim['title']][layer], bins=bins[layer], histtype='step', log=True, linewidth=1.5, label=sim['title'])
 
-            plt.title('Full event multiplicity of frames with loss - Layer ' + str(layer))
-            plt.xlabel('Multiplicity (pixel hits)')
-            plt.ylabel('Counts')
+            plt.title('Full multiplicity of events for triggers affected by loss - Layer ' + str(layer), fontsize=22)
+            plt.xlabel('Multiplicity (pixel hits)', fontsize=18)
+            plt.ylabel('Counts', fontsize=18)
             #plt.legend(loc='lower right')
-            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), prop={'family': 'DejaVu Sans Mono', 'size':14})
+            ax = fig.gca()
+            ax.tick_params(axis='both', which='major', labelsize=16)
+            ax.tick_params(axis='both', which='minor', labelsize=16)
             plt.show()
 
             if save_plots:
@@ -303,16 +307,19 @@ if __name__ == '__main__':
 
             # Plot summed multiplicity for all chips that lost data for an event/trigger for the whole layer
             # ----------------------------------------------------------------------------------------------
-            fig = plt.figure(layer)
+            fig = plt.figure(layer, figsize=(10,7))
             plt.style.use('seaborn-whitegrid')
 
             for sim in sim_data:
-                plt.hist(loss_multiplicity[sim['title']][layer], bins=bins[layer], histtype='step', log=True, label=sim['title'])
+                plt.hist(loss_multiplicity[sim['title']][layer], bins=bins[layer], histtype='step', log=True, linewidth=1.5, label=sim['title'])
 
-            plt.title('Lost data multiplicity of frames with loss - Layer ' + str(layer))
-            plt.xlabel('Multiplicity (pixel hits)')
-            plt.ylabel('Counts')
-            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            plt.title('Multiplicity of lost data for frames with loss - Layer ' + str(layer), fontsize=22)
+            plt.xlabel('Multiplicity (pixel hits)', fontsize=18)
+            plt.ylabel('Counts', fontsize=18)
+            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), prop={'family': 'DejaVu Sans Mono', 'size':14})
+            ax = fig.gca()
+            ax.tick_params(axis='both', which='major', labelsize=16)
+            ax.tick_params(axis='both', which='minor', labelsize=16)
             plt.show()
 
             if save_plots:
@@ -322,18 +329,24 @@ if __name__ == '__main__':
 
             # Plot histogram of number of links with busyv/flush/abort per trigger that has them
             # ----------------------------------------------------------------------------------------------
-            fig = plt.figure(layer)
+            fig = plt.figure(layer, figsize=(10,7.5))
             plt.style.use('seaborn-whitegrid')
+
+            marker = itertools.cycle(('x', '+', 'o', '*', 'p', '1', '2', 'X', 'D'))
 
             for sim in sim_data:
                 num_bins = ITS.CHIPS_PER_STAVE_IN_LAYER[layer]-1
                 plt.hist(busyv_abort_flush_counts[sim['title']][layer]['busyv_flush_abort_count'].values(),
-                         bins=num_bins, rwidth=1.0, range=(1, num_bins+1), histtype='step', log=False, label=sim['title'])
+                         bins=num_bins, rwidth=1.0, range=(1, num_bins+1), histtype='step', log=False, linewidth=1.5,
+                         label=sim['title'])
 
-            plt.title('Number of chips with frame loss - Layer ' + str(layer))
-            plt.xlabel('Number of chips')
-            plt.ylabel('Counts')
-            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            plt.title('Number of chips with frame loss in a trigger - Layer ' + str(layer), fontsize=22)
+            plt.xlabel('Number of chips', fontsize=18)
+            plt.ylabel('Counts', fontsize=18)
+            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), prop={'family': 'DejaVu Sans Mono', 'size':14})
+            ax = fig.gca()
+            ax.tick_params(axis='both', which='major', labelsize=16)
+            ax.tick_params(axis='both', which='minor', labelsize=16)
             plt.show()
 
             if save_plots:
@@ -344,19 +357,22 @@ if __name__ == '__main__':
                 plt.close(fig)
 
             # Plot it again with log axis
-            fig = plt.figure(layer)
+            fig = plt.figure(layer, figsize=(10,7.5))
             plt.style.use('seaborn-whitegrid')
 
             for sim in sim_data:
                 num_bins = ITS.CHIPS_PER_STAVE_IN_LAYER[layer] - 1
                 plt.hist(busyv_abort_flush_counts[sim['title']][layer]['busyv_flush_abort_count'].values(),
-                         bins=num_bins, rwidth=1.0, range=(1, num_bins + 1), histtype='step', log=True,
+                         bins=num_bins, rwidth=1.0, range=(1, num_bins + 1), histtype='step', log=True, linewidth=1.5,
                          label=sim['title'])
 
-            plt.title('Number of chips with frame loss - Layer ' + str(layer))
-            plt.xlabel('Number of chips')
-            plt.ylabel('Counts')
-            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+            plt.title('Number of chips with frame loss in a trigger - Layer ' + str(layer), fontsize=22)
+            plt.xlabel('Number of chips', fontsize=18)
+            plt.ylabel('Counts', fontsize=18)
+            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), prop={'family': 'DejaVu Sans Mono', 'size':11})
+            ax = fig.gca()
+            ax.tick_params(axis='both', which='major', labelsize=16)
+            ax.tick_params(axis='both', which='minor', labelsize=16)
             plt.show()
 
             if save_plots:
