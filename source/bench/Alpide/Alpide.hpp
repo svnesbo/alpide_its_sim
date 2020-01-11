@@ -153,7 +153,8 @@ private:
   };
 
 private:
-  int mChipId;
+  int mGlobalChipId;
+  int mLocalChipId;
 
   bool mChipContinuousMode;
 
@@ -243,10 +244,11 @@ private:
   ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
 public:
-  Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConfig& chip_cfg,
-         bool outer_barrel_mode = false, bool outer_barrel_master = false,
-         int outer_barrel_slave_count = 0);
-  int getChipId(void) {return mChipId;}
+  Alpide(sc_core::sc_module_name name, const int global_chip_id, const int local_chip_id,
+         const AlpideConfig& chip_cfg, bool outer_barrel_mode = false,
+         bool outer_barrel_master = false, int outer_barrel_slave_count = 0);
+  int getGlobalChipId(void) {return mGlobalChipId;}
+  int getLocalChipId(void) {return mLocalChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
   uint64_t getTriggersReceivedCount(void) const {return mTriggersReceived;}

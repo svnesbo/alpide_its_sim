@@ -37,10 +37,11 @@ StimuliFocal::StimuliFocal(sc_core::sc_module_name name, QSettings* settings, st
     exit(-1);
   }
 
+
+  const unsigned int staves_per_quadrant = 3;
+
   // Initialize detector configuration for Focal.
-  // Doing it here because event generator expects this parameter,
-  // though it is not used for single chip simulation
-  Focal::FocalDetectorConfig config;
+  Focal::FocalDetectorConfig config(staves_per_quadrant);
   config.chip_cfg = mChipCfg;
 
   // Focal uses same event generator as ITS
@@ -89,14 +90,7 @@ void StimuliFocal::stimuliMainMethod(void)
     sc_core::sc_stop();
 
     writeStimuliInfo();
-
-    if(mSingleChipSimulation)
-      Detector::writeAlpideStatsToFile(mOutputPath,
-                                       mAlpide->getChips(),
-                                       &Focal::Focal_global_chip_id_to_position);
-    else
-      mFocal->writeSimulationStats(mOutputPath);
-
+    mFocal->writeSimulationStats(mOutputPath);
     mEventGen->writeSimulationStats(mOutputPath);
   }
   // We want to stop at n_events, not n_events-1.
@@ -111,29 +105,15 @@ void StimuliFocal::stimuliMainMethod(void)
     // Get hits for this event, and "feed" them to the Focal detector
     auto event_hits = mEventGen->getTriggeredEvent();
 
-    if(mSingleChipSimulation) {
-      for(auto it = event_hits.begin(); it != event_hits.end(); it++)
-        mAlpide->pixelInput(*it);
+    for(auto it = event_hits.begin(); it != event_hits.end(); it++)
+      mFocal->pixelInput(*it);
 
-      std::cout << "Creating event for next trigger.." << std::endl;
+    std::cout << "Creating event for next trigger.." << std::endl;
 
-      if(mSystemContinuousMode == false) {
-        // Create an event for the next trigger, delayed by the
-        // total/specified trigger delay (to account for cable/CTP delays etc.)
-        mReadoutUnit->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
-      }
-    }
-    else {
-      for(auto it = event_hits.begin(); it != event_hits.end(); it++)
-        mFocal->pixelInput(*it);
-
-      std::cout << "Creating event for next trigger.." << std::endl;
-
-      if(mSystemContinuousMode == false) {
+    if(mSystemContinuousMode == false) {
       // Create an event for the next trigger, delayed by the
       // total/specified trigger delay (to account for cable/CTP delays etc.)
-        mFocal->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
-      }
+      mFocal->E_trigger_in.notify(mTriggerDelayNs, SC_NS);
     }
 
     if(mEventGen->getTriggeredEventCount() == mNumEvents) {

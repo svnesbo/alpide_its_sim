@@ -15,7 +15,7 @@
 namespace Detector
 {
   void writeAlpideStatsToFile(std::string output_path,
-                              const std::vector<std::shared_ptr<Alpide>>& alpide_vec,
+                              const std::map<unsigned int, std::shared_ptr<Alpide>>& alpide_map,
                               t_global_chip_id_to_position_func global_chip_id_to_position_func);
 }
 

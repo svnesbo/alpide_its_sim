@@ -11,6 +11,7 @@
 #define FOCAL_DETECTOR_HPP
 
 #include <vector>
+#include <map>
 #include <memory>
 
 #include "FocalDetectorConfig.hpp"
@@ -29,7 +30,9 @@ namespace Focal {
     sc_out<bool> s_detector_busy_out;
 
   private:
-    std::vector<std::shared_ptr<Alpide>> mChipVector;
+    /// Key: unique chip id, value: chip pointer
+    std::map<unsigned int, std::shared_ptr<Alpide>> mChipMap;
+
     sc_vector<sc_vector<ReadoutUnit>> mReadoutUnits;
     sc_vector<sc_vector<ITS::StaveInterface>> mDetectorStaves;
 

@@ -17,26 +17,10 @@
 using boost::random::uniform_real_distribution;
 using boost::random::uniform_int_distribution;
 
-// Hardcoded constants for ROOT file used
-static const double c_macro_cell_x_size_mm = 0.5;
-static const double c_macro_cell_y_size_mm = 0.5;
-
-// Size of gap/square in the middle of the Focal plane
-// which the beam pipe passes through
-static const double c_focal_gap_size_mm = 40;
-
-// The simulation is constructed of inner barrel staves extending left from the beam line
-// The macro cell limits below are used to limit the macro cell hits used to those
-// that fall within the staves
-// The simulation data consists of 3200 x 3200 macro cells of 0.5mm x 0.5mm,
-// with cell (0,0) in the upper left corner.
-static const unsigned int c_det_top_left_macro_cell_x = 1600;
-static const unsigned int c_det_top_left_macro_cell_y = 1600 - ceil((CHIP_HEIGHT_CM*10.0/2) /
-                                                                    c_macro_cell_y_size_mm);
-static const unsigned int c_det_bottom_right_macro_cell_x = 3200;
-static const unsigned int c_det_bottom_right_macro_cell_y = 1600 + ceil((CHIP_HEIGHT_CM*10.0/2) /
-                                                                        c_macro_cell_y_size_mm);
-
+bool macro_cell_coords_to_chip_coords(const unsigned int macro_cell_x, const unsigned int macro_cell_y,
+                                      const unsigned int layer, unsigned int staves_per_quadrant,
+                                      unsigned int& global_chip_id, double& chip_x_mm,
+                                      double& chip_y_mm);
 
 ///@brief Constructor for EventRootFocal class, which handles a set of events
 ///       stored in binary data files.
@@ -48,17 +32,21 @@ static const unsigned int c_det_bottom_right_macro_cell_y = 1600 + ceil((CHIP_HE
 ///@param position_to_global_chip_id_func Pointer to function used to determine position
 ///                                       based on global chip id
 ///@param event_filename Full path to event file
+///@param staves_per_quadrant Number of staves per quadrant in simulation
 ///@param random_seed Random seed used to generate random hits in macro cells
+///@param random_event_order Process monte carlo events in random order or not
 EventRootFocal::EventRootFocal(Detector::DetectorConfigBase config,
                                Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
                                Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
                                const QString& event_filename,
+                               unsigned int staves_per_quadrant,
                                unsigned int random_seed,
                                bool random_event_order)
   : mConfig(config)
   , mGlobalChipIdToPositionFunc(global_chip_id_to_position_func)
   , mPositionToGlobalChipIdFunc(position_to_global_chip_id_func)
   , mRandomEventOrder(random_event_order)
+  , mStavesPerQuadrant(staves_per_quadrant)
 {
   if(random_seed == 0) {
     boost::random::random_device r;
@@ -75,11 +63,8 @@ EventRootFocal::EventRootFocal(Detector::DetectorConfigBase config,
   }
 
 
-  mRandHitMacroCellX = new uniform_real_distribution<double>(-c_macro_cell_x_size_mm/2,
-                                                             c_macro_cell_x_size_mm/2);
-
-  mRandHitMacroCellY = new uniform_real_distribution<double>(-c_macro_cell_y_size_mm/2,
-                                                             c_macro_cell_y_size_mm/2);
+  mRandHitMacroCellX = new uniform_real_distribution<double>(0, Focal::MACRO_CELL_SIZE_X_MM);
+  mRandHitMacroCellY = new uniform_real_distribution<double>(0, Focal::MACRO_CELL_SIZE_Y_MM);
 
   mRootFile = new TFile(event_filename.toStdString().c_str());
 
@@ -146,110 +131,48 @@ EventRootFocal::~EventRootFocal()
 
 ///@brief Create a number of pixel hits for ALPIDE chips, based on number of hits within a
 ///       macro cell in the monte carlo simulation data.
-///       Recalculates macro cell column/row in the MC simulation data to x/y
-///       stave ID,
-///       chip ID, and x/y pixel coordinates in the chip, and generates random hits
-///@param macro_cell_col Macro cell column number
-///@param macro_cell_row Macro cell row number
-///@param
+///@param[in] macro_cell_col Macro cell column number
+///@param[in] macro_cell_row Macro cell row number
+///@param[in] layer Layer of the macro cell hit (0 or 1)
+///@param[out] event Pointer to EventDigits object to add hits to
 void EventRootFocal::createHits(unsigned int macro_cell_col, unsigned int macro_cell_row,
                                 unsigned int num_hits, unsigned int layer, EventDigits* event)
 {
-  // Skip macropixel if it is outside the bounds of the detector plane in the simulation
-  if(macro_cell_col < c_det_top_left_macro_cell_x || macro_cell_col > c_det_bottom_right_macro_cell_x ||
-     macro_cell_row < c_det_top_left_macro_cell_y || macro_cell_row > c_det_bottom_right_macro_cell_y)
-  {
-    return;
-  }
+  unsigned int global_chip_id;
+  double chip_x_mm;
+  double chip_y_mm;
 
-  // Make macro cell (1600,1600) the center of the coordinate system: (0,0)
-  int local_macro_cell_x = macro_cell_col - 1600;
-  int local_macro_cell_y = macro_cell_row - 1600;
+  bool hit_valid = macro_cell_coords_to_chip_coords(macro_cell_col, macro_cell_row, layer,
+                                                    mStavesPerQuadrant, global_chip_id,
+                                                    chip_x_mm, chip_y_mm);
 
-  double x_mm = local_macro_cell_x * c_macro_cell_x_size_mm;
-  double y_mm = local_macro_cell_y * c_macro_cell_y_size_mm;
+  if(hit_valid) {
+    // Create specified number of random hits within macro cell
+    for(unsigned int hit_counter = 0; hit_counter < num_hits; hit_counter++) {
+      // Create a random hit within macro cell with uniform distribution
+      double rand_hit_x_mm = chip_x_mm + (*mRandHitMacroCellX)(mRandHitGen);
+      double rand_hit_y_mm = chip_y_mm + (*mRandHitMacroCellY)(mRandHitGen);
 
-  // Start x outside the gap in the middle of Focal, to simplify calculations
-  x_mm -= c_focal_gap_size_mm;
+      // Convert random coords in macro cell to coords in units of ALPIDE pixels
+      int chip_col = round(rand_hit_x_mm * ((double)N_PIXEL_COLS / (CHIP_WIDTH_CM*10)));
+      int chip_row = round(rand_hit_y_mm * ((double)N_PIXEL_ROWS / (CHIP_HEIGHT_CM*10)));
 
-  // Check that x falls inside detector plane (hardcoded to 3x IB staves on a line)
-  if(x_mm < 0 || (x_mm > Focal::STAVES_PER_LAYER[0] * CHIP_WIDTH_CM*10 * Focal::CHIPS_PER_STAVE_IN_LAYER[0]))
-    return;
+      // Make sure that x and y coords are within chip boundaries
+      if(chip_col >= N_PIXEL_COLS)
+        chip_col = N_PIXEL_COLS-1;
+      else if(chip_col < 0)
+        chip_col = 0;
 
-  // Check that y falls inside detector plane (the height of one chip)
-  if(y_mm < ((CHIP_HEIGHT_CM*10.0)/2)-c_macro_cell_y_size_mm/2 ||
-     y_mm > ((CHIP_HEIGHT_CM*10.0)/2)+c_macro_cell_y_size_mm/2)
-    return;
+      if(chip_row >= N_PIXEL_ROWS)
+        chip_row = N_PIXEL_ROWS-1;
+      else if(chip_row < 0)
+        chip_row = 0;
 
-  // Create specified number of random hits within macro cell
-  for(unsigned int hit_counter = 0; hit_counter < num_hits; hit_counter++) {
-    // Create a random hit within macro cell with uniform distribution
-    double pixel_hit_x_mm = x_mm + (*mRandHitMacroCellX)(mRandHitGen);
-    double pixel_hit_y_mm = y_mm + (*mRandHitMacroCellY)(mRandHitGen);
-
-    unsigned int stave_id = pixel_hit_x_mm /
-      (Focal::CHIPS_PER_STAVE_IN_LAYER[layer] * CHIP_WIDTH_CM*10);
-
-    // X coordinates from start of stave
-    double stave_x_mm = pixel_hit_x_mm -
-      (stave_id * Focal::CHIPS_PER_STAVE_IN_LAYER[layer] * CHIP_WIDTH_CM*10);
-
-    unsigned int stave_chip_id =  stave_x_mm / (CHIP_WIDTH_CM*10);
-
-    // X position of particle relative to the chip it will hit
-    double chip_x_mm = stave_x_mm - (stave_chip_id*(CHIP_WIDTH_CM*10));
-
-    // Y position of particle relative to the chip,
-    // with y = 0mm at the top edge of the chip
-    double chip_y_mm = pixel_hit_y_mm + (CHIP_HEIGHT_CM*10.0)/2;
-
-    // X/Y pixel coordinates in chip
-    unsigned int x_coord = round(chip_x_mm*(N_PIXEL_COLS/(CHIP_WIDTH_CM*10.0)));
-    unsigned int y_coord = round(chip_y_mm*(N_PIXEL_ROWS/(CHIP_HEIGHT_CM*10.0)));
-
-    // Make sure that x and y coords are within chip boundaries
-    if(x_coord >= N_PIXEL_COLS)
-      x_coord = N_PIXEL_COLS-1;
-    if(y_coord >= N_PIXEL_ROWS)
-      y_coord = N_PIXEL_ROWS-1;
-
-    unsigned int x_coord2, y_coord2;
-
-    // Create a simple 2x2 pixel cluster around x_coord and y_coord
-    // Makes sure that we don't get pixels below row/col 0, and not above
-    // row 511 or above column 1023
-    /*
-    if(x_coord < N_PIXEL_COLS/2) {
-      x_coord2 = x_coord+1;
-    } else {
-      x_coord2 = x_coord-1;
+      event->addHit(chip_col, chip_row, global_chip_id);
     }
-
-    if(y_coord < N_PIXEL_ROWS/2) {
-      y_coord2 = y_coord+1;
-    } else {
-      y_coord2 = y_coord-1;
-    }
-    */
-
-    Detector::DetectorPosition pos = {
-      .layer_id = layer,
-      .stave_id = stave_id,
-      .sub_stave_id = 0,
-      .module_id = 0,
-      .module_chip_id = stave_chip_id
-    };
-
-    unsigned int global_chip_id = Focal::Focal_position_to_global_chip_id(pos);
-
-    event->addHit(x_coord, y_coord, global_chip_id);
-    /*
-    event->addHit(x_coord, y_coord2, global_chip_id);
-    event->addHit(x_coord2, y_coord, global_chip_id);
-    event->addHit(x_coord2, y_coord2, global_chip_id);
-    */
   }
 }
+
 
 ///@brief Read a monte carlo event from a binary data file
 ///@param event_num Event number
@@ -299,4 +222,89 @@ EventDigits* EventRootFocal::getNextEvent(void)
   std::cout << "Event size: " << mEventDigits->size() << std::endl;
 
   return mEventDigits;
+}
+
+///@brief Calculate global chip id and chip row/column for macro cell hit coordinates
+///       The coordinates of the macro cells go from 0,0 (bottom left) to 3200,3200 (top right)
+///@param[in] macro_cell_x X coords of hit (in units of macro cells)
+///@param[in] macro_cell_y Y coords of hit (in units of macro cells)
+///@param[in] layer Focal layer (0 or 1)
+///@param[in] staves_per_qudrant Number of staves per quadrant in simulation
+///@param[out] global_chip_id Global chip ID of the chip at those coordinates
+///@param[out] chip_x_mm X-coordinate of hit in chip
+///@param[out] chip_y_mm Y-coordinate of hit in chip
+///@return True when the macro cell is within the detector plane, and the output coordinates are
+///       valid.
+bool macro_cell_coords_to_chip_coords(const unsigned int macro_cell_x, const unsigned int macro_cell_y,
+                                      const unsigned int layer, unsigned int staves_per_quadrant,
+                                      unsigned int& global_chip_id, double& chip_x_mm,
+                                      double& chip_y_mm)
+{
+  int i_macro_cell_x = macro_cell_x - 1600;
+  int i_macro_cell_y = macro_cell_y - 1600;
+
+  // Skip hits that fall inside the gap (though the data set shouldn't really include hits there..)
+  if(abs(i_macro_cell_x) < Focal::GAP_SIZE_X_MM/2 && abs(i_macro_cell_y) < Focal::GAP_SIZE_Y_MM/2)
+    return false;
+
+  double macro_cell_x_mm = i_macro_cell_x * Focal::MACRO_CELL_SIZE_X_MM;
+  double macro_cell_y_mm = i_macro_cell_y * Focal::MACRO_CELL_SIZE_Y_MM;
+
+  unsigned int quadrant;
+
+  if(macro_cell_x_mm > 0 && macro_cell_y_mm > 0) {
+    quadrant = 0;
+  } else if(macro_cell_x_mm < 0 && macro_cell_y_mm > 0) {
+    quadrant = 1;
+    macro_cell_x_mm = -macro_cell_x_mm;
+  } else if(macro_cell_x_mm < 0 && macro_cell_y_mm < 0) {
+    quadrant = 2;
+    macro_cell_x_mm = -macro_cell_x_mm;
+    macro_cell_y_mm = -macro_cell_y_mm;
+  } else {
+    quadrant = 3;
+    macro_cell_y_mm = -macro_cell_y_mm;
+  }
+
+  global_chip_id += quadrant*Focal::CHIPS_PER_QUADRANT;
+
+  // Skip hit if its y-coord falls above or beyond detector plane
+  if(macro_cell_y_mm > Focal::STAVES_PER_QUADRANT*Focal::STAVE_SIZE_Y_MM)
+    return false;
+
+  // If the hit is in one of the two patches to the right or left of the gap,
+  // then subtract the half gap size to "align" them with the rest of the patches,
+  // which simplifies the calculations..
+  if(macro_cell_y_mm < Focal::STAVES_PER_HALF_PATCH*Focal::STAVE_SIZE_Y_MM)
+    macro_cell_x_mm -= Focal::GAP_SIZE_X_MM/2;
+
+  // Skip hit if its x-coord falls outside the detector plane
+  if(macro_cell_x_mm > Focal::STAVE_SIZE_X_MM)
+    return false;
+
+  unsigned int stave_num_in_quadrant = macro_cell_y_mm / Focal::STAVE_SIZE_Y_MM;
+
+  // Skip stave if it is not included in the simulation
+  if(stave_num_in_quadrant >= staves_per_quadrant)
+    return false;
+
+  double stave_y_mm = macro_cell_y_mm - stave_num_in_quadrant*Focal::STAVE_SIZE_Y_MM;
+  double stave_x_mm = macro_cell_x_mm;
+
+  unsigned int chip_num_in_stave = stave_x_mm / (CHIP_WIDTH_CM*10);
+
+  chip_x_mm = stave_x_mm - chip_num_in_stave*(CHIP_WIDTH_CM*10);
+  chip_y_mm = stave_y_mm;
+
+  // Calculate global chip id
+  global_chip_id = 0;
+
+  if(layer > 0)
+    global_chip_id += Focal::CHIPS_PER_LAYER;
+
+  global_chip_id += quadrant * Focal::CHIPS_PER_QUADRANT;
+  global_chip_id += stave_num_in_quadrant * Focal::CHIPS_PER_STAVE;
+  global_chip_id += chip_num_in_stave;
+
+  return true;
 }

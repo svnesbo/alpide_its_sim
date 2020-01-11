@@ -87,7 +87,8 @@ private:
   sc_signal<bool> s_write_dmu_fifo;
 
   // Standard C++ members
-  unsigned int mChipId;
+  unsigned int mGlobalChipId;
+  unsigned int mLocalChipId;
   FrameStartFifoWord mCurrentFrameStartWord;
   FrameEndFifoWord mCurrentFrameEndWord;
 
@@ -113,7 +114,8 @@ private:
   bool getNoRegionsEmpty(void);
 
 public:
-  TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);
+  TopReadoutUnit(sc_core::sc_module_name name,
+                 const unsigned int global_chip_id, const unsigned int local_chip_id);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 

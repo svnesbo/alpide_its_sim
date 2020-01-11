@@ -14,12 +14,13 @@
 #include <misc/vcd_trace.hpp>
 
 
-///@todo Implementation
-///      Use AlpideDataParser? Implement quick parsing of busy words, and generation of busy map.
-
-//Do I need SC_HAS_PROCESS if I only use SC_METHOD??
 SC_HAS_PROCESS(ReadoutUnit);
-///@brief Constructor for ReadoutUnit
+///@brief Constructor for very simple ReadoutUnit model. The RU distributes triggers to chips
+///       via control links, and parses data coming on the data links, and that's pretty much
+///       it.
+///       This constructor sets up an RU with all data links configured for 1200 Mbps or
+///       400 Mbps depending on the value of the inner_barrel parameter.
+///
 ///@param name SystemC module name
 ///@param layer_id ID of layer that this RU belongs to
 ///@param stave_id ID of the stave in the layer that this RU is connected to
@@ -53,7 +54,6 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
   , mReadoutUnitTriggerDelay(0)
   , mTriggerFilterTimeNs(trigger_filter_time)
   , mTriggerFilterEnabled(trigger_filter_enable)
-  , mInnerBarrelMode(inner_barrel)
   , mTriggersSentCount(n_ctrl_links)
   , mTriggerActionMaps(n_ctrl_links)
   , mAlpideLinkBusySignals(n_data_links)
@@ -67,6 +67,92 @@ ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
     // Data parsers should not save events, that just eats memory.. :(
     mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("",
                                                              inner_barrel,
+                                                             data_rate_interval_ns,
+                                                             false);
+
+    mDataLinkParsers[i]->s_clk_in(s_system_clk_in);
+    mDataLinkParsers[i]->s_serial_data_in(s_serial_data_input[i]);
+    mDataLinkParsers[i]->s_serial_data_trig_id(s_serial_data_trig_id[i]);
+    mAlpideLinkBusySignals[i](mDataLinkParsers[i]->s_link_busy_out);
+
+    s_alpide_data_input[i].register_put(
+      std::bind(&ReadoutUnit::alpideDataSocketInput, this, std::placeholders::_1));
+  }
+
+  s_busy_out(s_busy_fifo_out);
+
+  SC_METHOD(triggerInputMethod);
+  sensitive << E_trigger_in;
+  dont_initialize();
+
+  SC_METHOD(evaluateBusyStatusMethod);
+  for(unsigned int i = 0; i < mAlpideLinkBusySignals.size(); i++) {
+    sensitive << mAlpideLinkBusySignals[i];
+  }
+  dont_initialize();
+}
+
+
+SC_HAS_PROCESS(ReadoutUnit);
+///@brief Constructor for very simple ReadoutUnit model. The RU distributes triggers to chips
+///       via control links, and parses data coming on the data links, and that's pretty much
+///       it.
+///       This constructor sets up an RU where individual data links can be configured for
+///       1200 or 400 Mbps corresponding to the values in the data_link_cfg parameter.
+///
+///@param name SystemC module name
+///@param layer_id ID of layer that this RU belongs to
+///@param stave_id ID of the stave in the layer that this RU is connected to
+///@param n_ctrl_links Number of Alpide control links connected to this readout unit
+///@param n_data_links Number of Alpide data links connected to this readout unit
+///@param data_link_cfg Vector with data link config. The number of entries in the vector
+///                     should be the same as n_data_links. Each entry in the vector corresponds to
+///                     the index in the RU's data link inputs.
+///                     A true value in the vector configures a link for 1200 Mbps (IB), and a
+///                     false value configures a link for 400 Mbps.
+///@param trigger_filter_time The Readout Unit will filter out triggers more closely
+///                           spaced than this time (specified in nano seconds)
+///@param trigger_filter_enable Enable trigger filtering
+///@param data_rate_interval_ns Interval in nanoseconds over which number of data bytes should
+///                             be counted, to be used for data rate calculations
+ReadoutUnit::ReadoutUnit(sc_core::sc_module_name name,
+                         unsigned int layer_id,
+                         unsigned int stave_id,
+                         unsigned int n_ctrl_links,
+                         unsigned int n_data_links,
+                         std::vector<bool> data_link_cfg,
+                         unsigned int trigger_filter_time,
+                         bool trigger_filter_enable,
+                         unsigned int data_rate_interval_ns)
+  : sc_core::sc_module(name)
+  , s_system_clk_in("system_clk_in")
+  , s_alpide_control_output(n_ctrl_links)
+  , s_alpide_data_input(n_data_links)
+  , s_serial_data_input(n_data_links)
+  , s_serial_data_trig_id(n_data_links)
+  , s_busy_in("busy_in")
+  , s_busy_out("busy_out")
+  , mLayerId(layer_id)
+  , mStaveId(stave_id)
+  , mReadoutUnitTriggerDelay(0)
+  , mTriggerFilterTimeNs(trigger_filter_time)
+  , mTriggerFilterEnabled(trigger_filter_enable)
+  , mTriggersSentCount(n_ctrl_links)
+  , mTriggerActionMaps(n_ctrl_links)
+  , mAlpideLinkBusySignals(n_data_links)
+{
+  // This prevents the first trigger from being filtered
+  mLastTriggerTime = -mTriggerFilterTimeNs;
+
+  mDataLinkParsers.resize(n_data_links);
+
+  if(n_data_links != data_link_cfg.size())
+    throw std::runtime_error("ReadoutUnit: n_data_links did not match data_link_cfg size");
+
+  for(unsigned int i = 0; i < n_data_links; i++) {
+    // Data parsers should not save events, that just eats memory.. :(
+    mDataLinkParsers[i] = std::make_shared<AlpideDataParser>("",
+                                                             data_link_cfg[i], // 1200/400 Mbps
                                                              data_rate_interval_ns,
                                                              false);
 

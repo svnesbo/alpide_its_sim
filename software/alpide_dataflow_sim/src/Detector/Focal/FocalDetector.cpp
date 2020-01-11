@@ -58,13 +58,14 @@ void FocalDetector::verifyDetectorConfig(const FocalDetectorConfig& config) cons
     throw std::runtime_error(error_msg);
   }
 
-  for(unsigned int i = 0; i < N_LAYERS; i++) {
-    if(config.layer[i].num_staves > STAVES_PER_LAYER[i]) {
-      std::string error_msg = "Too many staves specified for layer " + std::to_string(i);
-      throw std::runtime_error(error_msg);
-    }
-    num_staves_total += config.layer[i].num_staves;
+  if(config.staves_per_quadrant > STAVES_PER_QUADRANT) {
+    std::string error_msg = "Too many staves per quadrant specified: ";
+    error_msg += std::to_string(config.staves_per_quadrant);
+
+    throw std::runtime_error(error_msg);
   }
+
+  num_staves_total += config.staves_per_quadrant * config.num_layers;
 
   if(num_staves_total == 0)
   {
@@ -87,10 +88,6 @@ void FocalDetector::buildDetector(const FocalDetectorConfig& config,
                                   bool trigger_filter_enable,
                                   unsigned int data_rate_interval_ns)
 {
-  // Reserve space for all chips, even if they are not used (not allocated),
-  // because we access/index them by index in the vectors, and vector access is O(1).
-  mChipVector.resize(CHIP_COUNT_TOTAL, nullptr);
-
   for(unsigned int lay_id = 0; lay_id < N_LAYERS; lay_id++) {
     unsigned int num_staves = config.layer[lay_id].num_staves;
 
@@ -100,10 +97,14 @@ void FocalDetector::buildDetector(const FocalDetectorConfig& config,
 
     // Create sc_vectors with ReadoutUnit and Staves for this layer
     mReadoutUnits[lay_id].init(num_staves, RUCreator(lay_id,
+                                                     config.staves_per_quadrant,
                                                      trigger_filter_time,
                                                      trigger_filter_enable,
                                                      data_rate_interval_ns));
-    mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id, mConfig));
+
+    mDetectorStaves[lay_id].init(num_staves, StaveCreator(lay_id,
+                                                          config.staves_per_quadrant,
+                                                          mConfig));
 
     for(unsigned int sta_id = 0; sta_id < config.layer[lay_id].num_staves; sta_id++) {
       // Connect the busy in/out signals for the RUs in a daisy chain
@@ -134,6 +135,20 @@ void FocalDetector::buildDetector(const FocalDetectorConfig& config,
       RU.s_system_clk_in(s_system_clk_in);
       stave.s_system_clk_in(s_system_clk_in);
 
+      if(stave.numCtrlLinks() != RU.numCtrlLinks()) {
+        std::string error_msg = "Number of control links in stave and RU did not the same (";
+        error_msg += std::to_string(stave.numCtrlLinks()) + " vs. " + std::to_string(RU.numCtrlLinks()) + ")";
+
+        throw std::runtime_error(error_msg);
+      }
+      if(stave.numDataLinks() != RU.numDataLinks()) {
+        std::string error_msg = "Number of data links in stave and RU did not the same (";
+        error_msg += std::to_string(stave.numDataLinks()) + " vs. " + std::to_string(RU.numDataLinks()) + ")";
+
+        throw std::runtime_error(error_msg);
+      }
+
+
       for(unsigned int link_num = 0; link_num < stave.numCtrlLinks(); link_num++) {
         RU.s_alpide_control_output[link_num].bind(stave.socket_control_in[link_num]);
       }
@@ -161,9 +176,9 @@ void FocalDetector::buildDetector(const FocalDetectorConfig& config,
       }
 
       for(auto chip_it = new_chips.begin(); chip_it != new_chips.end(); chip_it++) {
-        unsigned int chip_id = (*chip_it)->getChipId();
+        unsigned int chip_id = (*chip_it)->getGlobalChipId();
         // Don't allow more than one instance of the same Chip ID
-        if(mChipVector[chip_id] != nullptr) {
+        if(mChipMap.find(chip_id) != mChipMap.end()) {
           std::string error_msg = "Chip with ID ";
           error_msg += std::to_string(chip_id);
           error_msg += " created more than once..";
@@ -171,7 +186,7 @@ void FocalDetector::buildDetector(const FocalDetectorConfig& config,
           throw std::runtime_error(error_msg);
         }
 
-        mChipVector[chip_id] = *chip_it;
+        mChipMap[chip_id] = *chip_it;
         mNumChips++;
       }
     }
@@ -185,8 +200,8 @@ void FocalDetector::buildDetector(const FocalDetectorConfig& config,
 void FocalDetector::pixelInput(const std::shared_ptr<PixelHit>& pix)
 {
   // Does the chip exist in our detector/simulation configuration?
-  if(mChipVector[pix->getChipId()]) {
-    mChipVector[pix->getChipId()]->pixelFrontEndInput(pix);
+  if(mChipMap.find(pix->getChipId()) != mChipMap.end()) {
+    mChipMap[pix->getChipId()]->pixelFrontEndInput(pix);
   } else {
     std::cout << "Chip " << pix->getChipId() << " does not exist." << std::endl;
   }
@@ -204,12 +219,8 @@ void FocalDetector::pixelInput(const std::shared_ptr<PixelHit>& pix)
 void FocalDetector::setPixel(unsigned int chip_id, unsigned int col, unsigned int row)
 {
   // Does the chip exist in our detector/simulation configuration?
-  if(mChipVector[chip_id]) {
-    ///@todo Check if chip is ready?
-    //if(mChipVector[chip_id]->s_chip_ready) {
-    //}
-
-    mChipVector[chip_id]->setPixel(col, row);
+  if(mChipMap.find(chip_id) != mChipMap.end()) {
+    mChipMap[chip_id]->setPixel(col, row);
   }
 }
 
@@ -237,12 +248,8 @@ void FocalDetector::setPixel(const Detector::DetectorPosition& pos,
 void FocalDetector::setPixel(const std::shared_ptr<PixelHit>& p)
 {
   // Does the chip exist in our detector/simulation configuration?
-  if(mChipVector[p->getChipId()]) {
-    ///@todo Check if chip is ready?
-    //if(mChipVector[chip_id]->s_chip_ready) {
-    //}
-
-    mChipVector[p->getChipId()]->setPixel(p);
+  if(mChipMap.find(p->getChipId()) != mChipMap.end()) {
+    mChipMap[p->getChipId()]->setPixel(p);
   }
 }
 
@@ -288,7 +295,7 @@ void FocalDetector::addTraces(sc_trace_file *wf, std::string name_prefix) const
 void FocalDetector::writeSimulationStats(const std::string output_path) const
 {
   Detector::writeAlpideStatsToFile(output_path,
-                                   mChipVector,
+                                   mChipMap,
                                    &Focal::Focal_global_chip_id_to_position);
 
   for(unsigned int layer = 0; layer < N_LAYERS; layer++) {

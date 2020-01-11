@@ -66,6 +66,9 @@ private:
   uint64_t mNumEntries; // Number of entries in TTree
   uint64_t mEntryCounter = 0;
 
+  /// Number of staves per quadrant included in the simulation
+  const unsigned int mStavesPerQuadrant;
+
   boost::random::mt19937 mRandHitGen;
   boost::random::uniform_real_distribution<double> *mRandHitMacroCellX, *mRandHitMacroCellY;
 
@@ -80,6 +83,7 @@ public:
                  Detector::t_global_chip_id_to_position_func global_chip_id_to_position_func,
                  Detector::t_position_to_global_chip_id_func position_to_global_chip_id_func,
                  const QString& event_filename,
+                 unsigned int staves_per_quadrant,
                  unsigned int random_seed,
                  bool random_event_order = true);
   ~EventRootFocal();

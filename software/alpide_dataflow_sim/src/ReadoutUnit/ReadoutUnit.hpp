@@ -64,7 +64,6 @@ private:
   bool mTriggerFilterEnabled;
   bool mLocalBusyStatus;
   bool mGlobalBusyStatus;
-  bool mInnerBarrelMode;
   bool mBusyDaisyChainMaster;
   uint64_t mLastTriggerTime;
   uint64_t mTriggerIdCount = 0;
@@ -103,7 +102,18 @@ public:
               bool trigger_filter_enable,
               bool inner_barrel,
               unsigned int data_rate_interval_ns);
+  ReadoutUnit(sc_core::sc_module_name name,
+              unsigned int layer_id,
+              unsigned int stave_id,
+              unsigned int n_ctrl_links,
+              unsigned int n_data_links,
+              std::vector<bool> data_link_cfg,
+              unsigned int trigger_filter_time,
+              bool trigger_filter_enable,
+              unsigned int data_rate_interval_ns);
   void end_of_elaboration();
+  unsigned int numCtrlLinks(void) const { return s_alpide_control_output.size(); }
+  unsigned int numDataLinks(void) const { return s_alpide_data_input.size(); }
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
   void writeSimulationStats(const std::string output_path) const;
 };

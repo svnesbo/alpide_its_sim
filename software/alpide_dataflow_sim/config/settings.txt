@@ -29,12 +29,16 @@ qed_noise_rate_ns=250
 random_cluster_generation=true
 random_cluster_size_mean=4
 random_cluster_size_stddev=1
-random_hit_generation=true
+random_hit_generation=false
 strobe_active_length_ns=100
 strobe_inactive_length_ns=100
 trigger_delay_ns=930
 trigger_filter_enable=true
 trigger_filter_time_ns=1230
+
+[focal]
+monte_carlo_file_path=config/monte_carlo_events/focal/pixel_event_tree_pythia_MB_r4cm.root
+staves_per_quadrant=3
 
 [its]
 bunch_crossing_rate_ns=25
@@ -71,9 +75,9 @@ random_particles_per_s_stddev=0.5E9
 time_frame_length_ns=10000
 
 [simulation]
-system_continuous_mode=false
-system_continuous_period_ns=5000
 n_events=1000
 random_seed=1337
-single_chip=true
-type=its
+single_chip=false
+system_continuous_mode=true
+system_continuous_period_ns=10000
+type=focal

@@ -23,6 +23,7 @@ namespace Detector {
 
   struct DetectorConfigBase {
     unsigned int num_layers;
+    unsigned int staves_per_quadrant; // Used by Focal only
     std::vector<LayerConfig> layer;
     AlpideConfig chip_cfg;
   };

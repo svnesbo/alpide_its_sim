@@ -15,17 +15,17 @@
 
 namespace Focal {
   struct FocalDetectorConfig : public Detector::DetectorConfigBase {
-    FocalDetectorConfig()
+    FocalDetectorConfig(unsigned int staves_per_quadrant)
       {
+        this->staves_per_quadrant = staves_per_quadrant;
         num_layers = Focal::N_LAYERS;
         layer.resize(Focal::N_LAYERS);
 
-        // Initialize full configuration, all staves included
         for(unsigned int i = 0; i < Focal::N_LAYERS; i++) {
-          layer[i].num_staves = Focal::STAVES_PER_LAYER[i];
+          layer[i].num_staves = staves_per_quadrant*4;
           layer[i].num_sub_staves_per_full_stave = 0; // Not used in Focal
           layer[i].num_modules_per_sub_stave = 0; // Not used in Focal
-          layer[i].num_chips_per_module = CHIPS_PER_STAVE_IN_LAYER[i];
+          layer[i].num_chips_per_module = 0; // Not used in Focal
         }
       }
   };

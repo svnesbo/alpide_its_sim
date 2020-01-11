@@ -11,6 +11,7 @@
 #define ITS_DETECTOR_HPP
 
 #include <vector>
+#include <map>
 #include <memory>
 
 #include "ITSDetectorConfig.hpp"
@@ -29,7 +30,7 @@ namespace ITS {
     sc_out<bool> s_detector_busy_out;
 
   private:
-    std::vector<std::shared_ptr<Alpide>> mChipVector;
+    std::map<unsigned int, std::shared_ptr<Alpide>> mChipMap;
     sc_vector<sc_vector<ReadoutUnit>> mReadoutUnits;
     sc_vector<sc_vector<StaveInterface>> mDetectorStaves;
 
