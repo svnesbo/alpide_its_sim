@@ -138,7 +138,7 @@ int main(int argc, char** argv)
       h1_frame_efficiency->SetBinContent(bin_num, frame_readout_efficiency);
       h1_frame_loss->SetBinContent(bin_num, 1.0-frame_readout_efficiency);
     } else {
-      h3_pixels_avg->AddBinContent(bin_num, avg_pix_hit_occupancy);
+      h3_pixels_avg->SetBinContent(bin_num, avg_pix_hit_occupancy);
       h3_busy->SetBinContent(bin_num, busy_count);
       h3_busyv->SetBinContent(bin_num, busyv_count);
       h3_flush->SetBinContent(bin_num, flush_count);

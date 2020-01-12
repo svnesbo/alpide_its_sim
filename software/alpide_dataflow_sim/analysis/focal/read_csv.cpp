@@ -35,7 +35,6 @@ std::vector<std::string> split_string(const std::string& str, const char delim, 
     std::string sub_string = str.substr(current_position, len);
 
     string_vec.push_back(sub_string);
-    std::cout << sub_string << std::endl;
 
     current_position = next_position;
 
@@ -89,8 +88,6 @@ std::vector<std::map<std::string, unsigned long> > read_csv(std::string csv_file
   // Read the CSV file line by line
   while(csv_file.good()) {
     std::getline(csv_file, csv_line);
-    std::cout << "csv_line: " << csv_line << std::endl;
-    std::cout << std::endl;
     std::vector<std::string> csv_line_data = split_string(csv_line, delim);
 
     // If last line contains \n alone, then str.size() is 1
