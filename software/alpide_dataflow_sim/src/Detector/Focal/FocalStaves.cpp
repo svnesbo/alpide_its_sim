@@ -306,41 +306,36 @@ FocalOuterStave::FocalOuterStave(sc_core::sc_module_name const &name,
   : StaveInterface(name, pos.layer_id, pos.stave_id,
                    Focal::CTRL_LINKS_PER_OUTER_STAVE, Focal::DATA_LINKS_PER_OUTER_STAVE)
 {
-  unsigned int num_sub_staves = cfg.layer[pos.layer_id].num_sub_staves_per_full_stave;
+  pos.sub_stave_id = 0;
 
-  for(pos.sub_stave_id = 0;
-      pos.sub_stave_id < num_sub_staves;
-      pos.sub_stave_id++)
-  {
-    // Create half of the half modules for one sub stave, and half for other sub stave
-    // In hindsight it would have made more sense to have a Module object instead of creating
-    // two HalfModule objects, since it got pretty complicated with the indexes and positions here..
-    for (unsigned int i = 0; i < MODULES_PER_OUTER_STAVE; i++) {
-      pos.module_id = i;
+  // Create half of the half modules for one sub stave, and half for other sub stave
+  // In hindsight it would have made more sense to have a Module object instead of creating
+  // two HalfModule objects, since it got pretty complicated with the indexes and positions here..
+  for (unsigned int i = 0; i < MODULES_PER_OUTER_STAVE; i++) {
+    pos.module_id = i;
 
-      std::string mod_name = "Mod_";
-      mod_name += std::to_string(pos.layer_id) + ":";
-      mod_name += std::to_string(pos.stave_id) + ":";
-      mod_name += std::to_string(pos.module_id);
+    std::string mod_name = "Mod_";
+    mod_name += std::to_string(pos.layer_id) + ":";
+    mod_name += std::to_string(pos.stave_id) + ":";
+    mod_name += std::to_string(pos.module_id);
 
-      std::cout << "Creating: " << mod_name << std::endl;
+    std::cout << "Creating: " << mod_name << std::endl;
 
-      mObModules[i] = std::make_shared<FocalObModule>(mod_name.c_str(),
-                                                      pos,
-                                                      position_to_global_chip_id_func,
-                                                      cfg.chip_cfg);
+    mObModules[i] = std::make_shared<FocalObModule>(mod_name.c_str(),
+                                                    pos,
+                                                    position_to_global_chip_id_func,
+                                                    cfg.chip_cfg);
 
-      mObModules[i]->s_system_clk_in(s_system_clk_in);
+    mObModules[i]->s_system_clk_in(s_system_clk_in);
 
-      // Bind incoming control sockets to processCommand() in respective FocalObModule objects
-      // Note: There is only one control link in this stave
-      socket_control_in[i].register_transport(std::bind(&FocalObModule::processCommand,
-                                                        mObModules[i],
-                                                        std::placeholders::_1));
+    // Bind incoming control sockets to processCommand() in respective FocalObModule objects
+    // Note: There is only one control link in this stave
+    socket_control_in[i].register_transport(std::bind(&FocalObModule::processCommand,
+                                                      mObModules[i],
+                                                      std::placeholders::_1));
 
-      // Forward data from HalfModule object to StaveInterface
-      mObModules[i]->socket_data_out(socket_data_out[i]);
-    }
+    // Forward data from HalfModule object to StaveInterface
+    mObModules[i]->socket_data_out(socket_data_out[i]);
   }
 }
 

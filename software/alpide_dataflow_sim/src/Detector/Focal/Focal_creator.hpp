@@ -61,7 +61,7 @@ namespace Focal {
 
       if(stave_num_in_quadrant < Focal::INNER_STAVES_PER_QUADRANT) {
         // Create RU for Focal inner stave
-
+        std::cout << "Creating inner RU: " << name << std::endl;
         std::vector<bool> data_link_cfg;
 
         // 1200 Mbps links
@@ -82,7 +82,7 @@ namespace Focal {
                                mDataRateIntervalNs);
       } else {
         // Create RU for Focal outer stave
-
+        std::cout << "Creating outer RU: " << name << std::endl;
         // All 400 Mbps links
         std::vector<bool> data_link_cfg(Focal::DATA_LINKS_PER_OUTER_STAVE, false);
 
@@ -141,7 +141,7 @@ namespace Focal {
       if(stave_num_in_quadrant < Focal::INNER_STAVES_PER_QUADRANT) {
         // Create Focal inner stave
         std::string stave_name = "FI_stave_" + coords_str;
-
+        std::cout << "Creating inner stave: " << name << std::endl;
         new_stave_ptr = new Focal::FocalInnerStave(stave_name.c_str(),
                                                    pos,
                                                    &Focal::Focal_position_to_global_chip_id,
@@ -149,7 +149,7 @@ namespace Focal {
       } else {
         // Create Focal outer stave
         std::string stave_name = "FO_stave_" + coords_str;
-
+        std::cout << "Creating outer stave: " << name << std::endl;
         new_stave_ptr = new Focal::FocalOuterStave(stave_name.c_str(),
                                                    pos,
                                                    &Focal::Focal_position_to_global_chip_id,
