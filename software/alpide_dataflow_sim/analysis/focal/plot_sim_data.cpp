@@ -9,9 +9,75 @@
 #include <fstream>
 #include <utility>
 #include <vector>
+#include "../get_num_events.hpp"
+#include "../src/Settings/Settings.hpp"
 #include "../../src/Detector/Focal/Focal_constants.hpp"
 #include "focal_detector_plane.hpp"
 #include "read_csv.hpp"
+
+const unsigned int C_ALPIDE_CHIP_HEADER_BYTES = 2;
+const unsigned int C_ALPIDE_CHIP_TRAILER_BYTES = 1;
+const unsigned int C_ALPIDE_CHIP_EMPTY_FRAME_BYTES = 2;
+const unsigned int C_ALPIDE_REGION_HEADER_BYTES = 1;
+const unsigned int C_ALPIDE_DATA_SHORT_BYTES = 2;
+const unsigned int C_ALPIDE_DATA_LONG_BYTES = 3;
+const unsigned int C_ALPIDE_BUSY_ON_BYTES = 1;
+const unsigned int C_ALPIDE_BUSY_OFF_BYTES = 1;
+
+double calculate_data_rate(std::map<std::string, unsigned long>& alpide_data_entry,
+                           unsigned long sim_time_ns)
+{
+  double data_bytes = 0;
+
+  auto chip_header_it = alpide_data_entry.find("ALPIDE_CHIP_HEADER");
+  auto chip_trailer_it = alpide_data_entry.find("ALPIDE_CHIP_TRAILER");
+  auto chip_empty_frame_it = alpide_data_entry.find("ALPIDE_CHIP_EMPTY_FRAME");
+  auto region_header_it = alpide_data_entry.find("ALPIDE_REGION_HEADER");
+  auto data_short_it = alpide_data_entry.find("ALPIDE_DATA_SHORT");
+  auto data_long_it = alpide_data_entry.find("ALPIDE_DATA_LONG");
+  auto busy_on_it = alpide_data_entry.find("ALPIDE_BUSY_ON");
+  auto busy_off_it = alpide_data_entry.find("ALPIDE_BUSY_OFF");
+
+  if(chip_header_it != alpide_data_entry.end()) {
+    data_bytes += chip_header_it->second * C_ALPIDE_CHIP_HEADER_BYTES;
+  }
+
+  if(chip_trailer_it != alpide_data_entry.end()) {
+    data_bytes += chip_trailer_it->second * C_ALPIDE_CHIP_TRAILER_BYTES;
+  }
+
+  if(chip_empty_frame_it != alpide_data_entry.end()) {
+    data_bytes += chip_empty_frame_it->second * C_ALPIDE_CHIP_EMPTY_FRAME_BYTES;
+  }
+
+  if(region_header_it != alpide_data_entry.end()) {
+    data_bytes += region_header_it->second * C_ALPIDE_REGION_HEADER_BYTES;
+  }
+
+  if(data_short_it != alpide_data_entry.end()) {
+    data_bytes += data_short_it->second * C_ALPIDE_DATA_SHORT_BYTES;
+  }
+
+  if(data_long_it != alpide_data_entry.end()) {
+    data_bytes += data_long_it->second * C_ALPIDE_DATA_LONG_BYTES;
+  }
+
+  if(busy_on_it != alpide_data_entry.end()) {
+    data_bytes += busy_on_it->second * C_ALPIDE_BUSY_ON_BYTES;
+  }
+
+  if(busy_off_it != alpide_data_entry.end()) {
+    data_bytes += busy_off_it->second * C_ALPIDE_BUSY_OFF_BYTES;
+  }
+
+  double data_megabits = (8*data_bytes) / (1024*1024);
+
+  double sim_time_seconds = sim_time_ns / 1.0E9;
+
+  double data_rate_mbps = data_megabits / sim_time_seconds;
+
+  return data_rate_mbps;
+}
 
 
 //void plotBusyAndOccupancy(const char *path, double event_rate_ns, bool continuous_mode)
@@ -23,6 +89,9 @@ int main(int argc, char** argv)
   }
 
   char* path = argv[1];
+
+  QString settings_file_path = QString(path) + "/settings.txt";
+  QSettings *sim_settings = new QSettings(settings_file_path, QSettings::IniFormat);
 
   std::string root_filename = std::string(path) + "/focal.root";
   TFile *f = new TFile(root_filename.c_str(), "recreate");
@@ -110,6 +179,9 @@ int main(int argc, char** argv)
 
   gStyle->SetPalette(1);
 
+  unsigned int event_rate_ns = sim_settings->value("event/average_event_rate_ns").toUInt();
+  unsigned long num_physics_events = get_num_triggered_events_simulated(path);
+  unsigned long sim_time_ns = event_rate_ns*num_physics_events;
 
   for(unsigned int i = 0; i < alpide_data.size(); i++) {
     unsigned int busy_count = alpide_data[i]["Busy"];
@@ -130,6 +202,8 @@ int main(int argc, char** argv)
     double avg_pix_hit_occupancy = (double)pixel_hits / accepted_trigs;
     double frame_readout_efficiency = 1.0 - (busyv_count+flush_count)/(double)received_trigs;
 
+    double data_rate_mbps = calculate_data_rate(alpide_data[i], sim_time_ns);
+
     if(layer == 0) {
       h1_pixels_avg->SetBinContent(bin_num, avg_pix_hit_occupancy);
       h1_busy->SetBinContent(bin_num, busy_count);
@@ -137,6 +211,7 @@ int main(int argc, char** argv)
       h1_flush->SetBinContent(bin_num, flush_count);
       h1_frame_efficiency->SetBinContent(bin_num, frame_readout_efficiency);
       h1_frame_loss->SetBinContent(bin_num, 1.0-frame_readout_efficiency);
+      h1_data->SetBinContent(bin_num, data_rate_mbps);
     } else {
       h3_pixels_avg->SetBinContent(bin_num, avg_pix_hit_occupancy);
       h3_busy->SetBinContent(bin_num, busy_count);
@@ -144,6 +219,7 @@ int main(int argc, char** argv)
       h3_flush->SetBinContent(bin_num, flush_count);
       h3_frame_efficiency->SetBinContent(bin_num, frame_readout_efficiency);
       h3_frame_loss->SetBinContent(bin_num, 1.0-frame_readout_efficiency);
+      h3_data->SetBinContent(bin_num, data_rate_mbps);
     }
   }
 
@@ -153,6 +229,7 @@ int main(int argc, char** argv)
   h1_flush->SetStats(0);
   h1_frame_efficiency->SetStats(0);
   h1_frame_loss->SetStats(0);
+  h1_data->SetStats(0);
 
   h3_pixels_avg->SetStats(0);
   h3_busy->SetStats(0);
@@ -160,6 +237,7 @@ int main(int argc, char** argv)
   h3_flush->SetStats(0);
   h3_frame_efficiency->SetStats(0);
   h3_frame_loss->SetStats(0);
+  h3_data->SetStats(0);
 
   h1_pixels_avg->GetXaxis()->SetTitle("X [mm]");
   h1_busy->GetXaxis()->SetTitle("X [mm]");
@@ -167,6 +245,7 @@ int main(int argc, char** argv)
   h1_flush->GetXaxis()->SetTitle("X [mm]");
   h1_frame_efficiency->GetXaxis()->SetTitle("X [mm]");
   h1_frame_loss->GetXaxis()->SetTitle("X [mm]");
+  h1_data->GetXaxis()->SetTitle("X [mm]");
 
   h3_pixels_avg->GetXaxis()->SetTitle("X [mm]");
   h3_busy->GetXaxis()->SetTitle("X [mm]");
@@ -174,6 +253,7 @@ int main(int argc, char** argv)
   h3_flush->GetXaxis()->SetTitle("X [mm]");
   h3_frame_efficiency->GetXaxis()->SetTitle("X [mm]");
   h3_frame_loss->GetXaxis()->SetTitle("X [mm]");
+  h3_data->GetXaxis()->SetTitle("X [mm]");
 
   h1_pixels_avg->GetYaxis()->SetTitle("Y [mm]");
   h1_busy->GetYaxis()->SetTitle("Y [mm]");
@@ -181,6 +261,7 @@ int main(int argc, char** argv)
   h1_flush->GetYaxis()->SetTitle("Y [mm]");
   h1_frame_efficiency->GetYaxis()->SetTitle("Y [mm]");
   h1_frame_loss->GetYaxis()->SetTitle("Y [mm]");
+  h1_data->GetYaxis()->SetTitle("Y [mm]");
 
   h3_pixels_avg->GetYaxis()->SetTitle("Y [mm]");
   h3_busy->GetYaxis()->SetTitle("Y [mm]");
@@ -188,6 +269,7 @@ int main(int argc, char** argv)
   h3_flush->GetYaxis()->SetTitle("Y [mm]");
   h3_frame_efficiency->GetYaxis()->SetTitle("Y [mm]");
   h3_frame_loss->GetYaxis()->SetTitle("Y [mm]");
+  h3_data->GetYaxis()->SetTitle("Y [mm]");
 
   h1_pixels_avg->GetYaxis()->SetTitleOffset(1.4);
   h1_busy->GetYaxis()->SetTitleOffset(1.4);
@@ -195,6 +277,7 @@ int main(int argc, char** argv)
   h1_flush->GetYaxis()->SetTitleOffset(1.4);
   h1_frame_efficiency->GetYaxis()->SetTitleOffset(1.4);
   h1_frame_loss->GetYaxis()->SetTitleOffset(1.4);
+  h1_data->GetYaxis()->SetTitleOffset(1.4);
 
   h3_pixels_avg->GetYaxis()->SetTitleOffset(1.4);
   h3_busy->GetYaxis()->SetTitleOffset(1.4);
@@ -202,6 +285,7 @@ int main(int argc, char** argv)
   h3_flush->GetYaxis()->SetTitleOffset(1.4);
   h3_frame_efficiency->GetYaxis()->SetTitleOffset(1.4);
   h3_frame_loss->GetYaxis()->SetTitleOffset(1.4);
+  h3_data->GetYaxis()->SetTitleOffset(1.4);
 
 
   // Drawing and writing to root file
@@ -230,6 +314,10 @@ int main(int argc, char** argv)
   h1_frame_loss->Write();
 
   gStyle->SetPalette(1);
+  h1_data->Draw("COLZ L");
+  h1_data->Write();
+
+  gStyle->SetPalette(1);
   h3_pixels_avg->Draw("COLZ L");
   h3_pixels_avg->Write();
 
@@ -252,6 +340,10 @@ int main(int argc, char** argv)
   gStyle->SetPalette(1);
   h3_frame_loss->Draw("COLZ L");
   h3_frame_loss->Write();
+
+  gStyle->SetPalette(1);
+  h3_data->Draw("COLZ L");
+  h3_data->Write();
 
   delete c1;
   delete f;
