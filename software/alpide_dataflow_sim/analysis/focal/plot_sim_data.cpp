@@ -16,6 +16,9 @@
 #include "focal_detector_plane.hpp"
 #include "read_csv.hpp"
 
+const unsigned int NUM_BINS_RADIUS_PLOTS = 15;
+const double CHIP_SIZE_X_MM = 30.0;
+
 const unsigned int C_ALPIDE_CHIP_HEADER_BYTES = 2;
 const unsigned int C_ALPIDE_CHIP_TRAILER_BYTES = 1;
 const unsigned int C_ALPIDE_CHIP_EMPTY_FRAME_BYTES = 2;
@@ -141,6 +144,53 @@ unsigned int get_ob_master_busy_count(const std::vector<std::map<std::string, un
 }
 
 
+TH1F* create_radius_plot(const TH2Poly* th2,
+                         const char* name,
+                         const char* title,
+                         const char* y_title,
+                         const std::string operation="sum")
+{
+  TH1F *h_radius = new TH1F(name, title, NUM_BINS_RADIUS_PLOTS, 0, NUM_BINS_RADIUS_PLOTS*CHIP_SIZE_X_MM);
+
+  std::map<unsigned int, unsigned int> radius_bin_fill_counts;
+
+  for(int bin_num = 1; bin_num <= th2->GetNumberOfBins(); bin_num++) {
+    // bin numbers start at 1...
+    unsigned int radius_bin = bin_number_to_radius_bin(bin_num) + 1;
+
+    if(operation == "sum" || operation == "avg") {
+      h_radius->AddBinContent(radius_bin,
+                              th2->GetBinContent(bin_num));
+
+      radius_bin_fill_counts[radius_bin]++;
+    }
+    else if(operation == "max") {
+      if(th2->GetBinContent(bin_num) > h_radius->GetBinContent(radius_bin))
+        h_radius->SetBinContent(radius_bin, th2->GetBinContent(bin_num));
+    }
+    else {
+      std::cerr << "Error: unknown operation " << operation << std::endl;
+      exit(-1);
+    }
+  }
+
+  if(operation == "avg") {
+    for(unsigned int radius_bin = 1; radius_bin <= NUM_BINS_RADIUS_PLOTS; radius_bin++) {
+      unsigned int N = radius_bin_fill_counts[radius_bin];
+
+      double average = (double) h_radius->GetBinContent(radius_bin) / N;
+      h_radius->SetBinContent(radius_bin, average);
+    }
+  }
+
+  h_radius->GetXaxis()->SetTitle("X [mm]");
+  h_radius->GetYaxis()->SetTitle(y_title);
+  h_radius->GetYaxis()->SetTitleOffset(2.0);
+
+  return h_radius;
+}
+
+
 //void plotBusyAndOccupancy(const char *path, double event_rate_ns, bool continuous_mode)
 int main(int argc, char** argv)
 {
@@ -168,16 +218,16 @@ int main(int argc, char** argv)
   TCanvas *c1 = new TCanvas("c1","c1",1200,800);
 
   TH2Poly *h1_pixels_avg = new TH2Poly();
-  TH2Poly *h1_busy = new TH2Poly();
-  TH2Poly *h1_busyv = new TH2Poly();
-  TH2Poly *h1_flush = new TH2Poly();
+  TH2Poly *h1_busy_avg = new TH2Poly();
+  TH2Poly *h1_busyv_avg = new TH2Poly();
+  TH2Poly *h1_flush_avg = new TH2Poly();
   TH2Poly *h1_frame_efficiency = new TH2Poly();
   TH2Poly *h1_frame_loss = new TH2Poly();
   TH2Poly *h1_data = new TH2Poly();
   TH2Poly *h3_pixels_avg = new TH2Poly();
-  TH2Poly *h3_busy = new TH2Poly();
-  TH2Poly *h3_busyv = new TH2Poly();
-  TH2Poly *h3_flush = new TH2Poly();
+  TH2Poly *h3_busy_avg = new TH2Poly();
+  TH2Poly *h3_busyv_avg = new TH2Poly();
+  TH2Poly *h3_flush_avg = new TH2Poly();
   TH2Poly *h3_frame_efficiency = new TH2Poly();
   TH2Poly *h3_frame_loss = new TH2Poly();
   TH2Poly *h3_data = new TH2Poly();
@@ -186,17 +236,17 @@ int main(int argc, char** argv)
   h1_pixels_avg->SetTitle("Average number of pixel hits per frame - Layer S1");
   create_focal_chip_bins(h1_pixels_avg);
 
-  h1_busy->SetName("h1_busy");
-  h1_busy->SetTitle("Average number of busy per frame - Layer S1");
-  create_focal_chip_bins(h1_busy);
+  h1_busy_avg->SetName("h1_busy_avg");
+  h1_busy_avg->SetTitle("Average number of busy per frame - Layer S1");
+  create_focal_chip_bins(h1_busy_avg);
 
-  h1_busyv->SetName("h1_busyv");
-  h1_busyv->SetTitle("Average number of busy violation per frame - Layer S1");
-  create_focal_chip_bins(h1_busyv);
+  h1_busyv_avg->SetName("h1_busyv_avg");
+  h1_busyv_avg->SetTitle("Average number of busy violation per frame - Layer S1");
+  create_focal_chip_bins(h1_busyv_avg);
 
-  h1_flush->SetName("h1_flush");
-  h1_flush->SetTitle("Average number of flush incomplete per frame - Layer S1");
-  create_focal_chip_bins(h1_flush);
+  h1_flush_avg->SetName("h1_flush_avg");
+  h1_flush_avg->SetTitle("Average number of flush incomplete per frame - Layer S1");
+  create_focal_chip_bins(h1_flush_avg);
 
   h1_frame_efficiency->SetName("h1_frame_efficiency");
   h1_frame_efficiency->SetTitle("Frame readout efficiency - Layer S1");
@@ -214,17 +264,17 @@ int main(int argc, char** argv)
   h3_pixels_avg->SetTitle("Average number of pixel hits per frame - Layer S3");
   create_focal_chip_bins(h3_pixels_avg);
 
-  h3_busy->SetName("h3_busy");
-  h3_busy->SetTitle("Average number of busy per frame - Layer S3");
-  create_focal_chip_bins(h3_busy);
+  h3_busy_avg->SetName("h3_busy_avg");
+  h3_busy_avg->SetTitle("Average number of busy per frame - Layer S3");
+  create_focal_chip_bins(h3_busy_avg);
 
-  h3_busyv->SetName("h3_busyv");
-  h3_busyv->SetTitle("Average number of busy violation per frame - Layer S3");
-  create_focal_chip_bins(h3_busyv);
+  h3_busyv_avg->SetName("h3_busyv_avg");
+  h3_busyv_avg->SetTitle("Average number of busy violation per frame - Layer S3");
+  create_focal_chip_bins(h3_busyv_avg);
 
-  h3_flush->SetName("h3_flush");
-  h3_flush->SetTitle("Average number of flush incomplete per frame - Layer S3");
-  create_focal_chip_bins(h3_flush);
+  h3_flush_avg->SetName("h3_flush_avg");
+  h3_flush_avg->SetTitle("Average number of flush incomplete per frame - Layer S3");
+  create_focal_chip_bins(h3_flush_avg);
 
   h3_frame_efficiency->SetName("h3_frame_efficiency");
   h3_frame_efficiency->SetTitle("Frame readout efficiency - Layer S3");
@@ -276,17 +326,17 @@ int main(int argc, char** argv)
 
     if(layer == 0) {
       h1_pixels_avg->SetBinContent(bin_num, avg_pix_hit_occupancy);
-      h1_busy->SetBinContent(bin_num, avg_busy_count);
-      h1_busyv->SetBinContent(bin_num, avg_busyv_count);
-      h1_flush->SetBinContent(bin_num, avg_flush_count);
+      h1_busy_avg->SetBinContent(bin_num, avg_busy_count);
+      h1_busyv_avg->SetBinContent(bin_num, avg_busyv_count);
+      h1_flush_avg->SetBinContent(bin_num, avg_flush_count);
       h1_frame_efficiency->SetBinContent(bin_num, frame_readout_efficiency);
       h1_frame_loss->SetBinContent(bin_num, 1.0-frame_readout_efficiency);
       h1_data->SetBinContent(bin_num, data_rate_mbps);
     } else {
       h3_pixels_avg->SetBinContent(bin_num, avg_pix_hit_occupancy);
-      h3_busy->SetBinContent(bin_num, avg_busy_count);
-      h3_busyv->SetBinContent(bin_num, avg_busyv_count);
-      h3_flush->SetBinContent(bin_num, avg_flush_count);
+      h3_busy_avg->SetBinContent(bin_num, avg_busy_count);
+      h3_busyv_avg->SetBinContent(bin_num, avg_busyv_count);
+      h3_flush_avg->SetBinContent(bin_num, avg_flush_count);
       h3_frame_efficiency->SetBinContent(bin_num, frame_readout_efficiency);
       h3_frame_loss->SetBinContent(bin_num, 1.0-frame_readout_efficiency);
       h3_data->SetBinContent(bin_num, data_rate_mbps);
@@ -297,65 +347,65 @@ int main(int argc, char** argv)
   c1->Update();
 
   h1_pixels_avg->SetStats(0);
-  h1_busy->SetStats(0);
-  h1_busyv->SetStats(0);
-  h1_flush->SetStats(0);
+  h1_busy_avg->SetStats(0);
+  h1_busyv_avg->SetStats(0);
+  h1_flush_avg->SetStats(0);
   h1_frame_efficiency->SetStats(0);
   h1_frame_loss->SetStats(0);
   h1_data->SetStats(0);
 
   h3_pixels_avg->SetStats(0);
-  h3_busy->SetStats(0);
-  h3_busyv->SetStats(0);
-  h3_flush->SetStats(0);
+  h3_busy_avg->SetStats(0);
+  h3_busyv_avg->SetStats(0);
+  h3_flush_avg->SetStats(0);
   h3_frame_efficiency->SetStats(0);
   h3_frame_loss->SetStats(0);
   h3_data->SetStats(0);
 
   h1_pixels_avg->GetXaxis()->SetTitle("X [mm]");
-  h1_busy->GetXaxis()->SetTitle("X [mm]");
-  h1_busyv->GetXaxis()->SetTitle("X [mm]");
-  h1_flush->GetXaxis()->SetTitle("X [mm]");
+  h1_busy_avg->GetXaxis()->SetTitle("X [mm]");
+  h1_busyv_avg->GetXaxis()->SetTitle("X [mm]");
+  h1_flush_avg->GetXaxis()->SetTitle("X [mm]");
   h1_frame_efficiency->GetXaxis()->SetTitle("X [mm]");
   h1_frame_loss->GetXaxis()->SetTitle("X [mm]");
   h1_data->GetXaxis()->SetTitle("X [mm]");
 
   h3_pixels_avg->GetXaxis()->SetTitle("X [mm]");
-  h3_busy->GetXaxis()->SetTitle("X [mm]");
-  h3_busyv->GetXaxis()->SetTitle("X [mm]");
-  h3_flush->GetXaxis()->SetTitle("X [mm]");
+  h3_busy_avg->GetXaxis()->SetTitle("X [mm]");
+  h3_busyv_avg->GetXaxis()->SetTitle("X [mm]");
+  h3_flush_avg->GetXaxis()->SetTitle("X [mm]");
   h3_frame_efficiency->GetXaxis()->SetTitle("X [mm]");
   h3_frame_loss->GetXaxis()->SetTitle("X [mm]");
   h3_data->GetXaxis()->SetTitle("X [mm]");
 
   h1_pixels_avg->GetYaxis()->SetTitle("Y [mm]");
-  h1_busy->GetYaxis()->SetTitle("Y [mm]");
-  h1_busyv->GetYaxis()->SetTitle("Y [mm]");
-  h1_flush->GetYaxis()->SetTitle("Y [mm]");
+  h1_busy_avg->GetYaxis()->SetTitle("Y [mm]");
+  h1_busyv_avg->GetYaxis()->SetTitle("Y [mm]");
+  h1_flush_avg->GetYaxis()->SetTitle("Y [mm]");
   h1_frame_efficiency->GetYaxis()->SetTitle("Y [mm]");
   h1_frame_loss->GetYaxis()->SetTitle("Y [mm]");
   h1_data->GetYaxis()->SetTitle("Y [mm]");
 
   h3_pixels_avg->GetYaxis()->SetTitle("Y [mm]");
-  h3_busy->GetYaxis()->SetTitle("Y [mm]");
-  h3_busyv->GetYaxis()->SetTitle("Y [mm]");
-  h3_flush->GetYaxis()->SetTitle("Y [mm]");
+  h3_busy_avg->GetYaxis()->SetTitle("Y [mm]");
+  h3_busyv_avg->GetYaxis()->SetTitle("Y [mm]");
+  h3_flush_avg->GetYaxis()->SetTitle("Y [mm]");
   h3_frame_efficiency->GetYaxis()->SetTitle("Y [mm]");
   h3_frame_loss->GetYaxis()->SetTitle("Y [mm]");
   h3_data->GetYaxis()->SetTitle("Y [mm]");
 
   h1_pixels_avg->GetYaxis()->SetTitleOffset(1.4);
-  h1_busy->GetYaxis()->SetTitleOffset(1.4);
-  h1_busyv->GetYaxis()->SetTitleOffset(1.4);
-  h1_flush->GetYaxis()->SetTitleOffset(1.4);
+  h1_busy_avg->GetYaxis()->SetTitleOffset(1.4);
+  h1_busyv_avg->GetYaxis()->SetTitleOffset(1.4);
+  h1_flush_avg->GetYaxis()->SetTitleOffset(1.4);
   h1_frame_efficiency->GetYaxis()->SetTitleOffset(1.4);
   h1_frame_loss->GetYaxis()->SetTitleOffset(1.4);
   h1_data->GetYaxis()->SetTitleOffset(1.4);
 
   h3_pixels_avg->GetYaxis()->SetTitleOffset(1.4);
-  h3_busy->GetYaxis()->SetTitleOffset(1.4);
-  h3_busyv->GetYaxis()->SetTitleOffset(1.4);
-  h3_flush->GetYaxis()->SetTitleOffset(1.4);
+  h3_busy_avg->GetYaxis()->SetTitleOffset(1.4);
+  h3_busyv_avg->GetYaxis()->SetTitleOffset(1.4);
+  h3_flush_avg->GetYaxis()->SetTitleOffset(1.4);
   h3_frame_efficiency->GetYaxis()->SetTitleOffset(1.4);
   h3_frame_loss->GetYaxis()->SetTitleOffset(1.4);
   h3_data->GetYaxis()->SetTitleOffset(1.4);
@@ -369,22 +419,22 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h1_pixels_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
-  h1_busy->Draw("COLZ L");
-  h1_busy->Write();
-  c1->Print(Form("%s/h1_busy.png", plots_path.c_str()));
-  c1->Print(Form("%s/h1_busy.pdf", plots_path.c_str()));
+  h1_busy_avg->Draw("COLZ L");
+  h1_busy_avg->Write();
+  c1->Print(Form("%s/h1_busy_avg.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_busy_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
-  h1_busyv->Draw("COLZ L");
-  h1_busyv->Write();
-  c1->Print(Form("%s/h1_busyv.png", plots_path.c_str()));
-  c1->Print(Form("%s/h1_busyv.pdf", plots_path.c_str()));
+  h1_busyv_avg->Draw("COLZ L");
+  h1_busyv_avg->Write();
+  c1->Print(Form("%s/h1_busyv_avg.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_busyv_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
-  h1_flush->Draw("COLZ L");
-  h1_flush->Write();
-  c1->Print(Form("%s/h1_flush.png", plots_path.c_str()));
-  c1->Print(Form("%s/h1_flush.pdf", plots_path.c_str()));
+  h1_flush_avg->Draw("COLZ L");
+  h1_flush_avg->Write();
+  c1->Print(Form("%s/h1_flush_avg.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_flush_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h1_frame_efficiency->Draw("COLZ L");
@@ -411,22 +461,22 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h3_pixels_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
-  h3_busy->Draw("COLZ L");
-  h3_busy->Write();
-  c1->Print(Form("%s/h3_busy.png", plots_path.c_str()));
-  c1->Print(Form("%s/h3_busy.pdf", plots_path.c_str()));
+  h3_busy_avg->Draw("COLZ L");
+  h3_busy_avg->Write();
+  c1->Print(Form("%s/h3_busy_avg.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_busy_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
-  h3_busyv->Draw("COLZ L");
-  h3_busyv->Write();
-  c1->Print(Form("%s/h3_busyv.png", plots_path.c_str()));
-  c1->Print(Form("%s/h3_busyv.pdf", plots_path.c_str()));
+  h3_busyv_avg->Draw("COLZ L");
+  h3_busyv_avg->Write();
+  c1->Print(Form("%s/h3_busyv_avg.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_busyv_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
-  h3_flush->Draw("COLZ L");
-  h3_flush->Write();
-  c1->Print(Form("%s/h3_flush.png", plots_path.c_str()));
-  c1->Print(Form("%s/h3_flush.pdf", plots_path.c_str()));
+  h3_flush_avg->Draw("COLZ L");
+  h3_flush_avg->Write();
+  c1->Print(Form("%s/h3_flush_avg.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_flush_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h3_frame_efficiency->Draw("COLZ L");
@@ -445,6 +495,135 @@ int main(int argc, char** argv)
   h3_data->Write();
   c1->Print(Form("%s/h3_data.png", plots_path.c_str()));
   c1->Print(Form("%s/h3_data.pdf", plots_path.c_str()));
+
+
+  // ---------------------------------------------------------------------------
+  // Make plots versus radius/distance from center of detector plane
+  // ---------------------------------------------------------------------------
+  TH1F* h1_data_radius = create_radius_plot(h1_data, "h1_data_radius",
+                                            "Average data rate per chip - Layer S1",
+                                            "Mbps", "avg");
+  h1_data_radius->Draw("");
+  h1_data_radius->Write();
+  c1->Print(Form("%s/h1_data_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_data_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h3_data_radius = create_radius_plot(h3_data, "h3_data_radius",
+                                            "Average data rate per chip - Layer S3",
+                                            "Mbps", "avg");
+  h3_data_radius->Draw("");
+  h3_data_radius->Write();
+  c1->Print(Form("%s/h3_data_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_data_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h1_pixels_avg_radius = create_radius_plot(h1_pixels_avg, "h1_pixels_avg_radius",
+                                            "Average number of pixel hits per frame per chip - Layer S1",
+                                            "Pixel hits", "avg");
+  h1_pixels_avg_radius->Draw("");
+  h1_pixels_avg_radius->Write();
+  c1->Print(Form("%s/h1_pixels_avg_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_pixels_avg_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h3_pixels_avg_radius = create_radius_plot(h3_pixels_avg, "h3_pixels_avg_radius",
+                                                  "Average number of pixel hits per frame per chip - Layer S3",
+                                                  "Pixel hits", "avg");
+  h3_pixels_avg_radius->Draw("");
+  h3_pixels_avg_radius->Write();
+  c1->Print(Form("%s/h3_pixels_avg_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_pixels_avg_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h1_busy_avg_radius = create_radius_plot(h1_busy_avg, "h1_busy_avg_radius",
+                                                  "Average number of busy per frame per chip - Layer S1",
+                                                  "Busy per frame", "avg");
+  h1_busy_avg_radius->Draw("");
+  h1_busy_avg_radius->Write();
+  c1->Print(Form("%s/h1_busy_avg_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_busy_avg_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h3_busy_avg_radius = create_radius_plot(h3_busy_avg, "h3_busy_avg_radius",
+                                                "Average number of busy per frame per chip - Layer S3",
+                                                "Busy per frame", "avg");
+  h3_busy_avg_radius->Draw("");
+  h3_busy_avg_radius->Write();
+  c1->Print(Form("%s/h3_busy_avg_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_busy_avg_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h1_busyv_avg_radius = create_radius_plot(h1_busyv_avg, "h1_busyv_avg_radius",
+                                                "Average number of busy violations per frame per chip - Layer S1",
+                                                "Busy violations per frame", "avg");
+  h1_busyv_avg_radius->Draw("");
+  h1_busyv_avg_radius->Write();
+  c1->Print(Form("%s/h1_busyv_avg_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_busyv_avg_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h3_busyv_avg_radius = create_radius_plot(h3_busyv_avg, "h3_busyv_avg_radius",
+                                                "Average number of busy violations per frame per chip - Layer S3",
+                                                "Busy violations per frame", "avg");
+  h3_busyv_avg_radius->Draw("");
+  h3_busyv_avg_radius->Write();
+  c1->Print(Form("%s/h3_busyv_avg_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_busyv_avg_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h1_flush_avg_radius = create_radius_plot(h1_flush_avg, "h1_flush_avg_radius",
+                                                 "Average number of flush incompl. per frame per chip - Layer S1",
+                                                 "Flush incompl. per frame", "avg");
+  h1_flush_avg_radius->Draw("");
+  h1_flush_avg_radius->Write();
+  c1->Print(Form("%s/h1_flush_avg_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_flush_avg_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h3_flush_avg_radius = create_radius_plot(h3_flush_avg, "h3_flush_avg_radius",
+                                                 "Average number of flush incompl. per frame per chip - Layer S3",
+                                                 "Flush incompl. per frame", "avg");
+  h3_flush_avg_radius->Draw("");
+  h3_flush_avg_radius->Write();
+  c1->Print(Form("%s/h3_flush_avg_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_flush_avg_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h1_frame_efficiency_radius = create_radius_plot(h1_frame_efficiency, "h1_frame_efficiency_radius",
+                                                 "Frame readout efficiency - Layer S1",
+                                                 "Efficiency", "avg");
+  h1_frame_efficiency_radius->Draw("");
+  h1_frame_efficiency_radius->Write();
+  c1->Print(Form("%s/h1_frame_efficiency_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_frame_efficiency_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h3_frame_efficiency_radius = create_radius_plot(h3_frame_efficiency, "h3_frame_efficiency_radius",
+                                                        "Frame readout efficiency - Layer S3",
+                                                        "Efficiency", "avg");
+  h3_frame_efficiency_radius->Draw("");
+  h3_frame_efficiency_radius->Write();
+  c1->Print(Form("%s/h3_frame_efficiency_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_frame_efficiency_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h1_frame_loss_radius = create_radius_plot(h1_frame_loss, "h1_frame_loss_radius",
+                                                 "Frame readout loss - Layer S1",
+                                                 "Loss", "avg");
+  h1_frame_loss_radius->Draw("");
+  h1_frame_loss_radius->Write();
+  c1->Print(Form("%s/h1_frame_loss_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_frame_loss_radius.pdf", plots_path.c_str()));
+
+
+  TH1F* h3_frame_loss_radius = create_radius_plot(h3_frame_loss, "h3_frame_loss_radius",
+                                                        "Frame readout loss - Layer S3",
+                                                        "Loss", "avg");
+  h3_frame_loss_radius->Draw("");
+  h3_frame_loss_radius->Write();
+  c1->Print(Form("%s/h3_frame_loss_radius.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_frame_loss_radius.pdf", plots_path.c_str()));
 
   delete c1;
   delete f;

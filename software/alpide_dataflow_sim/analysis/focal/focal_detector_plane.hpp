@@ -4,6 +4,6 @@
 #include <TH2Poly.h>
 
 void create_focal_chip_bins(TH2Poly* th2);
-unsigned int bin_number_to_radius(unsigned int bin_num);
+unsigned int bin_number_to_radius_bin(unsigned int bin_num);
 
 #endif

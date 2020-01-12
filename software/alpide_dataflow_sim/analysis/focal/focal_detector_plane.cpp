@@ -53,7 +53,7 @@ void create_focal_chip_bins(TH2Poly* th2)
 ///                          1 = 4cm + 1 x 3cm = 7cm radius
 ///                          2 = 4cm + 2 x 3cm = 10cm radius
 ///                          and so on..
-unsigned int bin_number_to_radius(unsigned int bin_num)
+unsigned int bin_number_to_radius_bin(unsigned int bin_num)
 {
   unsigned int radius = 0;
   unsigned int chip_id = bin_num-1;
