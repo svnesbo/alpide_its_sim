@@ -12,6 +12,7 @@
 #include "../get_num_events.hpp"
 #include "../src/Settings/Settings.hpp"
 #include "../../src/Detector/Focal/Focal_constants.hpp"
+#include "../../src/Detector/ITS/ITS_constants.hpp"
 #include "focal_detector_plane.hpp"
 #include "read_csv.hpp"
 
@@ -77,6 +78,59 @@ double calculate_data_rate(std::map<std::string, unsigned long>& alpide_data_ent
   double data_rate_mbps = data_megabits / sim_time_seconds;
 
   return data_rate_mbps;
+}
+
+
+///@brief Determine if an entry in the alpide stats csv file is
+///       for a chip in outer barrel master mode
+bool is_outer_barrel_master(std::map<std::string, unsigned long>& alpide_data_entry)
+{
+  unsigned int stave_num_in_quadrant = alpide_data_entry["Stave ID"] % Focal::STAVES_PER_QUADRANT;
+  unsigned int module_id = alpide_data_entry["Module ID"];
+  unsigned int module_chip_id = alpide_data_entry["Local Chip ID"];
+
+  if(stave_num_in_quadrant < Focal::INNER_STAVES_PER_QUADRANT &&
+     module_id > 0 &&
+     module_chip_id == 0)
+  {
+    // Outer barrel master chip in Focal Inner Stave
+    return true;
+  }
+  else if(stave_num_in_quadrant >= Focal::INNER_STAVES_PER_QUADRANT &&
+          module_chip_id == 0)
+  {
+    // Outer barrel master chip in Focal Outer Stave
+    return true;
+  } else {
+    // IB chip or OB slave chip
+    return false;
+  }
+}
+
+
+unsigned int get_ob_master_busy_count(const std::vector<std::map<std::string, unsigned long> >& alpide_data,
+                                      unsigned int ob_master_idx)
+{
+  unsigned int stave_num_in_quadrant = alpide_data[ob_master_idx].at("Stave ID") % Focal::STAVES_PER_QUADRANT;
+  unsigned int num_ob_chips;
+
+  if(stave_num_in_quadrant < Focal::INNER_STAVES_PER_QUADRANT)
+    num_ob_chips = ITS::CHIPS_PER_HALF_MODULE;
+  else
+    num_ob_chips = Focal::CHIPS_PER_FOCAL_OB_MODULE;
+
+  if(alpide_data.size() < ob_master_idx+num_ob_chips) {
+    std::cerr << "Error: too few entries left to fix busy count for OB master " << std::endl;
+    exit(-1);
+  }
+
+  unsigned int ob_master_busy_count = alpide_data[ob_master_idx].at("Busy");
+
+  for(unsigned int slave = 1; slave < num_ob_chips; slave++) {
+    ob_master_busy_count -= alpide_data[ob_master_idx+slave].at("Busy");
+  }
+
+  return ob_master_busy_count;
 }
 
 
@@ -203,6 +257,12 @@ int main(int argc, char** argv)
     double frame_readout_efficiency = 1.0 - (busyv_count+flush_count)/(double)received_trigs;
 
     double data_rate_mbps = calculate_data_rate(alpide_data[i], sim_time_ns);
+
+    if(is_outer_barrel_master(alpide_data[i])) {
+      // Busy count in the CSV file contains sum of busy from all slaves + master
+      // for the OB master chip. This function subtracts the busy counts for the slaves
+      busy_count = get_ob_master_busy_count(alpide_data, i);
+    }
 
     if(layer == 0) {
       h1_pixels_avg->SetBinContent(bin_num, avg_pix_hit_occupancy);
