@@ -260,6 +260,12 @@ int main(int argc, char** argv)
 
     unsigned int bin_num = chip_id_in_layer+1;
 
+    if(is_outer_barrel_master(alpide_data[i])) {
+      // Busy count in the CSV file contains sum of busy from all slaves + master
+      // for the OB master chip. This function subtracts the busy counts for the slaves
+      busy_count = get_ob_master_busy_count(alpide_data, i);
+    }
+
     double avg_pix_hit_occupancy = (double)pixel_hits / accepted_trigs;
     double avg_busy_count = (double)busy_count / received_trigs;
     double avg_busyv_count = (double)busyv_count / received_trigs;
@@ -267,12 +273,6 @@ int main(int argc, char** argv)
     double frame_readout_efficiency = 1.0 - (busyv_count+flush_count)/(double)received_trigs;
 
     double data_rate_mbps = calculate_data_rate(alpide_data[i], sim_time_ns);
-
-    if(is_outer_barrel_master(alpide_data[i])) {
-      // Busy count in the CSV file contains sum of busy from all slaves + master
-      // for the OB master chip. This function subtracts the busy counts for the slaves
-      busy_count = get_ob_master_busy_count(alpide_data, i);
-    }
 
     if(layer == 0) {
       h1_pixels_avg->SetBinContent(bin_num, avg_pix_hit_occupancy);
