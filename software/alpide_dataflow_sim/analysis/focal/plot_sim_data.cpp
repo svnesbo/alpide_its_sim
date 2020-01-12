@@ -84,6 +84,23 @@ double calculate_data_rate(std::map<std::string, unsigned long>& alpide_data_ent
 }
 
 
+///@brief Check if a specific chip ID was included in the simulation
+///@param global_chip_id Global chip ID to check
+///@param staves_per_quadrant Number of staves simulated per quadrant in the simulation
+///@return True if chip ID is included in simulation
+bool is_chip_id_included_in_sim(unsigned int global_chip_id, unsigned int staves_per_quadrant)
+{
+  unsigned int chip_id_in_layer = global_chip_id % Focal::CHIPS_PER_LAYER;
+  unsigned int stave_id = chip_id_in_layer / Focal::CHIPS_PER_STAVE;
+  unsigned int stave_num_in_quadrant = stave_id % Focal::STAVES_PER_QUADRANT;
+
+  if(stave_num_in_quadrant < staves_per_quadrant)
+    return true;
+  else
+    return false;
+}
+
+
 ///@brief Determine if an entry in the alpide stats csv file is
 ///       for a chip in outer barrel master mode
 bool is_outer_barrel_master(std::map<std::string, unsigned long>& alpide_data_entry)
@@ -144,7 +161,8 @@ unsigned int get_ob_master_busy_count(const std::vector<std::map<std::string, un
 }
 
 
-TH1F* create_radius_plot(const TH2Poly* th2,
+TH1F* create_radius_plot(unsigned int staves_per_quadrant,
+                         const TH2Poly* th2,
                          const char* name,
                          const char* title,
                          const char* y_title,
@@ -152,9 +170,14 @@ TH1F* create_radius_plot(const TH2Poly* th2,
 {
   TH1F *h_radius = new TH1F(name, title, NUM_BINS_RADIUS_PLOTS, 0, NUM_BINS_RADIUS_PLOTS*CHIP_SIZE_X_MM);
 
+  // Number of times we've filled a specific radius bin.. use for averaging later
   std::map<unsigned int, unsigned int> radius_bin_fill_counts;
 
   for(int bin_num = 1; bin_num <= th2->GetNumberOfBins(); bin_num++) {
+    // Skip chips that are not included in simulation
+    if(is_chip_id_included_in_sim(bin_num-1, staves_per_quadrant) == false)
+      continue;
+
     // bin numbers start at 1...
     unsigned int radius_bin = bin_number_to_radius_bin(bin_num) + 1;
 
@@ -500,7 +523,10 @@ int main(int argc, char** argv)
   // ---------------------------------------------------------------------------
   // Make plots versus radius/distance from center of detector plane
   // ---------------------------------------------------------------------------
-  TH1F* h1_data_radius = create_radius_plot(h1_data, "h1_data_radius",
+  unsigned int staves_per_quadrant = sim_settings->value("focal/staves_per_quadrant").toUInt();
+
+  TH1F* h1_data_radius = create_radius_plot(staves_per_quadrant,
+                                            h1_data, "h1_data_radius",
                                             "Average data rate per chip - Layer S1",
                                             "Mbps", "avg");
   h1_data_radius->Draw("");
@@ -509,7 +535,8 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h1_data_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h3_data_radius = create_radius_plot(h3_data, "h3_data_radius",
+  TH1F* h3_data_radius = create_radius_plot(staves_per_quadrant,
+                                            h3_data, "h3_data_radius",
                                             "Average data rate per chip - Layer S3",
                                             "Mbps", "avg");
   h3_data_radius->Draw("");
@@ -518,16 +545,18 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h3_data_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h1_pixels_avg_radius = create_radius_plot(h1_pixels_avg, "h1_pixels_avg_radius",
-                                            "Average number of pixel hits per frame per chip - Layer S1",
-                                            "Pixel hits", "avg");
+  TH1F* h1_pixels_avg_radius = create_radius_plot(staves_per_quadrant,
+                                                  h1_pixels_avg, "h1_pixels_avg_radius",
+                                                  "Average number of pixel hits per frame per chip - Layer S1",
+                                                  "Pixel hits", "avg");
   h1_pixels_avg_radius->Draw("");
   h1_pixels_avg_radius->Write();
   c1->Print(Form("%s/h1_pixels_avg_radius.png", plots_path.c_str()));
   c1->Print(Form("%s/h1_pixels_avg_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h3_pixels_avg_radius = create_radius_plot(h3_pixels_avg, "h3_pixels_avg_radius",
+  TH1F* h3_pixels_avg_radius = create_radius_plot(staves_per_quadrant,
+                                                  h3_pixels_avg, "h3_pixels_avg_radius",
                                                   "Average number of pixel hits per frame per chip - Layer S3",
                                                   "Pixel hits", "avg");
   h3_pixels_avg_radius->Draw("");
@@ -536,16 +565,18 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h3_pixels_avg_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h1_busy_avg_radius = create_radius_plot(h1_busy_avg, "h1_busy_avg_radius",
-                                                  "Average number of busy per frame per chip - Layer S1",
-                                                  "Busy per frame", "avg");
+  TH1F* h1_busy_avg_radius = create_radius_plot(staves_per_quadrant,
+                                                h1_busy_avg, "h1_busy_avg_radius",
+                                                "Average number of busy per frame per chip - Layer S1",
+                                                "Busy per frame", "avg");
   h1_busy_avg_radius->Draw("");
   h1_busy_avg_radius->Write();
   c1->Print(Form("%s/h1_busy_avg_radius.png", plots_path.c_str()));
   c1->Print(Form("%s/h1_busy_avg_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h3_busy_avg_radius = create_radius_plot(h3_busy_avg, "h3_busy_avg_radius",
+  TH1F* h3_busy_avg_radius = create_radius_plot(staves_per_quadrant,
+                                                h3_busy_avg, "h3_busy_avg_radius",
                                                 "Average number of busy per frame per chip - Layer S3",
                                                 "Busy per frame", "avg");
   h3_busy_avg_radius->Draw("");
@@ -554,7 +585,8 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h3_busy_avg_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h1_busyv_avg_radius = create_radius_plot(h1_busyv_avg, "h1_busyv_avg_radius",
+  TH1F* h1_busyv_avg_radius = create_radius_plot(staves_per_quadrant,
+                                                 h1_busyv_avg, "h1_busyv_avg_radius",
                                                 "Average number of busy violations per frame per chip - Layer S1",
                                                 "Busy violations per frame", "avg");
   h1_busyv_avg_radius->Draw("");
@@ -563,7 +595,8 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h1_busyv_avg_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h3_busyv_avg_radius = create_radius_plot(h3_busyv_avg, "h3_busyv_avg_radius",
+  TH1F* h3_busyv_avg_radius = create_radius_plot(staves_per_quadrant,
+                                                 h3_busyv_avg, "h3_busyv_avg_radius",
                                                 "Average number of busy violations per frame per chip - Layer S3",
                                                 "Busy violations per frame", "avg");
   h3_busyv_avg_radius->Draw("");
@@ -572,7 +605,8 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h3_busyv_avg_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h1_flush_avg_radius = create_radius_plot(h1_flush_avg, "h1_flush_avg_radius",
+  TH1F* h1_flush_avg_radius = create_radius_plot(staves_per_quadrant,
+                                                 h1_flush_avg, "h1_flush_avg_radius",
                                                  "Average number of flush incompl. per frame per chip - Layer S1",
                                                  "Flush incompl. per frame", "avg");
   h1_flush_avg_radius->Draw("");
@@ -581,7 +615,8 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h1_flush_avg_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h3_flush_avg_radius = create_radius_plot(h3_flush_avg, "h3_flush_avg_radius",
+  TH1F* h3_flush_avg_radius = create_radius_plot(staves_per_quadrant,
+                                                 h3_flush_avg, "h3_flush_avg_radius",
                                                  "Average number of flush incompl. per frame per chip - Layer S3",
                                                  "Flush incompl. per frame", "avg");
   h3_flush_avg_radius->Draw("");
@@ -590,16 +625,18 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h3_flush_avg_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h1_frame_efficiency_radius = create_radius_plot(h1_frame_efficiency, "h1_frame_efficiency_radius",
-                                                 "Frame readout efficiency - Layer S1",
-                                                 "Efficiency", "avg");
+  TH1F* h1_frame_efficiency_radius = create_radius_plot(staves_per_quadrant,
+                                                        h1_frame_efficiency, "h1_frame_efficiency_radius",
+                                                        "Frame readout efficiency - Layer S1",
+                                                        "Efficiency", "avg");
   h1_frame_efficiency_radius->Draw("");
   h1_frame_efficiency_radius->Write();
   c1->Print(Form("%s/h1_frame_efficiency_radius.png", plots_path.c_str()));
   c1->Print(Form("%s/h1_frame_efficiency_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h3_frame_efficiency_radius = create_radius_plot(h3_frame_efficiency, "h3_frame_efficiency_radius",
+  TH1F* h3_frame_efficiency_radius = create_radius_plot(staves_per_quadrant,
+                                                        h3_frame_efficiency, "h3_frame_efficiency_radius",
                                                         "Frame readout efficiency - Layer S3",
                                                         "Efficiency", "avg");
   h3_frame_efficiency_radius->Draw("");
@@ -608,7 +645,8 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h3_frame_efficiency_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h1_frame_loss_radius = create_radius_plot(h1_frame_loss, "h1_frame_loss_radius",
+  TH1F* h1_frame_loss_radius = create_radius_plot(staves_per_quadrant,
+                                                  h1_frame_loss, "h1_frame_loss_radius",
                                                  "Frame readout loss - Layer S1",
                                                  "Loss", "avg");
   h1_frame_loss_radius->Draw("");
@@ -617,9 +655,10 @@ int main(int argc, char** argv)
   c1->Print(Form("%s/h1_frame_loss_radius.pdf", plots_path.c_str()));
 
 
-  TH1F* h3_frame_loss_radius = create_radius_plot(h3_frame_loss, "h3_frame_loss_radius",
-                                                        "Frame readout loss - Layer S3",
-                                                        "Loss", "avg");
+  TH1F* h3_frame_loss_radius = create_radius_plot(staves_per_quadrant,
+                                                  h3_frame_loss, "h3_frame_loss_radius",
+                                                  "Frame readout loss - Layer S3",
+                                                  "Loss", "avg");
   h3_frame_loss_radius->Draw("");
   h3_frame_loss_radius->Write();
   c1->Print(Form("%s/h3_frame_loss_radius.png", plots_path.c_str()));
