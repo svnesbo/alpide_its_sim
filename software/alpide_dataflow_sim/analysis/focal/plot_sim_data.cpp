@@ -124,11 +124,14 @@ unsigned int get_ob_master_busy_count(const std::vector<std::map<std::string, un
     exit(-1);
   }
 
-  unsigned int ob_master_busy_count = alpide_data[ob_master_idx].at("Busy");
+  int ob_master_busy_count = alpide_data[ob_master_idx].at("Busy");
 
   for(unsigned int slave = 1; slave < num_ob_chips; slave++) {
     ob_master_busy_count -= alpide_data[ob_master_idx+slave].at("Busy");
   }
+
+  if(ob_master_busy_count < 0)
+    ob_master_busy_count = 0;
 
   return ob_master_busy_count;
 }
