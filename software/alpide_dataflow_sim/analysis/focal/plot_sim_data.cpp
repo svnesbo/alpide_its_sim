@@ -293,6 +293,9 @@ int main(int argc, char** argv)
     }
   }
 
+  c1->SetRightMargin(0.2);
+  c1->Update();
+
   h1_pixels_avg->SetStats(0);
   h1_busy->SetStats(0);
   h1_busyv->SetStats(0);
@@ -362,58 +365,86 @@ int main(int argc, char** argv)
   gStyle->SetPalette(1);
   h1_pixels_avg->Draw("COLZ L");
   h1_pixels_avg->Write();
+  c1->Print(Form("%s/h1_pixels_avg.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_pixels_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h1_busy->Draw("COLZ L");
   h1_busy->Write();
+  c1->Print(Form("%s/h1_busy.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_busy.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h1_busyv->Draw("COLZ L");
   h1_busyv->Write();
+  c1->Print(Form("%s/h1_busyv.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_busyv.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h1_flush->Draw("COLZ L");
   h1_flush->Write();
+  c1->Print(Form("%s/h1_flush.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_flush.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h1_frame_efficiency->Draw("COLZ L");
   h1_frame_efficiency->Write();
+  c1->Print(Form("%s/h1_frame_efficiency.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_frame_efficiency.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h1_frame_loss->Draw("COLZ L");
   h1_frame_loss->Write();
+  c1->Print(Form("%s/h1_frame_loss.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_frame_loss.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h1_data->Draw("COLZ L");
   h1_data->Write();
+  c1->Print(Form("%s/h1_data.png", plots_path.c_str()));
+  c1->Print(Form("%s/h1_data.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h3_pixels_avg->Draw("COLZ L");
   h3_pixels_avg->Write();
+  c1->Print(Form("%s/h3_pixels_avg.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_pixels_avg.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h3_busy->Draw("COLZ L");
   h3_busy->Write();
+  c1->Print(Form("%s/h3_busy.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_busy.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h3_busyv->Draw("COLZ L");
   h3_busyv->Write();
+  c1->Print(Form("%s/h3_busyv.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_busyv.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h3_flush->Draw("COLZ L");
   h3_flush->Write();
+  c1->Print(Form("%s/h3_flush.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_flush.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h3_frame_efficiency->Draw("COLZ L");
   h3_frame_efficiency->Write();
+  c1->Print(Form("%s/h3_frame_efficiency.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_frame_efficiency.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h3_frame_loss->Draw("COLZ L");
   h3_frame_loss->Write();
+  c1->Print(Form("%s/h3_frame_loss.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_frame_loss.pdf", plots_path.c_str()));
 
   gStyle->SetPalette(1);
   h3_data->Draw("COLZ L");
   h3_data->Write();
+  c1->Print(Form("%s/h3_data.png", plots_path.c_str()));
+  c1->Print(Form("%s/h3_data.pdf", plots_path.c_str()));
 
   delete c1;
   delete f;
