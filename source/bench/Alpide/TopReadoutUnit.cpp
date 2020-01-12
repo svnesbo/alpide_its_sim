@@ -15,11 +15,14 @@ SC_HAS_PROCESS(TopReadoutUnit);
 //////@param[in] global_chip_id Global chip ID that uniquely identifies chip in simulation
 ///@param[in] local_chip_id Chip ID that identifies chip in the stave or module
 TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name,
-                               const unsigned int global_chip_id, const unsigned int local_chip_id)
+                               const unsigned int global_chip_id,
+                               const unsigned int local_chip_id,
+                               std::shared_ptr<std::map<AlpideDataType, uint64_t>> data_word_count)
   : sc_core::sc_module(name)
   , mGlobalChipId(global_chip_id)
   , mLocalChipId(local_chip_id)
   , mIdle(false)
+  , mDataWordCount(data_word_count)
 {
   s_tru_current_state = IDLE;
   s_tru_next_state = IDLE;
@@ -80,6 +83,8 @@ void TopReadoutUnit::topRegionReadoutStateUpdate(void)
     s_dmu_fifo_input->nb_write(s_tru_data.read());
 
     data_out = s_tru_data.read();
+
+    (*mDataWordCount)[data_out.data_type]++;
 
 #ifdef PIXEL_DEBUG
     if(data_out.data_type == ALPIDE_REGION_TRAILER) {

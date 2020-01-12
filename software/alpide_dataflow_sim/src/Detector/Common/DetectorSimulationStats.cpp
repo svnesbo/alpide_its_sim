@@ -83,33 +83,49 @@ void Detector::writeAlpideStatsToFile(std::string output_path,
 
   std::cout << "Writing Alpide stats to file. " << std::endl;
 
-  std::string trigger_stats_filename = output_path + std::string("/Alpide_stats.csv");
-  ofstream trigger_stats_file(trigger_stats_filename);
+  std::string alpide_stats_filename = output_path + std::string("/Alpide_stats.csv");
+  ofstream alpide_stats_file(alpide_stats_filename);
 
-  trigger_stats_file << "Layer ID; Stave ID; Sub-stave ID; Module ID; Local Chip ID; Unique Chip ID; ";
-  trigger_stats_file << "Received triggers; Accepted triggers; Rejected triggers; ";
-  trigger_stats_file << "Busy; Busy violations; Flushed Incompletes;";
-  trigger_stats_file << "Latched pixel hits; Duplicate pixel hits" << std::endl;
+  alpide_stats_file << "Layer ID; Stave ID; Sub-stave ID; Module ID; Local Chip ID; Unique Chip ID; ";
+  alpide_stats_file << "Received triggers; Accepted triggers; Rejected triggers; ";
+  alpide_stats_file << "Busy; Busy violations; Flushed Incompletes;";
+  alpide_stats_file << "Latched pixel hits; Duplicate pixel hits;";
+  alpide_stats_file << "ALPIDE_IDLE; ALPIDE_CHIP_HEADER; ALPIDE_CHIP_TRAILER;";
+  alpide_stats_file << "ALPIDE_CHIP_EMPTY_FRAME; ALPIDE_REGION_HEADER;";
+  alpide_stats_file << "ALPIDE_REGION_TRAILER; ALPIDE_DATA_SHORT; ALPIDE_DATA_LONG;";
+  alpide_stats_file << "ALPIDE_BUSY_ON; ALPIDE_BUSY_OFF; ALPIDE_COMMA; ALPIDE_UNKNOWN" << std::endl;
 
   for(auto const & chip_it : alpide_map) {
     if(chip_it.second != nullptr) {
       unsigned int unique_chip_id = chip_it.second->getGlobalChipId();
       DetectorPosition pos = (*global_chip_id_to_position_func)(unique_chip_id);
 
-      trigger_stats_file << pos.layer_id << ";";
-      trigger_stats_file << pos.stave_id << ";";
-      trigger_stats_file << pos.sub_stave_id << ";";
-      trigger_stats_file << pos.module_id << ";";
-      trigger_stats_file << pos.module_chip_id << ";";
-      trigger_stats_file << unique_chip_id << ";";
-      trigger_stats_file << chip_it.second->getTriggersReceivedCount() << ";";
-      trigger_stats_file << chip_it.second->getTriggersAcceptedCount() << ";";
-      trigger_stats_file << chip_it.second->getTriggersRejectedCount() << ";";
-      trigger_stats_file << chip_it.second->getBusyCount() << ";";
-      trigger_stats_file << chip_it.second->getBusyViolationCount() << ";";
-      trigger_stats_file << chip_it.second->getFlushedIncompleteCount() << ";";
-      trigger_stats_file << chip_it.second->getLatchedPixelHitCount() << ";";
-      trigger_stats_file << chip_it.second->getDuplicatePixelHitCount() << std::endl;
+      alpide_stats_file << pos.layer_id << ";";
+      alpide_stats_file << pos.stave_id << ";";
+      alpide_stats_file << pos.sub_stave_id << ";";
+      alpide_stats_file << pos.module_id << ";";
+      alpide_stats_file << pos.module_chip_id << ";";
+      alpide_stats_file << unique_chip_id << ";";
+      alpide_stats_file << chip_it.second->getTriggersReceivedCount() << ";";
+      alpide_stats_file << chip_it.second->getTriggersAcceptedCount() << ";";
+      alpide_stats_file << chip_it.second->getTriggersRejectedCount() << ";";
+      alpide_stats_file << chip_it.second->getBusyCount() << ";";
+      alpide_stats_file << chip_it.second->getBusyViolationCount() << ";";
+      alpide_stats_file << chip_it.second->getFlushedIncompleteCount() << ";";
+      alpide_stats_file << chip_it.second->getLatchedPixelHitCount() << ";";
+      alpide_stats_file << chip_it.second->getDuplicatePixelHitCount() << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_IDLE) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_CHIP_HEADER) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_CHIP_TRAILER) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_CHIP_EMPTY_FRAME) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_REGION_HEADER) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_REGION_TRAILER) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_DATA_SHORT) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_DATA_LONG) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_BUSY_ON) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_BUSY_OFF) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_COMMA) << ";";
+      alpide_stats_file << chip_it.second->getDataWordCount(ALPIDE_UNKNOWN) << std::endl;
     }
   }
 

@@ -81,7 +81,9 @@ Alpide::Alpide(sc_core::sc_module_name name, const int global_chip_id, const int
 
   mStrobeActive = false;
 
-  mTRU = new TopReadoutUnit("TRU", global_chip_id, local_chip_id);
+  mDataWordCount = std::make_shared<std::map<AlpideDataType, uint64_t>>();
+
+  mTRU = new TopReadoutUnit("TRU", global_chip_id, local_chip_id, mDataWordCount);
 
   // Allocate/create/name SystemC FIFOs for the regions and connect the
   // Region Readout Units (RRU) FIFO outputs to Top Readout Unit (TRU) FIFO inputs
@@ -819,6 +821,8 @@ void Alpide::busyFifoMethod(void)
   }
 
   s_busy_fifo.nb_write(dw_busy);
+
+  (*mDataWordCount)[dw_busy.data_type]++;
 }
 
 
