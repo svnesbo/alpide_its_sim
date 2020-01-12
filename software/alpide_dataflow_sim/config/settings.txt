@@ -1,8 +1,9 @@
 [General]
-output_dir_prefix=sim_output
+output_dir_prefix=sim_output_focal_experiment/
 verbose=false
 
 [alpide]
+chip_continuous_mode=false
 data_long_enable=true
 dtu_delay=10
 matrix_readout_speed_fast=true
@@ -10,7 +11,6 @@ minimum_busy_cycles=8
 pixel_shaping_active_time_ns=5000
 pixel_shaping_dead_time_ns=200
 strobe_extension_enable=false
-chip_continuous_mode=false
 
 [data_output]
 data_rate_interval_ns=100000
@@ -19,7 +19,7 @@ write_vcd=false
 write_vcd_clock=false
 
 [event]
-average_event_rate_ns=10000
+average_event_rate_ns=2000
 monte_carlo_file_type=root
 qed_noise_event_rate_ns=10000
 qed_noise_feed_rate_ns=5000
@@ -38,7 +38,7 @@ trigger_filter_time_ns=1230
 
 [focal]
 monte_carlo_file_path=config/monte_carlo_events/focal/pixel_event_tree_pythia_MB_r4cm.root
-staves_per_quadrant=3
+staves_per_quadrant=33
 
 [its]
 bunch_crossing_rate_ns=25
@@ -66,7 +66,8 @@ beam_start_coord_x_mm=-5
 beam_start_coord_y_mm=-5
 beam_step_mm=3.0
 beam_time_per_step_us=125.0
-monte_carlo_file_path=config/monte_carlo_events/focal/pixel_event_tree_pythia_MB.root
+layers="0;5;10;15;20;25;30;35;40"
+monte_carlo_file_path=config/monte_carlo_events/focal/pixel_event_tree_pythia_MB_r4cm.root
 num_layers=2
 num_staves_per_layer=12
 random_beam_stddev_mm=3.0

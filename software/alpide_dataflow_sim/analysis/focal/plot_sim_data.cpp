@@ -124,14 +124,18 @@ unsigned int get_ob_master_busy_count(const std::vector<std::map<std::string, un
     exit(-1);
   }
 
-  int ob_master_busy_count = alpide_data[ob_master_idx].at("Busy");
+  // Just average it instead of subtracting the number from the slaves
+  // Because the sum of busy slaves can be larger than the number of busys
+  // sent by the master chip, since two slaves that are busy at the same time
+  // are only counted once by the master...
+  int ob_master_busy_count = alpide_data[ob_master_idx].at("Busy") / num_ob_chips;
 
-  for(unsigned int slave = 1; slave < num_ob_chips; slave++) {
-    ob_master_busy_count -= alpide_data[ob_master_idx+slave].at("Busy");
-  }
+  /* for(unsigned int slave = 1; slave < num_ob_chips; slave++) { */
+  /*   ob_master_busy_count -= alpide_data[ob_master_idx+slave].at("Busy"); */
+  /* } */
 
-  if(ob_master_busy_count < 0)
-    ob_master_busy_count = 0;
+  /* if(ob_master_busy_count < 0) */
+  /*   ob_master_busy_count = 0; */
 
   return ob_master_busy_count;
 }
