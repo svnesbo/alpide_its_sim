@@ -207,7 +207,7 @@ int main(int argc, char** argv)
   create_focal_chip_bins(h1_frame_loss);
 
   h1_data->SetName("h1_data");
-  h1_data->SetTitle("Average data rate - Layer S1");
+  h1_data->SetTitle("Average data rate [Mbps] - Layer S1");
   create_focal_chip_bins(h1_data);
 
   h3_pixels_avg->SetName("h3_pixels_avg");
@@ -235,7 +235,7 @@ int main(int argc, char** argv)
   create_focal_chip_bins(h3_frame_loss);
 
   h3_data->SetName("h3_data");
-  h3_data->SetTitle("Average data rate - Layer S3");
+  h3_data->SetTitle("Average data rate [Mbps] - Layer S3");
   create_focal_chip_bins(h3_data);
 
   gStyle->SetPalette(1);
@@ -261,6 +261,9 @@ int main(int argc, char** argv)
     unsigned int bin_num = chip_id_in_layer+1;
 
     double avg_pix_hit_occupancy = (double)pixel_hits / accepted_trigs;
+    double avg_busy_count = (double)busy_count / received_trigs;
+    double avg_busyv_count = (double)busyv_count / received_trigs;
+    double avg_flush_count = (double)flush_count / accepted_trigs;
     double frame_readout_efficiency = 1.0 - (busyv_count+flush_count)/(double)received_trigs;
 
     double data_rate_mbps = calculate_data_rate(alpide_data[i], sim_time_ns);
@@ -273,17 +276,17 @@ int main(int argc, char** argv)
 
     if(layer == 0) {
       h1_pixels_avg->SetBinContent(bin_num, avg_pix_hit_occupancy);
-      h1_busy->SetBinContent(bin_num, busy_count);
-      h1_busyv->SetBinContent(bin_num, busyv_count);
-      h1_flush->SetBinContent(bin_num, flush_count);
+      h1_busy->SetBinContent(bin_num, avg_busy_count);
+      h1_busyv->SetBinContent(bin_num, avg_busyv_count);
+      h1_flush->SetBinContent(bin_num, avg_flush_count);
       h1_frame_efficiency->SetBinContent(bin_num, frame_readout_efficiency);
       h1_frame_loss->SetBinContent(bin_num, 1.0-frame_readout_efficiency);
       h1_data->SetBinContent(bin_num, data_rate_mbps);
     } else {
       h3_pixels_avg->SetBinContent(bin_num, avg_pix_hit_occupancy);
-      h3_busy->SetBinContent(bin_num, busy_count);
-      h3_busyv->SetBinContent(bin_num, busyv_count);
-      h3_flush->SetBinContent(bin_num, flush_count);
+      h3_busy->SetBinContent(bin_num, avg_busy_count);
+      h3_busyv->SetBinContent(bin_num, avg_busyv_count);
+      h3_flush->SetBinContent(bin_num, avg_flush_count);
       h3_frame_efficiency->SetBinContent(bin_num, frame_readout_efficiency);
       h3_frame_loss->SetBinContent(bin_num, 1.0-frame_readout_efficiency);
       h3_data->SetBinContent(bin_num, data_rate_mbps);
