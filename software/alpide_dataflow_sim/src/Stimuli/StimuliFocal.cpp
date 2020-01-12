@@ -37,8 +37,7 @@ StimuliFocal::StimuliFocal(sc_core::sc_module_name name, QSettings* settings, st
     exit(-1);
   }
 
-
-  const unsigned int staves_per_quadrant = 3;
+  const unsigned int staves_per_quadrant = settings->value("focal/staves_per_quadrant").toUInt();
 
   // Initialize detector configuration for Focal.
   Focal::FocalDetectorConfig config(staves_per_quadrant);
