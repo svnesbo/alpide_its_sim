@@ -208,7 +208,7 @@ TH1F* create_radius_plot(unsigned int staves_per_quadrant,
 
   h_radius->GetXaxis()->SetTitle("X [mm]");
   h_radius->GetYaxis()->SetTitle(y_title);
-  h_radius->GetYaxis()->SetTitleOffset(2.0);
+  h_radius->GetYaxis()->SetTitleOffset(1.4);
 
   return h_radius;
 }
@@ -528,7 +528,7 @@ int main(int argc, char** argv)
   TH1F* h1_data_radius = create_radius_plot(staves_per_quadrant,
                                             h1_data, "h1_data_radius",
                                             "Average data rate per chip - Layer S1",
-                                            "Mbps", "avg");
+                                            "Data rate [Mbps]", "avg");
   h1_data_radius->Draw("");
   h1_data_radius->Write();
   c1->Print(Form("%s/h1_data_radius.png", plots_path.c_str()));
@@ -538,7 +538,7 @@ int main(int argc, char** argv)
   TH1F* h3_data_radius = create_radius_plot(staves_per_quadrant,
                                             h3_data, "h3_data_radius",
                                             "Average data rate per chip - Layer S3",
-                                            "Mbps", "avg");
+                                            "Data rate [Mbps]", "avg");
   h3_data_radius->Draw("");
   h3_data_radius->Write();
   c1->Print(Form("%s/h3_data_radius.png", plots_path.c_str()));
