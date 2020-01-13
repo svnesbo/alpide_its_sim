@@ -243,10 +243,6 @@ bool macro_cell_coords_to_chip_coords(const unsigned int macro_cell_x, const uns
   int i_macro_cell_x = macro_cell_x - 1600;
   int i_macro_cell_y = macro_cell_y - 1600;
 
-  // Skip hits that fall inside the gap (though the data set shouldn't really include hits there..)
-  if(abs(i_macro_cell_x) < Focal::GAP_SIZE_X_MM/2 && abs(i_macro_cell_y) < Focal::GAP_SIZE_Y_MM/2)
-    return false;
-
   double macro_cell_x_mm = i_macro_cell_x * Focal::MACRO_CELL_SIZE_X_MM;
   double macro_cell_y_mm = i_macro_cell_y * Focal::MACRO_CELL_SIZE_Y_MM;
 
@@ -256,17 +252,18 @@ bool macro_cell_coords_to_chip_coords(const unsigned int macro_cell_x, const uns
     quadrant = 0;
   } else if(macro_cell_x_mm < 0 && macro_cell_y_mm > 0) {
     quadrant = 1;
-    macro_cell_x_mm = -macro_cell_x_mm;
   } else if(macro_cell_x_mm < 0 && macro_cell_y_mm < 0) {
     quadrant = 2;
-    macro_cell_x_mm = -macro_cell_x_mm;
-    macro_cell_y_mm = -macro_cell_y_mm;
   } else {
     quadrant = 3;
-    macro_cell_y_mm = -macro_cell_y_mm;
   }
 
-  global_chip_id += quadrant*Focal::CHIPS_PER_QUADRANT;
+  macro_cell_x_mm = abs(macro_cell_x_mm);
+  macro_cell_y_mm = abs(macro_cell_y_mm);
+
+  // Skip hits that fall inside the gap (though the data set shouldn't really include hits there..)
+  if(abs(macro_cell_x_mm) < Focal::GAP_SIZE_X_MM/2 && abs(macro_cell_y_mm) < Focal::GAP_SIZE_Y_MM/2)
+    return false;
 
   // Skip hit if its y-coord falls above or beyond detector plane
   if(macro_cell_y_mm > Focal::STAVES_PER_QUADRANT*Focal::STAVE_SIZE_Y_MM)
@@ -275,8 +272,14 @@ bool macro_cell_coords_to_chip_coords(const unsigned int macro_cell_x, const uns
   // If the hit is in one of the two patches to the right or left of the gap,
   // then subtract the half gap size to "align" them with the rest of the patches,
   // which simplifies the calculations..
-  if(macro_cell_y_mm < Focal::STAVES_PER_HALF_PATCH*Focal::STAVE_SIZE_Y_MM)
+  if(macro_cell_y_mm < Focal::STAVES_PER_HALF_PATCH*Focal::STAVE_SIZE_Y_MM) {
     macro_cell_x_mm -= Focal::GAP_SIZE_X_MM/2;
+
+    // Just in case the value ended up being a "slightly negative zero"
+    // in case of some floating point gremlins
+    if(macro_cell_x_mm < 0)
+      macro_cell_x_mm = 0.0;
+  }
 
   // Skip hit if its x-coord falls outside the detector plane
   if(macro_cell_x_mm > Focal::STAVE_SIZE_X_MM)
