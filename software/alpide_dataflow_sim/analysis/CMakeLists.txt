@@ -76,6 +76,21 @@ add_executable(compare_simulations compare_simulations.C)
 target_link_libraries(compare_simulations ${ROOT_LIBRARIES})
 set_target_properties(compare_simulations PROPERTIES LINKER_LANGUAGE CXX)
 
+
+# Focal
+
+list (APPEND FOCAL_SRCS "${PROJECT_SOURCE_DIR}/focal/plot_sim_data.cpp")
+list (APPEND FOCAL_SRCS "${PROJECT_SOURCE_DIR}/focal/read_csv.cpp")
+list (APPEND FOCAL_SRCS "${PROJECT_SOURCE_DIR}/focal/focal_detector_plane.cpp")
+list (APPEND FOCAL_SRCS "${PROJECT_SOURCE_DIR}/../src/Detector/Focal/FocalDetectorConfig.cpp")
+list (APPEND FOCAL_SRCS "${PROJECT_SOURCE_DIR}/get_num_events.cpp")
+
+add_executable(focal_plot_sim_data ${FOCAL_SRCS} )
+target_link_libraries(focal_plot_sim_data Qt5Core)
+target_link_libraries(focal_plot_sim_data ${ROOT_LIBRARIES})
+set_target_properties(focal_plot_sim_data PROPERTIES LINKER_LANGUAGE CXX)
+qt5_use_modules(focal_plot_sim_data Core Xml)
+
 # add a target to generate API documentation with Doxygen
 #find_package(Doxygen)
 #if(DOXYGEN_FOUND)

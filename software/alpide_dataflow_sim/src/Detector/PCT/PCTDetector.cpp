@@ -99,10 +99,6 @@ void PCTDetector::buildDetector(const PCTDetectorConfig& config,
                                 bool trigger_filter_enable,
                                 unsigned int data_rate_interval_ns)
 {
-  // Reserve space for all chips, even if they are not used (not allocated),
-  // because we access/index them by index in the vectors, and vector access is O(1).
-  mChipVector.resize(PCT::CHIP_COUNT_TOTAL, nullptr);
-
   for(unsigned int lay_id = 0; lay_id < PCT::N_LAYERS; lay_id++) {
     // Skip layers that are not included in simulation
     if(config.layer[lay_id].num_staves == 0)
@@ -155,9 +151,9 @@ void PCTDetector::buildDetector(const PCTDetectorConfig& config,
       }
 
       for(auto chip_it = new_chips.begin(); chip_it != new_chips.end(); chip_it++) {
-        unsigned int chip_id = (*chip_it)->getChipId();
+        unsigned int chip_id = (*chip_it)->getGlobalChipId();
         // Don't allow more than one instance of the same Chip ID
-        if(mChipVector[chip_id] != nullptr) {
+        if(mChipMap.find(chip_id) != mChipMap.end()) {
           std::string error_msg = "Chip with ID ";
           error_msg += std::to_string(chip_id);
           error_msg += " created more than once..";
@@ -165,7 +161,7 @@ void PCTDetector::buildDetector(const PCTDetectorConfig& config,
           throw std::runtime_error(error_msg);
         }
 
-        mChipVector[chip_id] = *chip_it;
+        mChipMap[chip_id] = *chip_it;
         mNumChips++;
       }
     }
@@ -179,8 +175,8 @@ void PCTDetector::buildDetector(const PCTDetectorConfig& config,
 void PCTDetector::pixelInput(const std::shared_ptr<PixelHit>& pix)
 {
   // Does the chip exist in our detector/simulation configuration?
-  if(mChipVector[pix->getChipId()]) {
-    mChipVector[pix->getChipId()]->pixelFrontEndInput(pix);
+  if(mChipMap.find(pix->getChipId()) != mChipMap.end()) {
+    mChipMap[pix->getChipId()]->pixelFrontEndInput(pix);
   } else {
     std::cout << "Chip " << pix->getChipId() << " does not exist." << std::endl;
   }
@@ -198,12 +194,8 @@ void PCTDetector::pixelInput(const std::shared_ptr<PixelHit>& pix)
 void PCTDetector::setPixel(unsigned int chip_id, unsigned int col, unsigned int row)
 {
   // Does the chip exist in our detector/simulation configuration?
-  if(mChipVector[chip_id]) {
-    ///@todo Check if chip is ready?
-    //if(mChipVector[chip_id]->s_chip_ready) {
-    //}
-
-    mChipVector[chip_id]->setPixel(col, row);
+  if(mChipMap.find(chip_id) != mChipMap.end()) {
+    mChipMap[chip_id]->setPixel(col, row);
   }
 }
 
@@ -231,12 +223,8 @@ void PCTDetector::setPixel(const Detector::DetectorPosition& pos,
 void PCTDetector::setPixel(const std::shared_ptr<PixelHit>& p)
 {
   // Does the chip exist in our detector/simulation configuration?
-  if(mChipVector[p->getChipId()]) {
-    ///@todo Check if chip is ready?
-    //if(mChipVector[chip_id]->s_chip_ready) {
-    //}
-
-    mChipVector[p->getChipId()]->setPixel(p);
+  if(mChipMap.find(p->getChipId()) != mChipMap.end()) {
+    mChipMap[p->getChipId()]->setPixel(p);
   }
 }
 
@@ -289,7 +277,7 @@ void PCTDetector::addTraces(sc_trace_file *wf, std::string name_prefix) const
 void PCTDetector::writeSimulationStats(const std::string output_path) const
 {
   Detector::writeAlpideStatsToFile(output_path,
-                                   mChipVector,
+                                   mChipMap,
                                    &PCT::PCT_global_chip_id_to_position);
 
   for(unsigned int layer = 0; layer < PCT::N_LAYERS; layer++) {

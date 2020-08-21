@@ -12,44 +12,65 @@
 
 unsigned int Focal::Focal_position_to_global_chip_id(const Detector::DetectorPosition& pos)
 {
-  unsigned int chip_num;
+  unsigned int global_chip_id = pos.layer_id*CHIPS_PER_LAYER;
 
-  chip_num = Focal::CUMULATIVE_CHIP_COUNT_AT_LAYER[pos.layer_id];
+  // Quadrant 0: top right, 1: top left, 2: bottom left, 3: bottom right
+  unsigned int quadrant = pos.stave_id/STAVES_PER_QUADRANT;
+  unsigned int stave_in_quadrant = pos.stave_id % STAVES_PER_QUADRANT;
 
-  chip_num += pos.stave_id * Focal::CHIPS_PER_STAVE_IN_LAYER[pos.layer_id];
+  global_chip_id += quadrant*CHIPS_PER_QUADRANT;
+  global_chip_id += stave_in_quadrant*CHIPS_PER_STAVE;
 
-  chip_num += pos.module_chip_id;
+  if(stave_in_quadrant < INNER_STAVES_PER_QUADRANT) {
+    // Focal Inner Stave
+    if(pos.module_id > 0) {
+      // Second module with 7 outer barrel chips in this stave
+      global_chip_id += CHIPS_PER_FOCAL_IB_MODULE;
+    }
+  } else {
+    // Focal Outer Stave
+    global_chip_id += pos.module_id * CHIPS_PER_FOCAL_OB_MODULE;
+  }
 
-  return chip_num;
+  global_chip_id += pos.module_chip_id;
+
+  return global_chip_id;
 }
+
 
 Detector::DetectorPosition Focal::Focal_global_chip_id_to_position(unsigned int global_chip_id) {
   unsigned int layer_id = 0;
   unsigned int stave_id = 0;
   unsigned int sub_stave_id = 0;
   unsigned int module_id = 0;
-  unsigned int chip_num_in_stave = 0;
+  unsigned int module_chip_id = 0;
 
-  while(layer_id < Focal::N_LAYERS-1) {
-    if(global_chip_id < Focal::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer_id+1])
-      break;
-    else
-      layer_id++;
+  layer_id = global_chip_id/CHIPS_PER_LAYER;
+  global_chip_id -= layer_id*CHIPS_PER_LAYER;
+
+  stave_id = global_chip_id/CHIPS_PER_STAVE;
+  global_chip_id -= stave_id*CHIPS_PER_STAVE;
+
+  unsigned int stave_in_quadrant = stave_id % STAVES_PER_QUADRANT;
+
+  if(stave_in_quadrant < INNER_STAVES_PER_QUADRANT) {
+    // Focal Inner Stave
+    if(global_chip_id >= CHIPS_PER_FOCAL_IB_MODULE) {
+      module_id = 1;
+      global_chip_id -= CHIPS_PER_FOCAL_IB_MODULE;
+    }
+  } else {
+    // Focal Outer Stave
+    module_id = global_chip_id / CHIPS_PER_FOCAL_OB_MODULE;
+    global_chip_id -= module_id * CHIPS_PER_FOCAL_OB_MODULE;
   }
 
-  unsigned int chip_num_in_layer = global_chip_id;
-
-  if(layer_id > 0)
-    chip_num_in_layer -= Focal::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer_id];
-
-  stave_id = chip_num_in_layer / Focal::CHIPS_PER_STAVE_IN_LAYER[layer_id];
-  chip_num_in_stave = chip_num_in_layer % Focal::CHIPS_PER_STAVE_IN_LAYER[layer_id];
+  module_chip_id = global_chip_id;
 
   Detector::DetectorPosition position = {layer_id,
                                          stave_id,
                                          sub_stave_id, // Not used in Focal
-                                         module_id,    // Not used in Focal
-                                         chip_num_in_stave};
-
+                                         module_id,
+                                         module_chip_id};
   return position;
 }

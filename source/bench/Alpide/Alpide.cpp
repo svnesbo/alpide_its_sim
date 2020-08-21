@@ -17,7 +17,8 @@
 SC_HAS_PROCESS(Alpide);
 ///@brief Constructor for Alpide.
 ///@param[in] name    SystemC module name
-///@param[in] chip_id Desired chip id
+///@param[in] global_chip_id Global chip ID that uniquely identifies chip in simulation
+///@param[in] local_chip_id Chip ID that identifies chip in the stave or module
 ///@param[in] chip_cfg Chip configuration
 ///@param[in] outer_barrel_mode True: outer barrel mode. False: inner barrel mode
 ///@param[in] outer_barrel_master Only relevant if in OB mode.
@@ -25,8 +26,9 @@ SC_HAS_PROCESS(Alpide);
 ///@param[in] outer_barrel_slave_count Number of slave chips connected to outer barrel master
 ///@param[in] min_busy_cycles Minimum number of cycles that the internal busy signal has to be
 ///           asserted before the chip transmits BUSY_ON
-Alpide::Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConfig& chip_cfg,
-               bool outer_barrel_mode, bool outer_barrel_master, int outer_barrel_slave_count)
+Alpide::Alpide(sc_core::sc_module_name name, const int global_chip_id, const int local_chip_id,
+               const AlpideConfig& chip_cfg, bool outer_barrel_mode, bool outer_barrel_master,
+               int outer_barrel_slave_count)
   : sc_core::sc_module(name)
   , s_control_input("s_control_input")
   , s_data_output("s_data_output")
@@ -39,6 +41,8 @@ Alpide::Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConf
   , s_busy_fifo(BUSY_FIFO_SIZE)
   , s_frame_start_fifo(TRU_FRAME_FIFO_SIZE)
   , s_frame_end_fifo(TRU_FRAME_FIFO_SIZE)
+  , mGlobalChipId(global_chip_id)
+  , mLocalChipId(local_chip_id)
   , mChipContinuousMode(chip_cfg.chip_continuous_mode)
   , mStrobeExtensionEnable(chip_cfg.strobe_extension)
   , mStrobeLengthNs(chip_cfg.strobe_length_ns)
@@ -47,7 +51,6 @@ Alpide::Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConf
   , mObMaster(outer_barrel_master)
   , mObSlaveCount(outer_barrel_slave_count)
 {
-  mChipId = chip_id;
   mEnableDtuDelay = chip_cfg.dtu_delay_cycles > 0;
 
   s_chip_ready_out(s_chip_ready_internal);
@@ -78,7 +81,9 @@ Alpide::Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConf
 
   mStrobeActive = false;
 
-  mTRU = new TopReadoutUnit("TRU", chip_id);
+  mDataWordCount = std::make_shared<std::map<AlpideDataType, uint64_t>>();
+
+  mTRU = new TopReadoutUnit("TRU", global_chip_id, local_chip_id, mDataWordCount);
 
   // Allocate/create/name SystemC FIFOs for the regions and connect the
   // Region Readout Units (RRU) FIFO outputs to Top Readout Unit (TRU) FIFO inputs
@@ -369,7 +374,7 @@ void Alpide::strobeInput(void)
     // (ie go out of data overrun mode) when the frame fifo has been cleared.
     if(frame_start_fifo_empty && frame_end_fifo_empty) {
       if(s_readout_abort == true) {
-        std::cout << "@ " << time_now << " ns:\t" << "Alpide chip ID: " << mChipId;
+        std::cout << "@ " << time_now << " ns:\t" << "Alpide global chip ID: " << mGlobalChipId;
         std::cout << " exited data overrun mode." << std::endl;
       }
 
@@ -381,7 +386,7 @@ void Alpide::strobeInput(void)
       s_readout_abort = true;
 
       if(s_fatal_state == false) {
-        std::cout << "@ " << time_now << " ns:\t" << "Alpide chip ID: " << mChipId;
+        std::cout << "@ " << time_now << " ns:\t" << "Alpide global chip ID: " << mGlobalChipId;
         std::cout << " entered fatal mode." << std::endl;
       }
 
@@ -393,7 +398,7 @@ void Alpide::strobeInput(void)
       ///@todo Need to clear RRU FIFOs, and MEBs when entering this state
 
       if(s_readout_abort == false) {
-        std::cout << "@ " << time_now << " ns:\t" << "Alpide chip ID: " << mChipId;
+        std::cout << "@ " << time_now << " ns:\t" << "Alpide global chip ID: " << mGlobalChipId;
         std::cout << " entered data overrun mode." << std::endl;
       }
 
@@ -816,6 +821,8 @@ void Alpide::busyFifoMethod(void)
   }
 
   s_busy_fifo.nb_write(dw_busy);
+
+  (*mDataWordCount)[dw_busy.data_type]++;
 }
 
 
@@ -825,7 +832,7 @@ void Alpide::busyFifoMethod(void)
 void Alpide::addTraces(sc_trace_file *wf, std::string name_prefix) const
 {
   std::stringstream ss;
-  ss << name_prefix << "alpide_" << mChipId << ".";
+  ss << name_prefix << "alpide_" << mGlobalChipId << ".";
   std::string alpide_name_prefix = ss.str();
 
   //addTrace(wf, alpide_name_prefix, "chip_ready_out", s_chip_ready_out);

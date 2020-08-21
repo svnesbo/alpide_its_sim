@@ -62,7 +62,7 @@ public:
   std::vector<sc_port<sc_fifo_in_if<AlpideDataWord>>> s_local_bus_data_in;
 
   ///@brief DMU FIFO output is available on this port.
-  ///       Only used by master chip in OB configuration
+  ///       Only used in OB configuration
   sc_port<sc_fifo_in_if<AlpideDataWord>> s_local_bus_data_out;
 
   ///@brief Busy line inputs from slave chips in OB mode.
@@ -153,7 +153,8 @@ private:
   };
 
 private:
-  int mChipId;
+  int mGlobalChipId;
+  int mLocalChipId;
 
   bool mChipContinuousMode;
 
@@ -229,6 +230,9 @@ private:
 
   uint64_t mEventIdCount = 0;
 
+  ///@brief Counts of how many data words of each type has been transmitted
+  std::shared_ptr<std::map<AlpideDataType, uint64_t>> mDataWordCount;
+
   void newEvent(uint64_t event_time);
   void mainMethod(void);
   void triggerMethod(void);
@@ -243,10 +247,11 @@ private:
   ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
 public:
-  Alpide(sc_core::sc_module_name name, const int chip_id, const AlpideConfig& chip_cfg,
-         bool outer_barrel_mode = false, bool outer_barrel_master = false,
-         int outer_barrel_slave_count = 0);
-  int getChipId(void) {return mChipId;}
+  Alpide(sc_core::sc_module_name name, const int global_chip_id, const int local_chip_id,
+         const AlpideConfig& chip_cfg, bool outer_barrel_mode = false,
+         bool outer_barrel_master = false, int outer_barrel_slave_count = 0);
+  int getGlobalChipId(void) {return mGlobalChipId;}
+  int getLocalChipId(void) {return mLocalChipId;}
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 
   uint64_t getTriggersReceivedCount(void) const {return mTriggersReceived;}
@@ -255,6 +260,9 @@ public:
   uint64_t getBusyCount(void) const {return mBusyTransitions;}
   uint64_t getBusyViolationCount(void) const {return mBusyViolations;}
   uint64_t getFlushedIncompleteCount(void) const {return mFlushedIncompleteCount;}
+  uint64_t getDataWordCount(AlpideDataType dw) const {
+    if(mDataWordCount->find(dw) != mDataWordCount->end()) return (*mDataWordCount)[dw]; else return 0;
+  }
 };
 
 

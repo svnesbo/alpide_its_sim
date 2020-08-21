@@ -115,12 +115,12 @@ void RegionReadoutUnit::updateRegionDataOut(void)
     int64_t time_now = sc_time_stamp().value();
     if(!pop_trailer && data.data[0] == DW_REGION_TRAILER) {
       std::cerr << "@" << time_now << " ns: ";
-      std::cerr << "Chip " << static_cast<Alpide*>(mPixelMatrix)->getChipId();
+      std::cerr << "Global chip ID " << static_cast<Alpide*>(mPixelMatrix)->getGlobalChipId();
       std::cerr << ", region " << mRegionId;
       std::cerr << ": Oops read out REGION_TRAILER" << std::endl;
     } else if(pop_trailer && data.data[0] != DW_REGION_TRAILER) {
       std::cerr << "@" << time_now << " ns: ";
-      std::cerr << "Chip " << static_cast<Alpide*>(mPixelMatrix)->getChipId();
+      std::cerr << "Global chip ID " << static_cast<Alpide*>(mPixelMatrix)->getGlobalChipId();
       std::cerr << ", region " << mRegionId;
       std::cerr << ": Oops popped something else than REGION_TRAILER" << std::endl;
     }
@@ -245,7 +245,7 @@ bool RegionReadoutUnit::regionMatrixReadoutFSM(void)
       if(s_region_fifo.nb_put(AlpideRegionTrailer()) == false) {
         int64_t time_now = sc_time_stamp().value();
         std::cerr << "@" << time_now << " ns: ";
-        std::cerr << "Chip " << static_cast<Alpide*>(mPixelMatrix)->getChipId();
+        std::cerr << "Global chip ID " << static_cast<Alpide*>(mPixelMatrix)->getGlobalChipId();
         std::cerr << ", region " << mRegionId;
         std::cerr << ": Oops writing REGION_TRAILER to fifo failed" << std::endl;
       }

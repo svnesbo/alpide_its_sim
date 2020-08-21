@@ -155,12 +155,18 @@ void StimuliITS::stimuliMainMethod(void)
 
     writeStimuliInfo();
 
-    if(mSingleChipSimulation)
+    if(mSingleChipSimulation) {
+      std::map<unsigned int, std::shared_ptr<Alpide>> chip_map;
+
+      // The writeAlpideStatsToFile function expects a map of chip ids vs chip objects
+      chip_map[mAlpide->getChips()[0]->getGlobalChipId()] = mAlpide->getChips()[0];
+
       Detector::writeAlpideStatsToFile(mOutputPath,
-                                       mAlpide->getChips(),
+                                       chip_map,
                                        &ITS::ITS_global_chip_id_to_position);
-    else
+    } else {
       mITS->writeSimulationStats(mOutputPath);
+    }
 
     mEventGen->writeSimulationStats(mOutputPath);
   }

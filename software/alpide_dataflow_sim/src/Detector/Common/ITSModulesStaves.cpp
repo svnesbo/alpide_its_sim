@@ -26,13 +26,14 @@ SingleChip::SingleChip(sc_core::sc_module_name const &name,
 
   mChip = std::make_shared<Alpide>("Alpide",
                                    chip_id,
+                                   chip_id & 0x0F, // Only 4 bits in local chip ID
                                    chip_cfg);
 
-    socket_control_out.bind(mChip->s_control_input);
-    mChip->s_data_output(socket_data_out[0]);
-    mChip->s_system_clk_in(s_system_clk_in);
-    s_alpide_data_out_exp(mChip->s_serial_data_out_exp);
-    s_serial_data_trig_id_exp(mChip->s_serial_data_trig_id_exp);
+  socket_control_out.bind(mChip->s_control_input);
+  mChip->s_data_output(socket_data_out[0]);
+  mChip->s_system_clk_in(s_system_clk_in);
+  s_alpide_data_out_exp(mChip->s_serial_data_out_exp);
+  s_serial_data_trig_id_exp(mChip->s_serial_data_trig_id_exp);
 }
 
 
@@ -93,6 +94,7 @@ InnerBarrelStave::InnerBarrelStave(sc_core::sc_module_name const &name,
 
     mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
                                               global_chip_id,
+                                              pos.module_chip_id,
                                               chip_cfg));
 
     auto &chip = *mChips.back();
@@ -157,10 +159,11 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
   socket_control_in.register_transport(std::bind(&HalfModule::processCommand,
                                                  this, std::placeholders::_1));
 
+  // Create OB master chip first
   pos.module_chip_id = ITS::CHIPS_PER_HALF_MODULE*half_mod_id;
 
-  // Create OB master chip
   unsigned int global_chip_id = (*position_to_global_chip_id_func)(pos);
+
   std::string chip_name = "Chip_" + std::to_string(global_chip_id);
   std::cout << "Creating chip with global ID " << global_chip_id;
   std::cout << ", layer " << pos.layer_id << ", stave " << pos.stave_id;
@@ -169,6 +172,7 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
 
   mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
                                             global_chip_id,
+                                            pos.module_chip_id,
                                             cfg,
                                             true, // Outer barrel mode
                                             true, // Outer barrel master
@@ -189,10 +193,12 @@ HalfModule::HalfModule(sc_core::sc_module_name const &name,
 
     std::cout << "Creating chip with global ID " << global_chip_id;
     std::cout << ", layer " << pos.layer_id << ", stave " << pos.stave_id;
-    std::cout << ", module " << pos.module_id << ", half-mod " << half_mod_id << std::endl;
+    std::cout << ", module " << pos.module_id << ", half-mod " << half_mod_id;
+    std::cout << ", module chip id " << pos.module_chip_id << std::endl;
 
     mChips.push_back(std::make_shared<Alpide>(chip_name.c_str(),
                                               global_chip_id,
+                                              pos.module_chip_id,
                                               cfg,
                                               true, // Outer barrel mode
                                               false)); // Outer barrel slave
@@ -245,6 +251,10 @@ void HalfModule::addTraces(sc_trace_file *wf, std::string name_prefix) const
 ///           for all the possible sub-positions by this function.
 ///@param position_to_global_chip_id_func Pointer to function used to determine position
 ///                                       based on global chip id
+///@todo This class is created with a control link for each half module, which is technically
+///      wrong. There is one control link per sub-stave in the ITS outer barrel. If the
+///      simulation is going to be used to simulate any kind of busy system where triggers
+///      are withheld, then this  has to be corrected...
 ///@param cfg Detector configuration object
 template <int N_HALF_MODULES>
 MBOBStave<N_HALF_MODULES>::MBOBStave(sc_core::sc_module_name const &name,

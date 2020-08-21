@@ -74,6 +74,7 @@
 #define DEFAULT_PCT_BEAM_TIME_PER_STEP_US "125"
 
 #define DEFAULT_FOCAL_MONTE_CARLO_FILE_PATH "config/monte_carlo_events/focal/pixel_event_tree_pythia_MB_r4cm.root"
+#define DEFAULT_FOCAL_STAVES_PER_QUADRANT "3"
 
 #define DEFAULT_EVENT_RANDOM_HIT_GENERATION "true"
 #define DEFAULT_EVENT_RANDOM_CLUSTER_GENERATION "false"

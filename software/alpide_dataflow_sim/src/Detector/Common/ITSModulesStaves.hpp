@@ -118,9 +118,9 @@ namespace ITS {
         return mChips;
     }
 
-  private:
     ControlResponsePayload processCommand(ControlRequestPayload const &request);
 
+  private:
     std::vector<std::shared_ptr<Alpide>> mChips;
 
     // Distribution of ctrl in half-module

@@ -15,6 +15,7 @@
 #include "AlpideDataWord.hpp"
 #include "alpide_constants.hpp"
 #include <string>
+#include <memory>
 
 // Ignore warnings about use of auto_ptr and unused parameters in SystemC library
 #pragma GCC diagnostic push
@@ -87,9 +88,13 @@ private:
   sc_signal<bool> s_write_dmu_fifo;
 
   // Standard C++ members
-  unsigned int mChipId;
+  unsigned int mGlobalChipId;
+  unsigned int mLocalChipId;
   FrameStartFifoWord mCurrentFrameStartWord;
   FrameEndFifoWord mCurrentFrameEndWord;
+
+  ///@brief Counts of how many data words of each type has been transmitted
+  std::shared_ptr<std::map<AlpideDataType, uint64_t>> mDataWordCount;
 
   /// Indicates that the TRU was/is IDLE
   /// (Used to disable sensitivity to clock to save simulation time);
@@ -113,7 +118,9 @@ private:
   bool getNoRegionsEmpty(void);
 
 public:
-  TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id);
+  TopReadoutUnit(sc_core::sc_module_name name,
+                 const unsigned int global_chip_id, const unsigned int local_chip_id,
+                 std::shared_ptr<std::map<AlpideDataType, uint64_t>> data_word_count);
   void addTraces(sc_trace_file *wf, std::string name_prefix) const;
 };
 

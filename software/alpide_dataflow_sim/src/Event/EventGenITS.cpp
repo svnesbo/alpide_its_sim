@@ -249,6 +249,7 @@ void EventGenITS::initMonteCarloHitGen(const QSettings* settings)
                                       &Focal::Focal_global_chip_id_to_position,
                                       &Focal::Focal_position_to_global_chip_id,
                                       monte_carlo_focal_data_file_str,
+                                      mDetectorConfig.staves_per_quadrant,
                                       random_seed);
 #else
     std::cerr << "Error: Simulation must be compiled with ROOT support for Focal simulation." << std::endl;
@@ -374,7 +375,7 @@ void EventGenITS::initCsvEventFileHeader(const QSettings* settings)
           chip_id++;
         }
       } else if(mSimType == "focal") {
-        for(unsigned int stave_chip = 0; stave_chip < Focal::CHIPS_PER_STAVE_IN_LAYER[layer_id]; stave_chip++) {
+        for(unsigned int stave_chip = 0; stave_chip < Focal::CHIPS_PER_STAVE; stave_chip++) {
           mPhysicsEventsCSVFile << ";chip_" << chip_id;
           chip_id++;
         }
@@ -423,7 +424,7 @@ void EventGenITS::addCsvEventLine(uint64_t t_delta,
     for(unsigned int layer = 0; layer < Focal::N_LAYERS; layer++) {
       unsigned int chip_id = Focal::CUMULATIVE_CHIP_COUNT_AT_LAYER[layer];
       for(unsigned int stave = 0; stave < mDetectorConfig.layer[layer].num_staves; stave++) {
-        for(unsigned int stave_chip = 0; stave_chip < Focal::CHIPS_PER_STAVE_IN_LAYER[layer]; stave_chip++) {
+        for(unsigned int stave_chip = 0; stave_chip < Focal::CHIPS_PER_STAVE; stave_chip++) {
           mPhysicsEventsCSVFile << ";" << chip_hits[chip_id];
           chip_id++;
         }

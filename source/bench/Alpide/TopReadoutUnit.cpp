@@ -12,11 +12,17 @@
 SC_HAS_PROCESS(TopReadoutUnit);
 ///@brief Constructor for TopReadoutUnit
 ///@param[in] name SystemC module name
-///@param[in] chip_id Chip ID number
-TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name, unsigned int chip_id)
+//////@param[in] global_chip_id Global chip ID that uniquely identifies chip in simulation
+///@param[in] local_chip_id Chip ID that identifies chip in the stave or module
+TopReadoutUnit::TopReadoutUnit(sc_core::sc_module_name name,
+                               const unsigned int global_chip_id,
+                               const unsigned int local_chip_id,
+                               std::shared_ptr<std::map<AlpideDataType, uint64_t>> data_word_count)
   : sc_core::sc_module(name)
-  , mChipId(chip_id)
+  , mGlobalChipId(global_chip_id)
+  , mLocalChipId(local_chip_id)
   , mIdle(false)
+  , mDataWordCount(data_word_count)
 {
   s_tru_current_state = IDLE;
   s_tru_next_state = IDLE;
@@ -78,9 +84,11 @@ void TopReadoutUnit::topRegionReadoutStateUpdate(void)
 
     data_out = s_tru_data.read();
 
+    (*mDataWordCount)[data_out.data_type]++;
+
 #ifdef PIXEL_DEBUG
     if(data_out.data_type == ALPIDE_REGION_TRAILER) {
-      std::cerr << "@" << time_now << "ns: Chip " << mChipId;
+      std::cerr << "@" << time_now << "ns: Global chip ID " << mGlobalChipId;
       std::cerr << " TRU: Oops, just read out REGION_TRAILER" << std::endl;
     } else if(data_out.data_type == ALPIDE_DATA_SHORT) {
       auto data_short = static_cast<AlpideDataShort*>(&data_out);
@@ -211,21 +219,21 @@ void TopReadoutUnit::topRegionReadoutOutputNextState(void)
         // Since no frame end word is added in busy violation, we always
         // have to visit this state, and not the normal chip trailer state,
         // even in readout abort (data overrun) mode.
-        s_tru_data = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
+        s_tru_data = AlpideChipHeader(mLocalChipId, mCurrentFrameStartWord);
         s_write_dmu_fifo = true;
         s_tru_next_state = BUSY_VIOLATION;
       } else if(s_readout_abort_in) {
-        s_tru_data = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
+        s_tru_data = AlpideChipHeader(mLocalChipId, mCurrentFrameStartWord);
         s_write_dmu_fifo = true;
         s_tru_next_state = CHIP_TRAILER;
       } else if(!no_regions_valid && no_regions_empty) {
         // Normal data frame
-        s_tru_data = AlpideChipHeader(mChipId, mCurrentFrameStartWord);
+        s_tru_data = AlpideChipHeader(mLocalChipId, mCurrentFrameStartWord);
         s_write_dmu_fifo = true;
         s_tru_next_state = REGION_DATA;
       } else if(no_regions_valid){
         // Empty frame
-        s_tru_data = AlpideChipEmptyFrame(mChipId, mCurrentFrameStartWord);
+        s_tru_data = AlpideChipEmptyFrame(mLocalChipId, mCurrentFrameStartWord);
         s_write_dmu_fifo = true;
         s_tru_next_state = EMPTY;
       }

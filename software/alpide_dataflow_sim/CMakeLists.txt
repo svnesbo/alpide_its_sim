@@ -88,6 +88,7 @@ add_sources(
   src/Detector/ITS/ITSDetectorConfig.cpp
   src/Detector/PCT/PCTDetector.cpp
   src/Detector/PCT/PCTDetectorConfig.cpp
+  src/Detector/Focal/FocalStaves.cpp
   src/Detector/Focal/FocalDetector.cpp
   src/Detector/Focal/FocalDetectorConfig.cpp
   src/ReadoutUnit/ReadoutUnit.cpp
