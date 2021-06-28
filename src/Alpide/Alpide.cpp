@@ -233,6 +233,10 @@ void Alpide::triggerMethod(void)
       E_strobe_interval_done.cancel();
       E_strobe_interval_done.notify(mStrobeLengthNs, SC_NS);
     } else {
+      ///@todo How does the chip actually respond if it receives
+      ///      a trigger when a strobe window is already active?
+      ///      Shouldn't ever happen for a properly configured
+      ///      simulation though, but still..
       mTriggersRejected++;
     }
   }
@@ -365,56 +369,57 @@ void Alpide::strobeInput(void)
     FrameStartFifoWord frame_start_data = {s_busy_violation,
                                            mBunchCounter,
                                            mTrigIdForStrobe};
-
-    int frame_start_fifo_size = s_frame_start_fifo.used();
-    bool frame_start_fifo_empty = !s_frame_start_fifo.nb_can_get();
-    bool frame_start_fifo_full = !s_frame_start_fifo.nb_can_put();
-    bool frame_end_fifo_empty = !s_frame_end_fifo.nb_can_get();
-
     s_busy_violation = false;
+    s_frame_start_fifo.nb_put(frame_start_data);
+  }
 
-    // Once set, we are only allowed to clear the readout_abort signal
-    // (ie go out of data overrun mode) when the frame fifo has been cleared.
-    if(frame_start_fifo_empty && frame_end_fifo_empty) {
-      if(s_readout_abort == true) {
-        std::cout << "@ " << time_now << " ns:\t" << "Alpide global chip ID: " << mGlobalChipId;
-        std::cout << " exited data overrun mode." << std::endl;
-      }
+  // --------------------------------------------------------------------------
+  // Update Frame FIFO busy signals - this check is performed every cycle
+  // --------------------------------------------------------------------------
+  int frame_start_fifo_size = s_frame_start_fifo.used();
+  bool frame_start_fifo_empty = !s_frame_start_fifo.nb_can_get();
+  bool frame_start_fifo_full = !s_frame_start_fifo.nb_can_put();
+  bool frame_end_fifo_empty = !s_frame_end_fifo.nb_can_get();
 
-      s_frame_fifo_busy = false;
-      s_readout_abort = false;
-    } else if(frame_start_fifo_full) {
-      // FATAL, TRU FRAME FIFO will now overflow
-      s_frame_fifo_busy = true;
-      s_readout_abort = true;
-
-      if(s_fatal_state == false) {
-        std::cout << "@ " << time_now << " ns:\t" << "Alpide global chip ID: " << mGlobalChipId;
-        std::cout << " entered fatal mode." << std::endl;
-      }
-
-      ///@todo The FATAL overflow bit/signal has to be cleared by a RORST/GRST command
-      ///      in the Alpide chip, it will not be cleared by automatically.
-      s_fatal_state = true;
-    } else if(frame_start_fifo_size >= TRU_FRAME_FIFO_ALMOST_FULL2) {
-      // DATA OVERRUN MODE
-      ///@todo Need to clear RRU FIFOs, and MEBs when entering this state
-
-      if(s_readout_abort == false) {
-        std::cout << "@ " << time_now << " ns:\t" << "Alpide global chip ID: " << mGlobalChipId;
-        std::cout << " entered data overrun mode." << std::endl;
-      }
-
-      s_frame_fifo_busy = true;
-      s_readout_abort = true;
-    } else if(frame_start_fifo_size >= TRU_FRAME_FIFO_ALMOST_FULL1) {
-      // BUSY
-      s_frame_fifo_busy = true;
-    } else if(!s_readout_abort) {
-      s_frame_fifo_busy = false;
+  // Once set, we are only allowed to clear the readout_abort signal
+  // (ie go out of data overrun mode) when the frame fifo has been cleared.
+  if(frame_start_fifo_empty && frame_end_fifo_empty) {
+    if(s_readout_abort == true) {
+      std::cout << "@ " << time_now << " ns:\t" << "Alpide global chip ID: " << mGlobalChipId;
+      std::cout << " exited data overrun mode." << std::endl;
     }
 
-    s_frame_start_fifo.nb_put(frame_start_data);
+    s_frame_fifo_busy = false;
+    s_readout_abort = false;
+  } else if(frame_start_fifo_full) {
+    // FATAL, TRU FRAME FIFO will now overflow
+    s_frame_fifo_busy = true;
+    s_readout_abort = true;
+
+    if(s_fatal_state == false) {
+      std::cout << "@ " << time_now << " ns:\t" << "Alpide global chip ID: " << mGlobalChipId;
+      std::cout << " entered fatal mode." << std::endl;
+    }
+
+    ///@todo The FATAL overflow bit/signal has to be cleared by a RORST/GRST command
+    ///      in the Alpide chip, it will not be cleared by automatically.
+    s_fatal_state = true;
+  } else if(frame_start_fifo_size >= TRU_FRAME_FIFO_ALMOST_FULL2) {
+    // DATA OVERRUN MODE
+    ///@todo Need to clear RRU FIFOs, and MEBs when entering this state
+
+    if(s_readout_abort == false) {
+      std::cout << "@ " << time_now << " ns:\t" << "Alpide global chip ID: " << mGlobalChipId;
+      std::cout << " entered data overrun mode." << std::endl;
+    }
+
+    s_frame_fifo_busy = true;
+    s_readout_abort = true;
+  } else if(frame_start_fifo_size >= TRU_FRAME_FIFO_ALMOST_FULL1) {
+    // BUSY
+    s_frame_fifo_busy = true;
+  } else if(!s_readout_abort) {
+    s_frame_fifo_busy = false;
   }
 }
 
