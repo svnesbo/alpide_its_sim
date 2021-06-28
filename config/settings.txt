@@ -1,5 +1,5 @@
 [General]
-output_dir_prefix=sim_output_focal_experiment/
+output_dir_prefix=sim_output
 verbose=false
 
 [alpide]
@@ -29,7 +29,7 @@ qed_noise_rate_ns=250
 random_cluster_generation=true
 random_cluster_size_mean=4
 random_cluster_size_stddev=1
-random_hit_generation=false
+random_hit_generation=true
 strobe_active_length_ns=100
 strobe_inactive_length_ns=100
 trigger_delay_ns=930
@@ -76,9 +76,9 @@ random_particles_per_s_stddev=0.5E9
 time_frame_length_ns=10000
 
 [simulation]
-n_events=1000
+n_events=100
 random_seed=1337
 single_chip=false
 system_continuous_mode=true
 system_continuous_period_ns=10000
-type=focal
+type=its

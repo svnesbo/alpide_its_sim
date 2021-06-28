@@ -156,10 +156,13 @@ Alpide::Alpide(sc_core::sc_module_name name, const int global_chip_id, const int
     dont_initialize();
   }
 
+  // Test waht is giong on but whatt
+
   // SC_METHOD(strobeAndFramingMethod);
   // sensitive << s_strobe_n;
   // dont_initialize();
 
+  // Tset test test
 }
 
 

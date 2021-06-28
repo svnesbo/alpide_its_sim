@@ -11,7 +11,7 @@ Instructions from the README on how to build, use and run the code can be found 
 
 [README.md]:(@ref readme)
 
-## Codying style
+## Coding style
 
 Below is a brief description of the coding style used for this code.
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
-set(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/")
+set(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/")
 
 set(SRCS )
 
@@ -23,8 +23,6 @@ endmacro()
 project(AlpideTest)
 include(CTest)
 
-message(${CMAKE_MODULE_PATH})
-
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 #find_package (Boost COMPONENTS random unit_test_framework REQUIRED)
@@ -37,15 +35,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif ()
 
 
-# Set modules used
-set(MODULES
-  Alpide
-  )
-
-
-add_subdirectory("../../../../" "${CMAKE_CURRENT_BINARY_DIR}/alpide")
-
-
 include_directories (../../../../source/bench
   ${SystemC_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
@@ -55,7 +44,13 @@ include_directories (../../../../source/bench
 
 add_sources(
   alpide_test.cpp
-#  ../event/Hit.cpp
+  ../Alpide/Alpide.cpp
+  ../Alpide/EventFrame.cpp
+  ../Alpide/PixelDoubleColumn.cpp
+  ../Alpide/PixelFrontEnd.cpp
+  ../Alpide/PixelMatrix.cpp
+  ../Alpide/RegionReadoutUnit.cpp
+  ../Alpide/TopReadoutUnit.cpp
   ../AlpideDataParser/AlpideDataParser.cpp
   )
 
@@ -74,7 +69,7 @@ add_definitions (-DBOOST_TEST_DYN_LINK)
 #################################################
 set(PIXEL_COL_SRCS
   pixel_col_test.cpp
-  ../../../../source/bench/Alpide/PixelDoubleColumn.cpp)
+  ../Alpide/PixelDoubleColumn.cpp)
 
 
 add_executable(pixel_col_test EXCLUDE_FROM_ALL ${PIXEL_COL_SRCS})
@@ -89,8 +84,8 @@ target_link_libraries (pixel_col_test
 #################################################
 set(PIXEL_MATRIX_SRCS
   pixel_matrix_test.cpp
-  ../../../../source/bench/Alpide/PixelDoubleColumn.cpp
-  ../../../../source/bench/Alpide/PixelMatrix.cpp)
+  ../Alpide/PixelDoubleColumn.cpp
+  ../Alpide/PixelMatrix.cpp)
 
 add_executable(pixel_matrix_test EXCLUDE_FROM_ALL ${PIXEL_MATRIX_SRCS})
 target_link_libraries (pixel_matrix_test
