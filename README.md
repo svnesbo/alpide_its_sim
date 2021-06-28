@@ -1,6 +1,6 @@
 # Getting started - Building and running the code {#readme}
 
-A simple Dataflow SystemC Model of ITS and the Alpide chip. This repo includes the SystemC Alpide module located in source/bench/Alpide, and a standalone simulation program for the Alpide module located in software/alpide_dataflow_sim.
+A SystemC model the Alpide chip with simulations for ITS, FoCal, and the UiB pCT.
 
 ## Building the simulation program
 
@@ -29,8 +29,8 @@ The code has been tested and developed with version 2.3.1 of SystemC. Refer to S
 ### Compiling the code
 
 ```
-mkdir software/alpide_dataflow_sim/build
-cd software/alpide_dataflow_sim/build
+mkdir build
+cd build
 cmake ..
 make
 ```
@@ -60,7 +60,6 @@ make check
 The program expects to find settings files etc in <current working directory>/config, and should preferably be run from the simulation project's top directory:
 
 ```
-cd software/alpide_dataflow_sim/
 bin/alpide_dataflow_model
 ```
 
@@ -71,9 +70,20 @@ Simulation results will be saved in sim_output/Run {timestamp}/
 
 ## To process simulation data:
 
-Analysis of simulation data is currently limited to a simple script which plots distributions of multiplicity and event rates for the events that were generated during the simulation.
+There are some root macros, python scripts and jupyter notebooks to analyze simulated data. Most of them are quite messy and poorly written :/
 
+To compile the root software:
 ```
-cd sim_output/Run {timestamp}/
-root -b -q -l '../../analysis/process_event_data.C+("physics_events_data.csv")'
+mkdir -p analysis/build
+cd analysis/build
+cmake ..
+make
 ```
+
+Use the `process_readout_trigger_stats.C` program to analyze simulation data, generate a root file and some plots.
+
+Run:
+```
+process_readout_trigger_stats --help
+```
+for instructions on how to use it. It should work ok for ITS simulations, but quite possibly not for pCT and FoCal.
