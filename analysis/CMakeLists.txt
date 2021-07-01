@@ -27,6 +27,10 @@ include(${ROOT_USE_FILE})
 find_package(Qt5Core REQUIRED)
 get_target_property(QtCore_location Qt5::Core LOCATION)
 
+#find_package(Boost REQUIRED)
+#if(Boost_FOUND)
+#  include_directories(${Boost_INCLUDE_DIRS})
+#endif()
 
 #include_directories(
 #  ${SystemC_INCLUDE_DIRS}
@@ -52,7 +56,6 @@ macro (add_sources)
 
 include_directories(
   ../src/
-  ../../../source/bench
   )
 
 add_sources(
@@ -76,6 +79,20 @@ add_executable(compare_simulations compare_simulations.C)
 target_link_libraries(compare_simulations ${ROOT_LIBRARIES})
 set_target_properties(compare_simulations PROPERTIES LINKER_LANGUAGE CXX)
 
+add_executable(get_mc_event_multiplicity
+  ../src/Detector/ITS/ITSDetectorConfig.cpp
+  ../src/Event/EventBaseDiscrete.cpp
+  ../src/Event/EventBinaryITS.cpp
+  ../src/Event/EventXMLITS.cpp
+  get_mc_event_multiplicity.C)
+target_link_libraries(get_mc_event_multiplicity Qt5Core ${ROOT_LIBRARIES} boost_random)
+set_target_properties(get_mc_event_multiplicity PROPERTIES LINKER_LANGUAGE CXX)
+qt5_use_modules(get_mc_event_multiplicity Core Xml)
+
+add_executable(plot_mc_event_multiplicity plot_mc_event_multiplicity.C)
+target_link_libraries(plot_mc_event_multiplicity Qt5Core ${ROOT_LIBRARIES} boost_random)
+set_target_properties(plot_mc_event_multiplicity PROPERTIES LINKER_LANGUAGE CXX)
+qt5_use_modules(plot_mc_event_multiplicity Core Xml)
 
 # Focal
 
