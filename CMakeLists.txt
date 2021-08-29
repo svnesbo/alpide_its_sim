@@ -113,13 +113,13 @@ endif()
 # Uncomment to keep track of when pixels are read out from pixel matrix,
 # RRUs, TRU, and finally off the chip. All this debug info is printed to stdout.
 #add_definitions(-DPIXEL_DEBUG)
-add_executable(alpide_dataflow_sim  ${SRCS})
-target_link_libraries(alpide_dataflow_sim ${SystemC_LIBRARIES} pthread boost_random Qt5Core)
-set_target_properties(alpide_dataflow_sim PROPERTIES LINKER_LANGUAGE CXX)
-qt5_use_modules(alpide_dataflow_sim Core Xml)
+add_executable(alpide_its_sim  ${SRCS})
+target_link_libraries(alpide_its_sim ${SystemC_LIBRARIES} pthread boost_random Qt5Core)
+set_target_properties(alpide_its_sim PROPERTIES LINKER_LANGUAGE CXX)
+qt5_use_modules(alpide_its_sim Core Xml)
 
 if(DEFINED ENV{ROOTSYS})
-  target_link_libraries(alpide_dataflow_sim ${ROOT_LIBRARIES})
+  target_link_libraries(alpide_its_sim ${ROOT_LIBRARIES})
   add_definitions(-DROOT_ENABLED)
 endif()
 

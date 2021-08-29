@@ -52,12 +52,12 @@ int sc_main(int argc, char** argv)
 #endif
 
   QCoreApplication app(argc, argv);
-  QCoreApplication::setApplicationName("Alpide Dataflow Simulation");
+  QCoreApplication::setApplicationName("ALPIDE/ITS SystemC simulation");
   QCoreApplication::setApplicationVersion(QString::number(VERSION_MAJOR) + "." +
                                           QString::number(VERSION_MINOR));
 
   QCommandLineParser parser;
-  parser.setApplicationDescription("\nAlpide Dataflow Simulation for the upgraded ITS detector");
+  parser.setApplicationDescription("\nSystemC-based readout simulation of the ALPIDE and ITS upgrade");
 
   // Parse command line and also read default configuration file
   // Returns default settings if configuration file does not exist or is incomplete
