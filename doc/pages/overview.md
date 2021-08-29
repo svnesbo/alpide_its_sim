@@ -1,8 +1,8 @@
-# Alpide Dataflow Model Description
+# Alpide Model Description
 
 The top-level Alpide class inherits from the PixelMatrix class, and it has an instance of the TopReadoutUnit (TRU) class and 32 instances of the RegionReadoutUnit (RRU) class.
 
-At the top-level, and in the TRU and RRU classes, the logic is implemented using a combination of SystemC and regular C++ functions, but mainly SystemC. But the PixelMatrix class and its members are implemented purely in C++. 
+At the top-level, and in the TRU and RRU classes, the logic is implemented using a combination of SystemC and regular C++ functions, but mainly SystemC. But the PixelMatrix class and its members are implemented purely in C++.
 
 ## Alpide
 The Alpide top-level object has an interface that is a combination of SystemC ports and regular C++ functions. It provides a relatively convenient and minimalistic interface for the user, only a few SystemC signals needs to be defined, and setting pixels in the class is done with some pretty straightforward C++ functions.
@@ -31,10 +31,10 @@ Together these functions are responsible for the SystemC part of the implementat
 #### Strobe Input
 The strobeInput() function waits for the strobe to be asserted or deasserted.
 When the strobe is assserted, it tries to allocate a Multi Event Buffer (MEB) for the next event. Depending on how many MEBs are left, and whether the chip is in triggered on continuous mode, the chip may or may not be able to reserve a new MEB slice, in the latter case we would get a busy violation.
-When the strobe is deasserted this function will push the frame start word for this event frame to the frame start FIFO. 
+When the strobe is deasserted this function will push the frame start word for this event frame to the frame start FIFO.
 
 ### Frame Readout
-When there are new events in the Multi Event Buffers, an FSM in this function is responsible for starting readout from the MEB. Fully read out MEB slices are cleared and the event's frame end word is pushed to the frame end FIFO in the REGION_READOUT_DONE state of this FSM. 
+When there are new events in the Multi Event Buffers, an FSM in this function is responsible for starting readout from the MEB. Fully read out MEB slices are cleared and the event's frame end word is pushed to the frame end FIFO in the REGION_READOUT_DONE state of this FSM.
 Together with the frameReadout() function, this function controls framing and readout, and essentially implements the functions of the Framing and ReadOut Management Unit (FROMU) in the real Alpide chip.
 
 @image html ../img/FROMU_FSM.png "Framing and ReadOut Management (FROMU) FSM"
@@ -80,7 +80,7 @@ Perhaps the most cruical state in the regionMatrixReadoutFSM() is the READOUT AN
 @image latex ../img/RRU_pixel_readout.png "RegionReadoutUnit flowchart for pixel readout and clustering in the readoutNextPixel() member function."
 
 ### Region Valid FSM
-The regionValidFSM() is used to determine when there is valid data on the RRU FIFO, and when to pop REGION TRAILER words from the RRU FIFO. A valid signal from the RRU is asserted when there is data available on the RRU FIFO, and it is deasserted when the next word on the RRU FIFO is a REGION TRAILER word. When the region is not valid anymore, the regionValidFSM() waits in the POP state for a pop signal from the TRU, which the TRU issues when no RRUs are valid anymore (ie. the current event has been fully read out from the RRU FIFOs). When the pop signal is asserted the TRU pops the REGION TRAILER word from the FIFO. 
+The regionValidFSM() is used to determine when there is valid data on the RRU FIFO, and when to pop REGION TRAILER words from the RRU FIFO. A valid signal from the RRU is asserted when there is data available on the RRU FIFO, and it is deasserted when the next word on the RRU FIFO is a REGION TRAILER word. When the region is not valid anymore, the regionValidFSM() waits in the POP state for a pop signal from the TRU, which the TRU issues when no RRUs are valid anymore (ie. the current event has been fully read out from the RRU FIFOs). When the pop signal is asserted the TRU pops the REGION TRAILER word from the FIFO.
 Note that the REGION TRAILER word is only used internally in the RRU, and disappears when it is popped. It will not, and should not, appear on the data stream out from the Alpide chip.
 
 

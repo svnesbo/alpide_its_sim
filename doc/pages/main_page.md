@@ -1,8 +1,6 @@
 # Introduction {#mainpage}
 
-This is the Alpide Dataflow Model documentation, a simulation model of the Alpide chip written in C++ and using the SystemC framework.
-
-The simulation model aims to be a fairly accurate model of the Alpide chip's readout chain, but with the performance benefits that C++ and SystemC offer compared to traditional HDL simulations.
+This is the documentation for the SystemC-based simulation of the ALPIDE and ITS. The simulation model aims to be a fairly accurate model of the ALPIDE chip's readout chain, but with the performance benefits that C++ and SystemC offer compared to traditional HDL simulations.
 
 
 ## Building the code and getting started

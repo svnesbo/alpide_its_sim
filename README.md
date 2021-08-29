@@ -60,7 +60,7 @@ make check
 The program expects to find settings files etc in <current working directory>/config, and should preferably be run from the simulation project's top directory:
 
 ```
-bin/alpide_dataflow_model
+bin/alpide_its_sim
 ```
 
 The program requires a settings.txt file with simulation settings. If it does not exist, running the program generates a settings.txt file with default settings. This file can be edited and the simulation rerun to use those settings. The settings.txt file will not be overwritten.
